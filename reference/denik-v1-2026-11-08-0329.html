@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARC Raiders deník</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Chivo:wght@400;600;700&family=Chivo+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Provozní deska Raidera ze Speranzy: tmavý ocelový panel, signální jantar, barvy větví skill tree ze hry.
+     Rozvržení: hlavička se stavem, záložky, pak karty v mřížce. */
+  --bg: #0d0e10;
+  --panel: #15171a;
+  --panel-2: #1c1f23;
+  --line: #2b2f35;
+  --ink: #ece7dc;
+  --muted: #9c978b;
+  --accent: #ffb23f;
+  --good: #4fd18b;
+  --warn: #f2c94c;
+  --bad: #ff5d52;
+  --cond: #3ddc84;
+  --mob: #f5c518;
+  --surv: #ff4d5a;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "Chivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Chivo Mono", ui-monospace, "Cascadia Mono", monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.5 var(--body); min-height: 100%; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font: 800 30px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+h2 { font: 700 22px/1.1 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+h3 { font: 700 15px/1.25 var(--body); }
+small, .muted { color: var(--muted); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.good { color: var(--good); } .bad { color: var(--bad); }
+
+/* ----- hlavička ----- */
+.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+.top::before { content: ""; display: block; height: 4px; background: repeating-linear-gradient(-45deg, var(--accent) 0 10px, #1a1a1a 10px 20px); opacity: .85; }
+#hdr { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; padding: 12px max(16px, 3vw) 8px; }
+.brand { display: flex; gap: 14px; align-items: center; }
+.kicker { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.ring { position: relative; width: 54px; height: 54px; flex: none; }
+.ring svg { width: 100%; height: 100%; }
+.ring-bg { fill: none; stroke: var(--line); stroke-width: 5; }
+.ring-fg { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; }
+.ring span { position: absolute; inset: 0; display: grid; place-items: center; font: 800 20px/1 var(--display); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 92px; }
+.stat > span { font: 500 10.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stat input { width: 100%; max-width: 120px; background: transparent; border: 0; padding: 0; font: 700 18px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.stat input:hover { color: var(--accent); }
+.stat.ro b { font: 700 18px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.stat.sm { min-width: 0; }
+.chip { display: inline-flex; align-items: center; gap: 6px; align-self: center; padding: 5px 10px; border-radius: 999px; font-size: 12.5px; border: 1px solid var(--line); background: var(--panel); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.chip-good .dot { background: var(--good); } .chip-warn .dot { background: var(--warn); } .chip-bad .dot { background: var(--bad); }
+#nav { display: flex; gap: 2px; overflow-x: auto; padding: 0 max(16px, 3vw); scrollbar-width: none; }
+#nav::-webkit-scrollbar { display: none; }
+.tab { flex: none; padding: 9px 12px 10px; color: var(--muted); text-decoration: none; font: 700 14px/1 var(--body); border-bottom: 3px solid transparent; }
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* ----- obsah ----- */
+#main { display: flex; flex-direction: column; gap: 16px; padding: 18px max(16px, 3vw) 48px; max-width: 1400px; margin: 0 auto; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.ch { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.hint { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 80ch; }
+.alert { margin: 0; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--bad) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.foot { color: var(--muted); font-size: 13.5px; margin: 0; }
+.ext { white-space: nowrap; font-weight: 600; }
+.bar { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.bar.good span { background: var(--good); }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--panel-2); white-space: nowrap; }
+.pill-good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.pill-bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.pill-warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.pill-accent { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+.pill-muted { color: var(--muted); }
+.btn { cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #1a1205; font-weight: 700; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover:not(:disabled) { border-color: var(--accent); }
+.btn.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.link { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; text-decoration: underline; font-size: 13px; align-self: flex-start; }
+.link:hover { color: var(--ink); }
+input[type=number], input[type=text], input[type=search], select, textarea { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+textarea { width: 100%; font: 12.5px/1.45 var(--mono); resize: vertical; }
+input[type=search] { min-width: min(320px, 100%); flex: 1; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); vertical-align: top; }
+tr.rec td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+tr.okrow td { color: var(--muted); }
+input.mini { width: 74px; text-align: right; padding: 4px 6px; }
+details summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+
+/* checklisty */
+.checklist { display: flex; flex-direction: column; gap: 2px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px; border-radius: 8px; cursor: pointer; }
+.check:hover { background: var(--panel-2); }
+.check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.check .box { flex: none; width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--line); margin-top: 1px; display: grid; place-items: center; }
+.check input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check.on .box { background: var(--good); border-color: var(--good); }
+.check.on .box::after { content: "✓"; color: #08130d; font-weight: 800; font-size: 13px; }
+.check.on .lbl { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.check .stepn { display: inline-block; min-width: 24px; font: 500 12px/1.6 var(--mono); color: var(--accent); }
+
+/* fáze */
+.phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.phase { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.phase header { display: flex; gap: 10px; align-items: center; }
+.phase header > div { flex: 1; }
+.pnum { font: 800 34px/1 var(--display); color: var(--muted); width: 26px; }
+.phase.current { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+.phase.current .pnum { color: var(--accent); }
+.phase.done .pnum { color: var(--good); }
+.gates { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; }
+.gates li { display: flex; gap: 8px; color: var(--muted); }
+.gates li.ok { color: var(--ink); }
+.gi { width: 14px; flex: none; text-align: center; }
+.gates li.ok .gi { color: var(--good); }
+
+/* dlaždice */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.tile:hover { border-color: var(--accent); }
+.tl { font: 500 10.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tile b { font: 700 20px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+
+/* skill tree */
+.skillbar { flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 12px 24px; }
+.sb-item { display: flex; flex-direction: column; gap: 2px; min-width: 140px; }
+.sb-item > span { font: 500 10.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sb-item b { font: 700 20px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.sb-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-left: auto; }
+.sb-actions .stat input { font-size: 16px; width: 60px; }
+.toggle { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; font-size: 14px; }
+.toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+.tree { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.branch { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--bc); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.branch > header { display: flex; justify-content: space-between; align-items: baseline; }
+.branch > header h3 { font: 700 22px/1 var(--display); text-transform: uppercase; letter-spacing: .03em; color: var(--bc); }
+.branch > header b { font: 800 28px/1 var(--display); color: var(--bc); }
+.tier { display: flex; flex-direction: column; gap: 6px; }
+.tname { font: 500 10.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 0 2px; border-top: 1px solid var(--line); }
+.node { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); }
+.node.has { border-color: color-mix(in srgb, var(--bc) 55%, var(--line)); background: color-mix(in srgb, var(--bc) 9%, var(--panel-2)); }
+.node.full { border-color: var(--bc); }
+.node.planned:not(.has) { border-style: dashed; border-color: color-mix(in srgb, var(--bc) 50%, var(--line)); }
+.node.next { box-shadow: 0 0 0 2px var(--accent); }
+.node.invalid { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel-2)); }
+.nhead { display: flex; justify-content: space-between; gap: 8px; grid-column: 1 / 2; }
+.nname { font-weight: 700; font-size: 14px; }
+.npts { font: 500 13px/1.4 var(--mono); color: var(--muted); white-space: nowrap; }
+.node.has .npts { color: var(--bc); }
+.npts em { font-style: normal; color: var(--accent); margin-left: 4px; }
+.ndesc { grid-column: 1 / 2; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.warnline { display: block; color: var(--bad); font-weight: 600; }
+.nbtns { grid-column: 2 / 3; grid-row: 1 / 3; display: flex; gap: 4px; align-items: center; }
+.nb, .qb { cursor: pointer; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); font-weight: 700; font-size: 16px; line-height: 1; }
+.nb:hover:not(:disabled), .qb:hover { border-color: var(--accent); color: var(--accent); }
+.nb:disabled { opacity: .3; cursor: not-allowed; }
+.tag-next { font: 500 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: 3px 6px; border-radius: 4px; background: var(--accent); color: #1a1205; }
+.plan { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 16px; }
+.plan li { display: flex; gap: 8px; align-items: center; padding: 5px 0; font-size: 14px; }
+.pdot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bc); flex: none; }
+.plan li.done { color: var(--muted); }
+.plan li.done .pdot { background: var(--bc); }
+.plan li.next { font-weight: 700; }
+
+/* workshop */
+.stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.station { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.station.maxed { border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
+.station > header { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.pips { display: flex; gap: 4px; }
+.pip { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; border: 1px solid var(--line); font: 500 11px/1 var(--mono); color: var(--muted); }
+.pip.on { background: var(--accent); border-color: var(--accent); color: #1a1205; }
+.nextlv { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+.mats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mats li { display: flex; justify-content: space-between; gap: 10px; align-items: center; font-size: 14px; }
+.mats li.ok .mname { color: var(--good); }
+.mname small { display: block; font-size: 11.5px; }
+.qty { display: inline-flex; align-items: center; gap: 4px; }
+.qty input { width: 56px; text-align: right; padding: 4px 6px; }
+.need { font: 500 13px/1 var(--mono); color: var(--muted); min-width: 34px; }
+.ampn { font: 800 22px/1 var(--display); min-width: 32px; text-align: center; }
+.maxline { margin: 0; color: var(--good); font-weight: 600; }
+.hunt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* mapy */
+.unlock { width: 100%; min-width: 560px; height: auto; }
+.unlock .grid, .runs .grid { stroke: var(--line); }
+.unlock .axis, .runs .axis { fill: var(--muted); font: 500 11px var(--mono); }
+.unlock .mlabel { fill: var(--muted); font: 600 13px var(--body); }
+.unlock .mlabel.open { fill: var(--ink); }
+.unlock .track { fill: var(--panel-2); }
+.unlock .fill { fill: color-mix(in srgb, var(--accent) 55%, transparent); }
+.unlock .fill.open { fill: color-mix(in srgb, var(--good) 45%, transparent); }
+.unlock .dia { fill: var(--muted); }
+.unlock .dia.open { fill: var(--good); }
+.unlock .nowline { stroke: var(--accent); stroke-dasharray: 4 4; }
+.maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.mapcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.mapcard p { margin: 0; font-size: 14px; }
+.mapcard.locked { opacity: .72; }
+.mapcard header { display: flex; justify-content: space-between; gap: 8px; }
+.diff { color: var(--accent); letter-spacing: 2px; font-size: 12px; }
+.diff i { color: var(--line); font-style: normal; }
+.routes { font-size: 13.5px; }
+.conds { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 20px; margin: 0; }
+.conds dt { font-weight: 700; } .conds dd { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+
+/* money */
+.money-top { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 2fr); gap: 16px; }
+.clock { font: 800 76px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.clock.soon { color: var(--warn); } .clock.late { color: var(--bad); }
+.logform { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+.logform label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.logform input, .logform select { color: var(--ink); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.kpis span { display: block; font: 500 10.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.kpis b { font: 800 30px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.runs { width: 100%; min-width: 480px; height: auto; }
+.runs .okbar { fill: var(--accent); } .runs .deadbar { fill: var(--bad); }
+.legend { margin: 0; font-size: 12.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; } .sw.ok { background: var(--accent); } .sw.dead { background: var(--bad); margin-left: 8px; }
+.routes-wrap { display: grid; grid-template-columns: minmax(220px, 280px) 1fr; gap: 16px; align-items: start; }
+.routepick { display: flex; flex-direction: column; gap: 6px; }
+.rp { cursor: pointer; text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; gap: 2px; }
+.rp:hover { border-color: var(--accent); }
+.rp.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.facts span { display: flex; flex-direction: column; font-weight: 600; font-size: 14px; }
+.facts small { font: 500 10.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+
+/* arc */
+.arcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.arc { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.arc.need { border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
+.arc p { margin: 0; font-size: 14px; color: var(--muted); }
+.drops { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* zbraně */
+.tiers { display: flex; flex-direction: column; gap: 8px; }
+.tierrow { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: center; }
+.tierlbl { font: 800 26px/1 var(--display); text-align: center; padding: 8px 0; border-radius: 8px; color: #111; }
+.t-S { background: var(--accent); } .t-A { background: #d9d2c2; } .t-B { background: #8f897d; } .t-C { background: #5c5850; color: var(--ink); }
+.wchip { display: inline-flex; flex-direction: column; margin: 3px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+.wchip.anti { border-color: color-mix(in srgb, var(--surv) 50%, var(--line)); }
+.wchip small { font-size: 11px; color: var(--surv); }
+.plainlist { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+/* týden */
+.trials { display: flex; flex-direction: column; gap: 8px; }
+.trial { display: flex; gap: 10px; align-items: center; }
+.trial input { flex: 1; }
+.stars { display: flex; gap: 2px; }
+.star { cursor: pointer; background: none; border: 0; font-size: 26px; line-height: 1; color: var(--line); padding: 2px; }
+.star.on { color: var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.danger { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
+
+@media (max-width: 900px) {
+  .tree { grid-template-columns: 1fr; }
+  .money-top, .routes-wrap { grid-template-columns: 1fr; }
+  .routepick { flex-direction: row; overflow-x: auto; }
+  .rp { flex: none; min-width: 200px; }
+}
+@media (max-width: 480px) {
+  h1 { font-size: 24px; }
+  .clock { font-size: 56px; }
+  .stat { min-width: 0; flex: 1 1 40%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div id="hdr"></div>
+  <nav id="nav" aria-label="Sekce"></nav>
+</header>
+<main id="main"></main>
+<script>
+/* ===== Data: ověřená fakta z roadmapy (stav hry 2.0 Frozen Trail, listopad 2026) ===== */
+
+const BRANCHES = [
+  { id: 'c', key: 'cond', name: 'Conditioning', color: 'var(--cond)' },
+  { id: 'm', key: 'mob', name: 'Mobility', color: 'var(--mob)' },
+  { id: 's', key: 'surv', name: 'Survival', color: 'var(--surv)' }
+];
+
+const TIER_NAMES = ['Start', 'Rané skilly', 'Volba po 10 bodech · 1 ze 2', 'Dalších 6 skillů', 'Konec po 30 a 40 bodech · 2 ze 3'];
+
+/* tier: 0 start, 1 rané, 2 volba (exkluzivní), 3 střední, 4 konec (max 2 ze 3) */
+const SKILLS = [
+  { id: 'c_used', b: 'c', t: 0, max: 1, name: 'Used To The Weight', d: 'Štíty tě zpomalují méně' },
+  { id: 'c_breaths', b: 'c', t: 1, max: 5, name: 'Three Deep Breaths', d: 'Rychlejší zotavení po vyčerpání staminy' },
+  { id: 'c_vigorous', b: 'c', t: 1, max: 1, name: 'Vigorous Vaulter', d: 'Vault není zpomalený při vyčerpání' },
+  { id: 'c_mule', b: 'c', t: 1, max: 5, name: 'Stubborn Mule', d: 'Těžký náklad méně brzdí regeneraci staminy' },
+  { id: 'c_vaultcarry', b: 'c', t: 1, max: 1, name: "Vault 'n' Carry", d: 'Vault i s nesenou věcí' },
+  { id: 'c_gallop', b: 'c', t: 2, max: 1, name: "Mule's Gallop", d: 'Sprint i při přetížení' },
+  { id: 'c_feet', b: 'c', t: 2, max: 1, name: 'Back On Your Feet', d: 'Regenerace HP při kritickém zranění (v 2.0 až 40 HP)' },
+  { id: 'c_downed', b: 'c', t: 3, max: 5, name: 'Downed But Determined', d: 'Pomalejší vykrvácení na zemi' },
+  { id: 'c_crawl', b: 'c', t: 3, max: 5, name: 'Crawl Before You Walk', d: 'Rychlejší plazení na zemi' },
+  { id: 'c_shoulders', b: 'c', t: 3, max: 5, name: 'Broad Shoulders', d: '+2 až +10 nosnosti' },
+  { id: 'c_speedy', b: 'c', t: 3, max: 5, name: 'Speedy Mule', d: 'Menší penalizace při silném přetížení' },
+  { id: 'c_arms', b: 'c', t: 3, max: 1, name: 'Loaded Arms', d: 'Držená zbraň se méně počítá do váhy' },
+  { id: 'c_pryer', b: 'c', t: 3, max: 5, name: 'Proficient Pryer', d: 'Rychlejší breaching' },
+  { id: 'c_breach', b: 'c', t: 4, max: 1, name: 'Security Breach', d: 'Otevře Security Lockery' },
+  { id: 'c_bash', b: 'c', t: 4, max: 1, name: 'Weapon Bash', d: 'Úder zbraní' },
+  { id: 'c_rush', b: 'c', t: 4, max: 1, name: 'Bull Rush', d: 'Sprintem se zbraní u sebe odhodíš hráče i ARC' },
+
+  { id: 'm_lungs', b: 'm', t: 0, max: 1, name: 'Youthful Lungs', d: 'Víc max staminy' },
+  { id: 'm_scrambler', b: 'm', t: 1, max: 5, name: 'Sure-Footed Scrambler', d: 'Delší šplhání po svazích ve sprintu' },
+  { id: 'm_roll', b: 'm', t: 1, max: 5, name: 'Ready To Roll', d: 'Větší časové okno pro Recovery Roll' },
+  { id: 'm_climber', b: 'm', t: 1, max: 5, name: 'Nimble Climber', d: 'Rychlejší lezení a vault' },
+  { id: 'm_fight', b: 'm', t: 1, max: 5, name: 'Fight Or Flight', d: 'Stamina zpět při zásahu v boji (s cooldownem)' },
+  { id: 'm_spring', b: 'm', t: 2, max: 1, name: 'Vault Spring', d: 'Skok na konci vaultu' },
+  { id: 'm_vaults', b: 'm', t: 2, max: 1, name: 'Vaults on Vaults on Vaults', d: 'Vault nestojí staminu' },
+  { id: 'm_effortless', b: 'm', t: 3, max: 5, name: 'Effortless Roll', d: 'Úhyb stojí méně staminy' },
+  { id: 'm_slide', b: 'm', t: 3, max: 5, name: 'Slip and Slide', d: 'Delší a rychlejší skluz' },
+  { id: 'm_back', b: 'm', t: 3, max: 1, name: 'Right Back At It', d: 'Rychlejší zotavení po tvrdém dopadu' },
+  { id: 'm_wall', b: 'm', t: 3, max: 5, name: 'Off The Wall', d: 'Delší Wall Leap' },
+  { id: 'm_marathon', b: 'm', t: 3, max: 5, name: 'Marathon Runner', d: 'Pohyb stojí méně staminy' },
+  { id: 'm_swift', b: 'm', t: 3, max: 5, name: 'Swift Start', d: 'Delší zrychlení na začátku sprintu' },
+  { id: 'm_fumes', b: 'm', t: 4, max: 1, name: 'Sprinting On Fumes', d: 'Stamina se ve sprintu úplně nevyčerpá' },
+  { id: 'm_wallrun', b: 'm', t: 4, max: 1, name: 'Wall Run', d: 'Pár kroků po zdi ve sprintu' },
+  { id: 'm_flow', b: 'm', t: 4, max: 1, name: 'In The Flow', d: 'Řetězení pohybů zrychluje a šetří staminu' },
+
+  { id: 's_craft', b: 's', t: 0, max: 1, name: 'In-Round Crafting', d: 'Crafting přímo v raidu' },
+  { id: 's_instincts', b: 's', t: 1, max: 5, name: "Looter's Instincts", d: 'Loot se v kontejneru odhaluje rychleji' },
+  { id: 's_silent', b: 's', t: 1, max: 5, name: 'Silent Scavenger', d: 'Tišší looting' },
+  { id: 's_ankles', b: 's', t: 1, max: 5, name: 'Sturdy Ankles', d: 'Menší poškození pádem' },
+  { id: 's_croucher', b: 's', t: 1, max: 5, name: 'Agile Croucher', d: 'Rychlejší pohyb v předklonu' },
+  { id: 's_quickroll', b: 's', t: 2, max: 1, name: 'Quick Roll', d: 'Rychlejší, levnější a kratší úhyb' },
+  { id: 's_mines', b: 's', t: 2, max: 1, name: 'Minesweeper', d: 'Zneškodníš miny a výbušniny zblízka' },
+  { id: 's_pressure', b: 's', t: 3, max: 5, name: 'Gentle Pressure', d: 'Tišší breaching' },
+  { id: 's_extra', b: 's', t: 3, max: 1, name: 'A Little Extra', d: 'Breaching dává suroviny' },
+  { id: 's_tinker', b: 's', t: 3, max: 1, name: 'Traveling Tinkerer', d: 'Víc věcí na crafting v raidu' },
+  { id: 's_luck', b: 's', t: 3, max: 5, name: "Looter's Luck", d: 'Šance odhalit 2 věci naráz' },
+  { id: 's_landing', b: 's', t: 3, max: 5, name: 'Stylish Landing', d: 'Recovery Roll i z větší výšky' },
+  { id: 's_turtle', b: 's', t: 3, max: 5, name: 'Turtle Crawl', d: 'Méně poškození, když ležíš na zemi' },
+  { id: 's_warrior', b: 's', t: 4, max: 1, name: 'Road Warrior', d: 'Víc munice a Powercellů z ARC, plná recyklace v raidu' },
+  { id: 's_nomadic', b: 's', t: 4, max: 1, name: 'Nomadic Crafting', d: 'Mnohem víc věcí na crafting v raidu' },
+  { id: 's_repair', b: 's', t: 4, max: 1, name: 'Field Repair', d: 'Oprava zbraní, štítů a gadgetů na 30 % v raidu' }
+];
+const SKILL = Object.fromEntries(SKILLS.map(s => [s.id, s]));
+
+/* Doporučená cesta Solo Looter (Conditioning 31 · Mobility 14 · Survival 31). Kroky v pořadí. */
+const PLAN_STEPS = [
+  { id: 's_craft', to: 1 },
+  { id: 's_instincts', to: 5 },
+  { id: 's_silent', to: 4 },
+  { id: 's_quickroll', to: 1 },
+  { reach: 'c', n: 10, prefer: ['c_used', 'c_mule', 'c_breaths', 'c_vigorous', 'c_vaultcarry'] },
+  { id: 'c_feet', to: 1 },
+  { id: 'c_shoulders', to: 5 },
+  { id: 'c_pryer', to: 5 },
+  { id: 'c_arms', to: 1 },
+  { id: 'c_downed', to: 5 },
+  { reach: 'c', n: 30, prefer: ['c_crawl', 'c_speedy', 'c_breaths', 'c_mule'] },
+  { id: 'c_breach', to: 1 },
+  { id: 's_luck', to: 5 },
+  { id: 's_extra', to: 1 },
+  { id: 's_tinker', to: 1 },
+  { id: 's_pressure', to: 5 },
+  { reach: 's', n: 30, prefer: ['s_turtle', 's_silent', 's_ankles', 's_landing', 's_croucher'] },
+  { id: 's_warrior', to: 1 }
+];
+
+const BUILDS = [
+  { name: 'Solo Looter', c: 31, m: 14, s: 31, keys: 'Security Breach, Road Warrior', who: 'Money runy, questy, sólo', rec: true },
+  { name: 'PvP Fighter', c: 31, m: 31, s: 14, keys: 'Fight Or Flight, In The Flow, Weapon Bash', who: 'Agresivní hra proti hráčům' },
+  { name: 'Stamina Runner', c: 19, m: 41, s: 16, keys: 'Sprinting On Fumes, In The Flow, Quick Roll', who: 'Rychlý pohyb a útěky' },
+  { name: 'Team Support', c: 31, m: 4, s: 41, keys: 'Nomadic Crafting, Field Repair, Security Breach', who: 'Hra ve skupině' }
+];
+
+/* ===== Workshop, Scrappy, Outpost, Research Station ===== */
+const STATIONS = [
+  { id: 'gunsmith', name: 'Gunsmith', min: 0, max: 4, role: 'Zbraně a mody', levels: {
+    1: [['Metal Parts', 20], ['Rubber Parts', 30]],
+    2: [['Rusted Tools', 3], ['Mechanical Components', 5], ['Wasp Driver', 8]],
+    3: [['Rusted Gear', 3], ['Advanced Mechanical Components', 5], ['Sentinel Firing Core', 4]],
+    4: [['Radial Press', 3], ['Magnetic Accelerator', 3], ['Emperor Modulator', 1]] },
+    req: { 4: { outpost: 4 } } },
+  { id: 'gear', name: 'Gear Bench', min: 0, max: 3, role: 'Štíty a augmenty', levels: {
+    1: [['Plastic Parts', 25], ['Fabric', 30]],
+    2: [['Power Cable', 3], ['Electrical Components', 5], ['Hornet Driver', 5]],
+    3: [['Industrial Battery', 3], ['Advanced Electrical Components', 5], ['Bastion Cell', 6]] } },
+  { id: 'medical', name: 'Medical Lab', min: 0, max: 3, role: 'Léčení', levels: {
+    1: [['Fabric', 50], ['ARC Alloy', 6]],
+    2: [['Cracked Bioscanner', 2], ['Durable Cloth', 5], ['Tick Pod', 8]],
+    3: [['Rusted Shut Medical Kit', 3], ['Antiseptic', 8], ['Surveyor Vault', 5]] } },
+  { id: 'refiner', name: 'Refiner', min: 0, max: 3, role: 'Komponenty pro ostatní stanice', levels: {
+    1: [['Metal Parts', 60], ['ARC Powercell', 5]],
+    2: [['Toaster', 3], ['ARC Motion Core', 5], ['Fireball Burner', 8]],
+    3: [['Motor', 3], ['ARC Circuitry', 10], ['Bombardier Cell', 6]] } },
+  { id: 'utility', name: 'Utility Station', min: 0, max: 3, role: 'Gadgety', levels: {
+    1: [['Plastic Parts', 50], ['ARC Alloy', 6]],
+    2: [['Damaged Heat Sink', 2], ['Electrical Components', 5], ['Snitch Scanner', 6]],
+    3: [['Fried Motherboard', 3], ['Advanced Electrical Components', 5], ['Leaper Pulse Unit', 4]] } },
+  { id: 'explosives', name: 'Explosives Station', min: 0, max: 3, role: 'Granáty a miny', levels: {
+    1: [['Chemicals', 50], ['ARC Alloy', 6]],
+    2: [['Synthesized Fuel', 3], ['Crude Explosives', 5], ['Pop Trigger', 5]],
+    3: [['Laboratory Reagents', 3], ['Explosive Compound', 5], ['Rocketeer Driver', 3]] } },
+  { id: 'scrappy', name: 'Scrappy', min: 1, max: 5, role: 'Pasivní materiál po každém raidu', levels: {
+    2: [['Dog Collar', 1]],
+    3: [['Lemon', 3], ['Apricot', 3]],
+    4: [['Prickly Pear', 6], ['Olives', 6], ['Cat Bed', 1]],
+    5: [['Mushroom', 12], ['Apricot', 12], ['Very Comfortable Pillow', 3]] } },
+  { id: 'outpost', name: 'Outpost', min: 0, max: 4, role: 'Základna na povrchu, odemyká Research Station', levels: {
+    1: [['Planks', 3], ['Sheet Metal', 5], ['ARC Alloy', 10], ['Advanced Electrical Components', 3]],
+    2: [['Steel Cable', 3], ['Sheet Metal', 20], ['Cable Strippers', 3]],
+    3: [['Epoxy Bucket', 3], ['Planks', 35], ['Hand Drill', 3]],
+    4: [['Sheet Metal', 40], ['Laser Level', 3], ['Insulation Roll', 3]] },
+    req: { 1: { level: 18 } },
+    notes: { 1: 'Sheltered Retreat: vyfoť farmářský dům u Ruined Homestead (Blue Gate), pak 800 damage létajícím ARC a 300 Bullymu.' } },
+  { id: 'research', name: 'Research Station', min: 0, max: 4, role: 'Výzkum blueprintů a Amplified zbraní', levels: {
+    1: [['Mini Pump', 3], ['Planks', 35], ['Battered Paperback', 5]],
+    2: [['Calculator', 3], ['Raider Logbook', 3], ['Skulker Targeter', 5]],
+    3: [['Differential Microphone', 3], ['Exodus Technical Handbook', 3], ['Bully Fragmenter', 6]],
+    4: [['Thermal Shaker', 3], ['ARC Data Module', 3], ['Frigate Inductor', 1]] },
+    req: { 1: { outpost: 1 }, 2: { outpost: 2 }, 3: { outpost: 3 }, 4: { outpost: 4 } },
+    notes: { 1: 'Recept pro level I se ve zdrojích liší, ověř ho ve hře.' } }
+];
+const STATION = Object.fromEntries(STATIONS.map(s => [s.id, s]));
+
+/* Odkud se materiál bere (u ARC dílů ověřené dropy, jinak běžný loot). */
+const SOURCES = {
+  'Wasp Driver': 'ARC: Wasp', 'Hornet Driver': 'ARC: Hornet', 'Fireball Burner': 'ARC: Fireball (v budovách)',
+  'Tick Pod': 'ARC: Tick', 'Snitch Scanner': 'ARC: Snitch', 'Pop Trigger': 'ARC: Pop',
+  'Sentinel Firing Core': 'ARC: Sentinel', 'Bastion Cell': 'ARC: Bastion', 'Bombardier Cell': 'ARC: Bombardier',
+  'Surveyor Vault': 'ARC: Surveyor', 'Leaper Pulse Unit': 'ARC: Leaper', 'Rocketeer Driver': 'ARC: Rocketeer',
+  'ARC Motion Core': 'ARC: Rocketeer, Leaper, Bastion', 'ARC Alloy': 'ARC: většina strojů', 'ARC Powercell': 'ARC: většina strojů',
+  'ARC Circuitry': 'ARC: Bastion', 'Magnetic Accelerator': 'ARC: Queen', 'Skulker Targeter': 'ARC: Skulker',
+  'Bully Fragmenter': 'ARC: Bully', 'Frigate Inductor': 'ARC Frigate', 'Emperor Modulator': 'Uvnitř Emperora (Pendola Pass)',
+  'Steel Cable': 'Pendola Pass: Railyard, Fallen Emperor; nebo Celeste za Assorted Seeds',
+  'Lemon': 'Ovoce, víc při Harvest Season', 'Apricot': 'Ovoce, víc při Harvest Season', 'Prickly Pear': 'Ovoce', 'Olives': 'Ovoce', 'Mushroom': 'Rostliny',
+  'Raider Logbook': 'Research item (100 RP)', 'Exodus Technical Handbook': 'Research item (150 RP)', 'ARC Data Module': 'Research item (200 RP)'
+};
+
+/* ===== Mapy ===== */
+const MAPS = [
+  { id: 'dam', name: 'Dam Battlegrounds', rounds: 0, diff: 2, best: 'Začátek, malí ARC, money runy',
+    places: 'Research & Administration, Old Battleground (Baron Husk), Pale Apartments, Dome, Power Generation Complex',
+    live: 'https://allthings.how/arc-raiders/map/loot-arc/' },
+  { id: 'buried', name: 'Buried City', rounds: 0, diff: 3, best: 'Rostliny (Great Mullein), trinkety, medical',
+    places: 'Space Travel, Research, Hospital, Library, Galleria, JKV, Town Hall (klíčová místnost)',
+    live: 'https://arcraidershub.com/maps/buried-city' },
+  { id: 'spaceport', name: 'Spaceport', rounds: 12, diff: 3, best: 'Tech a industrial loot, questy u Shani',
+    places: 'Departure Building, Arrivals Building, Control Tower A6',
+    live: 'https://arcraidershub.com/maps/spaceport' },
+  { id: 'bluegate', name: 'The Blue Gate', rounds: 18, diff: 4, best: 'Farmy (Fertilizer), quest pro Outpost',
+    places: 'Farmland Village, Ruined Homestead, Checkpoint, Barren Clearing (ARC loot), Ancient Fort',
+    live: 'https://allthings.how/arc-raiders/map/loot-arc/' },
+  { id: 'riven', name: 'Riven Tides', rounds: 20, diff: 5, best: 'Nejtěžší mapa, ARC Turbine, Beachcombing',
+    places: 'Exodus Hotel, pláž a bazén, Harbor Dockyard, Wreckage (ARC loot)',
+    live: 'https://arcraidershub.com/maps/riven-tides' },
+  { id: 'stella', name: 'Stella Montis', rounds: 24, diff: 4, best: 'Interiéry, Shredder (jen tady), peníze',
+    places: 'Assembly, Medical Research, Loading Bay',
+    live: 'https://allthings.how/arc-raiders/map/loot-arc/' },
+  { id: 'pendola', name: 'Pendola Pass', rounds: 25, diff: 3, best: 'Materiály na Outpost, Emperor, Frigate',
+    places: 'Railyard, Cielo Sereno Observatory, Almatera Station, Fallen Emperor, Old Town',
+    live: 'https://allthings.how/arc-raiders/map/loot-arc/' }
+];
+
+const CONDITIONS = [
+  ['Night Raid', 'Lepší loot, víc nepřátel, horší viditelnost. Nejlepší na money runy s gearem.'],
+  ['Lush Blooms', 'Víc vzácných rostlin, ideální pro Buried City Great Mullein run.'],
+  ['Harvest Season', 'Víc ovoce a zeleniny, tedy Scrappy upgrady.'],
+  ['Husk Graveyard', 'Pole zničených ARC s díly bez boje.'],
+  ['Electromagnetic Storm', 'Dobrý pro Trials s létajícími ARC a ARC Probes.'],
+  ['Redirection', 'Jen Pendola Pass: Emperor Payloady pro Gunsmith IV.'],
+  ['Frigate', 'Amplification Modules a Research Points.']
+];
+
+/* ===== Money runy ===== */
+const ROUTES = [
+  { id: 'galleria', name: 'Galleria + JKV', map: 'buried', risk: 'Nízké', loadout: 'Free Loadout', yield: '~30 000 / raid', phase: '1', steps: [
+    'Najdi červeně ohraničenou budovu Space Travel. Cíl je neoznačená budova vedle.',
+    'Vejdi z východu pod nápisem GALLERIA SOLDANELLA, po prvních schodech vyčisti malý turret.',
+    'V prvním patře sklič všechny Great Mullein v květináčích, pak to samé v horním patře.',
+    'Ze střechy najdi budovu s nápisem JKV a vylez po lešení na fasádě do 6. patra.',
+    'Vylootuj dvě místnosti, krumpáčem proraz zabarikádované dveře mezi nimi a vylootuj další dvě a raider bag.',
+    'Extrahuj na nejbližší Metro Station.' ] },
+  { id: 'oldbattle', name: 'Old Battleground', map: 'dam', risk: 'Nízké až střední', loadout: 'Slušná zbraň', yield: 'až ~40 000 / raid', phase: '1–2', steps: [
+    'Jdi do oblasti Old Battleground a vyčisti okolí velkého stroje (Baron Husk).',
+    'Až je bezpečno, breachni ho a vylootuj ARC díly a cennosti.',
+    'Po cestách okolo zachyť ARC Couriery a další cíle s lootem.',
+    'Drž se potichu a vyhýbej se velkým hlídkám ARC.',
+    'S plným batohem a Safe Pocketem jdi k nejbližší extrakci.' ] },
+  { id: 'rna', name: 'Research & Admin lockery', map: 'dam', risk: 'Střední', loadout: 'Zbraň, munice, 3 Light Grenades', yield: '60 000+ / raid', phase: '2–3', steps: [
+    'Najdi nejvyšší budovu Research & Administration a přijď z jihu po modrých kovových schodech.',
+    'Sentinel turret na schodech zničíš asi 3 granáty.',
+    'Nahoře v kanceláři nech šuplíky zatím zavřené, ať nejsi vidět.',
+    'Pravými rohovými dveřmi do chodby, vyčisti malý turret.',
+    'Na konci chodby prohledej všechny lockery v místnostech 1 a 2.',
+    'Vrať se ke křižovatce s Firebally a Ticky, vyčisti ji a vylootuj lockery a místnost 3.',
+    'S těžkým batohem extrahuj, dál už klesá výnos a roste riziko PvP.' ] },
+  { id: 'farmland', name: 'Farmland Village', map: 'bluegate', risk: 'Vyšší (PvP)', loadout: 'Augment se Safe Pocketem', yield: '30 000–60 000 / raid', phase: '2–4', steps: [
+    'Vylootuj všechny budovy a kontejnery ve vesnici: obchody, domy, popelnice.',
+    'Prohledej hromady hlíny na polích, každá dá 3 Fertilizer (stack do 5, ~1 000 / ks).',
+    'Volitelně: průmyslová budova se ziplinem, za breachnutými dveřmi je zaručená bedna se zbraní.',
+    'Extrahuj přes Raider Hatch (s klíčem) nebo nejbližší extrakcí.' ] },
+  { id: 'assembly', name: 'Assembly', map: 'stella', risk: 'Střední', loadout: 'Interiérový loadout', yield: 'neuvedeno', phase: '3–4', steps: [
+    'Priorita Assembly. Záloha: Medical Research (červená zóna), Loading Bay (žlutá).',
+    'Lootuj jen modré a lepší, kolem 10. minuty extrahuj.' ] },
+  { id: 'arrivals', name: 'Arrivals + Control Tower A6', map: 'spaceport', risk: 'Střední', loadout: 'Klíč od Control Tower', yield: 'neuvedeno', phase: '2–4', steps: [
+    'Arrivals Building bývá méně obsazená než Departure Building.',
+    'S klíčem od Control Tower A6 otevřeš další high-tier loot.',
+    'Lootuj jen modré a lepší, kolem 10. minuty extrahuj.' ] }
+];
+
+const SELL = [
+  ['Lance’s Mixtape (5th Edition)', 10000, '0,2 kg, stack do 3, nejlepší cena na váhu'],
+  ['Breathtaking Snow Globe', 7000, 'trinket'],
+  ['Music Box, Playing Cards, Red Coral Jewelry', 5000, 'trinkety'],
+  ['Hodinky, alba, vázy', 3000, 'trinkety, přibližně'],
+  ['Fireball Burner, Hornet Driver, Snitch Scanner', 2000, 'za slot; nejdřív zkontroluj upgrady'],
+  ['Fertilizer', 1000, 'stack do 5'],
+  ['Queen Reactor', 13000, 'potřeba i na Amplified node Charged Burst'],
+  ['Amplification Module Mk. I a Mk. V', 7000, 'duplikát radši recykluj na 7 Amplified Fragments']
+];
+
+/* ===== ARC ===== */
+const ARC = [
+  { name: 'Tick, Pop', tac: 'Malí, stačí melee nebo jakákoli zbraň.', drops: ['Tick Pod', 'Pop Trigger'] },
+  { name: 'Wasp, Hornet', tac: 'Létající drony, miř na trysky.', drops: ['Wasp Driver', 'Hornet Driver'] },
+  { name: 'Snitch', tac: 'Nebojuje, prozradí tě a volá posily. Zabij prvního, miř na trysky.', drops: ['Snitch Scanner'] },
+  { name: 'Fireball', tac: 'Uvnitř budov, plamenomet a hořící podlaha. Drž odstup.', drops: ['Fireball Burner'] },
+  { name: 'Turret, Sentinel', tac: 'Statické a obrněné, ideálně granáty.', drops: ['Sentinel Firing Core'] },
+  { name: 'Surveyor', tac: 'Sbírej z něj Surveyor Vault na Medical Lab 3.', drops: ['Surveyor Vault', 'ARC Alloy', 'ARC Powercell'] },
+  { name: 'Leaper', tac: 'Slabý na oheň (Blaze Grenade). Schovej se do budovy, kam se nevejde.', drops: ['Leaper Pulse Unit', 'ARC Motion Core'] },
+  { name: 'Rocketeer', tac: 'Trysky, potřebuje hodně damage. Wolfpack a Hullcracker.', drops: ['Rocketeer Driver', 'ARC Motion Core'] },
+  { name: 'Bastion', tac: 'Zadní plát a klouby nohou. Jeden odláká, ostatní bijí klouby.', drops: ['Bastion Cell', 'ARC Circuitry', 'ARC Motion Core'] },
+  { name: 'Bombardier', tac: 'Stejné slabiny jako Bastion, bez pancíře na těle. Nejdřív Spottery, pak kryt se střechou.', drops: ['Bombardier Cell'] },
+  { name: 'Queen', tac: 'Klouby nohou a jádro na hlavě během laseru. Tým, launchery, EMP.', drops: ['Queen Reactor', 'Magnetic Accelerator'] },
+  { name: 'Matriarch', tac: 'Klouby a jádro hlavy, Equalizer.', drops: [] },
+  { name: 'Bully (2.0)', tac: 'Rychlý a agresivní. Bij z krytu, ze dveří nebo ze střechy.', drops: ['Bully Fragmenter'] },
+  { name: 'Skulker (2.0)', tac: 'Útočí z okraje zorného pole a ustupuje. Neustále se rozhlížej.', drops: ['Skulker Targeter'] },
+  { name: 'Hydra (2.0)', tac: 'Třídílná věž na Frigate, sekce střílejí nezávisle. Rozdělte si je.', drops: [] }
+];
+
+/* ===== Zbraně ===== */
+const TIERS = [
+  ['S', ['Vulcano', 'Bobcat', 'Tempest', 'Canto', 'Dolabra', 'Renegade']],
+  ['A', ['Stitcher', 'Anvil', 'Il Toro', 'Osprey', 'Burletta', 'Jupiter', 'Bantam', 'Stiletto']],
+  ['B', ['Ferro', 'Arpeggio', 'Venator', 'Kettle']],
+  ['C', ['Aphelion', 'Bettina', 'Torrente', 'Rattler', 'Equalizer', 'Hairpin', 'Hullcracker', 'Rascal']]
+];
+const ANTI_ARC = ['Equalizer', 'Jupiter', 'Hullcracker', 'Bettina', 'Renegade'];
+const WEAPON_PHASES = [
+  ['1', 'lvl 1–10', 'Co dá Free Loadout, Rattler III z prvního questu', 'Ferro'],
+  ['2', 'lvl 10–20', 'Il Toro, Stitcher, Burletta', 'Stiletto'],
+  ['3', 'lvl 20–45', 'Tempest, Canto, Bobcat, Bantam', 'Jupiter, Hullcracker, Renegade'],
+  ['4', 'lvl 45–75', 'Vulcano, Dolabra', 'Equalizer, Amplified Anvil nebo Jupiter']
+];
+
+/* ===== Checklisty ===== */
+const NEXT_STEPS = [
+  'Otevři záložku Outpost, Sheltered Retreat máš dostupný od levelu 18.',
+  'Kup Advanced Camera u Shani za 3 000 coinů, dej ji do Safe Pocketu a vyfoť farmářský dům u Ruined Homestead (Blue Gate).',
+  'Ve Workshopu trackuj materiály pro Gunsmith 2 a Gear Bench 2.',
+  'Odehraj 2–3 raidy na lov malých ARC: Wasp, Hornet a Snitch venku, Fireball, Tick a Pop v budovách.',
+  'Postav Gunsmith 2, pak Gear Bench 2, pak Refiner 2.',
+  'Dokonči Sheltered Retreat: materiály a pak damage létajícím ARC a Bullymu.',
+  'Scrappy 3 za 3 Lemon a 3 Apricot.',
+  'Medical Lab 2, Utility Station 2, Explosives Station 2.',
+  'Každý týden splň Trials na 3 hvězdy.',
+  'Když coiny klesnou pod 50 000, dej money run Galleria + JKV s Free Loadoutem.'
+];
+
+const RAID_CHECK = [
+  'Vzal jsem všechny nové questy u všech traderů',
+  'Vím, které questy, Trials a Feats splním na téhle mapě',
+  'Zkontroloval jsem podmínku mapy',
+  'Mám trackované materiály na další upgrade',
+  'Batoh je prázdný, Safe Pocket volný',
+  'Mám plán trasy a dvě možné extrakce',
+  'Na money run mám Raider Hatch Key',
+  'Zbraň a štít mají dost durability'
+];
+
+const DOC_URL = 'https://claude.ai/artifact/8y6ntHGvzvv9MiA5Wu22Pd';
+
+/* ===== Čistá logika (testovatelná bez prohlížeče) ===== */
+
+const DEFAULT_STATE = () => ({
+  v: 1,
+  profile: { level: 1, coins: 0, rounds: 0, expBonus: 0, rewardPass: 0 },
+  skills: { cur: {}, showPlan: true },
+  stations: { gunsmith: 0, gear: 0, medical: 0, refiner: 0, utility: 0, explosives: 0, scrappy: 1, outpost: 0, research: 0 },
+  inv: {},
+  steps: {},
+  runs: [],
+  trials: { week: '', stars: [0, 0, 0, 0, 0], names: ['', '', '', '', ''] },
+  raid: {},
+  amplified: 0,
+  updated: 0
+});
+
+function clampInt(v, lo, hi) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return lo;
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function normalize(raw) {
+  const d = DEFAULT_STATE();
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const out = d;
+  if (r.profile && typeof r.profile === 'object') {
+    out.profile.level = clampInt(r.profile.level ?? d.profile.level, 0, 75);
+    out.profile.coins = clampInt(r.profile.coins ?? 0, 0, 1e10);
+    out.profile.rounds = clampInt(r.profile.rounds ?? 0, 0, 100000);
+    out.profile.expBonus = clampInt(r.profile.expBonus ?? 0, 0, 15);
+    out.profile.rewardPass = clampInt(r.profile.rewardPass ?? 0, 0, 60);
+  }
+  if (r.skills && typeof r.skills === 'object') {
+    const cur = {};
+    for (const [k, v] of Object.entries(r.skills.cur || {})) {
+      if (SKILL[k]) { const n = clampInt(v, 0, SKILL[k].max); if (n > 0) cur[k] = n; }
+    }
+    out.skills.cur = cur;
+    out.skills.showPlan = r.skills.showPlan !== false;
+  }
+  if (r.stations && typeof r.stations === 'object') {
+    for (const st of STATIONS) {
+      if (r.stations[st.id] !== undefined) out.stations[st.id] = clampInt(r.stations[st.id], st.min, st.max);
+    }
+  }
+  if (r.inv && typeof r.inv === 'object') {
+    for (const [k, v] of Object.entries(r.inv)) { const n = clampInt(v, 0, 99999); if (n > 0) out.inv[String(k).slice(0, 80)] = n; }
+  }
+  if (r.steps && typeof r.steps === 'object') {
+    for (const [k, v] of Object.entries(r.steps)) if (v === true && Number(k) >= 0 && Number(k) < NEXT_STEPS.length) out.steps[k] = true;
+  }
+  if (Array.isArray(r.runs)) {
+    out.runs = r.runs.filter(x => x && typeof x === 'object').slice(-400).map(x => ({
+      id: String(x.id || Math.random().toString(36).slice(2, 10)).slice(0, 24),
+      ts: clampInt(x.ts || 0, 0, 9e15),
+      map: MAPS.some(m => m.id === x.map) ? x.map : 'dam',
+      route: String(x.route || '').slice(0, 24),
+      ok: x.ok !== false,
+      coins: clampInt(x.coins || 0, 0, 1e8),
+      min: Math.max(0, Math.min(120, Number(x.min) || 0))
+    }));
+  }
+  if (r.trials && typeof r.trials === 'object') {
+    out.trials.week = String(r.trials.week || '').slice(0, 10);
+    out.trials.stars = [0, 1, 2, 3, 4].map(i => clampInt((r.trials.stars || [])[i] || 0, 0, 3));
+    out.trials.names = [0, 1, 2, 3, 4].map(i => String((r.trials.names || [])[i] || '').slice(0, 80));
+  }
+  if (r.raid && typeof r.raid === 'object') {
+    for (const [k, v] of Object.entries(r.raid)) if (v === true && Number(k) >= 0 && Number(k) < RAID_CHECK.length) out.raid[k] = true;
+  }
+  out.amplified = clampInt(r.amplified || 0, 0, 99);
+  out.updated = clampInt(r.updated || 0, 0, 9e15);
+  return out;
+}
+
+/* ----- Skill tree ----- */
+function pointsIn(cur, b, opts) {
+  let n = 0;
+  for (const s of SKILLS) {
+    if (s.b !== b) continue;
+    if (opts && opts.excludeEnd && s.t === 4) continue;
+    if (opts && opts.except && s.id === opts.except) continue;
+    n += cur[s.id] || 0;
+  }
+  return n;
+}
+function totalPoints(cur) { return SKILLS.reduce((a, s) => a + (cur[s.id] || 0), 0); }
+function budget(profile) { return (profile.level || 0) + 1 + (profile.expBonus || 0); }
+function choiceTaken(cur, b) { return SKILLS.some(s => s.b === b && s.t === 2 && (cur[s.id] || 0) > 0); }
+function endTaken(cur, b) { return SKILLS.filter(s => s.b === b && s.t === 4 && (cur[s.id] || 0) > 0).length; }
+
+/* Proč nejde přidat bod (nebo null, když jde). */
+function addBlock(cur, id, profile) {
+  const s = SKILL[id];
+  const have = cur[id] || 0;
+  if (have >= s.max) return 'Maximum';
+  if (totalPoints(cur) >= budget(profile)) return 'Nemáš volný bod';
+  const start = SKILLS.find(x => x.b === s.b && x.t === 0);
+  if (s.t >= 1 && !(cur[start.id] > 0)) return 'Nejdřív ' + start.name;
+  if (s.t === 2) {
+    if (choiceTaken(cur, s.b)) return 'Volba už je vybraná';
+    if (pointsIn(cur, s.b) < 10) return 'Potřebuješ 10 bodů ve větvi';
+  }
+  if (s.t === 3 && !choiceTaken(cur, s.b)) return 'Nejdřív volba po 10 bodech';
+  if (s.t === 4) {
+    const taken = endTaken(cur, s.b);
+    if (taken >= 2) return 'Už máš 2 ze 3';
+    const pts = pointsIn(cur, s.b, { excludeEnd: true });
+    if (taken === 0 && pts < 30) return 'Potřebuješ 30 bodů ve větvi';
+    if (taken === 1 && pts < 40) return 'Na druhý potřebuješ 40 bodů';
+  }
+  return null;
+}
+
+/* Neplatné uzly po odebrání bodů. */
+function invalidNodes(cur) {
+  const bad = {};
+  for (const b of ['c', 'm', 's']) {
+    const start = SKILLS.find(x => x.b === b && x.t === 0);
+    const hasStart = (cur[start.id] || 0) > 0;
+    const noEnd = pointsIn(cur, b, { excludeEnd: true });
+    for (const s of SKILLS.filter(x => x.b === b && (cur[x.id] || 0) > 0)) {
+      if (s.t >= 1 && !hasStart) bad[s.id] = 'Chybí ' + start.name;
+      else if (s.t === 2 && pointsIn(cur, b, { except: s.id, excludeEnd: true }) < 10) bad[s.id] = 'Ve větvi je méně než 10 bodů';
+      else if (s.t === 3 && !choiceTaken(cur, b)) bad[s.id] = 'Chybí volba po 10 bodech';
+      else if (s.t === 4) {
+        const ends = endTaken(cur, b);
+        if (ends > 2) bad[s.id] = 'Víc než 2 koncové skilly';
+        else if (noEnd < (ends === 2 ? 40 : 30)) bad[s.id] = ends === 2 ? 'Na 2 koncové skilly je potřeba 40 bodů' : 'Ve větvi je méně než 30 bodů';
+      }
+    }
+    const choices = SKILLS.filter(x => x.b === b && x.t === 2 && (cur[x.id] || 0) > 0);
+    if (choices.length > 1) choices.forEach(x => { bad[x.id] = 'Volba může být jen jedna'; });
+  }
+  return bad;
+}
+
+/* Cílový strom podle plánu (pro zobrazení cílů u uzlů). */
+function planTarget(cur) {
+  const sim = Object.assign({}, cur);
+  const target = Object.assign({}, cur);
+  for (const st of PLAN_STEPS) {
+    if (st.id) { target[st.id] = Math.max(target[st.id] || 0, st.to); sim[st.id] = Math.max(sim[st.id] || 0, st.to); }
+    else {
+      let guard = 0;
+      while (pointsIn(sim, st.reach, { excludeEnd: true }) < st.n && guard++ < 60) {
+        const pick = st.prefer.find(id => (sim[id] || 0) < SKILL[id].max);
+        if (!pick) break;
+        sim[pick] = (sim[pick] || 0) + 1; target[pick] = sim[pick];
+      }
+    }
+  }
+  return target;
+}
+
+/* Další doporučený bod podle plánu, nebo null když je plán hotový. */
+function nextPlanPoint(cur) {
+  for (let i = 0; i < PLAN_STEPS.length; i++) {
+    const st = PLAN_STEPS[i];
+    if (st.id) {
+      if ((cur[st.id] || 0) < st.to) return { id: st.id, step: i, have: cur[st.id] || 0, to: st.to };
+    } else if (pointsIn(cur, st.reach, { excludeEnd: true }) < st.n) {
+      const pick = st.prefer.find(id => (cur[id] || 0) < SKILL[id].max);
+      if (pick) return { id: pick, step: i, have: cur[pick] || 0, to: (cur[pick] || 0) + 1, reach: st };
+    }
+  }
+  return null;
+}
+
+/* Kroky plánu se stavem (hotovo / další / čeká). */
+function planProgress(cur) {
+  const next = nextPlanPoint(cur);
+  return PLAN_STEPS.map((st, i) => {
+    let done;
+    if (st.id) done = (cur[st.id] || 0) >= st.to;
+    else done = pointsIn(cur, st.reach, { excludeEnd: true }) >= st.n;
+    const label = st.id ? SKILL[st.id].name + (SKILL[st.id].max > 1 ? ' na ' + st.to : '')
+      : 'Doplnit ' + BRANCHES.find(b => b.id === st.reach).name + ' na ' + st.n + ' bodů';
+    return { i, label, done, next: !!next && next.step === i, branch: st.id ? SKILL[st.id].b : st.reach };
+  });
+}
+
+/* ----- Workshop ----- */
+function nextNeeds(state) {
+  const out = [];
+  for (const st of STATIONS) {
+    const lvl = state.stations[st.id];
+    const nxt = lvl + 1;
+    if (nxt > st.max || !st.levels[nxt]) continue;
+    out.push({ station: st, level: nxt, mats: st.levels[nxt], block: reqBlock(state, st, nxt) });
+  }
+  return out;
+}
+function reqBlock(state, st, lvl) {
+  const r = st.req && st.req[lvl];
+  if (!r) return null;
+  if (r.outpost && state.stations.outpost < r.outpost) return 'Vyžaduje Outpost ' + r.outpost;
+  if (r.level && state.profile.level < r.level) return 'Vyžaduje level ' + r.level;
+  return null;
+}
+function readiness(state, mats) {
+  let have = 0, need = 0;
+  for (const [m, n] of mats) { need += n; have += Math.min(n, state.inv[m] || 0); }
+  return need ? have / need : 1;
+}
+function shopping(state) {
+  const agg = {};
+  for (const nn of nextNeeds(state)) {
+    for (const [m, n] of nn.mats) {
+      if (!agg[m]) agg[m] = { mat: m, need: 0, uses: [] };
+      agg[m].need += n;
+      agg[m].uses.push(nn.station.name + ' ' + nn.level);
+    }
+  }
+  return Object.values(agg).map(x => {
+    const have = state.inv[x.mat] || 0;
+    const src = SOURCES[x.mat] || 'Loot';
+    return Object.assign(x, { have, missing: Math.max(0, x.need - have), src, arc: src.startsWith('ARC') });
+  }).sort((a, b) => (b.arc - a.arc) || (b.missing - a.missing) || a.mat.localeCompare(b.mat));
+}
+function workshopProgress(state) {
+  const core = ['gunsmith', 'gear', 'medical', 'refiner', 'utility', 'explosives'];
+  const now = core.reduce((a, id) => a + state.stations[id], 0) + state.stations.scrappy + state.stations.outpost + state.stations.research;
+  const max = core.reduce((a, id) => a + STATION[id].max, 0) + 5 + 4 + 4;
+  return { now, max };
+}
+
+/* ----- Fáze roadmapy ----- */
+function phases(state) {
+  const s = state.stations, p = state.profile, cur = state.skills.cur;
+  const anyEnd = ['c', 'm', 's'].some(b => endTaken(cur, b) > 0);
+  const gate = (label, ok) => ({ label, ok: !!ok });
+  const list = [
+    { n: 1, name: 'Přežít a postavit základ', lv: '1–10', gates: [
+      gate('12 odehraných kol (Spaceport)', p.rounds >= 12),
+      gate('Gunsmith, Gear Bench, Medical Lab, Refiner na 1', s.gunsmith >= 1 && s.gear >= 1 && s.medical >= 1 && s.refiner >= 1),
+      gate('Scrappy na 2', s.scrappy >= 2) ] },
+    { n: 2, name: 'Všechny mapy a Outpost', lv: '10–20', gates: [
+      gate('Level 20', p.level >= 20),
+      gate('25 odehraných kol (všech 7 map)', p.rounds >= 25),
+      gate('Gunsmith, Gear Bench, Refiner, Medical Lab na 2', s.gunsmith >= 2 && s.gear >= 2 && s.refiner >= 2 && s.medical >= 2),
+      gate('Scrappy na 3', s.scrappy >= 3),
+      gate('Outpost odemčený', s.outpost >= 1) ] },
+    { n: 3, name: 'Stanice na maximum', lv: '20–45', gates: [
+      gate('Všech 6 stanic na 3', ['gunsmith', 'gear', 'medical', 'refiner', 'utility', 'explosives'].every(id => s[id] >= 3)),
+      gate('Scrappy na 5', s.scrappy >= 5),
+      gate('Outpost 2 a Research Station II', s.outpost >= 2 && s.research >= 2),
+      gate('První capstone ve skill tree', anyEnd) ] },
+    { n: 4, name: 'Gunsmith IV a Amplified', lv: '45–75', gates: [
+      gate('Level 75', p.level >= 75),
+      gate('Outpost 4 a Research Station IV', s.outpost >= 4 && s.research >= 4),
+      gate('Gunsmith IV', s.gunsmith >= 4),
+      gate('První Amplified zbraň', state.amplified >= 1) ] }
+  ];
+  let current = 5;
+  for (const ph of list) { ph.done = ph.gates.every(g => g.ok); if (!ph.done && current === 5) current = ph.n; }
+  list.forEach(ph => { ph.current = ph.n === current; });
+  return { list, current };
+}
+
+/* ----- Mapy ----- */
+function mapStatus(rounds) {
+  return MAPS.map(m => ({ map: m, open: rounds >= m.rounds, left: Math.max(0, m.rounds - rounds) }));
+}
+
+/* ----- Money ----- */
+function runStats(runs) {
+  const n = runs.length;
+  const ok = runs.filter(r => r.ok).length;
+  const coins = runs.reduce((a, r) => a + (r.ok ? r.coins : 0), 0);
+  const minutes = runs.reduce((a, r) => a + (r.min || 0), 0);
+  const perHour = minutes > 0 ? Math.round(coins / minutes * 60) : 0;
+  const byRoute = {};
+  for (const r of runs) {
+    const k = r.route || '—';
+    if (!byRoute[k]) byRoute[k] = { route: k, n: 0, ok: 0, coins: 0, min: 0 };
+    const b = byRoute[k]; b.n++; if (r.ok) { b.ok++; b.coins += r.coins; } b.min += r.min || 0;
+  }
+  const routes = Object.values(byRoute).map(b => Object.assign(b, { perHour: b.min > 0 ? Math.round(b.coins / b.min * 60) : 0, rate: b.n ? b.ok / b.n : 0 }))
+    .sort((a, b) => b.perHour - a.perHour);
+  return { n, ok, rate: n ? ok / n : 0, coins, minutes, perHour, avg: ok ? Math.round(coins / ok) : 0, routes };
+}
+
+/* ----- Týden (ISO) ----- */
+function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return d.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
+}
+
+function resetCost(cur) { return totalPoints(cur) * 2000; }
+
+/* ===== UI ===== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = n => Math.round(Number(n) || 0).toLocaleString('cs-CZ');
+const pct = x => Math.round(x * 100) + ' %';
+const branchOf = id => BRANCHES.find(b => b.id === id);
+
+let state = DEFAULT_STATE();
+let dirty = false;
+let ui = { arcQuery: '', arcNeeded: false, route: 'galleria', routeChecks: {}, logMap: 'buried', logRoute: 'galleria', confirmReset: false, importMsg: '', exportShown: false };
+
+const VIEWS = [
+  ['prehled', 'Přehled'], ['skilly', 'Skill tree'], ['workshop', 'Workshop'], ['nakupy', 'Nákupy'],
+  ['mapy', 'Mapy'], ['money', 'Money runy'], ['arc', 'ARC'], ['zbrane', 'Zbraně'], ['tyden', 'Týden'], ['data', 'Data']
+];
+const currentView = () => { const h = (location.hash || '').slice(1); return VIEWS.some(v => v[0] === h) ? h : 'prehled'; };
+
+/* ----- Ukládání ----- */
+let docRef = null, saving = false, pendingSave = false, saveTimer = null, lastSavedJSON = '', storeMode = 'local', readOnly = false;
+const LS_KEY = 'arc-denik-cache-v1';
+function cacheLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* bez úložiště */ } }
+function loadLocal() { try { const t = localStorage.getItem(LS_KEY); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+function setStore(mode) { storeMode = mode; const el = $('#store'); if (el) el.outerHTML = storeChip(); }
+function storeChip() {
+  const map = {
+    local: ['Ukládá se jen v tomto prohlížeči', 'warn'], loading: ['Načítám tvoje data…', 'muted'], slow: ['Data zatím nedorazila, zkus to za chvíli', 'warn'],
+    db: ['Uloženo v aplikaci', 'good'], saving: ['Ukládám…', 'muted'], readonly: ['Jen pro čtení', 'warn'], error: ['Uložení selhalo, zkus akci znovu', 'bad']
+  };
+  const [t, c] = map[storeMode] || map.local;
+  return `<span id="store" class="chip chip-${c}"><span class="dot"></span>${esc(t)}</span>`;
+}
+
+function commit(opts) {
+  state.updated = Date.now();
+  dirty = true;
+  cacheLocal();
+  if (!opts || opts.render !== false) render();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 900);
+}
+async function flush() {
+  if (!docRef || readOnly) { dirty = false; return; }
+  if (saving) { pendingSave = true; return; }
+  const json = JSON.stringify(state);
+  if (json === lastSavedJSON) { dirty = false; return; }
+  saving = true; setStore('saving');
+  try {
+    await docRef.set(JSON.parse(json));
+    lastSavedJSON = json; setStore('db');
+  } catch (e) {
+    const code = e && e.code;
+    if (code === 'invalid_argument' || code === 'not_granted') { readOnly = true; setStore('readonly'); }
+    else if (code === 'unavailable') { saving = false; setTimeout(flush, 1200 + Math.random() * 1200); return; }
+    else setStore('error');
+  }
+  saving = false; dirty = false;
+  if (pendingSave) { pendingSave = false; flush(); }
+}
+async function initStore() {
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch (e) { db = null; }
+  if (!db) { setStore('local'); return; }
+  try { docRef = db.doc('tracker/state'); } catch (e) { setStore('local'); return; }
+  setStore('loading');
+  let timer = setTimeout(() => { if (storeMode === 'loading') setStore('slow'); }, 10000);
+  docRef.onSnapshot(snap => {
+    if (snap.metadata && !snap.metadata.fromCache && timer) { clearTimeout(timer); timer = null; }
+    if (snap.metadata && snap.metadata.hasPendingWrites) return;
+    if (storeMode === 'loading' || storeMode === 'slow') setStore('db');
+    if (!snap.exists) return;
+    const json = JSON.stringify(snap.data());
+    if (json === lastSavedJSON || dirty) return;
+    lastSavedJSON = json;
+    state = normalize(JSON.parse(json));
+    rollWeek(false);
+    cacheLocal();
+    render();
+  }, () => { if (timer) { clearTimeout(timer); timer = null; } setStore('local'); });
+}
+
+function rollWeek(save) {
+  const wk = isoWeek(new Date());
+  if (state.trials.week !== wk) {
+    state.trials.week = wk; state.trials.stars = [0, 0, 0, 0, 0];
+    if (save) commit({ render: false });
+  }
+}
+
+/* ----- Malé stavební kousky ----- */
+const bar = (x, cls) => `<div class="bar ${cls || ''}"><span style="width:${Math.max(0, Math.min(100, x * 100)).toFixed(1)}%"></span></div>`;
+const check = (act, key, on, label, extra) => `<label class="check ${on ? 'on' : ''}"><input type="checkbox" data-act="${act}" data-k="${esc(key)}" ${on ? 'checked' : ''}><span class="box" aria-hidden="true"></span><span class="lbl">${label}</span>${extra || ''}</label>`;
+const ext = (href, text) => `<a class="ext" href="${esc(href)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`;
+
+/* ----- Hlavička ----- */
+function renderHeader() {
+  const p = state.profile, cur = state.skills.cur;
+  const used = totalPoints(cur), bud = budget(p);
+  const ph = phases(state);
+  const pctLvl = Math.min(1, p.level / 75);
+  const R = 26, C = 2 * Math.PI * R;
+  return `
+  <div class="brand">
+    <div class="ring" title="Level ${p.level} ze 75">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="${R}" class="ring-bg"/><circle cx="32" cy="32" r="${R}" class="ring-fg" stroke-dasharray="${(C * pctLvl).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 32 32)"/></svg>
+      <span>${p.level}</span>
+    </div>
+    <div>
+      <div class="kicker">ARC Raiders · 2.0 Frozen Trail</div>
+      <h1>Raiderův deník</h1>
+    </div>
+  </div>
+  <div class="stats">
+    <label class="stat"><span>Level</span><input id="in-level" type="number" min="0" max="75" value="${p.level}" data-bind="profile.level"></label>
+    <label class="stat"><span>Coiny</span><input id="in-coins" type="number" min="0" step="1000" value="${p.coins}" data-bind="profile.coins"></label>
+    <label class="stat"><span>Odehraná kola</span><input id="in-rounds" type="number" min="0" value="${p.rounds}" data-bind="profile.rounds"></label>
+    <div class="stat ro"><span>Skill body</span><b class="${used > bud ? 'bad' : ''}">${used} / ${bud}</b></div>
+    <div class="stat ro"><span>Fáze</span><b>${ph.current > 4 ? 'Endgame' : ph.current + ' / 4'}</b></div>
+    ${storeChip()}
+  </div>`;
+}
+
+function renderNav() {
+  const v = currentView();
+  return VIEWS.map(([id, name]) => `<a href="#${id}" class="tab ${v === id ? 'active' : ''}" ${v === id ? 'aria-current="page"' : ''}>${name}</a>`).join('');
+}
+
+/* ----- Přehled ----- */
+function viewPrehled() {
+  const ph = phases(state);
+  const nx = nextPlanPoint(state.skills.cur);
+  const free = budget(state.profile) - totalPoints(state.skills.cur);
+  const needs = nextNeeds(state).filter(n => !n.block).map(n => Object.assign(n, { r: readiness(state, n.mats) })).sort((a, b) => b.r - a.r);
+  const top = needs[0];
+  const ms = mapStatus(state.profile.rounds);
+  const open = ms.filter(m => m.open).length;
+  const nextMap = ms.find(m => !m.open);
+  const rs = runStats(state.runs);
+  const stars = state.trials.stars.reduce((a, b) => a + b, 0);
+  const wp = workshopProgress(state);
+  const stepsDone = NEXT_STEPS.filter((_, i) => state.steps[i]).length;
+
+  return `
+  <section class="phases" aria-label="Fáze roadmapy">
+    ${ph.list.map(p => `
+      <article class="phase ${p.done ? 'done' : ''} ${p.current ? 'current' : ''}">
+        <header><span class="pnum">${p.n}</span><div><h3>${esc(p.name)}</h3><small>Level ${p.lv}</small></div>
+        <span class="pill ${p.done ? 'pill-good' : p.current ? 'pill-accent' : 'pill-muted'}">${p.done ? 'Hotovo' : p.current ? 'Teď' : 'Čeká'}</span></header>
+        <ul class="gates">${p.gates.map(g => `<li class="${g.ok ? 'ok' : ''}"><span class="gi" aria-hidden="true">${g.ok ? '✓' : '○'}</span>${esc(g.label)}</li>`).join('')}</ul>
+      </article>`).join('')}
+  </section>
+
+  <section class="tiles">
+    <a class="tile" href="#skilly">
+      <span class="tl">Další bod do skill tree</span>
+      ${nx ? `<b style="color:${branchOf(SKILL[nx.id].b).color}">${esc(SKILL[nx.id].name)}</b><small>${nx.have}/${SKILL[nx.id].max} → ${nx.to} · ${free > 0 ? 'máš ' + free + ' volný bod' + (free > 1 ? 'y' : '') : 'další level'}</small>` : '<b>Plán hotový</b><small>Solo Looter 31/14/31</small>'}
+    </a>
+    <a class="tile" href="#workshop">
+      <span class="tl">Nejbližší upgrade</span>
+      ${top ? `<b>${esc(top.station.name)} ${top.level}</b>${bar(top.r)}<small>${pct(top.r)} materiálu · celkem ${wp.now}/${wp.max} úrovní</small>` : '<b>Vše hotovo</b>'}
+    </a>
+    <a class="tile" href="#mapy">
+      <span class="tl">Mapy</span>
+      <b>${open} / 7 odemčeno</b>
+      <small>${nextMap ? esc(nextMap.map.name) + ' za ' + nextMap.left + ' kol' : 'Všechny mapy otevřené'}</small>
+    </a>
+    <a class="tile" href="#money">
+      <span class="tl">Money runy</span>
+      <b>${rs.n ? fmt(rs.perHour) + ' / h' : 'Zatím bez runů'}</b>
+      <small>${rs.n ? rs.n + ' runů · extrakce ' + pct(rs.rate) : 'Zapiš první run a uvidíš výnos'}</small>
+    </a>
+    <a class="tile" href="#tyden">
+      <span class="tl">Trials tento týden</span>
+      <b>${stars} / 15 ★</b>${bar(stars / 15)}
+      <small>${esc(state.trials.week)}</small>
+    </a>
+  </section>
+
+  <section class="card">
+    <header class="ch"><h2>Dalších 10 kroků</h2><span class="muted">${stepsDone} / ${NEXT_STEPS.length}</span></header>
+    ${bar(stepsDone / NEXT_STEPS.length)}
+    <div class="checklist">${NEXT_STEPS.map((t, i) => check('step', i, !!state.steps[i], `<span class="stepn">${i + 1}</span>${esc(t)}`)).join('')}</div>
+  </section>
+
+  <p class="foot">Kompletní roadmapa s vysvětlením a zdroji: ${ext(DOC_URL, 'ARC Raiders roadmapa')}</p>`;
+}
+
+/* ----- Skill tree ----- */
+function viewSkilly() {
+  const cur = state.skills.cur, p = state.profile;
+  const used = totalPoints(cur), bud = budget(p);
+  const bad = invalidNodes(cur);
+  const target = state.skills.showPlan ? planTarget(cur) : {};
+  const nx = nextPlanPoint(cur);
+  const prog = planProgress(cur);
+
+  const node = s => {
+    const have = cur[s.id] || 0;
+    const tgt = target[s.id] || 0;
+    const blk = addBlock(cur, s.id, p);
+    const isNext = nx && nx.id === s.id;
+    const cls = ['node', have ? 'has' : '', have >= s.max ? 'full' : '', bad[s.id] ? 'invalid' : '', isNext ? 'next' : '', tgt > have ? 'planned' : ''].join(' ');
+    return `<div class="${cls}" style="--bc:${branchOf(s.b).color}">
+      <div class="nhead">
+        <span class="nname">${esc(s.name)}</span>
+        <span class="npts">${have}/${s.max}${state.skills.showPlan && tgt > have ? `<em title="Cíl podle plánu">→${tgt}</em>` : ''}</span>
+      </div>
+      <div class="ndesc">${esc(s.d)}${bad[s.id] ? `<span class="warnline">${esc(bad[s.id])}</span>` : ''}</div>
+      <div class="nbtns">
+        <button type="button" class="nb" data-act="sk-" data-k="${s.id}" ${have ? '' : 'disabled'} aria-label="Odebrat bod: ${esc(s.name)}">−</button>
+        <button type="button" class="nb" data-act="sk+" data-k="${s.id}" ${blk ? 'disabled' : ''} title="${esc(blk || 'Přidat bod')}" aria-label="Přidat bod: ${esc(s.name)}">+</button>
+        ${isNext ? '<span class="tag-next">Další</span>' : ''}
+      </div>
+    </div>`;
+  };
+
+  const col = b => {
+    const pts = pointsIn(cur, b.id);
+    return `<section class="branch" style="--bc:${b.color}">
+      <header><h3>${b.name}</h3><b>${pts}</b></header>
+      ${[0, 1, 2, 3, 4].map(t => `<div class="tier"><div class="tname">${TIER_NAMES[t]}</div>${SKILLS.filter(s => s.b === b.id && s.t === t).map(node).join('')}</div>`).join('')}
+    </section>`;
+  };
+
+  return `
+  <section class="card skillbar">
+    <div class="sb-item"><span>Body</span><b class="${used > bud ? 'bad' : ''}">${used} / ${bud}</b><small>level ${p.level} + 1${p.expBonus ? ' + ' + p.expBonus + ' z Expedic' : ''}</small></div>
+    <div class="sb-item"><span>Reset by stál</span><b>${fmt(resetCost(cur))}</b><small>2 000 za bod</small></div>
+    <div class="sb-item"><span>Další bod podle plánu</span><b>${nx ? esc(SKILL[nx.id].name) : 'Hotovo'}</b><small>${nx ? 'cíl ' + nx.to + '/' + SKILL[nx.id].max : 'Solo Looter 31/14/31'}</small></div>
+    <div class="sb-actions">
+      <label class="stat sm"><span>Body z Expedic</span><input type="number" min="0" max="15" value="${p.expBonus}" data-bind="profile.expBonus"></label>
+      <label class="toggle"><input type="checkbox" data-act="showplan" ${state.skills.showPlan ? 'checked' : ''}><span>Ukazovat cíle plánu</span></label>
+      ${nx ? `<button type="button" class="btn" data-act="plan-next" ${used >= bud ? 'disabled' : ''}>Přidat další bod podle plánu</button>` : ''}
+    </div>
+  </section>
+  ${Object.keys(bad).length ? `<p class="alert">Některé uzly porušují pravidla stromu (červeně). Uprav je, nebo vrať body.</p>` : ''}
+  <p class="hint">Stav tvého stromu jsem předvyplnil podle screenshotu z levelu 19. Mobility a Conditioning jsou odhad, zkontroluj jména ve hře a oprav je tlačítky − a +. Pravidla stromu jsou zjednodušená: volba po 10 bodech ve větvi, střední patro až po volbě, konec po 30 a 40 bodech.</p>
+  <div class="tree">${BRANCHES.map(col).join('')}</div>
+
+  <section class="card">
+    <header class="ch"><h2>Plán Solo Looter krok za krokem</h2><span class="muted">${prog.filter(x => x.done).length} / ${prog.length}</span></header>
+    <ol class="plan">${prog.map(x => `<li class="${x.done ? 'done' : ''} ${x.next ? 'next' : ''}" style="--bc:${branchOf(x.branch).color}"><span class="pdot"></span>${esc(x.label)}${x.next ? ' <span class="tag-next">Teď</span>' : ''}</li>`).join('')}</ol>
+  </section>
+
+  <section class="card">
+    <header class="ch"><h2>Hotové buildy na 76 bodů</h2></header>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Build</th><th class="num">Cond.</th><th class="num">Mob.</th><th class="num">Surv.</th><th>Klíčové skilly</th><th>Pro koho</th><th>Bez resetu?</th></tr></thead>
+      <tbody>${BUILDS.map(b => {
+        const okC = pointsIn(cur, 'c') <= b.c, okM = pointsIn(cur, 'm') <= b.m, okS = pointsIn(cur, 's') <= b.s;
+        const ok = okC && okM && okS;
+        return `<tr class="${b.rec ? 'rec' : ''}"><td><b>${esc(b.name)}</b>${b.rec ? ' <span class="pill pill-accent">doporučeno</span>' : ''}</td><td class="num">${b.c}</td><td class="num">${b.m}</td><td class="num">${b.s}</td><td>${esc(b.keys)}</td><td>${esc(b.who)}</td><td>${ok ? '<span class="pill pill-good">Ano</span>' : '<span class="pill pill-bad">Ne</span>'}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </section>`;
+}
+
+/* ----- Workshop ----- */
+function viewWorkshop() {
+  const wp = workshopProgress(state);
+  const card = st => {
+    const lvl = state.stations[st.id];
+    const nxt = lvl + 1;
+    const mats = st.levels[nxt];
+    const blk = mats ? reqBlock(state, st, nxt) : null;
+    const r = mats ? readiness(state, mats) : 1;
+    const can = mats && !blk && r >= 1;
+    const pips = Array.from({ length: st.max - st.min + 1 }, (_, i) => i + st.min).filter(x => x > 0)
+      .map(x => `<span class="pip ${x <= lvl ? 'on' : ''}">${x}</span>`).join('');
+    return `<article class="station ${!mats ? 'maxed' : ''}">
+      <header><div><h3>${esc(st.name)}</h3><small>${esc(st.role)}</small></div><div class="pips" aria-label="Level ${lvl} z ${st.max}">${pips}</div></header>
+      ${mats ? `
+        <div class="nextlv"><span>Další: level ${nxt}</span>${blk ? `<span class="pill pill-warn">${esc(blk)}</span>` : `<span class="muted">${pct(r)}</span>`}</div>
+        ${bar(r, can ? 'good' : '')}
+        <ul class="mats">${mats.map(([m, n]) => {
+          const have = state.inv[m] || 0;
+          return `<li class="${have >= n ? 'ok' : ''}"><span class="mname">${esc(m)}${SOURCES[m] ? `<small>${esc(SOURCES[m])}</small>` : ''}</span>
+            <span class="qty"><button type="button" class="qb" data-act="inv-" data-k="${esc(m)}" aria-label="Ubrat ${esc(m)}">−</button><input type="number" min="0" value="${have}" data-inv="${esc(m)}" aria-label="Mám ${esc(m)}"><button type="button" class="qb" data-act="inv+" data-k="${esc(m)}" aria-label="Přidat ${esc(m)}">+</button><span class="need">/ ${n}</span></span></li>`;
+        }).join('')}</ul>
+        ${st.notes && st.notes[nxt] ? `<p class="hint">${esc(st.notes[nxt])}</p>` : ''}
+        <div class="row">
+          <button type="button" class="btn" data-act="upgrade" data-k="${st.id}" ${can ? '' : 'disabled'}>Upgradovat a odečíst materiál</button>
+          <button type="button" class="btn ghost" data-act="lvl+" data-k="${st.id}" ${blk ? 'disabled' : ''}>Mám ve hře, jen zvýšit level</button>
+        </div>` : '<p class="maxline">Maximální level</p>'}
+      ${lvl > st.min ? `<button type="button" class="link" data-act="lvl-" data-k="${st.id}">Snížit level (oprava)</button>` : ''}
+    </article>`;
+  };
+  return `
+  <section class="card">
+    <header class="ch"><h2>Workshop a Outpost</h2><span class="muted">${wp.now} / ${wp.max} úrovní</span></header>
+    ${bar(wp.now / wp.max)}
+    <p class="hint">Zadávej, kolik materiálu máš ve stashi. Stejný materiál se sdílí mezi stanicemi a nákupním seznamem. Priorita: Gunsmith → Gear Bench → Scrappy → Medical Lab → Refiner → Utility → Explosives.</p>
+  </section>
+  <div class="stations">${STATIONS.map(card).join('')}</div>
+  <section class="card">
+    <header class="ch"><h2>Amplified zbraně</h2></header>
+    <p>Gunsmith IV, Research Station IV, Amplification Module z Frigate nebo Emperora a zbraň na tier IV. Amplifikace je trvalá a přidá +70 max durability.</p>
+    <div class="row"><span>Počet Amplified zbraní:</span>
+      <span class="qty"><button type="button" class="qb" data-act="amp-" aria-label="Ubrat">−</button><b class="ampn">${state.amplified}</b><button type="button" class="qb" data-act="amp+" aria-label="Přidat">+</button></span></div>
+  </section>`;
+}
+
+/* ----- Nákupy ----- */
+function viewNakupy() {
+  const list = shopping(state);
+  const missing = list.filter(x => x.missing > 0);
+  const arc = missing.filter(x => x.arc);
+  return `
+  <section class="card">
+    <header class="ch"><h2>Nákupní seznam pro další upgrady</h2><span class="muted">${missing.length} materiálů chybí</span></header>
+    <p class="hint">Součet materiálu na další level všech stanic. ARC díly jsou nahoře, jdi na ně cíleně.</p>
+    ${arc.length ? `<div class="hunt"><b>Lov ARC:</b> ${arc.map(x => `<span class="pill pill-bad">${esc(x.src.replace('ARC: ', ''))} · ${x.missing}× ${esc(x.mat)}</span>`).join(' ')}</div>` : ''}
+    <div class="tablewrap"><table>
+      <thead><tr><th>Materiál</th><th class="num">Mám</th><th class="num">Potřebuju</th><th class="num">Chybí</th><th>Odkud</th><th>Na co</th></tr></thead>
+      <tbody>${list.map(x => `<tr class="${x.missing ? '' : 'okrow'}"><td><b>${esc(x.mat)}</b></td>
+        <td class="num"><input class="mini" type="number" min="0" value="${x.have}" data-inv="${esc(x.mat)}" aria-label="Mám ${esc(x.mat)}"></td>
+        <td class="num">${x.need}</td><td class="num ${x.missing ? 'bad' : 'good'}">${x.missing || '✓'}</td>
+        <td>${esc(x.src)}</td><td class="muted">${esc(x.uses.join(', '))}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </section>`;
+}
+
+/* ----- Mapy ----- */
+function viewMapy() {
+  const r = state.profile.rounds;
+  const ms = mapStatus(r);
+  const W = 640;
+  const X = n => 140 + n / 25 * (W - 180);
+  return `
+  <section class="card">
+    <header class="ch"><h2>Odemykání map</h2>
+      <div class="row"><span class="muted">Odehraná kola</span><span class="qty"><button type="button" class="qb" data-act="round-" aria-label="Ubrat kolo">−</button><b class="ampn">${r}</b><button type="button" class="qb" data-act="round+" aria-label="Přidat kolo">+</button></span></div></header>
+    <p class="hint">Mapy odemyká počet odehraných kol, ne level. Počítá se i kolo, ve kterém umřeš. Po každém raidu klikni na +.</p>
+    <div class="tablewrap"><svg class="unlock" viewBox="0 0 ${W} ${40 + ms.length * 30}" role="img" aria-label="Odemykání map podle kol">
+      ${[0, 5, 10, 15, 20, 25].map(t => `<line x1="${X(t)}" x2="${X(t)}" y1="22" y2="${30 + ms.length * 30}" class="grid"/><text x="${X(t)}" y="16" class="axis" text-anchor="middle">${t}</text>`).join('')}
+      <line x1="${X(Math.min(r, 25))}" x2="${X(Math.min(r, 25))}" y1="22" y2="${30 + ms.length * 30}" class="nowline"/>
+      ${ms.map((m, i) => { const y = 40 + i * 30; return `
+        <text x="0" y="${y + 4}" class="mlabel ${m.open ? 'open' : ''}">${esc(m.map.name)}</text>
+        <rect x="${X(0)}" y="${y - 5}" width="${Math.max(0, X(m.map.rounds) - X(0))}" height="10" rx="5" class="track"/>
+        <rect x="${X(0)}" y="${y - 5}" width="${Math.max(0, X(Math.min(r, m.map.rounds)) - X(0))}" height="10" rx="5" class="fill ${m.open ? 'open' : ''}"/>
+        <path d="M${X(m.map.rounds)} ${y - 8}l8 8l-8 8l-8 -8z" class="dia ${m.open ? 'open' : ''}"/>
+        <text x="${X(m.map.rounds) + 14}" y="${y + 4}" class="axis">${m.open ? 'otevřeno' : 'za ' + m.left + ' kol'}</text>`; }).join('')}
+    </svg></div>
+  </section>
+  <div class="maps">${ms.map(m => `
+    <article class="mapcard ${m.open ? '' : 'locked'}">
+      <header><h3>${esc(m.map.name)}</h3><span class="diff" aria-label="Obtížnost ${m.map.diff} z 5">${'■'.repeat(m.map.diff)}<i>${'■'.repeat(5 - m.map.diff)}</i></span></header>
+      <p><b>${esc(m.map.best)}</b></p>
+      <p class="muted">${esc(m.map.places)}</p>
+      <div class="row">${m.open ? '<span class="pill pill-good">Otevřeno</span>' : `<span class="pill pill-muted">Za ${m.left} kol</span>`}${ext(m.map.live, 'Živá mapa')}</div>
+      ${ROUTES.filter(x => x.map === m.map.id).length ? `<p class="routes">Trasy: ${ROUTES.filter(x => x.map === m.map.id).map(x => `<a href="#money" data-act="pick-route" data-k="${x.id}">${esc(x.name)}</a>`).join(', ')}</p>` : ''}
+    </article>`).join('')}</div>
+  <section class="card">
+    <header class="ch"><h2>Podmínky map, které stojí za to chytat</h2></header>
+    <dl class="conds">${CONDITIONS.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+    <p class="hint">Na Pendola Pass se hodnota lootu mění mezi zápasy (Dynamic Loot Zones). Na začátku raidu se podívej, které zóny jsou označené jako hodnotné.</p>
+  </section>`;
+}
+
+/* ----- Money runy ----- */
+let timer = { start: 0, acc: 0, running: false, iv: null };
+const elapsed = () => timer.acc + (timer.running ? Date.now() - timer.start : 0);
+const mmss = ms => { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function timerClass(ms) { return ms >= 600000 ? 'late' : ms >= 480000 ? 'soon' : ''; }
+function tick() {
+  const el = $('#clock'); if (!el) return;
+  const ms = elapsed();
+  el.textContent = mmss(ms);
+  el.className = 'clock ' + timerClass(ms);
+  const msg = $('#clockmsg');
+  if (msg) msg.textContent = ms >= 600000 ? 'Jdi k extrakci.' : ms >= 480000 ? 'Za 2 minuty extrahuj.' : 'Loot jen modré a lepší.';
+}
+
+function viewMoney() {
+  const rs = runStats(state.runs);
+  const route = ROUTES.find(r => r.id === ui.route) || ROUTES[0];
+  const last = state.runs.slice(-24);
+  const maxC = Math.max(10000, ...last.map(r => r.coins));
+  const W = 640, H = 170, bw = (W - 50) / Math.max(12, last.length);
+  const ms = elapsed();
+  return `
+  <section class="money-top">
+    <article class="card timercard">
+      <header class="ch"><h2>Raid hodiny</h2><span class="muted">cíl ~10 min</span></header>
+      <div id="clock" class="clock ${timerClass(ms)}">${mmss(ms)}</div>
+      <p id="clockmsg" class="muted">${ms >= 600000 ? 'Jdi k extrakci.' : ms >= 480000 ? 'Za 2 minuty extrahuj.' : 'Loot jen modré a lepší.'}</p>
+      <div class="row">
+        <button type="button" class="btn" data-act="t-start">${timer.running ? 'Pauza' : ms ? 'Pokračovat' : 'Start'}</button>
+        <button type="button" class="btn ghost" data-act="t-reset">Vynulovat</button>
+        <button type="button" class="btn ghost" data-act="t-log">Přenést čas do zápisu</button>
+      </div>
+    </article>
+    <article class="card">
+      <header class="ch"><h2>Zapsat run</h2></header>
+      <form id="logform" class="logform">
+        <label>Mapa<select id="lf-map">${MAPS.map(m => `<option value="${m.id}" ${ui.logMap === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label>
+        <label>Trasa<select id="lf-route"><option value="">Vlastní</option>${ROUTES.map(r => `<option value="${r.id}" ${ui.logRoute === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
+        <label>Výsledek<select id="lf-ok"><option value="1">Extrahoval jsem</option><option value="0">Umřel jsem</option></select></label>
+        <label>Hodnota lootu (coiny)<input id="lf-coins" type="number" min="0" step="500" value="0"></label>
+        <label>Délka (min)<input id="lf-min" type="number" min="0" max="120" step="0.5" value="${ms ? (Math.round(ms / 30000) / 2) : 10}"></label>
+        <button type="submit" class="btn">Zapsat run</button>
+      </form>
+      <p class="hint">Každý zapsaný run zvýší i počet odehraných kol.</p>
+    </article>
+  </section>
+
+  <section class="card">
+    <header class="ch"><h2>Výnos</h2><span class="muted">${rs.n} runů</span></header>
+    <div class="kpis">
+      <div><span>Coiny za hodinu</span><b>${fmt(rs.perHour)}</b></div>
+      <div><span>Úspěšnost extrakce</span><b>${rs.n ? pct(rs.rate) : '—'}</b></div>
+      <div><span>Průměr na úspěšný run</span><b>${fmt(rs.avg)}</b></div>
+      <div><span>Celkem vyneseno</span><b>${fmt(rs.coins)}</b></div>
+    </div>
+    ${last.length ? `<div class="tablewrap"><svg class="runs" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hodnota posledních runů">
+      ${[0, 0.5, 1].map(f => `<line x1="44" x2="${W}" y1="${H - 20 - f * (H - 40)}" y2="${H - 20 - f * (H - 40)}" class="grid"/><text x="40" y="${H - 16 - f * (H - 40)}" class="axis" text-anchor="end">${fmt(maxC * f / 1000)}k</text>`).join('')}
+      ${last.map((r, i) => { const h = r.ok ? (r.coins / maxC) * (H - 40) : 4; return `<rect x="${50 + i * bw + 2}" y="${H - 20 - h}" width="${Math.max(3, bw - 4)}" height="${h}" rx="2" class="${r.ok ? 'okbar' : 'deadbar'}"><title>${esc((ROUTES.find(x => x.id === r.route) || { name: 'Vlastní' }).name)}: ${r.ok ? fmt(r.coins) + ' coinů' : 'smrt'}, ${r.min} min</title></rect>`; }).join('')}
+    </svg></div><p class="legend"><span class="sw ok"></span>extrakce <span class="sw dead"></span>smrt</p>` : '<p class="muted">Zatím žádné runy. Spusť hodiny, odehraj run a zapiš ho.</p>'}
+    ${rs.routes.length ? `<div class="tablewrap"><table><thead><tr><th>Trasa</th><th class="num">Runů</th><th class="num">Extrakce</th><th class="num">Coiny / h</th></tr></thead><tbody>
+      ${rs.routes.map(x => `<tr><td>${esc((ROUTES.find(r => r.id === x.route) || { name: 'Vlastní' }).name)}</td><td class="num">${x.n}</td><td class="num">${pct(x.rate)}</td><td class="num"><b>${fmt(x.perHour)}</b></td></tr>`).join('')}
+    </tbody></table></div>` : ''}
+    ${state.runs.length ? `<details><summary>Historie runů (${state.runs.length})</summary><div class="tablewrap"><table><thead><tr><th>Kdy</th><th>Mapa</th><th>Trasa</th><th>Výsledek</th><th class="num">Coiny</th><th class="num">Min</th><th></th></tr></thead><tbody>
+      ${state.runs.slice().reverse().slice(0, 60).map(r => `<tr><td>${new Date(r.ts).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td>${esc((MAPS.find(m => m.id === r.map) || {}).name)}</td><td>${esc((ROUTES.find(x => x.id === r.route) || { name: 'Vlastní' }).name)}</td><td>${r.ok ? '<span class="pill pill-good">extrakce</span>' : '<span class="pill pill-bad">smrt</span>'}</td><td class="num">${fmt(r.coins)}</td><td class="num">${r.min}</td><td><button type="button" class="link" data-act="run-del" data-k="${esc(r.id)}">Smazat</button></td></tr>`).join('')}
+    </tbody></table></div></details>` : ''}
+  </section>
+
+  <section class="routes-wrap">
+    <nav class="routepick" aria-label="Trasy">${ROUTES.map(r => `<button type="button" class="rp ${r.id === route.id ? 'active' : ''}" data-act="pick-route" data-k="${r.id}"><b>${esc(r.name)}</b><small>${esc(MAPS.find(m => m.id === r.map).name)} · ${esc(r.risk)}</small></button>`).join('')}</nav>
+    <article class="card">
+      <header class="ch"><h2>${esc(route.name)}</h2>${ext(MAPS.find(m => m.id === route.map).live, 'Živá mapa')}</header>
+      <div class="facts"><span><small>Mapa</small>${esc(MAPS.find(m => m.id === route.map).name)}</span><span><small>Riziko</small>${esc(route.risk)}</span><span><small>Loadout</small>${esc(route.loadout)}</span><span><small>Výnos</small>${esc(route.yield)}</span><span><small>Fáze</small>${esc(route.phase)}</span></div>
+      <div class="checklist">${route.steps.map((t, i) => check('rstep', route.id + ':' + i, !!ui.routeChecks[route.id + ':' + i], `<span class="stepn">${i + 1}</span>${esc(t)}`)).join('')}</div>
+      <button type="button" class="link" data-act="rstep-reset">Odškrtat trasu</button>
+    </article>
+  </section>
+
+  <section class="card">
+    <header class="ch"><h2>Co prodávat</h2></header>
+    <div class="tablewrap"><table><thead><tr><th>Item</th><th class="num">Cena</th><th>Poznámka</th></tr></thead><tbody>
+      ${SELL.map(([n, c, t]) => `<tr><td>${esc(n)}</td><td class="num">${fmt(c)}</td><td class="muted">${esc(t)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="hint">Pravidla: počítej coiny na slot, žádné zbytečné PvP, kolem 10. minuty k extrakci, po velkém nálezu extrahuj hned, nejdražší věc do Safe Pocketu.</p>
+  </section>`;
+}
+
+/* ----- ARC ----- */
+function viewArc() {
+  return `
+  <section class="card">
+    <header class="ch"><h2>ARC nepřátelé</h2></header>
+    <div class="row">
+      <input id="arcq" type="search" placeholder="Hledat stroj nebo drop…" value="${esc(ui.arcQuery)}" aria-label="Hledat ARC">
+      <label class="toggle"><input type="checkbox" data-act="arc-needed" ${ui.arcNeeded ? 'checked' : ''}><span>Jen co potřebuju na upgrady</span></label>
+    </div>
+    <div id="arclist">${arcList()}</div>
+  </section>`;
+}
+function arcList() {
+  const needed = new Set(shopping(state).filter(x => x.missing > 0).map(x => x.mat));
+  const q = ui.arcQuery.trim().toLowerCase();
+  const rows = ARC.filter(a => (!q || (a.name + ' ' + a.tac + ' ' + a.drops.join(' ')).toLowerCase().includes(q)) && (!ui.arcNeeded || a.drops.some(d => needed.has(d))));
+  if (!rows.length) return '<p class="muted">Nic neodpovídá filtru.</p>';
+  return `<div class="arcgrid">${rows.map(a => `<article class="arc ${a.drops.some(d => needed.has(d)) ? 'need' : ''}">
+    <h3>${esc(a.name)}</h3><p>${esc(a.tac)}</p>
+    <div class="drops">${a.drops.map(d => `<span class="pill ${needed.has(d) ? 'pill-bad' : 'pill-muted'}">${esc(d)}${needed.has(d) ? ' · potřebuju' : ''}</span>`).join(' ')}</div>
+  </article>`).join('')}</div>`;
+}
+
+/* ----- Zbraně ----- */
+function viewZbrane() {
+  return `
+  <section class="card">
+    <header class="ch"><h2>Tier list po 2.0</h2></header>
+    <div class="tiers">${TIERS.map(([t, ws]) => `<div class="tierrow"><span class="tierlbl t-${t}">${t}</span><div>${ws.map(w => `<span class="wchip ${ANTI_ARC.includes(w) ? 'anti' : ''}">${esc(w)}${ANTI_ARC.includes(w) ? '<small>anti-ARC</small>' : ''}</span>`).join('')}</div></div>`).join('')}</div>
+    <p class="hint">C u Equalizeru, Hullcrackeru a Bettiny platí pro PvP. Proti velkým ARC patří k nejlepším.</p>
+  </section>
+  <section class="card">
+    <header class="ch"><h2>Zbraně podle fáze</h2></header>
+    <div class="tablewrap"><table><thead><tr><th>Fáze</th><th>Level</th><th>Na hráče</th><th>Na ARC</th></tr></thead><tbody>
+      ${WEAPON_PHASES.map(([f, l, p, a]) => `<tr class="${phases(state).current === Number(f) ? 'rec' : ''}"><td><b>${f}</b></td><td>${l}</td><td>${esc(p)}</td><td>${esc(a)}</td></tr>`).join('')}
+    </tbody></table></div>
+  </section>
+  <section class="card">
+    <header class="ch"><h2>Změny v 2.0, které mění loadout</h2></header>
+    <ul class="plainlist">
+      <li>Granáty dávají o víc než 50 % větší damage pancéřovým plátům ARC a asi o 30 % menší křehkým částem.</li>
+      <li>Jupiter je silnější proti pancíři, o trochu slabší na weak pointy.</li>
+      <li>Heavy Shield se méně opotřebovává (0,15 místo 0,20) a zpomaluje jen o 10 %.</li>
+      <li>Snap Hook má dosah 18 m a stojí 4 % durability za použití. Grappling Hook umí i slanění a houpání.</li>
+      <li>Anvil je teď modrý (rare), roli levného hand cannonu převzal Bantam.</li>
+    </ul>
+  </section>`;
+}
+
+/* ----- Týden ----- */
+function viewTyden() {
+  const t = state.trials;
+  const raidDone = RAID_CHECK.filter((_, i) => state.raid[i]).length;
+  return `
+  <section class="card">
+    <header class="ch"><h2>Trials · ${esc(t.week)}</h2><span class="muted">${t.stars.reduce((a, b) => a + b, 0)} / 15 ★</span></header>
+    <p class="hint">Hvězdy na 1 000, 2 500 a 4 000 bodech dávají Uncommon, Rare a Epic item nebo blueprint. Každé pondělí se hvězdy samy vynulují.</p>
+    <div class="trials">${[0, 1, 2, 3, 4].map(i => `<div class="trial">
+      <input type="text" placeholder="Výzva ${i + 1}" value="${esc(t.names[i])}" data-trialname="${i}" aria-label="Název výzvy ${i + 1}">
+      <div class="stars" role="group" aria-label="Hvězdy výzvy ${i + 1}">${[1, 2, 3].map(s => `<button type="button" class="star ${t.stars[i] >= s ? 'on' : ''}" data-act="star" data-k="${i}:${s}" aria-label="${s} hvězd${s === 1 ? 'a' : 'y'}">★</button>`).join('')}</div>
+    </div>`).join('')}</div>
+  </section>
+  <section class="card">
+    <header class="ch"><h2>Reward Pass</h2><span class="muted">level ${state.profile.rewardPass} / 60</span></header>
+    <input type="range" min="0" max="60" value="${state.profile.rewardPass}" data-bind="profile.rewardPass" aria-label="Level Reward Passu">
+    ${bar(state.profile.rewardPass / 60)}
+    <p class="hint">Feats: Easy 15 RP, Medium 25 RP, Hard 50 RP. Týdenní milníky na 4, 8 a 12 bodech dávají každý 250 RP.</p>
+  </section>
+  <section class="card">
+    <header class="ch"><h2>Checklist před raidem</h2><span class="muted">${raidDone} / ${RAID_CHECK.length}</span></header>
+    <div class="checklist">${RAID_CHECK.map((x, i) => check('raid', i, !!state.raid[i], esc(x))).join('')}</div>
+    <button type="button" class="btn ghost" data-act="raid-reset">Nový raid, odškrtat vše</button>
+  </section>`;
+}
+
+/* ----- Data ----- */
+function viewData() {
+  const json = JSON.stringify(state, null, 1);
+  return `
+  <section class="card">
+    <header class="ch"><h2>Tvoje data</h2>${storeChip().replace('id="store"', '')}</header>
+    <p>Postup se ukládá do aplikace a vidíš ho jen ty. Stejný odkaz funguje na PC i na mobilu. Naposledy změněno: ${state.updated ? new Date(state.updated).toLocaleString('cs-CZ') : '—'}.</p>
+    <div class="row">
+      <button type="button" class="btn" data-act="export">${ui.exportShown ? 'Skrýt zálohu' : 'Zobrazit zálohu (JSON)'}</button>
+      ${ui.exportShown ? '<button type="button" class="btn ghost" data-act="copy">Kopírovat zálohu</button>' : ''}
+    </div>
+    ${ui.exportShown ? `<textarea id="exportbox" readonly rows="8" aria-label="Záloha">${esc(json)}</textarea>` : ''}
+  </section>
+  <section class="card">
+    <header class="ch"><h2>Obnovit ze zálohy</h2></header>
+    <textarea id="importbox" rows="5" placeholder="Sem vlož zálohu (JSON)" aria-label="Vložit zálohu"></textarea>
+    <div class="row"><button type="button" class="btn" data-act="import">Načíst zálohu</button>${ui.importMsg ? `<span class="muted">${esc(ui.importMsg)}</span>` : ''}</div>
+  </section>
+  <section class="card danger">
+    <header class="ch"><h2>Začít znovu</h2></header>
+    <p>Smaže celý postup, například po Expedici. Nejdřív si zkopíruj zálohu.</p>
+    <button type="button" class="btn ${ui.confirmReset ? 'bad' : 'ghost'}" data-act="wipe">${ui.confirmReset ? 'Opravdu smazat? Klikni znovu' : 'Smazat všechna data'}</button>
+  </section>
+  <p class="foot">Roadmapa s vysvětlením a zdroji: ${ext(DOC_URL, 'ARC Raiders roadmapa')}</p>`;
+}
+
+/* ----- Render ----- */
+function render() {
+  const v = currentView();
+  $('#hdr').innerHTML = renderHeader();
+  $('#nav').innerHTML = renderNav();
+  const views = { prehled: viewPrehled, skilly: viewSkilly, workshop: viewWorkshop, nakupy: viewNakupy, mapy: viewMapy, money: viewMoney, arc: viewArc, zbrane: viewZbrane, tyden: viewTyden, data: viewData };
+  $('#main').innerHTML = views[v]();
+  document.title = 'ARC Raiders deník';
+}
+
+/* ----- Události ----- */
+function setPath(path, val) {
+  const [a, b] = path.split('.');
+  if (a === 'profile') {
+    const lim = { level: [0, 75], coins: [0, 1e10], rounds: [0, 100000], expBonus: [0, 15], rewardPass: [0, 60] }[b];
+    state.profile[b] = clampInt(val, lim[0], lim[1]);
+  }
+}
+function onClick(e) {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  const act = t.dataset.act, k = t.dataset.k;
+  if (t.tagName === 'INPUT' && t.type === 'checkbox') return; /* řeší change */
+  const cur = state.skills.cur;
+  switch (act) {
+    case 'sk+': if (!addBlock(cur, k, state.profile)) { cur[k] = (cur[k] || 0) + 1; commit(); } break;
+    case 'sk-': if (cur[k]) { cur[k]--; if (!cur[k]) delete cur[k]; commit(); } break;
+    case 'plan-next': { const nx = nextPlanPoint(cur); if (nx && !addBlock(cur, nx.id, state.profile)) { cur[nx.id] = (cur[nx.id] || 0) + 1; commit(); } break; }
+    case 'inv+': state.inv[k] = (state.inv[k] || 0) + 1; commit(); break;
+    case 'inv-': if (state.inv[k]) { state.inv[k]--; if (!state.inv[k]) delete state.inv[k]; commit(); } break;
+    case 'upgrade': {
+      const st = STATION[k], nxt = state.stations[k] + 1, mats = st.levels[nxt];
+      if (mats && !reqBlock(state, st, nxt) && readiness(state, mats) >= 1) {
+        for (const [m, n] of mats) { state.inv[m] = (state.inv[m] || 0) - n; if (state.inv[m] <= 0) delete state.inv[m]; }
+        state.stations[k] = nxt; commit();
+      } break;
+    }
+    case 'lvl+': { const st = STATION[k]; if (state.stations[k] < st.max && !reqBlock(state, st, state.stations[k] + 1)) { state.stations[k]++; commit(); } break; }
+    case 'lvl-': { const st = STATION[k]; if (state.stations[k] > st.min) { state.stations[k]--; commit(); } break; }
+    case 'amp+': state.amplified++; commit(); break;
+    case 'amp-': if (state.amplified) { state.amplified--; commit(); } break;
+    case 'round+': state.profile.rounds++; commit(); break;
+    case 'round-': if (state.profile.rounds) { state.profile.rounds--; commit(); } break;
+    case 'pick-route': ui.route = k; ui.logRoute = k; ui.logMap = (ROUTES.find(r => r.id === k) || {}).map || ui.logMap; if (currentView() === 'money') { e.preventDefault(); render(); } break;
+    case 'rstep-reset': for (const key of Object.keys(ui.routeChecks)) if (key.startsWith(ui.route + ':')) delete ui.routeChecks[key]; render(); break;
+    case 't-start':
+      if (timer.running) { timer.acc += Date.now() - timer.start; timer.running = false; clearInterval(timer.iv); }
+      else { timer.start = Date.now(); timer.running = true; clearInterval(timer.iv); timer.iv = setInterval(tick, 500); }
+      render(); break;
+    case 't-reset': timer = { start: 0, acc: 0, running: false, iv: (clearInterval(timer.iv), null) }; render(); break;
+    case 't-log': { const el = $('#lf-min'); if (el) el.value = Math.round(elapsed() / 30000) / 2; break; }
+    case 'run-del': state.runs = state.runs.filter(r => r.id !== k); commit(); break;
+    case 'star': { const [i, s] = k.split(':').map(Number); state.trials.stars[i] = state.trials.stars[i] === s ? s - 1 : s; commit(); break; }
+    case 'raid-reset': state.raid = {}; commit(); break;
+    case 'export': ui.exportShown = !ui.exportShown; render(); break;
+    case 'copy': {
+      const box = $('#exportbox');
+      try { navigator.clipboard.writeText(box.value).then(() => { t.textContent = 'Zkopírováno'; }, () => { box.select(); t.textContent = 'Označeno, zkopíruj Ctrl+C'; }); }
+      catch (err) { box.select(); t.textContent = 'Označeno, zkopíruj Ctrl+C'; }
+      break;
+    }
+    case 'import': {
+      const txt = ($('#importbox') || {}).value || '';
+      try { const data = JSON.parse(txt); state = normalize(data); ui.importMsg = 'Záloha načtená.'; commit(); }
+      catch (err) { ui.importMsg = 'Tohle není platná záloha. Vlož celý text ze „Zobrazit zálohu“.'; render(); }
+      break;
+    }
+    case 'wipe':
+      if (!ui.confirmReset) { ui.confirmReset = true; render(); setTimeout(() => { ui.confirmReset = false; if (currentView() === 'data') render(); }, 5000); }
+      else { ui.confirmReset = false; state = DEFAULT_STATE(); rollWeek(false); commit(); }
+      break;
+  }
+}
+function onChange(e) {
+  const t = e.target;
+  if (t.dataset.bind) { setPath(t.dataset.bind, t.value); commit(); return; }
+  if (t.dataset.inv !== undefined) { const n = clampInt(t.value, 0, 99999); if (n) state.inv[t.dataset.inv] = n; else delete state.inv[t.dataset.inv]; commit(); return; }
+  if (t.dataset.trialname !== undefined) { state.trials.names[Number(t.dataset.trialname)] = String(t.value).slice(0, 80); commit({ render: false }); return; }
+  const act = t.dataset.act;
+  if (act === 'step') { if (t.checked) state.steps[t.dataset.k] = true; else delete state.steps[t.dataset.k]; commit(); }
+  else if (act === 'raid') { if (t.checked) state.raid[t.dataset.k] = true; else delete state.raid[t.dataset.k]; commit(); }
+  else if (act === 'rstep') { if (t.checked) ui.routeChecks[t.dataset.k] = true; else delete ui.routeChecks[t.dataset.k]; render(); }
+  else if (act === 'showplan') { state.skills.showPlan = t.checked; commit(); }
+  else if (act === 'arc-needed') { ui.arcNeeded = t.checked; const l = $('#arclist'); if (l) l.innerHTML = arcList(); }
+  else if (t.id === 'lf-map') ui.logMap = t.value;
+  else if (t.id === 'lf-route') { ui.logRoute = t.value; const r = ROUTES.find(x => x.id === t.value); if (r) { ui.logMap = r.map; const m = $('#lf-map'); if (m) m.value = r.map; } }
+}
+function onInput(e) {
+  if (e.target.id === 'arcq') { ui.arcQuery = e.target.value; const l = $('#arclist'); if (l) l.innerHTML = arcList(); }
+}
+function onSubmit(e) {
+  if (e.target.id !== 'logform') return;
+  e.preventDefault();
+  const ok = $('#lf-ok').value === '1';
+  const run = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: Date.now(),
+    map: $('#lf-map').value, route: $('#lf-route').value, ok,
+    coins: ok ? clampInt($('#lf-coins').value, 0, 1e8) : 0,
+    min: Math.max(0, Math.min(120, Number($('#lf-min').value) || 0))
+  };
+  state.runs.push(run);
+  if (state.runs.length > 400) state.runs = state.runs.slice(-400);
+  state.profile.rounds++;
+  timer = { start: 0, acc: 0, running: false, iv: (clearInterval(timer.iv), null) };
+  commit();
+}
+
+function boot() {
+  const cached = loadLocal();
+  if (cached) state = normalize(cached);
+  rollWeek(false);
+  render();
+  document.addEventListener('click', onClick);
+  document.addEventListener('change', onChange);
+  document.addEventListener('input', onInput);
+  document.addEventListener('submit', onSubmit);
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+  initStore();
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+}
+
+</script>
+</body>
+</html>
