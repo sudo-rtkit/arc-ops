@@ -1,0 +1,63 @@
+{
+  "_note": "Expected results read by hand from the sample screenshots (not the user's own inventory). Grid rows from the top, columns from the left; only fully visible cells. Item names are not filled in yet (they will come from the MetaForge catalog or from learning). Values marked verify:true were read by eye, so check them before using them as hard assertions.",
+  "sample-stash-ammo-filter-1080p.png": {
+    "size": [1919, 1079],
+    "panel": "stash",
+    "headerSlots": 7,
+    "headerSlotsMax": null,
+    "stashValue": 3258,
+    "coins": 51060,
+    "premium": 3950,
+    "cells": [
+      { "row": 0, "col": 0, "count": 6, "rarity": "rare" },
+      { "row": 0, "col": 1, "count": 100 },
+      { "row": 0, "col": 2, "count": 56 },
+      { "row": 0, "col": 3, "count": 80 },
+      { "row": 1, "col": 0, "count": 68 },
+      { "row": 1, "col": 1, "count": 31 },
+      { "row": 1, "col": 2, "count": 3 }
+    ],
+    "emptyFrom": { "row": 1, "col": 3 },
+    "backpack": { "slots": "2/14", "counts": [64, 8] },
+    "quickUse": { "slots": "2/4", "counts": [2, 1] }
+  },
+  "sample-stash-all-tooltip-1080p.png": {
+    "size": [1919, 1079],
+    "panel": "stash",
+    "headerSlots": 200,
+    "headerSlotsMax": 268,
+    "stashValue": 752983,
+    "coins": 51060,
+    "premium": 3950,
+    "tooltip": { "name": "MAGNETIC ACCELERATOR", "category": "REFINED MATERIAL", "rarity": "EPIC", "forCell": { "row": 2, "col": 3 } },
+    "countsByRow": [
+      [3, 3, 1, 3],
+      [3, 1, 1, 3],
+      [3, 3, 3, 2],
+      [3, 1, 3, 2],
+      [19, 1, 5, 5],
+      [2, 5, 1, 5]
+    ],
+    "partialRowIgnored": 6,
+    "selectedCell": { "row": 2, "col": 3 }
+  },
+  "sample-stash-all-top-1080p.png": {
+    "size": [1919, 1079],
+    "panel": "stash",
+    "headerSlots": 200,
+    "headerSlotsMax": 268,
+    "stashValue": 752983,
+    "coins": 51060,
+    "verify": true,
+    "_note2": "No stack counts on this screenshot (augments, shields, weapons). Weapons show a tier in the bottom-right corner.",
+    "tiersByRow": [
+      [null, null, null, null],
+      [null, null, null, null],
+      [null, null, null, null],
+      [null, "IV", "I", "II"],
+      ["I", "I", "I", "I"],
+      ["I", "II", "I", "I"]
+    ],
+    "partialRowIgnored": 6
+  }
+}
