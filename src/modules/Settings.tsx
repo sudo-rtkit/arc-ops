@@ -254,7 +254,7 @@ export default function Settings({ sub }: { sub: string }) {
         <p className="meta" data-testid="data-sources-items">{t('settings.sourcesItems', { items: ITEM_DATA.length, offers: TRADER_OFFERS.length, date: ITEMS_DATE, weapons: WEAPON_STATS.length })}</p>
       </Panel>
       <Panel title={t('settings.about')}>
-        <p>{t('settings.version', { v: '0.7' })}</p>
+        <p>{t('settings.version', { v: '0.8' })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
       </Panel>

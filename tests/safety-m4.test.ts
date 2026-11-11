@@ -33,7 +33,8 @@ describe('bezpečnost milníku 4', () => {
   });
   it('odkaz na rozpis událostí je jen oficiální stránka Embarku v Maps a otevírá se přes ExtLink', () => {
     const src = walk(join(root, 'src'));
-    const hits = src.filter(f => /arcraiders\.com/i.test(readFileSync(f, 'utf8'))).map(rel);
+    /* Jen oficiální doména (i s www.), ne jiné domény, které „arcraiders.com“ jen obsahují (thearcraiders.com, 0.8.0). */
+    const hits = src.filter(f => /(?<![\w-])arcraiders\.com/i.test(readFileSync(f, 'utf8'))).map(rel);
     expect(hits.filter(f => f !== 'src/i18n/cs.ts' && f !== 'src/i18n/en.ts')).toEqual(['src/modules/Maps.tsx']);
     const maps = readFileSync(join(root, 'src', 'modules', 'Maps.tsx'), 'utf8');
     expect(maps.match(/https:\/\/arcraiders\.com[^'"`]*/g)).toEqual(['https://arcraiders.com/map-conditions']);

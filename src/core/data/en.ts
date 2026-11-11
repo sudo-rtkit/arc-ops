@@ -263,7 +263,7 @@ export const SKILL_DESC_EN: Record<string, string> = {
   c_pryer: 'Faster breaching',
   c_breach: 'Opens Security Lockers',
   c_bash: 'Weapon strike',
-  c_rush: 'Sprinting with your weapon out knocks back players and ARC',
+  c_rush: 'Sprinting with your weapon holstered knocks back players and ARC',
   m_lungs: 'More max stamina',
   m_scrambler: 'Longer slope climbing while sprinting',
   m_roll: 'Bigger time window for the Recovery Roll',

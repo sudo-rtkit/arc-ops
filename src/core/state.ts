@@ -16,8 +16,7 @@ import { normalizeBlueprints } from './itemdb';
 import { emptyTierList, normalizeTierList } from './tierlist';
 import { emptyBuddy, normalizeBuddy } from './ops';
 import { clampInt, clampNum, isObj, text, uid } from './util';
-import { cleanPoints, BUILD_PREFIX } from './skills';
-import { PLANS } from './data/skills';
+import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
 import { MAPS } from './data/maps';
 import { RAID_TYPE_IDS } from './runs';
@@ -341,7 +340,7 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.skills.showPlan = sk.showPlan !== false;
   out.skills.builds = normalizeBuilds(sk.builds);
   const plan = String(sk.activePlan ?? '');
-  out.skills.activePlan = PLANS[plan] || (plan.startsWith(BUILD_PREFIX) && out.skills.builds.some(b => BUILD_PREFIX + b.id === plan)) ? plan : 'runner';
+  out.skills.activePlan = isPlanKey(plan, out.skills.builds) ? plan : 'runner';
 
   const st = objOf(r.stations);
   for (const s of STATIONS) if (st[s.id] !== undefined) out.stations[s.id] = clampInt(st[s.id], s.min, s.max);

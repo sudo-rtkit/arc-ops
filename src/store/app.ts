@@ -5,10 +5,9 @@ import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
 import { rollWeek } from '../core/week';
-import { addBlock, nextPlanPoint, planSteps, BUILD_PREFIX, cleanPoints } from '../core/skills';
+import { addBlock, nextPlanPoint, planSteps, isPlanKey, BUILD_PREFIX, cleanPoints } from '../core/skills';
 import { applyUpgrade, reqBlock } from '../core/workshop';
 import { getStations } from '../core/gamedata';
-import { PLANS } from '../core/data/skills';
 import { clampInt, dayKey, text, uid } from '../core/util';
 import { makeBackup } from '../core/backup';
 import { applyDelta, lootDelta, normalizeItems } from '../core/raidItems';
@@ -311,8 +310,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     },
     setPlan(key: string) {
       change(s => {
-        const ok = PLANS[key] || (key.startsWith(BUILD_PREFIX) && s.skills.builds.some(b => BUILD_PREFIX + b.id === key));
-        if (!ok || s.skills.activePlan === key) return false;
+        if (!isPlanKey(key, s.skills.builds) || s.skills.activePlan === key) return false;
         s.skills.activePlan = key;
       });
     },

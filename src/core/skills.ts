@@ -1,7 +1,8 @@
 /* Pravidla skill tree a plány buildů. Funkce do „resetCost“ jsou věrný převod z původního deníku. */
-import type { BranchId, PlanStep, Points, ReachStep, SavedBuild } from './types';
+import type { BranchId, CatalogBuild, PlanStep, Points, ReachStep, SavedBuild } from './types';
 import { BRANCHES, PLANS, SKILL, SKILLS } from './data/skills';
-import { t } from '../i18n';
+import { BUILD_CATALOG } from './data/builds';
+import { getLang, t } from '../i18n';
 
 export interface BudgetSource { level: number; expBonus: number }
 
@@ -76,12 +77,34 @@ const reachPts = (cur: Points, st: ReachStep): number => pointsIn(cur, st.reach,
 
 export const BUILD_PREFIX = 'build:';
 
-/* Kroky plánu podle klíče: vestavěný plán, nebo uložený build („build:<id>“). */
+/* Build z katalogu jako plán: „catalog:<id>“ (76 bodů nebo build jen pro 91) a „catalog:<id>:91“ (varianta s Expedicemi). */
+export const CATALOG_PREFIX = 'catalog:';
+export interface CatalogRef { build: CatalogBuild; v91: boolean; points: Points }
+export function catalogRef(key: string): CatalogRef | null {
+  if (!key.startsWith(CATALOG_PREFIX)) return null;
+  const [id, variant] = key.slice(CATALOG_PREFIX.length).split(':');
+  const build = BUILD_CATALOG.find(b => b.id === id);
+  if (!build) return null;
+  if (variant === undefined) return { build, v91: !!build.only91, points: build.points };
+  if (variant === '91' && build.variant91) return { build, v91: true, points: build.variant91 };
+  return null;
+}
+export const catalogPlanKey = (b: CatalogBuild, v91 = false): string => (b.plan && !v91 ? b.plan : CATALOG_PREFIX + b.id + (v91 && b.variant91 ? ':91' : ''));
+export const catalogSteps = (b: CatalogBuild, v91 = false): PlanStep[] =>
+  (v91 && b.variant91 ? stepsFromBuild(b.variant91) : b.order || stepsFromBuild(b.points));
+
+/* Platný klíč plánu: vestavěný plán, build z katalogu, nebo existující uložený build. */
+export const isPlanKey = (key: string, builds: SavedBuild[] = []): boolean =>
+  !!PLANS[key] || !!catalogRef(key) || (key.startsWith(BUILD_PREFIX) && builds.some(b => BUILD_PREFIX + b.id === key));
+
+/* Kroky plánu podle klíče: vestavěný plán, build z katalogu, nebo uložený build („build:<id>“). */
 export function planSteps(key: string, builds: SavedBuild[] = []): PlanStep[] {
   if (key.startsWith(BUILD_PREFIX)) {
     const b = builds.find(x => BUILD_PREFIX + x.id === key);
     if (b) return stepsFromBuild(b.points);
   }
+  const c = catalogRef(key);
+  if (c) return catalogSteps(c.build, c.v91 && !c.build.only91);
   return (PLANS[key] || PLANS.runner).steps;
 }
 
@@ -90,6 +113,8 @@ export function planName(key: string, builds: SavedBuild[] = []): string {
     const b = builds.find(x => BUILD_PREFIX + x.id === key);
     if (b) return b.name;
   }
+  const c = catalogRef(key);
+  if (c) return c.build.name[getLang()] + (c.v91 && !c.build.only91 ? ' (91)' : '');
   return (PLANS[key] || PLANS.runner).name;
 }
 

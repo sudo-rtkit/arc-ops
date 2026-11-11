@@ -80,3 +80,14 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - **Otevřít s hrou** (volitelné): jen podle názvu procesu `PioneerGame.exe`, kontrola jednou za 10 s.
 - Rust: vše v `src-tauri/src/ops.rs` (hlídá `tests/safety-m5.test.ts`). Stav: schéma 6. Fonty overlaye: OFL v `public/licenses/`.
 - Plán: `docs/superpowers/plans/2026-11-11-milnik-5.md`.
+
+## Katalog buildů skill tree (0.8.0)
+
+- **Skill Tree → Buildy a porovnání**: 11 buildů s přesnými body po skillech (`src/core/data/builds.ts`), včetně varianty
+  na 91 bodů a vlastního „broken“ buildu Buldozer (označený jako teorie). Karty s filtrem štítků a řazením, mini strom,
+  součty větví, 3 klíčové skilly; detail s velkým stromem jen pro čtení, popisem (CS i EN), zdrojem a verzí hry 2.0–2.3.
+- Akce: **Načíst jako plán** (`activePlan` = `catalog:<id>` nebo `catalog:<id>:91`), **Porovnat s mým stromem**
+  (co přidat, co je navíc, cena resetu 2 000 za bod), **Uložit jako můj build**. Vestavěné plány `runner` a `looter` zůstávají.
+- Pravidla stromu hlídá `tests/core/build-catalog.test.ts`; odkazy na zdroje jen na kliknutí (`tests/safety-m6.test.ts`).
+  Stav: schéma 6 beze změny.
+- Spec: `docs/superpowers/specs/2026-11-11-skill-buildy-design.md`, plán: `docs/superpowers/plans/2026-11-11-buildy.md`.

@@ -14,6 +14,37 @@ export type PlanStep = SkillStep | ReachStep;
 export interface PlanDef { name: string; totals: string; steps: PlanStep[] }
 export interface BuildDef { name: string; c: number; m: number; s: number; keys: string; who: string; plan?: string }
 
+/* Katalog buildů (milník 6): přesné ranky po skillech, popis v obou jazycích, zdroj. */
+export type BuildTag = 'pvp' | 'pve' | 'solo' | 'squad' | 'loot' | 'stealth' | 'expedition' | 'broken';
+export interface BuildText {
+  summary: string; playstyle: string; strengths: string[]; weaknesses: string[]; synergies: string[];
+  loadout: string; leveling: string; notes?: string;
+}
+export interface BuildSourceRef { label: string; url?: string }
+/* kind: web = komunitní weby (odkaz jen na kliknutí), diary = původní deník, own = vlastní návrh ARC OPS (teorie). */
+export interface BuildSource { kind: 'web' | 'diary' | 'own'; refs: BuildSourceRef[]; date: string }
+export interface CatalogBuild {
+  id: string;
+  name: { cs: string; en: string };
+  tags: BuildTag[];
+  difficulty: 1 | 2 | 3;
+  /* Přesné ranky. Součet 76, nebo 91 u buildu jen pro Expedice (only91). */
+  points: Points;
+  /* Volitelná varianta s 15 body z Expedic (91 bodů). */
+  variant91?: Points;
+  only91?: boolean;
+  /* Doporučené pořadí; když chybí, odvodí se stepsFromBuild. */
+  order?: PlanStep[];
+  /* Vestavěný plán se stejným cílem (PLANS), který se má použít místo odvozeného. */
+  plan?: string;
+  /* 3 klíčové skilly (id). */
+  keys: string[];
+  theory?: boolean;
+  desc: { cs: BuildText; en: BuildText };
+  source: BuildSource;
+  gameVersion: string;
+}
+
 export type Recipe = [string, number][];
 export interface StationReq { outpost?: number; level?: number }
 export interface Station {
