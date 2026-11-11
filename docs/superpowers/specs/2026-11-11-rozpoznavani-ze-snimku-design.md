@@ -1,6 +1,7 @@
 # Rozpoznávání inventory ze snímků obrazovky – návrh
 
-Stav: 11. 11. 2026, schváleno v konverzaci. Navazuje na verzi 0.3.1.
+Stav: 11. 11. 2026, schváleno v konverzaci. Navazuje na verzi 0.3.1. 3a hotovo v 0.4.0, 3b v 0.5.0
+(plán a skutečnost: `docs/superpowers/plans/2026-11-11-milnik-3b.md`; odchylky od návrhu jsou níže označené „3b:“).
 
 ## Cíl
 
@@ -29,7 +30,7 @@ Každý milník má vlastní testy, instalátor a commit. Verze: 3a = 0.4.0, 3b 
 - `inventory: Record<string, number>` **zůstává** pro materiály (Workshop, Planner, nákupní seznam).
 - **Nové `items: Record<string, ItemStock>`** (3b) pro ostatní předměty: `{ key, name, category, tier?: 'I'|'II'|'III'|'IV', count }`. Klíč je `name` + `tier`. Kategorie: `weapon`, `shield`, `augment`, `ammo`, `quickUse`, `key`, `other`.
 - **Nové `vision`**:
-  - `learned: { id, itemKey, kind: 'material'|'item', fp: number[], at }[]`: naučené otisky (max. 2000, nejstarší se odmažou),
+  - `learned: { id, itemKey, kind: 'material'|'item', fp: number[], at }[]`: naučené otisky (max. 2000, nejstarší se odmažou). 3b: u předmětů je `itemKey` jen název (tier se čte z políčka, ikona je pro všechny tiery stejná); `''` = „nezapisovat“.
   - `profile?: { cellPx, ui }`: poslední změřená velikost políčka,
   - `lastImportAt`.
 - Migrace 2 → 3 doplní prázdné `items` a `vision`. Starší stav, zálohy a deník v1 se načtou beze ztrát (test).
@@ -37,7 +38,7 @@ Každý milník má vlastní testy, instalátor a commit. Verze: 3a = 0.4.0, 3b 
 
 ### Katalog předmětů (3b, generuje se při vývoji)
 - Skript `scripts/gen-catalog.mjs` jednorázově načte `https://metaforge.app/api/arc-raiders/items` (s cache v `scripts/.cache/`, která je v `.gitignore`). Skript je mimo `src/`, takže bezpečnostní test na `fetch(` v aplikaci dál platí.
-- Výstup `src/core/data/catalog.ts`: `{ id, name, category, rarity, fp?: number[] }[]`. **Žádné obrázky ani popisy.**
+- Výstup `src/core/data/catalog.ts`: `{ id, name, category, rarity, fp?: number[] }[]`. **Žádné obrázky ani popisy.** 3b: otisk je kvůli velikosti uložen jako base64 bajtů (`f`) a typ jako index do `CATALOG_TYPES` (`t`); dekóduje `src/core/catalog.ts`. Vynechá se kosmetika, oblečení, vzory a varianty „Amplified“; zbraně jsou bez tieru v názvu (tier se čte z políčka). Ikona se před výpočtem otisku vloží do políčka jako ve hře (ikona 74/96 políčka, střed ve výšce 36/96, změřeno na tooltipech).
 - Ikony skript stáhne jen do cache, spočítá z nich otisk stejnou funkcí, jakou používá aplikace (`src/core/vision/fingerprint.ts`), a obrázky do repozitáře necommituje.
 - Pokud API ikony nemá nebo je blokuje (Cloudflare 403), katalog obsahuje jen názvy a kategorie a rozpoznávání stojí na učení. Skript to vypíše.
 - Názvy z katalogu se mapují na materiály z deníku (stejný anglický název). Neshody vypíše skript do `docs/superpowers/plans/catalog-mismatch.md` k ruční kontrole.
@@ -55,13 +56,17 @@ Každý milník má vlastní testy, instalátor a commit. Verze: 3a = 0.4.0, 3b 
 | `rarity.ts` | Barva rohu → `common` (šedá), `uncommon` (zelená), `rare` (modrá), `epic` (růžová), `legendary` (žlutá/oranžová). Barva mimo tyto skupiny → `unknown`; vzácnost je jen pomocný signál a `unknown` rozpoznávání neblokuje. |
 | `digits.ts` | Čtení „×19“, „×100“, tieru „I–IV“, „200/268“, „7“ a „51,060“. Porovnání se vzory číslic jednoho herního písma. Vzory se vytvoří z testovacích snímků a uloží jako binární masky malých rozměrů v `src/core/vision/glyphs.ts` (tvary číslic, ne herní grafika). |
 | `fingerprint.ts` | Otisk ikony: výřez se zmenší na 16×16, potlačí se pozadí (barva vzácnosti) a spočítá se vektor (jas + barevný histogram, normalizovaný). Porovnání kosinovou podobností. |
-| `match.ts` | Porovná otisk s naučenými otisky (přednost) a s katalogem. Vrátí nejlepší shodu a jistotu. Pod prahem vrátí výsledek „neznámé“. Pomocným signálem je kategorie z ikony vlevo dole. |
-| `merge.ts` | Spojení více snímků stejného panelu: řádky se porovnají podle podpisu (otisky + počty). Překryv mezi po sobě jdoucími snímky se započítá jen jednou. Pořadí snímků je pořadí vložení. |
+| `match.ts` | Porovná otisk s naučenými otisky (přednost) a s katalogem. Vrátí nejlepší shodu a jistotu. Pod prahem vrátí výsledek „neznámé“. Pomocným signálem je kategorie z ikony vlevo dole. 3b: u katalogu rozhoduje i odstup ≥ 0,04 od druhého nejlepšího předmětu (podobné ikony zůstanou neznámé). |
+| `overlays.ts` (3b) | Najde krémové panely přes inventory (tooltip, nápověda „Empty slot…“). Políčka pod nimi jsou zakrytá: nečtou se ani nepočítají. |
+| `tooltip.ts` (3b) | Přečte z tooltipu název, štítek kategorie a vzácnosti a stoh „x/y“. Vzory písmen `letterGlyphs.ts` z testovacích snímků. |
+| `merge.ts` | Spojení více snímků stejného panelu: řádky se porovnají podle podpisu (otisky + počty). Překryv mezi po sobě jdoucími snímky se započítá jen jednou. Pořadí snímků je pořadí vložení. 3b: sousední snímky často nemají žádný společný celý řádek; navázání pak potvrdí viditelná část useknutého řádku (podpis jasu), zakrytá místa se shodují s čímkoli. |
 | `read.ts` | Vstupní bod `readScreenshot(img, ctx)` → `{ panel, headerSlots, headerSlotsMax, stashValue, coins, cells[], warnings[] }`. |
 
 **Kontrolní součet:** pro stash musí platit, že počet obsazených políček ze všech snímků po spojení = `headerSlots`. Když nesedí, zobrazí se varování a volba „nastavit chybějící na 0“ není dostupná.
 
-**Tooltip** (volitelný v 3a, povinný v 3b): když je na snímku tooltip, přečte se název předmětu z velkého písma. Tím se rovnou pojmenuje vybrané políčko (zvýrazněné rámečkem), takže se ho není potřeba učit ručně.
+**Tooltip** (volitelný v 3a, povinný v 3b): když je na snímku tooltip, přečte se název předmětu z velkého písma. Tím se rovnou pojmenuje vybrané políčko (zvýrazněné rámečkem), takže se ho není potřeba učit ručně. 3b: pojmenuje se i každé další políčko se stejnou ikonou; název se přiřadí ke katalogu přibližně (písmena J, Q, W, Z nemají vzor).
+
+**Hlavička STASH** (3b): měří se od horního okraje posuvné oblasti, ne od prvního celého řádku, takže se přečte i u posunutého STASH.
 
 ## 3. Uživatelské rozhraní
 
@@ -81,10 +86,10 @@ Každý milník má vlastní testy, instalátor a commit. Verze: 3a = 0.4.0, 3b 
 7. Potvrzení „Zapsáno: 14 materiálů, mince 51 060“ a odkaz zpět do Zásoby.
 
 ### Inventory → nová záložka „Vybavení“ (3b)
-Seznam `items` po kategoriích s ručními úpravami (přidat, upravit počet, smazat) ve stejném stylu jako Zásoba.
+Seznam `items` po kategoriích s ručními úpravami (přidat, upravit počet, smazat) ve stejném stylu jako Zásoba. 3b: import ze snímku zapisuje do `items` přesné počty (přepis); katalogový materiál, který aplikace nevede (např. Battery), se nabídne jako nový vlastní materiál do Zásoby. „Chybějící na 0“ nuluje i Vybavení.
 
 ### Zápis raidu → „Loot ze snímku“ (3b)
-Snímek po raidu → rozpozná BACKPACK (a QUICK USE). Od výsledku se odečte výbava zadaná pro raid, zbytek se předvyplní do „Získané materiály (loot)“ ke kontrole. Převod do Inventory dál funguje jen tlačítkem jako dnes.
+Snímek po raidu → rozpozná BACKPACK (a QUICK USE). Od výsledku se odečte výbava zadaná pro raid, zbytek se předvyplní do „Získané materiály (loot)“ ke kontrole. Převod do Inventory dál funguje jen tlačítkem jako dnes. 3b: funguje se snímkem FINDINGS po raidu i s INVENTORY; EQUIPMENT se ignoruje; prázdný batoh (KNOCKED OUT) = hláška „není co předvyplnit“; skupiny jde před předvyplněním přejmenovat, vyřadit a upravit jim počet.
 
 ### Settings
 - „Naučené ikony: 37 · Smazat naučené“ (s potvrzením).

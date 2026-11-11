@@ -35,3 +35,15 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Jádro: `src/core/vision/` (čisté funkce nad RGBA bufferem), převod na změny stavu: `src/core/visionImport.ts`.
 - Vzory číslic: `GEN_GLYPHS=1 pnpm vitest run tests/vision/glyphs.gen.test.ts` (ze snímků v `tests/fixtures/vision/`).
 - Návrh: `docs/superpowers/specs/2026-11-11-rozpoznavani-ze-snimku-design.md`, plán: `docs/superpowers/plans/2026-11-11-milnik-3a-rozpoznavani.md`.
+
+## Katalog, Vybavení a loot ze snímku (0.5.0)
+
+- **Katalog předmětů** `src/core/data/catalog.ts` (názvy, kategorie, vzácnost, otisky ikon; žádné obrázky ani popisy).
+  Zdroj: MetaForge, neoficiální, ne od Embarku (uvedeno v Settings → Zdroje dat). Generuje se jen při vývoji:
+  `node scripts/gen-catalog.mjs` (cache v `scripts/.cache/`, mimo git; `--offline` jen z cache).
+- **Tooltip**: název, štítky a stoh z tooltipu pojmenují zvýrazněné políčko. Vzory písmen:
+  `GEN_LETTERS=1 pnpm vitest run tests/vision/letters.gen.test.ts` (potřebuje lokální vlastní snímky).
+- **Inventory → Vybavení**: evidence předmětů mimo materiály po kategoriích; import ze snímku do ní zapisuje přesné počty.
+- **Zápis raidu → Loot ze snímku**: batoh a quick use ze snímku po raidu, minus zadaná výbava, předvyplní loot ke kontrole.
+- Vlastní snímky hráče v `tests/fixtures/vision/own/` jsou jen lokálně (v .gitignore); testy nad nimi se bez nich přeskočí.
+- Plán: `docs/superpowers/plans/2026-11-11-milnik-3b.md`.

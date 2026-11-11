@@ -15,8 +15,14 @@ export interface CatalogFp { key: string; kind: FpKind; fp?: number[]; rarity?: 
 
 export interface Match {
   status: 'known' | 'uncertain' | 'unknown';
-  itemKey: string | null; kind: FpKind | null; score: number; source: 'learned' | 'catalog' | null;
+  itemKey: string | null; kind: FpKind | null; score: number; source: 'learned' | 'catalog' | 'tooltip' | null;
 }
+
+/* Katalog má otisky z ikon MetaForge, ne ze hry: shoda bývá nižší (0,90–0,99) než u naučených otisků, ale druhý
+   nejlepší předmět je výrazně níž. Rozhoduje proto i odstup od druhého nejlepšího. */
+export const CATALOG_SURE = 0.95;
+export const CATALOG_MAYBE = 0.88;
+export const CATALOG_MARGIN = 0.04;
 
 const rarityOk = (a: Rarity | undefined, b: Rarity | undefined) => !a || !b || a === 'unknown' || b === 'unknown' || a === b;
 
@@ -30,13 +36,31 @@ function best<T extends { fp?: number[]; rarity?: Rarity }>(fp: number[], rarity
   return out;
 }
 
+/* Nejlepší shoda a skóre nejlepšího jiného předmětu (jiný klíč). */
+function bestTwo(fp: number[], rarity: Rarity, list: CatalogFp[]): { item: CatalogFp; score: number; second: number } | null {
+  let top: { item: CatalogFp; score: number } | null = null;
+  const scores: { key: string; s: number }[] = [];
+  for (const x of list) {
+    if (!x.fp || !rarityOk(rarity, x.rarity)) continue;
+    const s = similarity(fp, x.fp);
+    scores.push({ key: x.key, s });
+    if (!top || s > top.score) top = { item: x, score: s };
+  }
+  if (!top) return null;
+  let second = 0;
+  for (const x of scores) if (x.key !== top.item.key && x.s > second) second = x.s;
+  return { ...top, second };
+}
+
 const statusOf = (score: number): Match['status'] => (score >= MATCH_SURE ? 'known' : score >= MATCH_MAYBE ? 'uncertain' : 'unknown');
 
 export function matchFp(fp: number[], rarity: Rarity, learned: LearnedFp[], catalog: CatalogFp[] = []): Match {
   const l = best(fp, rarity, learned);
   if (l && l.score >= MATCH_MAYBE) return { status: statusOf(l.score), itemKey: l.item.itemKey, kind: l.item.kind, score: l.score, source: 'learned' };
-  const c = best(fp, rarity, catalog);
-  if (c && c.score >= MATCH_MAYBE) return { status: statusOf(c.score), itemKey: c.item.key, kind: c.item.kind, score: c.score, source: 'catalog' };
+  const c = bestTwo(fp, rarity, catalog);
+  if (c && c.score >= CATALOG_MAYBE && c.score - c.second >= CATALOG_MARGIN) {
+    return { status: c.score >= CATALOG_SURE ? 'known' : 'uncertain', itemKey: c.item.key, kind: c.item.kind, score: c.score, source: 'catalog' };
+  }
   const top = Math.max(l?.score ?? 0, c?.score ?? 0);
   return { status: 'unknown', itemKey: null, kind: null, score: top, source: null };
 }

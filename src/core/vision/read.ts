@@ -8,7 +8,7 @@ import { isCream, isGold, maskOf, numberTokens, parseGrouped, readCount, readTie
 import { fingerprint } from './fingerprint';
 import { readRarity, type Rarity } from './rarity';
 import { coinsArea, panelLabelArea, stashHeaderArea } from './regions';
-import { findOverlays, occludedBy, type Overlay } from './overlays';
+import { findOverlays, isPanelCream, occludedBy, type Overlay } from './overlays';
 import { readTooltip, type TooltipRead } from './tooltip';
 
 export type VisionWarning =
@@ -78,6 +78,16 @@ function categoryMap(img: RgbaImage, area: Box): number[] {
   return out;
 }
 
+function panelCreamShare(img: RgbaImage, a: Box): number {
+  let on = 0, n = 0;
+  for (let y = Math.round(a.y); y < a.y + a.h; y += 2) for (let x = Math.round(a.x); x < a.x + a.w; x += 2) {
+    if (x < 0 || y < 0 || x >= img.width || y >= img.height) continue;
+    n++; const i = (y * img.width + x) * 4;
+    if (isPanelCream(img.data[i], img.data[i + 1], img.data[i + 2])) on++;
+  }
+  return n ? on / n : 0;
+}
+
 /* Prah obsazenosti: podíl světlých neutrálních pixelů v ikoně kategorie (prázdné místo 0, tmavý zaměřovač ~0,05). */
 export const CATEGORY_ICON_MIN = 0.02;
 
@@ -89,7 +99,8 @@ function readPanel(img: RgbaImage, g: PanelGrid, overlays: Overlay[], vp: Viewpo
     const b = gc.box;
     if (occludedBy(b, gc.framed, overlays, g.cell)) { hidden.push({ row: gc.row, col: gc.col }); sigs[gc.row][gc.col] = []; continue; }
     sigs[gc.row][gc.col] = cellSig(img, b);
-    frames.push({ row: gc.row, col: gc.col, lum: frameLum(img, b) });
+    const ring = Math.max(2, Math.round(g.cell * 0.05));
+    frames.push({ row: gc.row, col: gc.col, lum: frameLum(img, b, [-ring - 1, -ring, -ring + 1]) });
     const cnt = readCount(img, countArea(b));
     const tier = cnt ? null : readTier(img, tierArea(b));
     const rar = readRarity(img, b);
@@ -119,11 +130,14 @@ function readPanel(img: RgbaImage, g: PanelGrid, overlays: Overlay[], vp: Viewpo
     return { visible, sigs: out };
   };
   /* Zvýrazněné místo: dvojitý světlý rámeček rozbije hledání rámečku, takže je to místo uvnitř mřížky bez nalezeného
-     rámečku (a nezakryté), jehož obrys je světlejší než u ostatních míst panelu. */
+     rámečku (a nezakryté), které má světlý obrys v mezeře vně políčka (u ostatních míst je mezera tmavá). */
   const lums = frames.map(f => f.lum).sort((a, b) => a - b);
   const med = lums.length ? lums[Math.floor(lums.length / 2)] : 0;
-  const top = frames.filter(f => !g.present[f.row * g.cols + f.col] && f.lum >= med + 8).sort((a, b) => b.lum - a.lum)[0];
+  const top = frames.filter(f => !g.present[f.row * g.cols + f.col] && f.lum >= Math.max(med + 25, 50)).sort((a, b) => b.lum - a.lum)[0];
   const selected = top ? { row: top.row, col: top.col } : null;
+  /* Zvýrazněné políčko může mít krémový podklad: otisk se pak spočítá znovu bez něj. */
+  const sc = selected && cells.find(c => c.row === selected.row && c.col === selected.col);
+  if (sc && panelCreamShare(img, iconArea(sc.box)) > 0.25) sc.fp = fingerprint(img, iconArea(sc.box), null, true);
   return {
     panel: g.panel, grid: g, cells, empty, hidden, slots, slotsMax, sigs, selected,
     partialTop: vp ? partial(-1, vp.partialTop, true) : null,

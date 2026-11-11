@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { loadFixture, expected, TOOLTIP, AMMO } from './load';
 import { hideRowsFrom, scrollRows } from './synth';
 import { readScreenshot } from '../../src/core/vision/read';
-import { mergePanels, occupied } from '../../src/core/vision/merge';
+import { isCell, mergePanels, occupied } from '../../src/core/vision/merge';
 
 const stashOf = (img: Parameters<typeof readScreenshot>[0]) => readScreenshot(img).panels.find(p => p.panel === 'stash')!;
-const counts = (rows: ReturnType<typeof mergePanels>['rows']) => rows.map(r => r.map(c => c?.count ?? null));
+const counts = (rows: ReturnType<typeof mergePanels>['rows']) => rows.map(r => r.map(c => (isCell(c) ? c.count : null)));
 
 describe('spojení snímků', () => {
   const src = loadFixture(TOOLTIP);

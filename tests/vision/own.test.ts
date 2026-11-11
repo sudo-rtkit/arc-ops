@@ -8,7 +8,12 @@ import { PNG } from 'pngjs';
 import { FIXTURES } from './load';
 import { readScreenshot, type PanelRead, type ScreenRead } from '../../src/core/vision/read';
 import { mergePanels, occupied } from '../../src/core/vision/merge';
-import { analyzeShots } from '../../src/core/visionImport';
+import { analyzeLoot, analyzeShots, defaultTarget, lootMinusGear } from '../../src/core/visionImport';
+import { matchContext } from '../../src/core/catalog';
+import { similarity } from '../../src/core/vision/fingerprint';
+import { MATCH_SURE } from '../../src/core/vision/match';
+import { getMaterials } from '../../src/core/gamedata';
+import { defaultState } from '../../src/core/state';
 import type { RgbaImage } from '../../src/core/vision/image';
 
 const OWN = FIXTURES + 'own/';
@@ -32,6 +37,8 @@ function tokens(p: PanelRead): (string | null)[][] {
 const pad = (rows: (string | null)[][], cols = 4, height = rows.length) =>
   [...rows, ...Array.from({ length: Math.max(0, height - rows.length) }, () => [])].map(r => [...r, ...new Array(Math.max(0, cols - r.length)).fill(null)]);
 
+const MATS = getMaterials(defaultState()).map(m => m.name);
+const CTX = matchContext(MATS);
 const ALL = ['own-all-1-top.png', 'own-all-2.png', 'own-all-3.png', 'own-all-4.png', 'own-all-5-end.png'];
 
 describe.skipIf(!HAS_OWN)('vlastní snímky hráče', () => {
@@ -156,6 +163,29 @@ describe.skipIf(!HAS_OWN)('vlastní snímky hráče', () => {
     });
   });
 
+  describe('tooltip (3b): název pojmenuje zvýrazněné políčko', () => {
+    const TIPS = ['own-materials-tooltip-medium-gun-parts.png', 'own-materials-tooltip-battery.png', 'own-materials-scrolled-tooltip-crude-explosives.png', 'own-materials-scrolled-tooltip-fabric.png'];
+    const RAR: Record<string, string> = { COMMON: 'common', UNCOMMON: 'uncommon', RARE: 'rare', EPIC: 'epic', LEGENDARY: 'legendary' };
+    it.each(TIPS)('%s', f => {
+      const t = exp[f].tooltip, r = read(f);
+      const [n, max] = t.stack.split('/').map(Number);
+      expect(r.tooltip).toMatchObject({ name: t.name, rarity: RAR[t.rarity], stack: { n, max }, cell: { panel: 'stash', ...t.forCell } });
+      expect(r.tooltip!.category.replace(/\s/g, '')).toBe(t.category.replace(/\s/g, ''));
+      expect(panel(f, 'stash')!.cells.find(c => c.row === t.forCell.row && c.col === t.forCell.col)?.name).toBe(t.name);
+    });
+    it('oříznutý snímek: GRAPPLING HOOK, QUICK USE, 100/100', () => {
+      const r = read('own-all-legendary-cropped-tooltip.png');
+      expect(r.tooltip).toMatchObject({ name: 'GRAPPLING HOOK', rarity: 'uncommon', stack: { n: 100, max: 100 }, cell: { panel: 'stash', row: 4, col: 3 } });
+      expect(r.tooltip!.category.replace(/\s/g, '')).toBe('QUICKUSE');
+    });
+    it('bez tooltipu se nic nepojmenuje (volný loadout má zvýrazněné místo, ale žádný předmět)', () => {
+      for (const f of [...ALL, 'own-prerade-free-loadout.png']) {
+        expect(read(f).tooltip, f).toBeNull();
+        expect(read(f).panels.flatMap(p => p.cells).some(c => c.name), f).toBe(false);
+      }
+    });
+  });
+
   describe('po raidu: batoh a quick use', () => {
     const f = 'own-after-raid-survived-findings.png';
     it('batoh 14/14 a quick use 4/4 přesně podle expected (odznak „nové“ nevadí)', () => {
@@ -169,6 +199,59 @@ describe.skipIf(!HAS_OWN)('vlastní snímky hráče', () => {
       const g = 'own-all-legendary-cropped-tooltip.png';
       expect(panel(g, 'backpack')!.cells.map(c => c.count)).toEqual([64, 8]);
       expect(panel(g, 'quickUse')!.cells.map(c => c.count)).toEqual([2, 1]);
+    });
+  });
+  describe('3b: katalog, tooltip a loot', () => {
+    it.each([
+      ['own-materials-tooltip-medium-gun-parts.png', 'Medium Gun Parts'], ['own-materials-tooltip-battery.png', 'Battery'],
+      ['own-materials-scrolled-tooltip-crude-explosives.png', 'Crude Explosives'], ['own-materials-scrolled-tooltip-fabric.png', 'Fabric'],
+    ])('%s: tooltip pojmenuje skupinu (%s)', (f, name) => {
+      const a = analyzeShots([read(f)], [], CTX);
+      const cell = exp[f].tooltip.forCell;
+      const g = a.groups.find(x => x.cells.some(c => c.row === cell.row && c.col === cell.col))!;
+      expect(g.match).toMatchObject({ status: 'known', itemKey: name, source: 'tooltip' });
+    });
+    it('5 snímků stashu: katalog pojmenuje většinu skupin, materiály jdou do Zásoby', () => {
+      const a = analyzeShots(ALL.map(read), [], CTX);
+      const named = a.groups.filter(g => g.match.status !== 'unknown');
+      expect(named.length / a.groups.length).toBeGreaterThan(0.75);
+      const fabric = a.groups.find(g => g.match.itemKey === 'Fabric')!;
+      expect(fabric.count).toBe(381);
+      expect(defaultTarget(fabric, MATS)).toEqual({ kind: 'material', name: 'Fabric' });
+      expect(defaultTarget(a.groups.find(g => g.match.itemKey === 'Light Ammo')!, MATS)).toMatchObject({ kind: 'item', category: 'ammo' });
+    });
+    it('odznak „nové“ a posunutá značka „viděno“ nerozbijí párování s tímtéž předmětem ve stashi', () => {
+      const bp = panel('own-after-raid-survived-findings.png', 'backpack')!;
+      const at = (p: PanelRead, r: number, c: number) => p.cells.find(x => x.row === r && x.col === c)!;
+      /* výbušniny (odznak + oko), brokové náboje (odznak), ARC Alloy (odznak) proti stashi bez odznaku */
+      expect(similarity(at(bp, 1, 0).fp, at(panel('own-all-4.png', 'stash')!, 3, 3).fp)).toBeGreaterThanOrEqual(MATCH_SURE);
+      expect(similarity(at(bp, 0, 1).fp, at(panel('own-all-2.png', 'stash')!, 3, 3).fp)).toBeGreaterThanOrEqual(MATCH_SURE);
+      expect(similarity(at(bp, 3, 1).fp, at(panel('own-materials-top-taskbar.png', 'stash')!, 3, 3).fp)).toBeGreaterThanOrEqual(MATCH_SURE);
+    });
+    it('loot po raidu: 14 + 4 políček, počty podle expected, odečtení výbavy', () => {
+      const f = 'own-after-raid-survived-findings.png';
+      const l = analyzeLoot(read(f), [], CTX);
+      expect([l.backpack, l.quickUse, l.empty]).toEqual([{ slots: 14, max: 14, cells: 14 }, { slots: 4, max: 4, cells: 4 }, false]);
+      const counts = (rows: (string | null)[][]) => rows.flat().filter(Boolean).map(x => Number(/^\d+/.exec(x!)?.[0] ?? 1));
+      const want = [...counts(exp[f].backpack.rows), ...counts(exp[f].quickUse.rows)].reduce((a, b) => a + b, 0);
+      expect(l.groups.reduce((a, g) => a + (g.count ?? 0), 0)).toBe(want);
+      expect(l.groups.flatMap(g => g.cells).length).toBe(18);
+      const named = l.groups.filter(g => g.match.status === 'known');
+      expect(named.length).toBeGreaterThanOrEqual(12);
+      const found = named.map(g => ({ name: g.match.itemKey!, qty: g.count ?? 1 }));
+      const light = found.find(x => x.name === 'Light Ammo')!;
+      expect(light.qty).toBe(100);
+      expect(lootMinusGear(found, [{ name: 'Light Ammo', qty: 40 }]).find(x => x.name === 'Light Ammo')?.qty).toBe(60);
+    });
+    it('KNOCKED OUT a volný loadout: prázdný batoh, není co předvyplnit', () => {
+      for (const f of ['own-after-raid-knocked-out.png', 'own-prerade-free-loadout.png']) {
+        const l = analyzeLoot(read(f), [], CTX);
+        expect([l.empty, l.noBackpack, l.groups.length], f).toEqual([true, false, 0]);
+      }
+    });
+    it('oříznutý snímek: loot 64 a 8, quick use 2 a 1', () => {
+      const l = analyzeLoot(read('own-all-legendary-cropped-tooltip.png'), [], CTX);
+      expect(l.groups.map(g => g.count)).toEqual([64, 8, 2, 1]);
     });
   });
 });

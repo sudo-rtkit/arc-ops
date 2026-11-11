@@ -285,3 +285,15 @@
 .danger-text { color: var(--danger); }
 .check-row.disabled { cursor: not-allowed; }
 .check-row.disabled .check-text > span { color: var(--text-muted); }
+
+/* ----- Inventory → Vybavení a zápis raidu → Loot ze snímku (milník 3b) ----- */
+.mat-table.equip-table { min-width: 560px; }
+.equip-table .group-row th {
+  text-align: left; padding-top: var(--space-3); color: var(--text-secondary);
+  font-weight: var(--weight-semibold); background: var(--surface-inset); border-bottom: var(--line-thin) solid var(--border-subtle);
+}
+.scan-drop.compact { padding: var(--space-3) var(--space-4); }
+.loot-scan { padding: var(--space-3); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-inset); }
+.loot-scan-table td:nth-child(3) { min-width: 240px; }
+.loot-scan-table .stepper { justify-content: flex-end; }
+.loot-scan-table tr.muted td { opacity: 0.55; }

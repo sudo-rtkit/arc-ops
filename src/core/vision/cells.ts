@@ -74,11 +74,11 @@ export function sigDiff(a: number[], b: number[]): { diff: number; bands: number
   return n ? { diff: s / n, bands, spread: hi - lo } : null;
 }
 
-/* Jas rámečku políčka (průměr po obvodu, nejsvětlejší ze tří sousedních linek). Zvýrazněné políčko pod kurzorem
-   má bílý rámeček. */
-export function frameLum(img: RgbaImage, b: Box): number {
+/* Jas rámečku políčka (průměr po obvodu, nejsvětlejší z několika sousedních linek). Zvýrazněné políčko pod kurzorem
+   má navíc světlý obrys vně políčka, kde je jinak tmavá mezera (offsets záporné = vně). */
+export function frameLum(img: RgbaImage, b: Box, offsets: number[] = [-5, -4, -3, -2, -1, 0, 1]): number {
   let best = 0;
-  for (const o of [-5, -4, -3, -2, -1, 0, 1]) {
+  for (const o of offsets) {
     let s = 0, n = 0;
     const x0 = Math.round(b.x + o), y0 = Math.round(b.y + o), x1 = Math.round(b.x + b.w - 1 - o), y1 = Math.round(b.y + b.h - 1 - o);
     for (let x = x0 + 4; x <= x1 - 4; x += 2) for (const y of [y0, y1]) if (x >= 0 && y >= 0 && x < img.width && y < img.height) { s += lumAt(img, x, y); n++; }

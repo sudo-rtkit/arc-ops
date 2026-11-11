@@ -1,7 +1,7 @@
 /* Jeden store pro celou aplikaci: drží stav, mění ho přes akce a ukládá ho přes rozhraní úložiště.
    Neimportuje React, takže jde testovat v Node se zástupným úložištěm. */
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { AppState, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Raid, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
+import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Raid, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
 import { rollWeek } from '../core/week';
@@ -19,6 +19,7 @@ import { STATIONS } from '../core/data/stations';
 import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { normalizeItemStock } from '../core/visionState';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
 
@@ -385,6 +386,27 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
     },
     deleteCustomMaterial(name: string) { change(s => { s.gameData.materialsCustom = s.gameData.materialsCustom.filter(m => m.name !== name); }); },
+
+    /* vybavení (evidence předmětů mimo materiály): klíč je název + tier */
+    itemSave(input: { name: string; category: ItemCategory; tier?: ItemTier; count: number }, prevKey?: string): string | null {
+      const it = Object.values(normalizeItemStock({ x: input }))[0];
+      if (!it) return null;
+      change(s => {
+        if (prevKey && prevKey !== it.key) delete s.items[prevKey];
+        s.items[it.key] = it;
+      });
+      return it.key;
+    },
+    itemSetCount(key: string, value: unknown): number {
+      const n = clampInt(value, 0, LIMITS.inventory[1]);
+      change(s => {
+        const it = s.items[key];
+        if (!it || it.count === n) return false;
+        if (n) it.count = n; else delete s.items[key];
+      });
+      return n;
+    },
+    itemDelete(key: string) { change(s => { if (!s.items[key]) return false; delete s.items[key]; }); },
 
     /* rozpoznávání ze snímků: před zápisem vždy snímek stavu (druh import); když se nepodaří, nic se nezapíše. */
     async importFromScreens(input: VisionApply): Promise<VisionSummary | null> {
@@ -799,7 +821,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'profile': s.profile = d.profile; s.profileLog = []; break;
         case 'skills': s.skills = d.skills; break;
         case 'workshop': s.stations = d.stations; s.gameData.recipes = {}; break;
-        case 'inventory': s.inventory = {}; s.gameData.materials = {}; s.gameData.materialsCustom = []; break;
+        case 'inventory': s.inventory = {}; s.items = {}; s.gameData.materials = {}; s.gameData.materialsCustom = []; break;
         case 'raids': s.raids = []; for (const g of s.goals) g.doneRaid = ''; break;
         case 'trials': s.trials = { ...d.trials, week: s.trials.week }; break;
         case 'checklists': s.checklists = { templates: defaultTemplates(s.settings.lang), active: RAID_TEMPLATE_ID, checked: {}, routeChecks: {} }; break;

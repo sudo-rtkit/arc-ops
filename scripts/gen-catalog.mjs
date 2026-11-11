@@ -1,0 +1,139 @@
+// Katalog předmětů z MetaForge (https://metaforge.app/arc-raiders, neoficiální, ne od Embarku). Jen při vývoji.
+// Spuštění: node scripts/gen-catalog.mjs [--offline]
+//
+// - Seznam předmětů stáhne z https://metaforge.app/api/arc-raiders/items (po stránkách) do scripts/.cache/
+//   (složka je v .gitignore). MetaForge žádá ukládat data u sebe a API nevolat opakovaně, proto cache;
+//   --offline použije jen cache.
+// - Ikony stáhne jen do cache a spočítá z nich otisk STEJNOU funkcí, jakou používá aplikace
+//   (src/core/vision/fingerprint.ts, načtená přes Vite). Ikona se nejdřív vloží do políčka jako ve hře
+//   (tmavý podklad, ikona 74/96 políčka, střed ve výšce 36/96 – změřeno na snímcích s tooltipem).
+// - Zapíše src/core/data/catalog.ts jen s { id, name, category, rarity, fp } – žádné obrázky ani popisy.
+//   Otisk je kvůli velikosti uložen jako base64 bajtů (dekóduje src/core/catalog.ts).
+// - Názvy materiálů aplikace, které v katalogu nejsou, zapíše do docs/superpowers/plans/catalog-mismatch.md.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { createServer } from 'vite';
+
+const require = createRequire(import.meta.url);
+const { PNG } = require('pngjs');
+const OFFLINE = process.argv.includes('--offline');
+const API = 'https://metaforge.app/api/arc-raiders/items';
+const CACHE = 'scripts/.cache';
+mkdirSync(`${CACHE}/icons`, { recursive: true });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function getJson(url, file) {
+  if (existsSync(file)) return JSON.parse(readFileSync(file, 'utf8'));
+  if (OFFLINE) throw new Error(`chybí cache ${file}`);
+  const res = await fetch(url, { headers: { 'User-Agent': 'arc-raiders-companion catalog script (dev, one-off)' } });
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  const text = await res.text();
+  writeFileSync(file, text);
+  await sleep(300);
+  return JSON.parse(text);
+}
+
+/* Typy, které se v inventory nevyskytují (vzhled postavy), se vynechají; stejně tak „Amplified“ varianty zbraní. */
+const SKIP_TYPES = new Set(['Outfits', 'Cosmetic', 'Design', 'Stencil']);
+const CATEGORY = {
+  Weapon: 'weapon', Shield: 'shield', Augment: 'augment', Ammunition: 'ammo', 'Quick Use': 'quickUse', Key: 'key',
+  'Topside Material': 'material', 'Refined Material': 'material', 'Basic Material': 'material', Nature: 'material', Material: 'material',
+};
+const RARITY = { Common: 'common', Uncommon: 'uncommon', Rare: 'rare', Epic: 'epic', Legendary: 'legendary' };
+/* Plán (blueprint) má u všech předmětů skoro stejnou ikonu: otisk by nic nerozlišil, nese se jen název. */
+const NO_FP = new Set(['Blueprint']);
+
+const items = [];
+for (let page = 1; ; page++) {
+  const j = await getJson(`${API}?limit=200&page=${page}`, `${CACHE}/items-${page}.json`);
+  items.push(...j.data);
+  if (!j.pagination?.hasNextPage) break;
+}
+console.log(`MetaForge: ${items.length} položek`);
+
+const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+const { fingerprint } = await server.ssrLoadModule('/src/core/vision/fingerprint.ts');
+const { resize } = await server.ssrLoadModule('/src/core/vision/image.ts');
+const { iconArea } = await server.ssrLoadModule('/src/core/vision/cells.ts');
+const { getMaterials } = await server.ssrLoadModule('/src/core/gamedata.ts');
+const { defaultState } = await server.ssrLoadModule('/src/core/state.ts');
+
+const CELL = 96, ICON = 74, CY = 36, BG = [16, 19, 31];
+function iconFp(png) {
+  const k = png.width / ICON, C = Math.round(CELL * k);
+  const out = new Uint8ClampedArray(C * C * 4);
+  for (let i = 0; i < C * C; i++) { out[i * 4] = BG[0]; out[i * 4 + 1] = BG[1]; out[i * 4 + 2] = BG[2]; out[i * 4 + 3] = 255; }
+  const ox = Math.round((CELL / 2) * k - png.width / 2), oy = Math.round(CY * k - png.height / 2);
+  for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) {
+    const X = x + ox, Y = y + oy;
+    if (X < 0 || Y < 0 || X >= C || Y >= C) continue;
+    const s = (y * png.width + x) * 4, d = (Y * C + X) * 4, a = png.data[s + 3] / 255;
+    for (let c = 0; c < 3; c++) out[d + c] = png.data[s + c] * a + out[d + c] * (1 - a);
+  }
+  const cell = resize({ width: C, height: C, data: out }, CELL, CELL);
+  return fingerprint(cell, iconArea({ x: 0, y: 0, w: CELL, h: CELL }), null);
+}
+
+/* Zbraně jsou v katalogu po tierech („Anvil I“ … „Anvil IV“) se stejnou ikonou; tier se čte z políčka. */
+const baseName = (x) => (x.item_type === 'Weapon' ? x.name.replace(/\s+(I|II|III|IV)$/, '') : x.name);
+
+const out = new Map();
+let icons = 0, iconFail = 0;
+for (const x of items) {
+  if (SKIP_TYPES.has(x.item_type) || x.rarity === 'Amplified') continue;
+  const name = baseName(x).trim();
+  if (!name || out.has(name.toLowerCase())) continue;
+  const e = { id: String(x.id), name, category: CATEGORY[x.item_type] || 'other', type: x.item_type, rarity: RARITY[x.rarity] };
+  if (x.icon && !NO_FP.has(x.item_type)) {
+    const file = `${CACHE}/icons/${String(x.id).replace(/[^\w.-]/g, '_')}.png`;
+    try {
+      if (!existsSync(file)) {
+        if (OFFLINE) throw new Error('offline');
+        const res = await fetch(x.icon);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+        await sleep(150);
+      }
+      e.fp = iconFp(PNG.sync.read(readFileSync(file)));
+      icons++;
+    } catch (err) { iconFail++; if (iconFail <= 5) console.warn(`ikona ${x.id}: ${err.message}`); }
+  }
+  out.set(name.toLowerCase(), e);
+}
+await server.close();
+const list = [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+console.log(`katalog: ${list.length} předmětů, otisk ikony: ${icons}, bez ikony: ${iconFail}`);
+if (!icons) console.warn('POZOR: žádná ikona nešla načíst – katalog obsahuje jen názvy a kategorie, rozpoznávání stojí na učení.');
+
+const str = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+const b64 = fp => Buffer.from(Uint8Array.from(fp.map(v => Math.max(0, Math.min(255, Math.round(v)))))).toString('base64');
+const types = [...new Set(list.map(e => e.type))].sort();
+writeFileSync('src/core/data/catalog.ts', `/* Katalog předmětů ARC Raiders. Zdroj: MetaForge (odkaz v Settings → Zdroje dat), neoficiální, ne od Embarku.
+   Vygenerováno scripts/gen-catalog.mjs ${new Date().toISOString().slice(0, 10)} (${list.length} předmětů, ${icons} s otiskem ikony).
+   Obsahuje jen identifikátor, anglický název, kategorii, vzácnost a otisk ikony (čísla, ne obrázek).
+   f = otisk jako base64 bajtů (FP_LEN čísel 0–255), t = index typu v CATALOG_TYPES. */
+export type CatalogCategory = 'material' | 'weapon' | 'shield' | 'augment' | 'ammo' | 'quickUse' | 'key' | 'other';
+export type CatalogRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export interface CatalogRow { id: string; name: string; category: CatalogCategory; t: number; rarity?: CatalogRarity; f?: string }
+/* Názvy typů z MetaForge (velkými písmeny je ukazuje štítek tooltipu ve hře). */
+export const CATALOG_TYPES: string[] = [${types.map(str).join(', ')}];
+export const CATALOG: CatalogRow[] = [
+${list.map(e => `  { id: ${str(e.id)}, name: ${str(e.name)}, category: '${e.category}', t: ${types.indexOf(e.type)}${e.rarity ? `, rarity: '${e.rarity}'` : ''}${e.fp ? `, f: '${b64(e.fp)}'` : ''} },`).join('\n')}
+];
+`);
+
+/* Materiály aplikace (deník, recepty stanic), které v katalogu pod stejným názvem nejsou. */
+const mats = getMaterials(defaultState()).map(m => m.name);
+const missing = mats.filter(n => !out.has(n.toLowerCase()));
+const near = n => list.map(e => e.name).filter(c => c.toLowerCase().includes(n.toLowerCase().split(' ')[0])).slice(0, 4);
+writeFileSync('docs/superpowers/plans/catalog-mismatch.md', `# Katalog MetaForge × materiály aplikace
+
+Vygenerováno \`scripts/gen-catalog.mjs\` ${new Date().toISOString().slice(0, 10)}. Materiály aplikace (deník, recepty stanic), které v katalogu
+MetaForge pod stejným anglickým názvem nejsou: ${missing.length} z ${mats.length}. Ke kontrole ručně (překlep, přejmenování ve hře, nebo
+předmět, který MetaForge nevede). Rozpoznávání je u nich jen přes naučené otisky.
+
+| Materiál v aplikaci | Podobné názvy v katalogu |
+|---|---|
+${missing.map(n => `| ${n} | ${near(n).join(', ') || '—'} |`).join('\n')}
+`);
+console.log(`neshody názvů materiálů: ${missing.length} (docs/superpowers/plans/catalog-mismatch.md)`);

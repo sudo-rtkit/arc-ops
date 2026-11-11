@@ -7,19 +7,23 @@ import { Badge, Btn, Check, Empty, Panel, Select, Stepper, cx } from '../ui/comp
 import { fmt } from '../ui/format';
 import { decodeImage, imagesFrom, type DecodeError } from '../ui/imageFile';
 import { readScreenshot, type ScreenRead } from '../core/vision/read';
-import { analyzeShots, defaultTarget, type ImportAnalysis, type ImportGroup, type ImportWarning, type Target, type VisionSummary } from '../core/visionImport';
+import { analyzeShots, defaultTarget, itemCategoryFor, type ImportAnalysis, type ImportGroup, type ImportWarning, type Target, type VisionSummary } from '../core/visionImport';
 import { LIMITS } from '../core/state';
+import { catalogItems, matchContext } from '../core/catalog';
+import { ITEM_CATEGORIES, itemKey, type ItemCategory } from '../core/types';
+import { catKey } from './Equipment';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 
 interface Shot { id: number; name: string; bitmap: ImageBitmap; read: ScreenRead }
 const NEW = '\u0000new';
+const ITEM = '\u0000item';
 const SKIP = '';
 
 const WARN_KEY: Partial<Record<ImportWarning, Key>> = {
   noInventory: 'scan.warn.noInventory', noStash: 'scan.warn.noStash', scaleOdd: 'scan.warn.scaleOdd',
   countUnreadable: 'scan.warn.countUnreadable', noOverlap: 'scan.warn.noOverlap', differentState: 'scan.warn.differentState',
-  headerUnreadable: 'scan.warn.headerUnreadable',
+  headerUnreadable: 'scan.warn.headerUnreadable', occluded: 'scan.warn.occluded',
 };
 const ERR_KEY: Record<DecodeError, Key> = { notImage: 'scan.err.notImage', tooBig: 'scan.err.tooBig', decode: 'scan.err.decode' };
 
@@ -47,6 +51,13 @@ function Preview({ shot, index, groups }: { shot: Shot; index: number; groups: I
     if (!ctx) return;
     ctx.drawImage(shot.bitmap, x0, y0, w, h, 0, 0, c.width, c.height);
     ctx.lineWidth = 2;
+    ctx.strokeStyle = cssVar('--text-muted');
+    ctx.setLineDash([4, 3]);
+    for (const h of stash.hidden) {
+      const x = g.x + h.col * g.pitchX, y = g.y + h.row * g.pitchY;
+      ctx.strokeRect((x - x0) * scale + 1, (y - y0) * scale + 1, g.cell * scale - 2, g.cell * scale - 2);
+    }
+    ctx.setLineDash([]);
     for (const gr of groups) for (const cell of gr.cells) {
       if (cell.shot !== index) continue;
       const b = stash.cells.find(x => x.row === cell.row && x.col === cell.col)?.box;
@@ -99,6 +110,8 @@ export default function ScreenImport() {
   const [errors, setErrors] = useState<Key[]>([]);
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [newNames, setNewNames] = useState<Record<string, string>>({});
+  const [itemNames, setItemNames] = useState<Record<string, string>>({});
+  const [itemCats, setItemCats] = useState<Record<string, ItemCategory>>({});
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [coinsOn, setCoinsOn] = useState(true);
   const [zeroOn, setZeroOn] = useState(false);
@@ -111,12 +124,21 @@ export default function ScreenImport() {
   const matNames = useMemo(() => d.materials.map(m => m.name).sort((a, b) => a.localeCompare(b)), [d.materials]);
   /* Naučené otisky se pro tabulku vezmou ve chvíli vložení snímků (zápis je změní, tabulka už je pak hotová). */
   const learnedRef = useRef(s.vision.learned);
-  const analysis = useMemo(() => (shots.length ? analyzeShots(shots.map(x => x.read), learnedRef.current) : null), [shots]);
+  /* Katalog (otisky ikon a názvy) a evidované předměty pro rozpoznání a přiřazení názvu z tooltipu. */
+  const itemNamesKnown = useMemo(() => [...new Set(Object.values(s.items).map(x => x.name))], [s.items]);
+  const ctxRef = useRef<ReturnType<typeof matchContext> | null>(null);
+  const analysis = useMemo(() => {
+    if (!shots.length) return null;
+    ctxRef.current ??= matchContext(matNames, itemNamesKnown);
+    return analyzeShots(shots.map(x => x.read), learnedRef.current, ctxRef.current);
+  }, [shots]);
+  const itemSuggestions = useMemo(() => [...new Set([...catalogItems().filter(x => x.category !== 'material').map(x => x.name), ...itemNamesKnown])], [itemNamesKnown]);
 
   const addFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
     setBusy(true); setDone(null);
     learnedRef.current = s.vision.learned;
+    ctxRef.current = null;
     const errs: Key[] = [], added: Shot[] = [];
     for (const f of files) {
       const r = await decodeImage(f);
@@ -149,24 +171,38 @@ export default function ScreenImport() {
 
   const clear = () => {
     for (const x of shots) x.bitmap.close();
-    setShots([]); setTargets({}); setNewNames({}); setCounts({}); setErrors([]); setZeroOn(false); setCoinsOn(true);
+    setShots([]); setTargets({}); setNewNames({}); setItemNames({}); setItemCats({}); setCounts({}); setErrors([]); setZeroOn(false); setCoinsOn(true);
   };
 
   const targetOf = (g: ImportGroup): Target => {
     const v = targets[g.id];
-    if (v === undefined) return defaultTarget(g, matNames);
+    const def = defaultTarget(g, matNames, s.items);
+    if (v === undefined) {
+      if (def.kind === 'item') {
+        const name = itemNames[g.id] ?? def.name;
+        return { kind: 'item', name: name.trim(), category: itemCats[g.id] ?? itemCategoryFor(name.trim(), g, s.items) };
+      }
+      if (def.kind === 'newMaterial') return { kind: 'newMaterial', name: (newNames[g.id] ?? def.name).trim() };
+      return def;
+    }
     if (v === SKIP) return { kind: 'skip' };
-    if (v === NEW) return { kind: 'newMaterial', name: (newNames[g.id] || '').trim() };
+    if (v === NEW) return { kind: 'newMaterial', name: (newNames[g.id] ?? (def.kind !== 'skip' ? def.name : '')).trim() };
+    if (v === ITEM) {
+      const name = (itemNames[g.id] ?? (def.kind !== 'skip' ? def.name : '')).trim();
+      return { kind: 'item', name, category: itemCats[g.id] ?? itemCategoryFor(name, g, s.items) };
+    }
     return { kind: 'material', name: v };
   };
   const countOf = (g: ImportGroup) => counts[g.id] ?? g.count ?? 0;
-  const selectValue = (g: ImportGroup) => { const tg = targetOf(g); return tg.kind === 'skip' ? SKIP : tg.kind === 'newMaterial' ? NEW : tg.name; };
+  const selectValue = (g: ImportGroup) => { const tg = targetOf(g); return tg.kind === 'skip' ? SKIP : tg.kind === 'newMaterial' ? NEW : tg.kind === 'item' ? ITEM : tg.name; };
 
   const a = analysis;
   const rows = a?.groups ?? [];
   const writeRows = rows.map(g => ({ group: g, target: targetOf(g), count: countOf(g) }));
-  const invalidNew = writeRows.some(r => r.target.kind === 'newMaterial' && !r.target.name);
+  const invalidNew = writeRows.some(r => (r.target.kind === 'newMaterial' || r.target.kind === 'item') && !r.target.name);
   const materialsCount = new Set(writeRows.flatMap(r => (r.target.kind === 'skip' ? [] : [r.target.name]))).size;
+  const storedOf = (g: ImportGroup, tg: Target): number | null =>
+    tg.kind === 'skip' ? null : tg.kind === 'item' ? s.items[itemKey(tg.name, g.tier ?? undefined)]?.count || 0 : s.inventory[tg.name] || 0;
   const coins = a?.coins ?? null;
   const canZero = !!a?.canZero;
 
@@ -183,6 +219,7 @@ export default function ScreenImport() {
   const options = [
     { value: SKIP, label: t('scan.target.skip') },
     { value: NEW, label: t('scan.target.new') },
+    { value: ITEM, label: t('scan.target.item') },
     ...matNames.map(n => ({ value: n, label: n })),
   ];
 
@@ -212,13 +249,14 @@ export default function ScreenImport() {
           <div className="banner" role="status"><CircleCheck size={18} aria-hidden="true" className="success" />
             <span className="banner-text" data-testid="scan-done">
               {done.coins !== null ? t('scan.doneCoins', { count: done.materials, coins: done.coins }) : t('scan.done', { count: done.materials })}
+              {done.items > 0 && <> · {t('scan.doneItems', { count: done.items })}</>}
               {done.newMaterials > 0 && <> · {t('scan.doneNew', { count: done.newMaterials })}</>}
               {done.zeroed > 0 && <> · {t('scan.doneZeroed', { count: done.zeroed })}</>}
               {done.other > 0 && <> · {t('scan.doneOther', { count: done.other })}</>}
               {done.learned > 0 && <> · {t('scan.doneLearned', { count: done.learned })}</>}
             </span>
           </div>
-          <div className="row"><a className="link-btn" href="#inventory">{t('scan.backToStock')}</a></div>
+          <div className="row"><a className="link-btn" href="#inventory">{t('scan.backToStock')}</a>{done.items > 0 && <a className="link-btn" href="#inventory/equipment">{t('scan.backToEquipment')}</a>}</div>
         </Panel>
       )}
 
@@ -231,6 +269,7 @@ export default function ScreenImport() {
               <p data-testid="scan-checksum" className={a.checksumOk ? 'success' : 'amber'}>
                 {a.checksumOk ? <CircleCheck size={16} aria-hidden="true" /> : <CircleAlert size={16} aria-hidden="true" />}{' '}
                 {t('scan.found', { found: a.found, total: a.headerSlots })}
+                {a.hidden > 0 && <span className="meta" data-testid="scan-hidden"> · {t('scan.hidden', { count: a.hidden })}</span>}
                 {!a.checksumOk && <span className="meta"> · {t('scan.checksumHint')}</span>}
               </p>
             )}
@@ -246,7 +285,7 @@ export default function ScreenImport() {
                 </tr></thead>
                 <tbody>{rows.map(g => {
                   const tg = targetOf(g), n = countOf(g);
-                  const stored = tg.kind === 'skip' ? null : s.inventory[tg.name] || 0;
+                  const stored = storedOf(g, tg);
                   const diff = stored === null ? null : n - stored;
                   const where = g.cells.map(c => `${c.merged + 1}/${c.col + 1}`).join(', ');
                   return (
@@ -258,7 +297,16 @@ export default function ScreenImport() {
                             onChange={v => setTargets(p => ({ ...p, [g.id]: v }))} />
                           {tg.kind === 'newMaterial' && (
                             <input className="input" aria-label={t('scan.newName')} placeholder={t('scan.newName')} maxLength={80}
-                              value={newNames[g.id] || ''} onChange={e => setNewNames(p => ({ ...p, [g.id]: e.target.value }))} />
+                              value={newNames[g.id] ?? tg.name} onChange={e => setNewNames(p => ({ ...p, [g.id]: e.target.value }))} />
+                          )}
+                          {tg.kind === 'item' && (
+                            <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+                              <input className="input grow" list="scan-item-names" aria-label={t('scan.itemName')} placeholder={t('scan.itemName')} maxLength={120}
+                                value={itemNames[g.id] ?? tg.name} onChange={e => setItemNames(p => ({ ...p, [g.id]: e.target.value }))} />
+                              <Select label={t('scan.itemCat')} hideLabel value={tg.category} onChange={v => setItemCats(p => ({ ...p, [g.id]: v as ItemCategory }))}
+                                options={ITEM_CATEGORIES.map(c => ({ value: c, label: t(catKey(c)) }))} />
+                              {g.tier && <Badge>{g.tier}</Badge>}
+                            </div>
                           )}
                           <span className="meta">{t('scan.cells', { count: g.cells.length, where })}</span>
                         </div>
@@ -268,12 +316,14 @@ export default function ScreenImport() {
                       <td className={cx('num', diff ? (diff > 0 ? 'success' : 'amber') : 'muted')}>{diff === null ? '—' : diff > 0 ? '+' + fmt(diff) : fmt(diff)}</td>
                       <td>
                         <Badge tone={g.match.status === 'known' ? 'success' : g.match.status === 'uncertain' ? 'amber' : 'danger'}>{t(`scan.status.${g.match.status}` as Key)}</Badge>
+                        {g.match.source && g.match.status !== 'unknown' && <span className="meta"> {t(`scan.source.${g.match.source}` as Key)}</span>}
                         {!g.countSure && <> <Badge tone="amber">{t('scan.countCheck')}</Badge></>}
                       </td>
                     </tr>
                   );
                 })}</tbody>
               </table>
+              <datalist id="scan-item-names">{itemSuggestions.map(n => <option key={n} value={n} />)}</datalist>
             </div>
           )}
           <div className="stack" style={{ padding: '0 16px 16px' }}>

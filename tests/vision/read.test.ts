@@ -48,6 +48,11 @@ describe('celý stash s tooltipem', () => {
     expect(r.cells.length).toBe(24);
     expect(r.cells.some(c => c.row >= e.partialRowIgnored)).toBe(false);
   });
+  it('tooltip: název, kategorie, vzácnost a stoh pojmenují zvýrazněné políčko (2,3)', () => {
+    expect(r.tooltip).toMatchObject({ name: e.tooltip.name, category: e.tooltip.category, rarity: 'epic', stack: { n: 2, max: 3 }, cell: { panel: 'stash', ...e.tooltip.forCell } });
+    expect(at(r, 2, 3)?.name).toBe('MAGNETIC ACCELERATOR');
+    expect(r.cells.filter(c => c.name).length).toBe(1);
+  });
   it('zvýrazněné políčko (řádek 2, sloupec 3) se přečte', () => {
     expect(at(r, 2, 3)?.count).toBe(2);
     expect(at(r, 2, 3)?.rarity).toBe('epic');

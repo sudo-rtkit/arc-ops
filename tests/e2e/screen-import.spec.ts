@@ -1,5 +1,6 @@
-/* Milník 3a: Inventory → Ze snímku. Vložení testovacího snímku (výběr souboru a Ctrl+V), kontrola tabulky,
-   pojmenování neznámého, zápis, kontrola Zásoby a profilu, učení ikon a Settings. V obou jazycích. */
+/* Milník 3a/3b: Inventory → Ze snímku. Vložení testovacího snímku (výběr souboru a Ctrl+V), kontrola tabulky
+   (název z tooltipu, katalog), oprava cíle, zápis, kontrola Zásoby, Vybavení a profilu, učení ikon a Settings.
+   V obou jazycích. */
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,8 @@ const CZ = /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/;
 const stateOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('arcops:state') || 'null'));
 const snapshotKeys = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter(k => /-import-/.test(k)));
 const row = (page: Page, cell: string) => page.locator(`.scan-table tbody tr[data-cells~="${cell}"]`);
+/* výběr cíle řádku (v řádku jsou i pole názvu a kategorie předmětu) */
+const TARGET = /^(Předmět v políčkách|Item in cells)/;
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -55,26 +58,36 @@ test.describe('Ze snímku (čeština)', () => {
     const mag = row(page, '2,3');
     await expect(mag).toHaveAttribute('data-cells', '2,1 2,2 2,3');
     await expect(mag.getByRole('textbox', { name: /Počet v políčkách/ })).toHaveValue('8');
-    await expect(mag).toContainText('Neznámé');
-    await mag.getByRole('combobox').selectOption('Magnetic Accelerator');
+    /* 3b: název z tooltipu pojmenuje celou skupinu */
+    await expect(mag).toContainText('Rozpoznáno');
+    await expect(mag).toContainText('z tooltipu');
+    await expect(mag.getByRole('combobox', { name: TARGET })).toHaveValue('Magnetic Accelerator');
     await expect(mag.locator('td').nth(4)).toContainText('+8');
 
-    /* ×19 → nový vlastní materiál */
+    /* katalog: předmět do Vybavení (Ion Sputter) a materiál, který aplikace nevede (nový vlastní) */
+    await expect(row(page, '1,3')).toContainText('katalog');
+    await expect(row(page, '1,3').getByRole('combobox', { name: TARGET })).toHaveValue('\u0000item');
+    await expect(row(page, '1,3').getByLabel('Název předmětu')).toHaveValue('Ion Sputter');
+
+    /* ×19 → nový vlastní materiál s vlastním názvem */
     const big = row(page, '4,0');
-    await big.getByRole('combobox').selectOption({ label: 'Nový vlastní materiál…' });
+    await big.getByRole('combobox', { name: TARGET }).selectOption({ label: 'Nový vlastní materiál…' });
+    await big.getByLabel('Název nového materiálu').fill('');
     await expect(page.getByRole('button', { name: 'Zapsat' })).toBeDisabled();
     await big.getByLabel('Název nového materiálu').fill('Testovací díl');
     await page.getByRole('button', { name: 'Zapsat' }).click();
 
-    await expect(page.getByTestId('scan-done')).toContainText(/Zapsáno: 2 materiály, mince 51\s060/);
-    await expect(page.getByTestId('scan-done')).toContainText('11 jiných předmětů nezapsáno');
+    await expect(page.getByTestId('scan-done')).toContainText(/Zapsáno: 12 materiálů, mince 51\s060/);
+    await expect(page.getByTestId('scan-done')).toContainText('1 předmět ve Vybavení');
+    await expect(page.getByTestId('scan-done')).toContainText('4 nové vlastní materiály');
     await expect(page.locator('.scan-table')).toHaveCount(0);
 
     const st = await stateOf(page);
     expect(st.schema).toBe(3);
     expect(st.inventory['Magnetic Accelerator']).toBe(8);
     expect(st.inventory['Testovací díl']).toBe(19);
-    expect(st.gameData.materialsCustom.map((m: { name: string }) => m.name)).toEqual(['Testovací díl']);
+    expect(st.gameData.materialsCustom.map((m: { name: string }) => m.name)).toContain('Testovací díl');
+    expect(st.items['Ion Sputter']).toEqual({ key: 'Ion Sputter', name: 'Ion Sputter', category: 'other', count: 3 });
     expect(st.profile.coins).toBe(51060);
     expect(st.vision.learned).toHaveLength(13);
     expect(JSON.stringify(st)).not.toMatch(/data:image|base64/);
@@ -95,9 +108,10 @@ test.describe('Ze snímku (čeština)', () => {
     await pasteImage(page, TOOLTIP);
     const again = row(page, '2,3');
     await expect(again).toContainText('Rozpoznáno');
-    await expect(again.getByRole('combobox')).toHaveValue('Magnetic Accelerator');
+    await expect(again.getByRole('combobox', { name: TARGET })).toHaveValue('Magnetic Accelerator');
     await expect(again.locator('td').nth(3)).toContainText('8');
-    await expect(row(page, '0,0').getByRole('combobox')).toHaveValue('');
+    await expect(row(page, '0,0').getByRole('combobox', { name: TARGET })).toHaveValue('Complex Gun Parts');
+    await expect(row(page, '0,0')).toContainText('naučeno');
 
     /* Settings: počet naučených ikon a smazání s potvrzením */
     await page.goto('/#settings');
@@ -145,13 +159,15 @@ test.describe('From screenshot (English)', () => {
     await expect(page.getByLabel(/Update coins in the profile \(51,060\)/)).toBeChecked();
 
     const mag = row(page, '2,3');
-    await expect(mag).toContainText('Unknown');
-    await mag.getByRole('combobox').selectOption('Magnetic Accelerator');
+    await expect(mag).toContainText('Recognised');
+    await expect(mag).toContainText('from tooltip');
+    await expect(mag.getByRole('combobox', { name: TARGET })).toHaveValue('Magnetic Accelerator');
     /* no Czech text in the screen (user data excepted: material names are English) */
     const cz = await page.evaluate(re => [...document.querySelectorAll('main *')].filter(e => e.children.length === 0 && new RegExp(re).test(e.textContent || '')).map(e => e.textContent), CZ.source);
     expect(cz).toEqual([]);
     await page.getByRole('button', { name: 'Write' }).click();
-    await expect(page.getByTestId('scan-done')).toContainText('Written: 1 material, coins 51,060');
+    await expect(page.getByTestId('scan-done')).toContainText('Written: 12 materials, coins 51,060');
+    await expect(page.getByTestId('scan-done')).toContainText('1 item in Equipment');
 
     const st = await stateOf(page);
     expect(st.inventory['Magnetic Accelerator']).toBe(8);
@@ -168,16 +184,31 @@ test.describe('From screenshot (English)', () => {
     expect(errors).toEqual([]);
   });
 
-  test('filtered stash: 7 of 7, but setting missing to 0 stays unavailable; coins can be switched off', async ({ page }) => {
+  test('filtered stash: 7 of 7, setting missing to 0 stays unavailable; ammo from the catalog goes to Equipment', async ({ page }) => {
     await page.goto('/#inventory/import');
     await page.getByTestId('scan-file').setInputFiles(AMMO);
     await expect(page.locator('.scan-table tbody tr')).toHaveCount(4);
     await expect(page.getByTestId('scan-checksum')).toContainText('Found 7 of 7 occupied slots');
     await expect(page.getByLabel('I captured the whole stash, set missing materials to 0')).toBeDisabled();
     await page.getByLabel(/Update coins in the profile/).uncheck();
+    /* every row set to "Do not write" and no coins: nothing to write */
+    for (const cell of ['0,0', '0,1', '0,3', '1,2']) await row(page, cell).getByRole('combobox', { name: TARGET }).selectOption({ label: 'Do not write' });
     await expect(page.getByRole('button', { name: 'Write' })).toBeDisabled();
     await page.getByRole('button', { name: 'Discard screenshots' }).click();
     await expect(page.locator('.scan-table')).toHaveCount(0);
+    expect((await stateOf(page))?.profile?.coins ?? 0).toBe(0);
+
+    /* again with the defaults: four ammo kinds into Equipment */
+    await page.getByTestId('scan-file').setInputFiles(AMMO);
+    await expect(row(page, '0,1').getByLabel('Item name')).toHaveValue('Light Ammo');
+    await page.getByLabel(/Update coins in the profile/).uncheck();
+    await page.getByRole('button', { name: 'Write' }).click();
+    await expect(page.getByTestId('scan-done')).toContainText('4 items in Equipment');
+    await page.getByRole('link', { name: 'To Equipment' }).click();
+    await expect(page.getByRole('tab', { name: 'Equipment' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('tbody[data-category="ammo"] tr[data-item]')).toHaveCount(4);
+    await expect(page.getByRole('textbox', { name: 'Count: Light Ammo', exact: true })).toHaveValue('156');
+    expect((await stateOf(page)).items['Medium Ammo'].count).toBe(179);
     expect((await stateOf(page))?.profile?.coins ?? 0).toBe(0);
   });
 });

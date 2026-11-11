@@ -9,7 +9,7 @@ import { PNG } from 'pngjs';
 import { FIXTURES, TOOLTIP, expected, loadFixture } from './load';
 import { detectLayout } from '../../src/core/vision/layout';
 import { findOverlays } from '../../src/core/vision/overlays';
-import { segmentText, tooltipParts } from '../../src/core/vision/tooltip';
+import { segmentText, tagInk, tooltipParts } from '../../src/core/vision/tooltip';
 import { featuresOf } from '../../src/core/vision/digits';
 import { GH, GW } from '../../src/core/vision/glyphs';
 import { resize, type RgbaImage } from '../../src/core/vision/image';
@@ -31,7 +31,7 @@ it.runIf(process.env.GEN_LETTERS === '1' && existsSync(OWN + 'expected-own.json'
   const misses: string[] = [];
   let scale = '';
   const add = (img: RgbaImage, box: Box, font: LetterFont, label: string, what: string, skipLead = false) => {
-    const line = segmentText(img, box, null);
+    const line = segmentText(img, box, null, font === 'tag' ? tagInk(img, box) : undefined);
     const chars = [...label.replace(/\s/g, '')];
     let gs = line.glyphs;
     if (skipLead && gs.length === chars.length + 1) gs = gs.slice(1);
@@ -54,7 +54,7 @@ it.runIf(process.env.GEN_LETTERS === '1' && existsSync(OWN + 'expected-own.json'
     const parts = tip && tooltipParts(img, tip.box);
     if (!parts) { misses.push(`${scale} ${s.f}: tooltip nenalezen`); continue; }
     add(img, parts.name, 'name', s.tip.name, s.f + ' název');
-    add(img, parts.tags, 'tag', `${s.tip.category} ${s.tip.rarity}`, s.f + ' štítky', true);
+    if (parts.tags) add(img, parts.tags, 'tag', `${s.tip.category} ${s.tip.rarity}`, s.f + ' štítky', true);
     if (s.tip.stack && parts.stack) add(img, parts.stack, 'tip', s.tip.stack, s.f + ' stoh');
     else if (s.tip.stack) misses.push(`${scale} ${s.f}: pruh nenalezen`);
   }

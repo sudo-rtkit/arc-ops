@@ -22,7 +22,7 @@ export interface TooltipRead {
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 /* Tmavý text na krémovém panelu i na barevném štítku. */
-export const isInk: PixelTest = Object.assign((r: number, g: number, b: number, l: number) => l < 90, { ink: (_r: number, _g: number, _b: number, l: number) => clamp01((125 - l) / 70) });
+export const isInk: PixelTest = Object.assign((_r: number, _g: number, _b: number, l: number) => l < 90, { ink: (_r: number, _g: number, _b: number, l: number) => clamp01((125 - l) / 70) });
 
 /* Přesné okraje panelu: řádky a sloupce, kde převládá krémová barva. */
 export function refineBox(img: RgbaImage, b: Box): Box {
@@ -36,9 +36,11 @@ export function refineBox(img: RgbaImage, b: Box): Box {
   };
   const x0 = Math.round(b.x), x1 = Math.round(b.x + b.w - 1), y0 = Math.round(b.y), y1 = Math.round(b.y + b.h - 1);
   const pad = 12;
-  const rowOk = (y: number) => frac(x0, y, x1, y) > 0.45, colOk = (x: number) => frac(x, y0, x, y1) > 0.45;
+  /* Tělo panelu je krémové po celé šířce; záložka „ACTIONS“ nad ním jen v levé části, takže se nezapočítá. */
+  const rowOk = (y: number) => frac(x0, y, x1, y) > 0.8;
   let top = y0 - pad; while (top < y1 && !rowOk(top)) top++;
   let bottom = y1 + pad; while (bottom > top && !rowOk(bottom)) bottom--;
+  const colOk = (x: number) => frac(x, top, x, bottom) > 0.6;
   let left = x0 - pad; while (left < x1 && !colOk(left)) left++;
   let right = x1 + pad; while (right > left && !colOk(right)) right--;
   return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
@@ -75,9 +77,10 @@ export function classifyLetter(f: ReturnType<typeof featuresOf>, font: LetterFon
 }
 
 /* Rozdělení řádku na znaky. Na rozdíl od číslic se široké tvary nedělí (M, W jsou širší než vysoké). */
-export function segmentText(img: RgbaImage, box: Box, font: LetterFont | null): Line {
-  const { mask, ink, w, h } = maskOf(img, box, isInk);
-  let cs = mergeStacked(components(mask, w, h)).filter(c => c.n >= 3);
+export function segmentText(img: RgbaImage, box: Box, font: LetterFont | null, test: PixelTest = isInk): Line {
+  const { mask, ink, w, h } = maskOf(img, box, test);
+  /* Tvar přes celou výšku výřezu je oddělovač štítků nebo okraj, ne znak. */
+  let cs = mergeStacked(components(mask, w, h)).filter(c => c.n >= 3 && !(test !== isInk && c.y0 <= 0 && c.y1 >= h - 1));
   const hs = cs.map(c => c.y1 - c.y0 + 1).sort((a, b) => a - b);
   const lineH = hs.length ? hs[Math.floor((hs.length - 1) * 0.8)] : 1;
   cs = cs.filter(c => c.y1 - c.y0 + 1 >= lineH * 0.15 && c.y1 - c.y0 + 1 <= lineH * 1.6);
@@ -97,22 +100,64 @@ export const lineText = (line: Line, gap = 0.4): { text: string; conf: number } 
 };
 
 /* Oblasti textu tooltipu: řádek štítků, řádek názvu a první pole spodního pruhu. */
-export interface TooltipParts { box: Box; tags: Box; name: Box; stack: Box | null }
+export interface TooltipParts { box: Box; tags: Box | null; name: Box; stack: Box | null }
+
+/* Pás štítků: první řádky panelu s podkladem štítku (středně jasná nebo sytá barva, ne krém a ne tmavý text). */
+const isTagBg = (r: number, g: number, b: number): boolean => {
+  const l = 0.299 * r + 0.587 * g + 0.114 * b;
+  return !isPanelCream(r, g, b) && l > 85 && l < 215;
+};
+function tagBand(img: RgbaImage, box: Box): { y0: number; y1: number; x0: number; x1: number } | null {
+  const xa = Math.round(box.x) + 2, xb = Math.round(box.x + box.w) - 3;
+  let y0 = -1, y1 = -1;
+  for (let y = Math.round(box.y) + 1; y < box.y + box.h * 0.35; y++) {
+    let n = 0;
+    for (let x = xa; x <= xb; x++) if (isTagBg(...rgbAt(img, x, y))) n++;
+    if (n >= box.w * 0.15) { if (y0 < 0) y0 = y; y1 = y; }
+    else if (y0 >= 0) break;
+  }
+  if (y0 < 0 || y1 - y0 < 6) return null;
+  let x0 = -1, x1 = -1;
+  for (let x = xa; x <= xb; x++) {
+    let n = 0;
+    for (let y = y0; y <= y1; y++) if (isTagBg(...rgbAt(img, x, y))) n++;
+    if (n >= (y1 - y0 + 1) * 0.5) { if (x0 < 0) x0 = x; x1 = x; }
+  }
+  return x0 >= 0 ? { y0, y1, x0, x1 } : null;
+}
+
 export function tooltipParts(img: RgbaImage, raw: Box): TooltipParts | null {
   const box = refineBox(img, raw);
   if (box.w < 20 || box.h < 20) return null;
-  const lines = textLines(img, box);
-  if (lines.length < 2) return null;
+  const band = tagBand(img, box);
+  const lines = textLines(img, box).filter(l => !band || l.y0 > band.y1);
+  if (!lines.length) return null;
   const pad = 3;
   const area = (l: { y0: number; y1: number }, x0 = box.x + box.w * 0.03, x1 = box.x + box.w * 0.97): Box => ({ x: x0, y: l.y0 - pad, w: x1 - x0, h: l.y1 - l.y0 + 1 + 2 * pad });
-  const [tags, name] = lines;
+  const tags = band ? { x: band.x0, y: band.y0, w: band.x1 - band.x0 + 1, h: band.y1 - band.y0 + 1 } : null;
+  const name = lines[0];
   /* Spodní pruh: poslední řádek, pokud leží v dolní desetině panelu. Pole stohu je vlevo (asi třetina šířky). */
   const last = lines[lines.length - 1];
-  const stack = lines.length >= 3 && last.y0 > box.y + box.h * 0.8 ? area(last, box.x + 2, box.x + box.w * 0.3) : null;
-  return { box, tags: area(tags), name: area(name), stack };
+  const stack = lines.length >= 2 && last.y0 > box.y + box.h * 0.8 ? area(last, box.x + 2, box.x + box.w * 0.3) : null;
+  return { box, tags, name: area(name), stack };
 }
 
 /* Vzácnost podle barvy štítku: syté pixely v řádku štítků; šedý štítek = běžný předmět. */
+/* Text štítku: světlý na tmavším podkladu (růžová, modrá, šedá) nebo tmavý na světlém (zelená). Polarita podle toho,
+   kterých pixelů je víc (podklad je medián). Krémové oddělovače mezi štítky jsou přes celou výšku pásu a zahodí je
+   segmentText. */
+export function tagInk(img: RgbaImage, b: Box): PixelTest {
+  const ls: number[] = [];
+  for (let y = Math.round(b.y); y < b.y + b.h; y++) for (let x = Math.round(b.x); x < b.x + b.w; x += 2) {
+    const [r, g, bb] = rgbAt(img, x, y);
+    ls.push(0.299 * r + 0.587 * g + 0.114 * bb);
+  }
+  const bg = ls.length ? [...ls].sort((a, c) => a - c)[Math.floor(ls.length / 2)] : 128;
+  const light = ls.filter(l => l > bg + 60).length >= ls.filter(l => l < bg - 60).length;
+  const ink = (_r: number, _g: number, _b: number, l: number) => clamp01(light ? (l - bg - 15) / 60 : (bg - 15 - l) / 60);
+  return Object.assign((r: number, g: number, bb: number, l: number) => ink(r, g, bb, l) >= 0.4, { ink });
+}
+
 function tagRarity(img: RgbaImage, b: Box): Rarity {
   const hs: [number, number, number][] = [];
   for (let y = Math.round(b.y); y < b.y + b.h; y++) for (let x = Math.round(b.x); x < b.x + b.w; x += 2) {
@@ -132,9 +177,8 @@ export function readTooltip(img: RgbaImage, raw: Box, _cellPx: number): TooltipR
   const parts = tooltipParts(img, raw);
   if (!parts) return null;
   const name = lineText(segmentText(img, parts.name, 'name'), 0.38);
-  const tagLine = segmentText(img, parts.tags, 'tag');
+  const tw = parts.tags ? words(segmentText(img, parts.tags, 'tag', tagInk(img, parts.tags)), 0.45).map(w => w.map(g => g.ch).join('')) : [];
   /* Ikona kategorie na začátku řádku štítků není písmeno: první slovo z jednoho tvaru se vynechá. */
-  const tw = words(tagLine, 0.45).map(w => w.map(g => g.ch).join(''));
   if (tw.length && tw[0].length === 1) tw.shift();
   if (tw.length > 1) tw.pop(); /* poslední slovo je vzácnost */
   let stack: TooltipRead['stack'] = null;
@@ -145,5 +189,5 @@ export function readTooltip(img: RgbaImage, raw: Box, _cellPx: number): TooltipR
   }
   const text = name.text.replace(/\s+/g, ' ').trim();
   if (!text) return null;
-  return { name: text, nameConf: name.conf, category: tw.join(' '), rarity: tagRarity(img, parts.tags), stack };
+  return { name: text, nameConf: name.conf, category: tw.join(' '), rarity: parts.tags ? tagRarity(img, parts.tags) : 'unknown', stack };
 }
