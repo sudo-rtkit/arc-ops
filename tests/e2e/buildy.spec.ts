@@ -55,7 +55,7 @@ const L = {
     p76: '76 bodů', p91: '91 bodů', v91: '91 bodů (Expedice)', own: 'Vlastní návrh ARC OPS', compare: 'Porovnat s mým stromem',
     reset: /Nutný reset: 6 bodů máš navíc/, cost: /Reset stojí 20\s000 mincí/, extra: 'Navíc', load: 'Načíst jako plán', loaded: 'Je to tvůj plán',
     save: 'Uložit jako můj build', saveDlg: 'Uložit build z katalogu', saveBtn: 'Uložit build', back: 'Zpět na katalog', tree: 'Strom buildu Buldozer (91)',
-    noReset: 'Bez resetu: přidej 81 bodů.', count1: '1 z 11 buildů', count11: '11 z 11 buildů', summary: 'Shrnutí',
+    noReset: 'Bez resetu: přidej 81 bodů.', count2: '2 z 12 buildů', count12: '12 z 12 buildů', summary: 'Shrnutí',
   },
   en: {
     broken: 'Broken', expedition: 'Expedition', all: 'All', sort: 'Sort', sortName: 'Name', first: 'Aggressive PvP',
@@ -63,7 +63,7 @@ const L = {
     p76: '76 points', p91: '91 points', v91: '91 points (Expeditions)', own: 'ARC OPS own design', compare: 'Compare with my tree',
     reset: /Reset needed: you have 6 extra points/, cost: /The reset costs 20,000 coins/, extra: 'Extra', load: 'Load as plan', loaded: 'This is your plan',
     save: 'Save as my build', saveDlg: 'Save a catalog build', saveBtn: 'Save build', back: 'Back to the catalog', tree: 'Tree of the Bulldozer (91) build',
-    noReset: 'No reset needed: add 81 points.', count1: '1 of 11 builds', count11: '11 of 11 builds', summary: 'Summary',
+    noReset: 'No reset needed: add 81 points.', count2: '2 of 12 builds', count12: '12 of 12 builds', summary: 'Summary',
   },
 } as const;
 
@@ -73,20 +73,23 @@ for (const lang of ['cs', 'en'] as const) {
     const errors = watchErrors(page);
     await start(page, lang);
     const cards = page.locator('[data-build]');
-    await expect(cards).toHaveCount(11);
-    await expect(page.getByTestId('catalog-count')).toHaveText(x.count11);
+    await expect(cards).toHaveCount(12);
+    await expect(page.getByTestId('catalog-count')).toHaveText(x.count12);
 
     /* filtr štítků */
     const filter = page.getByRole('group', { name: lang === 'cs' ? 'Filtr štítků' : 'Filter by tag' });
     await filter.getByRole('button', { name: x.broken, exact: true }).click();
-    await expect(cards).toHaveCount(1);
-    await expect(cards.first()).toHaveAttribute('data-build', 'buldozer');
-    await expect(page.getByTestId('catalog-count')).toHaveText(x.count1);
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0)).toHaveAttribute('data-build', 'buldozer');
+    await expect(cards.nth(1)).toHaveAttribute('data-build', 'prizrak');
+    await expect(page.getByTestId('catalog-count')).toHaveText(x.count2);
+    await expect(cards.nth(1).getByText(x.theory)).toBeVisible();
+    await expect(cards.nth(1).locator('.mini-node.end.on')).toHaveCount(2);
     await filter.getByRole('button', { name: x.all, exact: true }).click();
     await filter.getByRole('button', { name: x.expedition, exact: true }).click();
     await expect(cards).toHaveCount(2);
     await filter.getByRole('button', { name: x.all, exact: true }).click();
-    await expect(cards).toHaveCount(11);
+    await expect(cards).toHaveCount(12);
 
     /* řazení podle názvu */
     await page.getByLabel(x.sort, { exact: true }).selectOption('name');
@@ -148,7 +151,7 @@ for (const lang of ['cs', 'en'] as const) {
 
     /* zpět do katalogu: uložený build v Moje buildy */
     await detail.getByRole('button', { name: x.back }).click();
-    await expect(cards).toHaveCount(11);
+    await expect(cards).toHaveCount(12);
     await expect(page.locator('table').getByText(lang === 'cs' ? 'Buldozer (91)' : 'Bulldozer (91)', { exact: true })).toBeVisible();
 
     /* zdroj z webu: jen tlačítko ExtLink, žádný odkaz s href */
@@ -169,7 +172,7 @@ for (const [w, h] of [[1024, 640], [1920, 1080]] as const) {
   test(`katalog buildů ${w}×${h}: nic nepřetéká`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await start(page, 'en');
-    await expect(page.locator('[data-build]')).toHaveCount(11);
+    await expect(page.locator('[data-build]')).toHaveCount(12);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
     const narrow = await page.evaluate(() => [...document.querySelectorAll('.build-card')].filter(e => e.getBoundingClientRect().width < 300).length);
     expect(narrow).toBe(0);

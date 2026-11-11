@@ -134,6 +134,30 @@ a nepřítele (hráče i ARC) při sprintu odhodí z cesty.
   **není ověřená ve hře**, čísla jsou z náhledových hodnot stromu. Označit štítkem „Teorie – vyzkoušej sám“.
 - Zdroj: vlastní návrh ARC OPS.
 
+### 12. ★ Přízrak (vlastní „broken“ movement build) – 21 / 41 / 14, varianta 91: 21 / 50 / 20
+**Myšlenka:** flanker se dvěma zbraněmi. Z vyvýšeného místa odstřeluje na dálku, a když ho odhalí, během pár vteřin
+změní pozici a vpadne nepříteli do boku s brokovnicí. Pohyb se řetězí (vault → skluz → úhyb → wall run) a čím déle
+se hýbe, tím je rychlejší a levnější.
+- M (41): Youthful Lungs 1, Nimble Climber 5, Fight Or Flight 5, Ready To Roll 3, **Vault Spring**, Slip and Slide 5,
+  Effortless Roll 5, Off The Wall 5, Marathon Runner 5, Right Back At It 1, Swift Start 3, **In The Flow**, **Wall Run**.
+- C (21): Used To The Weight 1, Three Deep Breaths 5, Vigorous Vaulter 1, Stubborn Mule 3, **Back On Your Feet**,
+  Loaded Arms 1, Downed But Determined 5, Broad Shoulders 3, Crawl Before You Walk 1.
+- S (14): In-Round Crafting 1, Agile Croucher 5, Sturdy Ankles 4, **Quick Roll**, Stylish Landing 3.
+- Varianta 91 (+15): Sure-Footed Scrambler 5, Swift Start 5, Ready To Roll 5 (M 50); Stylish Landing 5, Sturdy Ankles 5,
+  Silent Scavenger 3 (S 20).
+- **Synergie:** Wall Run + Off The Wall 5 + Vault Spring + Nimble Climber 5 = dostaneš se na střechy a římsy, kam
+  ostatní nečekají (pozice pro odstřel i nečekaný úhel pro flank). In The Flow + Slip and Slide 5 + Effortless Roll 5 +
+  Quick Roll = řetězený pohyb, rychlý skluz do krytu a levné úhyby v souboji na blízko. Fight Or Flight 5 vrací staminu,
+  když tě trefí, takže pod palbou pořád utečeš. Stylish Landing + Ready To Roll + Sturdy Ankles + Right Back At It =
+  seskok z vyvýšené pozice bez ztráty tempa a zdraví. Loaded Arms = nesená zbraň váží polovinu, takže dvě těžší zbraně
+  (brokovnice + odstřelovačka) nebrzdí. Back On Your Feet = po souboji se doléčíš z kritického stavu.
+- **Hra:** odstřel z výšky → při odhalení přesun přes střechy (Wall Run, vault, skluz) → flank z boku brokovnicí →
+  úhyb Quick Roll a pryč. Výbava: odstřelovačka + brokovnice, lehký nebo střední štít, adrenalin/staminové itemy.
+- **Slabiny (poctivě):** bez Sprinting On Fumes (stamina se musí hlídat, In The Flow to kompenzuje jen při řetězení),
+  žádné loot perky ani lockery, vysoké nároky na mechaniku a znalost map. Teorie, neověřeno ve hře. Alternativa:
+  vyměnit In The Flow za Sprinting On Fumes, pokud víc odstřeluješ než flankuješ.
+- Zdroj: vlastní návrh ARC OPS. Štítky: pvp, broken.
+
 ## Náhled a UI (modul Skill Tree, záložka Buildy)
 
 - Mřížka karet buildů s filtrem štítků (PvP, PvE, sólo, squad, loot, tichý, expedice, broken) a řazením.

@@ -15,9 +15,9 @@ import { setLang } from '../../src/i18n';
 const TOTALS: Record<string, [number, number, number]> = {
   'aggressive-pvp': [24, 41, 11], 'balanced-raid': [31, 31, 14], 'looter-breach': [31, 14, 31], 'pve-loot': [31, 26, 19],
   'solo-survival': [14, 31, 31], 'silent-thief': [14, 31, 31], 'stamina-runner': [19, 41, 16], 'team-support': [31, 4, 41],
-  'pvp-fighter': [31, 31, 14], 'expedition-pvp': [33, 41, 17], buldozer: [41, 31, 4],
+  'pvp-fighter': [31, 31, 14], 'expedition-pvp': [33, 41, 17], buldozer: [41, 31, 4], prizrak: [21, 41, 14],
 };
-const TOTALS_91: Record<string, [number, number, number]> = { buldozer: [41, 31, 19] };
+const TOTALS_91: Record<string, [number, number, number]> = { buldozer: [41, 31, 19], prizrak: [21, 50, 20] };
 
 function fillBy(steps: PlanStep[], budgetPts: number): Points {
   const prof = { level: budgetPts - 1, expBonus: 0 };
@@ -53,9 +53,9 @@ function checkRules(points: Points, label: string) {
 const branchSums = (p: Points): [number, number, number] => [pointsIn(p, 'c'), pointsIn(p, 'm'), pointsIn(p, 's')];
 
 describe('katalog buildů: pravidla stromu', () => {
-  it('11 buildů s unikátním id a všemi součty ze spec', () => {
-    expect(BUILD_CATALOG).toHaveLength(11);
-    expect(new Set(BUILD_CATALOG.map(b => b.id)).size).toBe(11);
+  it('12 buildů s unikátním id a všemi součty ze spec', () => {
+    expect(BUILD_CATALOG).toHaveLength(12);
+    expect(new Set(BUILD_CATALOG.map(b => b.id)).size).toBe(12);
     expect(BUILD_CATALOG.map(b => b.id).sort()).toEqual(Object.keys(TOTALS).sort());
   });
   for (const b of BUILD_CATALOG) {
@@ -133,19 +133,34 @@ describe('katalog buildů: texty a zdroje', () => {
       } else expect(b.source.refs).toEqual([]);
     });
   }
-  it('vlastní build Buldozer je označený jako teorie a poctivě přiznává neověřenou kombinaci', () => {
+  it('vlastní buildy (Buldozer, Přízrak) jsou označené jako teorie a poctivě přiznávají neověřenou kombinaci', () => {
     const own = BUILD_CATALOG.filter(b => b.source.kind === 'own');
-    expect(own.map(b => b.id)).toEqual(['buldozer']);
-    const b = own[0];
-    expect(b.theory).toBe(true);
-    expect(b.tags).toContain('broken');
-    expect(BUILD_CATALOG.filter(x => x.theory).map(x => x.id)).toEqual(['buldozer']);
-    expect(b.desc.cs.notes).toMatch(/Teorie – vyzkoušej sám/);
-    expect(b.desc.cs.notes).toMatch(/není ověřená ve hře/);
-    expect(b.desc.cs.notes).toMatch(/náhledových hodnot/);
-    expect(b.desc.en.notes).toMatch(/Theory - try it yourself/);
-    expect(b.desc.en.notes).toMatch(/untested/);
-    expect(b.desc.en.notes).toMatch(/tree preview numbers/);
+    expect(own.map(b => b.id)).toEqual(['buldozer', 'prizrak']);
+    expect(BUILD_CATALOG.filter(x => x.theory).map(x => x.id)).toEqual(['buldozer', 'prizrak']);
+    for (const b of own) {
+      expect(b.theory).toBe(true);
+      expect(b.tags).toContain('broken');
+      expect(b.variant91).toBeTruthy();
+      expect(b.desc.cs.notes).toMatch(/Teorie – vyzkoušej sám/);
+      expect(b.desc.cs.notes).toMatch(/není ověřená ve hře/);
+      expect(b.desc.en.notes).toMatch(/Theory - try it yourself/);
+      expect(b.desc.en.notes).toMatch(/untested/);
+    }
+    const bul = own[0];
+    expect(bul.desc.cs.notes).toMatch(/náhledových hodnot/);
+    expect(bul.desc.en.notes).toMatch(/tree preview numbers/);
+  });
+  it('Přízrak: konce In The Flow + Wall Run, volby Vault Spring / Back On Your Feet / Quick Roll, smyčka hry a alternativa', () => {
+    const p = BUILD_CATALOG.find(b => b.id === 'prizrak')!;
+    expect(p.tags).toEqual(['pvp', 'broken']);
+    const pick = (t: number) => SKILLS.filter(s => s.t === t && (p.points[s.id] || 0) > 0).map(s => s.id).sort();
+    expect(pick(4)).toEqual(['m_flow', 'm_wallrun']);
+    expect(pick(2)).toEqual(['c_feet', 'm_spring', 's_quickroll']);
+    expect(compareTree(p.points, p.variant91!).add.map(r => r.id).sort()).toEqual(['m_roll', 'm_scrambler', 'm_swift', 's_ankles', 's_landing', 's_silent']);
+    expect(p.desc.cs.playstyle).toMatch(/odstřel.*střech.*flank.*Quick Roll/s);
+    expect(p.desc.en.playstyle).toMatch(/snipe.*roofs.*flank.*Quick Roll/s);
+    expect(p.desc.cs.notes).toMatch(/In The Flow za Sprinting On Fumes/);
+    expect(p.desc.en.notes).toMatch(/In The Flow for Sprinting On Fumes/);
   });
   it('názvy skillů v popisech jsou anglicky jako ve hře (každý zmíněný skill existuje)', () => {
     const names = SKILLS.map(s => s.name);
@@ -194,8 +209,8 @@ describe('katalog buildů: klíče plánu, porovnání, filtr', () => {
     expect(compareTree(bul.points, bul.points).same).toBe(true);
   });
   it('filtr štítků (všechny vybrané) a řazení', () => {
-    expect(filterBuilds(BUILD_CATALOG, []).length).toBe(11);
-    expect(filterBuilds(BUILD_CATALOG, ['broken']).map(b => b.id)).toEqual(['buldozer']);
+    expect(filterBuilds(BUILD_CATALOG, []).length).toBe(12);
+    expect(filterBuilds(BUILD_CATALOG, ['broken']).map(b => b.id)).toEqual(['buldozer', 'prizrak']);
     expect(filterBuilds(BUILD_CATALOG, ['expedition']).map(b => b.id)).toEqual(['expedition-pvp', 'buldozer']);
     expect(filterBuilds(BUILD_CATALOG, ['pvp', 'loot']).map(b => b.id)).toEqual(['balanced-raid', 'buldozer']);
     const byDiff = sortBuilds(BUILD_CATALOG, 'difficulty', {}, 'cs');

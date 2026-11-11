@@ -83,8 +83,8 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 
 ## Katalog buildů skill tree (0.8.0)
 
-- **Skill Tree → Buildy a porovnání**: 11 buildů s přesnými body po skillech (`src/core/data/builds.ts`), včetně varianty
-  na 91 bodů a vlastního „broken“ buildu Buldozer (označený jako teorie). Karty s filtrem štítků a řazením, mini strom,
+- **Skill Tree → Buildy a porovnání**: 12 buildů s přesnými body po skillech (`src/core/data/builds.ts`), včetně variant
+  na 91 bodů a dvou vlastních „broken“ buildů Buldozer a Přízrak (označené jako teorie). Karty s filtrem štítků a řazením, mini strom,
   součty větví, 3 klíčové skilly; detail s velkým stromem jen pro čtení, popisem (CS i EN), zdrojem a verzí hry 2.0–2.3.
 - Akce: **Načíst jako plán** (`activePlan` = `catalog:<id>` nebo `catalog:<id>:91`), **Porovnat s mým stromem**
   (co přidat, co je navíc, cena resetu 2 000 za bod), **Uložit jako můj build**. Vestavěné plány `runner` a `looter` zůstávají.
