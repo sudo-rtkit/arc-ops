@@ -133,7 +133,7 @@ export function GoalRow({ g, compact }: { g: Goal; compact?: boolean }) {
           <DueBadge due={g.due} done={done} />
           {done && <Badge tone="success">{t('goals.doneOn', { d: fmtDate(g.doneAt) })}</Badge>}
         </span>
-        <span className="meta">{goalKindName(g.link.kind)} · {p.label}{g.doneRaid ? ' · ' + t('goals.doneInRaid') : ''}</span>
+        <span className="meta">{[goalKindName(g.link.kind), p.label].filter((x, i, a) => x && a.indexOf(x) === i).join(' · ')}{g.doneRaid ? ' · ' + t('goals.doneInRaid') : ''}</span>
         <Progress value={Math.min(p.value, p.target)} max={p.target} tone={done ? 'success' : undefined} label={<span className="sr-only">{t('goals.progressOf', { name: g.title })}</span>} valueText={`${fmt(Math.min(p.value, p.target))} / ${fmt(p.target)}`} />
         {!compact && g.note && <span className="meta wrap">{g.note}</span>}
       </span>
