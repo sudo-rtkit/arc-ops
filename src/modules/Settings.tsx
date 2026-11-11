@@ -18,6 +18,7 @@ import { catalogCount } from '../core/catalog';
 import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
 import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
+import { OpsPanel, WardrobePanel } from './OpsSettings';
 
 /* Odkazy na zdroje herních dat (uvedení zdroje). Otevřou se jen na kliknutí; aplikace z nich nic nestahuje. */
 const METAFORGE_URL = 'https://metaforge.app/arc-raiders';
@@ -205,6 +206,8 @@ export default function Settings({ sub }: { sub: string }) {
         </div>
         <p className="meta">{t('settings.langHint')}</p>
       </Panel>
+      <OpsPanel />
+      <WardrobePanel />
       <Panel title="Data">
         <dl className="dl">
           <dt>{t('settings.dir')}</dt>
@@ -251,7 +254,7 @@ export default function Settings({ sub }: { sub: string }) {
         <p className="meta" data-testid="data-sources-items">{t('settings.sourcesItems', { items: ITEM_DATA.length, offers: TRADER_OFFERS.length, date: ITEMS_DATE, weapons: WEAPON_STATS.length })}</p>
       </Panel>
       <Panel title={t('settings.about')}>
-        <p>{t('settings.version', { v: '0.6' })}</p>
+        <p>{t('settings.version', { v: '0.7' })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
       </Panel>

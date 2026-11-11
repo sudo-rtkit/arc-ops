@@ -7,7 +7,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const DIRS = ['src/modules', 'src/shell', 'src/ui'];
+const DIRS = ['src/modules', 'src/shell', 'src/ui', 'src/ops'];
 const CZ = /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/;
 
 /* Výjimky: soubor → přesné řádky (po odstranění komentářů), které smí obsahovat diakritiku, s důvodem. */

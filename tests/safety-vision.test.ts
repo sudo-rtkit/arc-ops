@@ -14,7 +14,8 @@ const rel = (f: string) => f.slice(root.length).split('\\').join('/');
 
 describe('bezpečnost rozpoznávání', () => {
   const src = walk(join(root, 'src'));
-  it('aplikace nesnímá obrazovku ani neposlouchá globální zkratky', () => {
+  /* Od milníku 5 snímá obrazovku a registruje zkratku jen Rust modul ops.rs (viz safety-m5.test.ts); frontend ne. */
+  it('frontend nesnímá obrazovku ani neposlouchá globální zkratky', () => {
     for (const word of ['getDisplayMedia', 'getUserMedia', 'globalShortcut', 'global-shortcut', 'desktopCapturer', 'screenshot(']) {
       expect(src.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);
     }

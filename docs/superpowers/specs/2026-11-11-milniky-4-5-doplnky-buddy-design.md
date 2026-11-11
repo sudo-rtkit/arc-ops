@@ -79,6 +79,29 @@ v `docs/design/buddy/final/`. Kód: Opus.
 paměti, ani síťový klient. Snímání a zkratka žijí v jednom vyhrazeném modulu, který test povoluje jmenovitě.
 `tests/safety.test.ts` dál prochází.
 
+### Schválené rozšíření: Ops roste s hráčem
+
+Uživatel schválil postupný vizuální vývoj buddyho podle levelu hráče uloženého v profilu Companionu.
+Ops zůstává rozpoznatelným Bedňákem B; s vyšším levelem získává výbavu, pancíř a propracovanější
+post-apokalyptické detaily. Při přechodu do další vývojové podoby přehraje krátkou animaci proměny.
+Vývoj neřídí výdělek, úspěšnost raidů ani jiné hodnocení výkonu. Není potřeba získávat stav přímo ze hry.
+
+Vývojová podoba je nezávislá na momentálním animačním stavu (klid, skenování, hotovo, nejistota,
+spánek, upozornění, tažení). Grafiku připravuje ChatGPT, implementaci Claude Code.
+**Rozhodnuto (11. 11. 2026): Ops složený z vrstev, jiný na každém levelu 0–75.**
+- **Mřížka 64 px** (místo 32 px), nad hrou 64 px, v overlayi 128 px, vždy celý násobek.
+- **5 podob těla** po 15 levelech: 0–14 začátečník, 15–29 průzkumník, 30–44 mrchožrout, 45–59 veterán,
+  60–75 legenda. Přechod mezi podobami = animace proměny.
+- **Díly výbavy** ve slotech (anténa, hledí, pancíř, batoh, nářadí, nášivky, barva/záplaty, štítek s číslem
+  levelu), 3–5 variant na slot, celkem zhruba 75 odemčení: **každý level odemkne nebo vymění aspoň jeden díl**.
+  Běžný level = krátké bliknutí a hláška („Level 23: nová anténa“).
+- **Kotvicí body** (hlava, záda, ruka…) pro každý snímek každé animace v `sprites.json`, takže díly se hýbou
+  s Opsem ve všech stavech a nekreslí se zvlášť pro každou animaci. Skládání vrstev dělá aplikace na plátně.
+- **Šatník:** odemčené díly lze libovolně kombinovat; výchozí „automaticky podle levelu“.
+- **Pokles levelu** (import profilu, reset): odemčené díly zůstávají jako sbírka, mění se jen výchozí podoba.
+  Odemčení se ukládá ve stavu a v záloze.
+- Grafika: GPT-6.1 Sol (podoby, díly, kotvy, proměna, náhled s posuvníkem 0–75). Implementace: Opus v milníku 5.
+
 ## Testy
 
 Jako u předchozích milníků: jednotkové testy pravidel (rada, recyklace, porovnání), migrace a zálohy, E2E v obou

@@ -160,9 +160,31 @@ export interface TierListState { weapons: TierLists; items: TierLists }
 /* keep: klíč předmětu (název materiálu, nebo název + tier) → hráč chce předmět vždy nechat */
 export interface AdviceState { keep: Record<string, true> }
 
-/* Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
+/* ----- milník 5: buddy Ops, overlay a zkratka (výchozí stav vypnuto) ----- */
+export interface BuddyState {
+  /* hlavní přepínač „Buddy a zkratka“; vypnuto = žádné okno, žádná zkratka */
+  enabled: boolean;
+  /* globální zkratka (Ctrl+Shift+KeyS …), prázdná = žádná */
+  hotkey: string;
+  /* celý násobek mřížky 64 px */
+  scale: 1 | 2;
+  /* krytí skla overlaye v procentech, 70–100 */
+  opacity: number;
+  /* otevřít buddyho, když běží ARC Raiders (jen podle seznamu procesů) */
+  autoOpen: boolean;
+  /* šatník: slot → díl ze sbírky, null = bez dílu; chybějící slot = automaticky podle levelu */
+  outfit: Record<string, string | null>;
+  /* sbírka odemčených dílů (pokles levelu nic neodebere) */
+  unlocked: string[];
+  /* poloha buddyho na každém monitoru (fyzické pixely od levého horního rohu monitoru) */
+  positions: Record<string, { x: number; y: number }>;
+  /* monitor, na kterém byl buddy naposledy */
+  monitor: string;
+}
+
+/* Schéma 6: 5 → 6 doplnilo buddy. Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
 export interface AppState {
-  schema: 5;
+  schema: 6;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -193,6 +215,8 @@ export interface AppState {
   tierList: TierListState;
   /* projekty: id → počet hotových fází */
   projects: Record<string, number>;
+  /* milník 5 */
+  buddy: BuddyState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

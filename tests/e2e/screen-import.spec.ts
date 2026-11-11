@@ -83,7 +83,7 @@ test.describe('Ze snímku (čeština)', () => {
     await expect(page.locator('.scan-table')).toHaveCount(0);
 
     const st = await stateOf(page);
-    expect(st.schema).toBe(5);
+    expect(st.schema).toBe(6);
     expect(st.inventory['Magnetic Accelerator']).toBe(8);
     expect(st.inventory['Testovací díl']).toBe(19);
     expect(st.gameData.materialsCustom.map((m: { name: string }) => m.name)).toContain('Testovací díl');

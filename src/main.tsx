@@ -22,7 +22,11 @@ import App from './App';
 import { app } from './store';
 import { isTauri } from './storage/tauri';
 
+import { hub } from './ops/mainHub';
+
 void app.init();
+/* milník 5: buddy, overlay a zkratka (bez zapnutí v Nastavení nic nedělá) */
+hub.start();
 
 /* Před zavřením okna dopsat rozpracované uložení. */
 window.addEventListener('beforeunload', () => { void app.flush(); });

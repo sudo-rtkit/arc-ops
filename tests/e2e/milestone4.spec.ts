@@ -65,7 +65,7 @@ test.describe('Milník 4 (čeština)', () => {
     await expect(sp).toContainText('Vždy nechat (tvoje volba)');
     await sp.getByRole('button', { name: 'Zrušit „vždy nechat“: Spectrometer' }).click();
     await expect(sp).toHaveAttribute('data-advice', 'recycle');
-    expect((await stateOf(page)).schema).toBe(5);
+    expect((await stateOf(page)).schema).toBe(6);
     expect(errors).toEqual([]);
   });
 

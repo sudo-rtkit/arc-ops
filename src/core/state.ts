@@ -14,6 +14,7 @@ import { normalizeProjects, normalizeQuestDone } from './quests';
 import { emptyAdvice, normalizeAdvice } from './advice';
 import { normalizeBlueprints } from './itemdb';
 import { emptyTierList, normalizeTierList } from './tierlist';
+import { emptyBuddy, normalizeBuddy } from './ops';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, BUILD_PREFIX } from './skills';
 import { PLANS } from './data/skills';
@@ -23,7 +24,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 5 as const;
+export const SCHEMA = 6 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -78,6 +79,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     blueprints: {},
     tierList: emptyTierList(),
     projects: {},
+    buddy: emptyBuddy(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -389,6 +391,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.blueprints = normalizeBlueprints(r.blueprints);
   out.tierList = normalizeTierList(r.tierList);
   out.projects = normalizeProjects(r.projects);
+  /* schéma 6 (milník 5): ve starším stavu chybí, přepínač je vypnutý; sbírku dílů doplní store při změně */
+  out.buddy = normalizeBuddy(r.buddy);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   return out;

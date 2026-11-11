@@ -66,3 +66,17 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
   `/api/items` ARC Tracker (`node scripts/gen-arctracker.mjs`) a `src/core/data/weaponStats.ts` ze statistik MetaForge
   (`node scripts/gen-catalog.mjs`). Obojí z cache, bez obrázků a popisů. Stav: schéma 5 (migrace ze 4, nová pole i v záloze).
 - Plán: `docs/superpowers/plans/2026-11-11-milnik-4.md`.
+
+## Buddy, overlay a zkratka (0.7.0)
+
+- **Nastavení → Buddy a zkratka**, výchozí stav **vypnuto**. Dokud je vypnuto, neběží žádné okno, zkratka ani hlídání hry.
+- **Ops**: malé okno vždy navrchu, průhledné kolem postavičky, přetahovatelné (poloha pro každý monitor), velikost 1× / 2×.
+  Skládá se z vrstev (`src/assets/ops/`, manifest `src/core/data/opsLayers.json`, generuje `node scripts/gen-ops-assets.mjs`
+  z `docs/design/buddy/layers/`). Roste s levelem v profilu: 5 podob, každý level nový díl; **Šatník Opse** v Nastavení.
+- **Overlay „Polní konzole“** (klik na Opse; zavře Ops, Esc nebo zkratka): Přehled, Úkoly, Nákupy, Ze snímku.
+  Acrylic ve Windows 11, krytí 70–100 %. Jen data aplikace; zápis jde přes hlavní okno se snímkem stavu.
+- **Snímek na zkratku** (RegisterHotKey): kopie monitoru s oknem v popředí, jen v paměti, po přečtení se zahodí;
+  bez inventáře se zahodí bez čtení. Ops a overlay se do snímku nedostanou. Do hry se nic neposílá.
+- **Otevřít s hrou** (volitelné): jen podle názvu procesu `PioneerGame.exe`, kontrola jednou za 10 s.
+- Rust: vše v `src-tauri/src/ops.rs` (hlídá `tests/safety-m5.test.ts`). Stav: schéma 6. Fonty overlaye: OFL v `public/licenses/`.
+- Plán: `docs/superpowers/plans/2026-11-11-milnik-5.md`.

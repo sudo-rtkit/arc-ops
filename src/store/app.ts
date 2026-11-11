@@ -23,6 +23,8 @@ import { projectById, setQuestDone } from '../core/quests';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
+import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, validHotkey } from '../core/ops';
+import type { BuddyState } from '../core/types';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
 
@@ -111,6 +113,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
 
   /* Jeden zápis aktuálního stavu. Vrací false při chybě (opakování pak naplánuje retryTimer). */
   async function saveOnce(): Promise<boolean> {
+    /* Nenačtený store (např. kopie stavu v okně overlaye) nikdy neukládá. */
+    if (!get().ready) return true;
     const content = JSON.stringify(get().state);
     if (content === lastSaved) { if (get().save !== 'error') set({ save: 'saved' }); return true; }
     set({ save: 'saving' });
@@ -182,6 +186,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     const s = structuredClone(get().state);
     if (fn(s) === false) return false;
     syncGoals(s, now());
+    syncBuddy(s.buddy, s.profile.level);
     s.meta.updatedAt = now();
     logProfile(s);
     set({ state: s });
@@ -236,6 +241,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
+    syncBuddy(s.buddy, s.profile.level);
     s.meta.updatedAt = now();
     logProfile(s);
     set({ state: s });
@@ -853,6 +859,41 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     /* Jazyk UI. Uložený obsah (i výchozí kroky a šablony) se nepřepisuje. */
     setLang(lang: Lang) { change(s => { if (!isLang(lang) || s.settings.lang === lang) return false; s.settings.lang = lang; }); },
 
+    /* milník 5: buddy a zkratka. Zapnutí a zkratku do systému promítá hub (src/ops/hub.ts). */
+    setBuddy(patch: Partial<Pick<BuddyState, 'enabled' | 'hotkey' | 'scale' | 'opacity' | 'autoOpen'>>) {
+      change(s => {
+        const b = s.buddy, before = JSON.stringify(b);
+        if (patch.enabled !== undefined) b.enabled = patch.enabled === true;
+        if (patch.hotkey !== undefined) b.hotkey = patch.hotkey === '' || validHotkey(patch.hotkey) ? patch.hotkey : b.hotkey;
+        if (patch.scale !== undefined) b.scale = patch.scale === 2 ? 2 : 1;
+        if (patch.opacity !== undefined) b.opacity = clampInt(patch.opacity, OPACITY_MIN, OPACITY_MAX);
+        if (patch.autoOpen !== undefined) b.autoOpen = patch.autoOpen === true;
+        if (JSON.stringify(b) === before) return false;
+      });
+    },
+    /* šatník: 'auto' = podle levelu, null = bez dílu, jinak díl ze sbírky */
+    setBuddyOutfit(slot: string, value: string | null) {
+      change(s => {
+        if (!OPS_SLOTS.includes(slot)) return false;
+        const o = s.buddy.outfit;
+        if (value === 'auto') { if (!(slot in o)) return false; delete o[slot]; return; }
+        if (value !== null && (partById(value)?.slot !== slot || !collection(s.buddy, s.profile.level).includes(value))) return false;
+        if (o[slot] === value) return false;
+        o[slot] = value;
+      });
+    },
+    resetBuddyOutfit() { change(s => { if (!Object.keys(s.buddy.outfit).length) return false; s.buddy.outfit = {}; }); },
+    setBuddyPosition(monitor: string, x: number, y: number) {
+      change(s => {
+        const key = text(monitor, 120), p = { x: clampInt(x, -20000, 20000), y: clampInt(y, -20000, 20000) };
+        const cur = s.buddy.positions[key];
+        if (cur && cur.x === p.x && cur.y === p.y && s.buddy.monitor === key) return false;
+        const keys = Object.keys(s.buddy.positions).filter(k => k !== key).slice(-15);
+        s.buddy.positions = { ...Object.fromEntries(keys.map(k => [k, s.buddy.positions[k]])), [key]: p };
+        s.buddy.monitor = key;
+      });
+    },
+
     /* snímky, import, reset */
     async createManualSnapshot(label: string): Promise<boolean> {
       await doSave();
@@ -871,7 +912,10 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       if (ok) notify(t('notice.restored'));
       return ok;
     },
-    async importState(next: AppState, raw: string, kind: 'app' | 'diary'): Promise<boolean> {
+    async importState(nextIn: AppState, raw: string, kind: 'app' | 'diary'): Promise<boolean> {
+      /* Záloha nezapne buddyho ani nezmění zkratku a polohy tohoto počítače; sbírka dílů se sjednotí. */
+      const cur = st().buddy;
+      const next: AppState = { ...nextIn, buddy: { ...nextIn.buddy, enabled: cur.enabled, hotkey: cur.hotkey, autoOpen: cur.autoOpen, positions: cur.positions, monitor: cur.monitor, unlocked: [...new Set([...cur.unlocked, ...nextIn.buddy.unlocked])] } };
       const ok = await replaceState(next, 'import', kind === 'diary' ? 'pred importem deniku' : 'pred importem', raw);
       if (ok) notify(t(kind === 'diary' ? 'notice.importedDiary' : 'notice.importedBackup'));
       return ok;

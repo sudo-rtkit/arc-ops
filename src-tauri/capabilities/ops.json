@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "ops",
+  "description": "Buddy Ops a overlay (milník 5): základ Tauri, tažení buddyho a jeho velikost, poloha a zobrazení. Ukládat smí jen hlavní okno.",
+  "windows": ["buddy", "overlay"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-show"
+  ]
+}

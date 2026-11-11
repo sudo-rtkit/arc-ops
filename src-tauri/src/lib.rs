@@ -1,12 +1,14 @@
 //! Rust backend: jen soubory ve složce dat, snímky, souborové dialogy a otevření odkazu nebo složky.
 //! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů, žádná síť.
+//! Buddy, overlay, zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
 
+mod ops;
 mod storage;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
 use storage::{LoadResult, SnapshotInfo, Storage, MAX_FILE};
-use tauri::{Manager, State};
+use tauri::{Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -17,18 +19,25 @@ fn with<T>(st: &State<'_, AppStorage>, f: impl FnOnce(&Storage) -> Result<T, Str
     f(&guard)
 }
 
+/* Ukládá jen hlavní okno: buddy a overlay mají jen kopii stavu, takže nemůže vzniknout dvojí zápis. */
+fn main_window(w: &WebviewWindow) -> Result<(), String> {
+    if w.label() == "main" { Ok(()) } else { Err("Ukládat smí jen hlavní okno".into()) }
+}
+
 #[tauri::command]
 fn storage_load(st: State<'_, AppStorage>) -> Result<LoadResult, String> {
     with(&st, |s| Ok(s.load()))
 }
 
 #[tauri::command]
-fn storage_save(st: State<'_, AppStorage>, content: String) -> Result<(), String> {
+fn storage_save(window: WebviewWindow, st: State<'_, AppStorage>, content: String) -> Result<(), String> {
+    main_window(&window)?;
     with(&st, |s| s.save(&content))
 }
 
 #[tauri::command]
-fn snapshot_create(st: State<'_, AppStorage>, kind: String, label: String, content: String) -> Result<(), String> {
+fn snapshot_create(window: WebviewWindow, st: State<'_, AppStorage>, kind: String, label: String, content: String) -> Result<(), String> {
+    main_window(&window)?;
     with(&st, |s| s.create_snapshot(&kind, &label, &content).map(|_| ()))
 }
 
@@ -43,12 +52,14 @@ fn snapshot_read(st: State<'_, AppStorage>, name: String) -> Result<String, Stri
 }
 
 #[tauri::command]
-fn snapshot_delete(st: State<'_, AppStorage>, name: String) -> Result<(), String> {
+fn snapshot_delete(window: WebviewWindow, st: State<'_, AppStorage>, name: String) -> Result<(), String> {
+    main_window(&window)?;
     with(&st, |s| s.delete_snapshot(&name))
 }
 
 #[tauri::command]
-fn import_save_raw(st: State<'_, AppStorage>, content: String) -> Result<(), String> {
+fn import_save_raw(window: WebviewWindow, st: State<'_, AppStorage>, content: String) -> Result<(), String> {
+    main_window(&window)?;
     with(&st, |s| s.save_import_raw(&content))
 }
 
@@ -64,11 +75,13 @@ fn dialog_text(v: Option<String>, fallback: &str) -> String {
 #[tauri::command]
 async fn export_backup(
     app: tauri::AppHandle,
+    window: WebviewWindow,
     suggested_name: String,
     content: String,
     title: Option<String>,
     filter: Option<String>,
 ) -> Result<bool, String> {
+    main_window(&window)?;
     let name: String = suggested_name.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')).take(80).collect();
     let picked = app
         .dialog()
@@ -85,7 +98,8 @@ async fn export_backup(
 
 /// Otevře systémový dialog a vrátí obsah vybraného souboru. Prázdný text = soubor je příliš velký.
 #[tauri::command]
-async fn import_backup(app: tauri::AppHandle, title: Option<String>, filter: Option<String>) -> Result<Option<String>, String> {
+async fn import_backup(app: tauri::AppHandle, window: WebviewWindow, title: Option<String>, filter: Option<String>) -> Result<Option<String>, String> {
+    main_window(&window)?;
     let picked = app
         .dialog()
         .file()
@@ -136,6 +150,16 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(ops::plugin())
+        .manage(ops::OpsState::default())
+        /* Zavření hlavního okna ukončí celou aplikaci včetně buddyho a overlaye (jinak by zůstaly bez stavu). */
+        .on_window_event(|w, e| {
+            ops::on_window_event(w, e);
+            if w.label() == "main" && matches!(e, tauri::WindowEvent::Destroyed) {
+                ops::shutdown(w.app_handle());
+                w.app_handle().exit(0);
+            }
+        })
         .setup(|app| {
             let dir = app.path().app_data_dir().map_err(|e| format!("Složka dat není dostupná: {e}"))?;
             std::fs::create_dir_all(&dir)?;
@@ -154,7 +178,18 @@ pub fn run() {
             import_backup,
             data_dir,
             open_data_dir,
-            open_external
+            open_external,
+            ops::ops_enable,
+            ops::ops_hotkey,
+            ops::ops_watch,
+            ops::buddy_open,
+            ops::buddy_close,
+            ops::overlay_open,
+            ops::overlay_close,
+            ops::overlay_toggle,
+            ops::main_focus,
+            ops::capture_now,
+            ops::capture_take
         ])
         .run(tauri::generate_context!())
         .expect("chyba při spuštění aplikace");

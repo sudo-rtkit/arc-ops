@@ -330,3 +330,11 @@
 .tl-chip:hover { background: var(--bg-hover); }
 .tl-chip:active { cursor: grabbing; background: var(--bg-selected); }
 .tl-pool { margin-top: var(--space-2); padding: var(--space-2); border: var(--line-thin) dashed var(--border-subtle); border-radius: var(--radius-control); display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* ----- milník 5: Buddy a zkratka, Šatník Opse ----- */
+.kbd { display: inline-flex; align-items: center; min-height: var(--control-md); padding: 0 var(--space-3); border: var(--line-thin) solid var(--border-control); border-radius: var(--radius-control); background: var(--bg-raised); color: var(--text-primary); font-size: 13px; }
+.ops-wardrobe { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-5); align-items: start; }
+.ops-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); background: var(--bg-app); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); text-align: center; }
+.ops-preview canvas { image-rendering: pixelated; }
+.ops-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
+@media (max-width: 1100px) { .ops-wardrobe { grid-template-columns: 1fr; } }
