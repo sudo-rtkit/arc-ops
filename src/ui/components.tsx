@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { CircleAlert, ExternalLink as ExternalLinkIcon, Minus, Plus, Search as SearchIcon, X, type LucideIcon } from 'lucide-react';
 import type { Origin } from '../core/types';
 import { clampInt } from '../core/util';
-import { fmt } from './format';
+import { fmt, parseNumberInput } from './format';
 import { useT } from '../i18n/react';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
@@ -103,9 +103,11 @@ export function Ring({ value, max, size = 40, children, label }: { value: number
 function useNumberDraft(value: number, min: number, max: number, onCommit: (n: number) => void, decimals = false) {
   const [draft, setDraft] = useState<string | null>(null);
   const [clamped, setClamped] = useState(false);
+  const lang = useT().lang;
   const commit = () => {
     if (draft === null) return;
-    const raw = Number(String(draft).replace(',', '.').replace(/\s/g, ''));
+    /* Oddělovače podle jazyka: v angličtině je „125,400“ tisíc, ne desetinné číslo. */
+    const raw = draft.trim() === '' ? 0 : parseNumberInput(draft, lang);
     let n = decimals ? Math.max(min, Math.min(max, Number.isFinite(raw) ? Math.round(raw * 2) / 2 : min)) : clampInt(raw, min, max);
     if (!Number.isFinite(n)) n = min;
     setClamped(Number.isFinite(raw) && raw !== n && draft.trim() !== '');

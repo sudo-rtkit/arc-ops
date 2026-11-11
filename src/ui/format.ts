@@ -40,6 +40,18 @@ export const fmtMinutes = (min: number): string => {
 export const mmss = (ms: number): string => { const s = Math.floor(ms / 1000); return p2(Math.floor(s / 60)) + ':' + p2(s % 60); };
 export const fmtBytes = (n: number, lang: Lang = getLang()): string =>
   (n < 1024 ? `${n} B` : n < 1048576 ? `${fmtDec(n / 1024, 1, lang)} kB` : `${fmtDec(n / 1048576, 1, lang)} MB`);
+/* Číslo z textového pole podle jazyka. Mezery (i nezlomitelné) se ignorují.
+   en: čárka je oddělovač tisíců („125,400“ = 125400), tečka desetinná.
+   cs: čárka je desetinná („1,5“), tečky mezi trojicemi číslic jsou tisíce („1.200“ = 1200).
+   Prázdný text vrací NaN. */
+export function parseNumberInput(input: string, lang: Lang = getLang()): number {
+  const s = String(input).replace(/[\s  ]/g, '');
+  if (!s) return NaN;
+  if (lang === 'en') return Number(s.replace(/,/g, ''));
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ''));
+  return Number(s.replace(',', '.'));
+}
+
 /* Datum pro input type=datetime-local a zpět */
 export const toLocalInput = (ts: number): string => { const d = new Date(ts); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`; };
 export const fromLocalInput = (v: string): number => { const t = new Date(v).getTime(); return Number.isFinite(t) ? t : Date.now(); };

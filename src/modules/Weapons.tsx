@@ -21,7 +21,8 @@ function EditWeapon({ w, onClose }: { w: W; onClose: () => void }) {
     /* Pole beze změny proti vestavěnému základu (v kterémkoli jazyce) se neukládá. */
     const bases = [baseWeapon(w.id, 'cs'), baseWeapon(w.id, 'en')].filter((b): b is Weapon => !!b);
     const next: Partial<Weapon> = custom ? f : { category: f.category, ammo: f.ammo, info: f.info };
-    for (const k of Object.keys(next) as (keyof Weapon)[]) if (bases.some(b => next[k] === b[k])) delete next[k];
+    /* Pole vrácené na základ (undefined) smaže dřívější úpravu. */
+    for (const k of Object.keys(next) as (keyof Weapon)[]) if (bases.some(b => next[k] === b[k])) next[k] = undefined;
     actions.editWeapon(w.id, next);
     onClose();
   };

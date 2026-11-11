@@ -26,8 +26,8 @@ function EditArc({ unit, onClose }: { unit: Unit; onClose: () => void }) {
        se neuloží, takže se vestavěný text nezmrazí v jednom jazyce. */
     const bases = [baseArc(unit.id, 'cs'), baseArc(unit.id, 'en')].filter((b): b is ArcUnit => !!b);
     const next: Partial<ArcUnit> = { ...f, drops: f.drops.split(',').map(x => x.trim()).filter(Boolean) };
-    /* U vestavěného záznamu ukládáme jen pole, která se liší od základu. */
-    for (const k of Object.keys(next) as (keyof ArcUnit)[]) if (bases.some(b => JSON.stringify(next[k]) === JSON.stringify(b[k]))) delete next[k];
+    /* U vestavěného záznamu ukládáme jen pole, která se liší od základu; pole vrácené na základ (undefined) smaže dřívější úpravu. */
+    for (const k of Object.keys(next) as (keyof ArcUnit)[]) if (bases.some(b => JSON.stringify(next[k]) === JSON.stringify(b[k]))) next[k] = undefined;
     actions.editArc(unit.id, next);
     onClose();
   };

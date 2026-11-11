@@ -1,5 +1,5 @@
 /* Instance store pro UI a hooky pro React. */
-import { useMemo, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useStore } from 'zustand';
 import { createApp, type AppStore } from './app';
 import { createStorage } from '../storage';
@@ -9,6 +9,7 @@ import { getArc, getMaterials, getRoutes, getSell, getSources, getStations, getW
 import { planNeeds, stationTargets } from '../core/planner';
 import { recommend } from '../core/recommend';
 import { DASH } from '../ui/format';
+import { safeDecode } from '../core/util';
 import { nextNeeds, readiness, shopping, workshopProgress } from '../core/workshop';
 import { phases } from '../core/phases';
 import { mapStatus } from '../core/maps';
@@ -66,9 +67,16 @@ export function derive(s: AppState) {
   };
 }
 export type Derived = ReturnType<typeof derive>;
+/* Jedna cache pro všechny komponenty: stav je neměnný objekt, takže se odvozené hodnoty spočítají jednou na změnu,
+   ne zvlášť v každé komponentě, která useDerived volá. */
+const derivedCache = new WeakMap<AppState, Derived>();
+export function derivedOf(s: AppState): Derived {
+  let d = derivedCache.get(s);
+  if (!d) { d = derive(s); derivedCache.set(s, d); }
+  return d;
+}
 export function useDerived(): Derived {
-  const s = useAppState();
-  return useMemo(() => derive(s), [s]);
+  return derivedOf(useAppState());
 }
 
 /* ----- směrování přes location.hash: #modul nebo #modul/podsekce ----- */
@@ -77,7 +85,7 @@ const getHash = () => window.location.hash;
 export function useRoute(): { module: string; sub: string } {
   const h = useSyncExternalStore(subscribeHash, getHash, () => '');
   const [module, sub = ''] = h.replace(/^#\/?/, '').split('/');
-  return { module: module || 'dashboard', sub: decodeURIComponent(sub) };
+  return { module: module || 'dashboard', sub: safeDecode(sub) };
 }
 export function navigate(module: string, sub?: string) {
   const h = '#' + module + (sub ? '/' + encodeURIComponent(sub) : '');

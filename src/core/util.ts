@@ -27,6 +27,11 @@ export function isoWeek(date: Date): string {
   return d.getUTCFullYear() + '-W' + String(wk).padStart(2, '0');
 }
 
+/* decodeURIComponent, který nespadne na poškozené sekvenci (#maps/%E0): vrátí text tak, jak je. */
+export function safeDecode(v: string): string {
+  try { return decodeURIComponent(v); } catch { return v; }
+}
+
 /* Místní datum jako RRRR-MM-DD. */
 export function dayKey(ts: number): string {
   const d = new Date(ts);

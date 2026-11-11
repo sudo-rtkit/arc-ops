@@ -21,6 +21,18 @@ import { MAPS } from '../core/data/maps';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
 
+/* Úprava vestavěného záznamu (ARC, zbraně): klíč s hodnotou undefined vrací pole na vestavěný základ.
+   Prázdná úprava se smaže, takže se záznam neoznačí jako upravený. Vrací false, když se nic nezměnilo. */
+function setOverride<T extends object>(map: Record<string, Partial<T>>, id: string, patch: Partial<T>): false | void {
+  const cur = map[id] || {};
+  const next: Record<string, unknown> = { ...cur };
+  for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete next[k]; else next[k] = v; }
+  if (JSON.stringify(next) === JSON.stringify(cur)) return false;
+  if (Object.keys(next).length) map[id] = next as Partial<T>; else delete map[id];
+}
+const definedOnly = <T extends object>(patch: Partial<T>): Partial<T> =>
+  Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<T>;
+
 /* Text chyby úložiště v jazyce UI (úložiště vrací česky). */
 const errText = (e: unknown): string => sysError(String((e as Error)?.message || e), getLang());
 
@@ -40,7 +52,8 @@ export interface AppStore {
 }
 
 /* lang = jazyk pro první spuštění a pro stav bez uložené volby (UI předá jazyk z navigator.language). */
-export interface AppOptions { now?: () => number; debounceMs?: number; retryMs?: number; maxRetryMs?: number; lang?: Lang }
+/* weekCheckMs = jak často se za běhu kontroluje přechod týdne Trials (0 = jen při startu, změně a nahrazení stavu). */
+export interface AppOptions { now?: () => number; debounceMs?: number; retryMs?: number; maxRetryMs?: number; lang?: Lang; weekCheckMs?: number }
 
 export type ProfileField = 'level' | 'coins' | 'xp' | 'xpNext' | 'rounds' | 'expBonus' | 'rewardPass' | 'amplified';
 export type ResetModule = 'profile' | 'skills' | 'workshop' | 'inventory' | 'raids' | 'trials' | 'checklists' | 'maps' | 'arc' | 'weapons' | 'dashboard' | 'steps'
@@ -65,6 +78,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   const retryMs = opts.retryMs ?? 3000;
   const maxRetryMs = opts.maxRetryMs ?? 30000;
   const startLang: Lang = opts.lang ?? 'cs';
+  const weekCheckMs = opts.weekCheckMs ?? 60_000;
+  let weekTimer: ReturnType<typeof setInterval> | null = null;
 
   const store: StoreApi<AppStore> = createStore<AppStore>(() => ({
     state: defaultState(now(), startLang), ready: false, save: 'idle', saveError: null, lastSavedAt: 0,
@@ -89,29 +104,38 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   let lastSaved = '';
   let retryDelay = retryMs;
 
-  async function doSave(): Promise<void> {
+  /* Jeden zápis aktuálního stavu. Vrací false při chybě (opakování pak naplánuje retryTimer). */
+  async function saveOnce(): Promise<boolean> {
+    const content = JSON.stringify(get().state);
+    if (content === lastSaved) { if (get().save !== 'error') set({ save: 'saved' }); return true; }
+    set({ save: 'saving' });
+    try {
+      await storage.save(content);
+      lastSaved = content;
+      retryDelay = retryMs;
+      set({ save: 'saved', saveError: null, lastSavedAt: now() });
+      return true;
+    } catch (e) {
+      set({ save: 'error', saveError: String((e as Error)?.message || e) });
+      retryTimer = setTimeout(() => { void doSave(); }, retryDelay);
+      retryDelay = Math.min(maxRetryMs, retryDelay * 2);
+      return false;
+    }
+  }
+  /* Volání během rozběhnutého zápisu dostane slib celého cyklu včetně dopsání nejnovějšího stavu,
+     takže flush() (zavření okna, nahrazení stavu) se vrátí až po uložení posledních změn. */
+  function doSave(): Promise<void> {
     if (timer) { clearTimeout(timer); timer = null; }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     if (saving) { pending = true; return saving; }
-    const content = JSON.stringify(get().state);
-    if (content === lastSaved) { if (get().save !== 'error') set({ save: 'saved' }); return; }
-    set({ save: 'saving' });
     saving = (async () => {
       try {
-        await storage.save(content);
-        lastSaved = content;
-        retryDelay = retryMs;
-        set({ save: 'saved', saveError: null, lastSavedAt: now() });
-      } catch (e) {
-        set({ save: 'error', saveError: String((e as Error)?.message || e) });
-        retryTimer = setTimeout(() => { void doSave(); }, retryDelay);
-        retryDelay = Math.min(maxRetryMs, retryDelay * 2);
+        do { pending = false; if (!(await saveOnce())) break; } while (pending);
       } finally {
         saving = null;
       }
     })();
-    await saving;
-    if (pending) { pending = false; await doSave(); }
+    return saving;
   }
   const scheduleSave = () => {
     if (timer) clearTimeout(timer);
@@ -130,8 +154,26 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   }
 
   /* Každá akce: kopie stavu → úprava → zápis dnešního profilu → uložení za 500 ms. Vrací false, když úprava nic nezměnila. */
+  /* Přechod na nový týden Trials (pondělí). Vrací nový stav, nebo null, když se týden nezměnil. */
+  function rollTrials(state: AppState): { state: AppState; archived: boolean } | null {
+    const rolled = rollWeek(state.trials, new Date(now()));
+    if (rolled === state.trials) return null;
+    return { state: { ...state, trials: rolled }, archived: rolled.history.length > state.trials.history.length };
+  }
+  /* Aplikace může běžet přes půlnoc na pondělí: týden se kontroluje i za běhu, ne jen při startu. */
+  function checkWeek(): boolean {
+    if (!get().ready) return false;
+    const r = rollTrials(get().state);
+    if (!r) return false;
+    set({ state: r.state });
+    if (r.archived) notify(t('notice.weekArchived'), 'info');
+    scheduleSave();
+    return true;
+  }
+
   function change(fn: (s: AppState) => void | false): boolean {
     if (!get().ready) return false;
+    checkWeek();
     const s = structuredClone(get().state);
     if (fn(s) === false) return false;
     syncGoals(s, now());
@@ -161,17 +203,16 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     } catch (e) {
       info.warning = t('load.warn.none') + ' (' + String((e as Error)?.message || e) + ')';
     }
-    const before = state.trials;
-    const rolled = rollWeek(before, new Date(now()));
-    let weekNote = '';
-    if (rolled !== before) {
-      if (rolled.history.length > before.history.length) weekNote = t('notice.weekArchived');
-      state = { ...state, trials: rolled };
-    }
+    const roll = rollTrials(state);
+    if (roll) state = roll.state;
     set({ state, ready: true, load: info, save: lastSaved ? 'saved' : 'idle' });
-    if (weekNote) notify(weekNote, 'info');
+    if (roll?.archived) notify(t('notice.weekArchived'), 'info');
     if (info.source !== 'state' && info.source !== 'none') scheduleSave();
-    else if (rolled !== before) scheduleSave();
+    else if (roll) scheduleSave();
+    if (weekCheckMs > 0 && !weekTimer) {
+      weekTimer = setInterval(checkWeek, weekCheckMs);
+      (weekTimer as { unref?: () => void }).unref?.();
+    }
 
     if (state.settings.autoSnapshot && info.source !== 'none') {
       try {
@@ -186,7 +227,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   async function replaceState(next: AppState, kind: SnapshotKind, label: string, raw?: string): Promise<boolean> {
     if (!(await snapshot(kind, label))) return false;
     if (raw !== undefined) { try { await storage.saveImportRaw(raw); } catch { /* původní text je jen pojistka */ } }
-    const s = normalize(next, now(), st().settings.lang);
+    const n = normalize(next, now(), st().settings.lang);
+    const roll = rollTrials(n);
+    const s = roll ? roll.state : n;
     syncGoals(s, now());
     s.meta.updatedAt = now();
     logProfile(s);
@@ -404,8 +447,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     updateGoal(id: string, patch: Partial<Pick<Goal, 'title' | 'note' | 'priority' | 'due' | 'link'>>) {
       change(s => {
         const i = s.goals.findIndex(g => g.id === id); if (i < 0) return false;
-        const g = normalizeGoal({ ...s.goals[i], ...patch, id }, now());
-        if (JSON.stringify(g) === JSON.stringify(s.goals[i])) return false;
+        const prev = s.goals[i];
+        const g = normalizeGoal({ ...prev, ...patch, id }, now());
+        /* Ruční cíl se změněným cílem: splnění odpovídá progresu (zvýšený cíl ho znovu otevře, snížený pod progres splní). */
+        if (g.link.kind === 'manual' && (prev.link.kind !== 'manual' || prev.link.target !== g.link.target)) {
+          if (g.link.progress >= g.link.target) { if (!g.doneAt) g.doneAt = now(); }
+          else if (g.doneAt) { g.doneAt = 0; g.doneRaid = ''; }
+        }
+        if (JSON.stringify(g) === JSON.stringify(prev)) return false;
         s.goals[i] = g;
       });
     },
@@ -560,7 +609,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     },
     toggleRouteCheck(key: string) { change(s => { if (s.checklists.routeChecks[key]) delete s.checklists.routeChecks[key]; else s.checklists.routeChecks[key] = true; }); },
     resetRouteChecks(routeId: string) {
-      change(s => { for (const k of Object.keys(s.checklists.routeChecks)) if (k.startsWith(routeId + ':')) delete s.checklists.routeChecks[k]; });
+      change(s => { clearRouteChecks(s, routeId); });
     },
 
     /* trasy (Money Runs): úprava, skrytí, vrácení, vlastní. Změna kroků zruší rozpracované odškrtnutí trasy. */
@@ -655,8 +704,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     editArc(id: string, patch: Partial<ArcUnit>) {
       change(s => {
         const c = s.gameData.arcCustom.find(u => u.id === id);
-        if (c) Object.assign(c, patch, { id, origin: 'vlastni' });
-        else s.gameData.arc[id] = { ...(s.gameData.arc[id] || {}), ...patch };
+        if (c) { Object.assign(c, definedOnly(patch), { id, origin: 'vlastni' }); return; }
+        return setOverride(s.gameData.arc, id, patch);
       });
     },
     resetArc(id: string) { change(s => { if (!s.gameData.arc[id]) return false; delete s.gameData.arc[id]; }); },
@@ -682,8 +731,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     editWeapon(id: string, patch: Partial<Weapon>) {
       change(s => {
         const c = s.gameData.weaponsCustom.find(u => u.id === id);
-        if (c) Object.assign(c, patch, { id, origin: 'vlastni' });
-        else s.gameData.weapons[id] = { ...(s.gameData.weapons[id] || {}), ...patch };
+        if (c) { Object.assign(c, definedOnly(patch), { id, origin: 'vlastni' }); return; }
+        return setOverride(s.gameData.weapons, id, patch);
       });
     },
     resetWeapon(id: string) { change(s => { if (!s.gameData.weapons[id]) return false; delete s.gameData.weapons[id]; }); },
@@ -773,5 +822,5 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     retrySave: () => doSave(),
   };
 
-  return { store, actions, init, flush, notify, dismiss, change, storage };
+  return { store, actions, init, flush, notify, dismiss, change, storage, checkWeek };
 }
