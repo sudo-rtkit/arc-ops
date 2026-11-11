@@ -10,7 +10,7 @@ import { clampInt, text, uid } from './util';
 import type { ScreenRead, VisionWarning } from './vision/read';
 import type { Rarity } from './vision/rarity';
 import type { Tier } from './vision/digits';
-import { mergePanels, occupied, type MergedPanel } from './vision/merge';
+import { hiddenCount, isCell, mergePanels, occupied, type MergedPanel } from './vision/merge';
 import { MATCH_SURE, clusterFps, matchFp, type FpKind, type Match } from './vision/match';
 import { similarity } from './vision/fingerprint';
 
@@ -34,6 +34,8 @@ export interface ImportAnalysis {
   merged: MergedPanel | null;
   headerSlots: number | null; headerSlotsMax: number | null;
   found: number;
+  /* místa zakrytá tooltipem, která žádný jiný snímek neukázal (nepočítají se do found) */
+  hidden: number;
   checksumOk: boolean;
   /* „chybějící na 0“ jde jen při sedícím součtu a nefiltrovaném stashi (hlavička s maximem, např. 200/268) */
   canZero: boolean;
@@ -46,10 +48,11 @@ const uniq = <T>(xs: T[]): T[] => [...new Set(xs)];
 const firstOf = <T>(xs: (T | null)[]): T | null => xs.find(x => x !== null) ?? null;
 
 export function analyzeShots(reads: ScreenRead[], learned: LearnedFp[]): ImportAnalysis {
-  const warnings: ImportWarning[] = uniq(reads.flatMap(r => r.warnings));
+  /* Zakrytí hlásí až spojený STASH (nápověda přes batoh se importu stashe netýká). */
+  const warnings: ImportWarning[] = uniq(reads.flatMap(r => r.warnings)).filter(w => w !== 'occluded');
   const withStash = reads.map((r, shot) => ({ r, shot, p: r.panels.find(p => p.panel === 'stash') })).filter(x => x.p);
   const empty: ImportAnalysis = {
-    groups: [], merged: null, headerSlots: null, headerSlotsMax: null, found: 0, checksumOk: false, canZero: false,
+    groups: [], merged: null, headerSlots: null, headerSlotsMax: null, found: 0, hidden: 0, checksumOk: false, canZero: false,
     coins: firstOf(reads.map(r => r.coins)), stashValue: null, profile: null, warnings,
   };
   if (!withStash.length) return empty;
@@ -62,7 +65,7 @@ export function analyzeShots(reads: ScreenRead[], learned: LearnedFp[]): ImportA
   if (values.length > 1 || slots.length > 1) warnings.push('differentState');
 
   /* Políčka spojeného výsledku s odkazem na původní snímek. */
-  const cells = merged.rows.flatMap((row, mi) => row.flatMap((c, col) => (c ? [{ c, ref: { shot: withStash[merged.source[mi].shot].shot, row: merged.source[mi].row, col, merged: mi } }] : [])));
+  const cells = merged.rows.flatMap((row, mi) => row.flatMap((c, col) => (isCell(c) ? [{ c, ref: { shot: withStash[merged.source[mi].shot].shot, row: merged.source[mi].row, col, merged: mi } }] : [])));
   const matched = cells.map(x => ({ ...x, m: matchFp(x.c.fp, x.c.rarity, learned), fp: x.c.fp, rarity: x.c.rarity }));
   const groups: ImportGroup[] = [];
   const toGroup = (list: typeof matched, match: Match) => {
@@ -90,12 +93,13 @@ export function analyzeShots(reads: ScreenRead[], learned: LearnedFp[]): ImportA
 
   const headerSlots = firstOf(stashReads.map(r => r.headerSlots));
   const headerSlotsMax = firstOf(stashReads.map(r => r.headerSlotsMax));
-  const found = occupied(merged);
+  const found = occupied(merged), hidden = hiddenCount(merged);
+  if (hidden) warnings.push('occluded');
   const checksumOk = headerSlots !== null && found === headerSlots;
   if (!checksumOk) warnings.push('checksum');
   const first = stashReads[0];
   return {
-    groups, merged, headerSlots, headerSlotsMax, found, checksumOk, canZero: checksumOk && headerSlotsMax !== null,
+    groups, merged, headerSlots, headerSlotsMax, found, hidden, checksumOk, canZero: checksumOk && headerSlotsMax !== null,
     coins: firstOf(reads.map(r => r.coins)), stashValue: firstOf(stashReads.map(r => r.stashValue)),
     profile: first.cellPx ? { cellPx: first.cellPx, ui: first.ui } : null,
     warnings: uniq(warnings),

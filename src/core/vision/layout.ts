@@ -91,7 +91,8 @@ export function findCells(img: RgbaImage, L: Float32Array = lumMap(img)): Box[] 
     const len = a.y1 - a.y0 + 1;
     for (const b of right) {
       const w = b.x - a.x + 1;
-      if (w < len * 0.95 || w > len * 1.35 + 8 || w < MIN_CELL) continue;
+      /* Políčko useknuté okrajem posuvné oblasti (částečný řádek nahoře nebo dole) má kratší svislé strany: nepočítá se. */
+      if (w < len * 0.95 || w > len * 1.12 + 4 || w < MIN_CELL) continue;
       const tol = Math.max(4, len * 0.05);
       if (Math.abs(a.y0 - b.y0) > tol || Math.abs(a.y1 - b.y1) > tol) continue;
       const yc = (a.y0 + a.y1 + b.y0 + b.y1) / 4;
@@ -154,9 +155,13 @@ export function groupGrids(cells: Box[]): Grid[] {
 export function assignPanels(grids: Grid[], W: number): PanelGrid[] {
   const out: PanelGrid[] = [];
   const four = grids.filter(g => g.cols === 4);
-  const stash = four.find(g => g.x + g.cols * g.pitchX < W * 0.4);
+  /* STASH má vždy 4 sloupce. Tooltip otevřený nad pravými sloupci zakryje jejich rámečky, takže se najdou jen 2–3
+     sloupce vlevo: mřížka se doplní na 4 sloupce (chybějící místa zůstanou bez rámečku a označí se jako zakrytá). */
+  const left = grids.filter(g => g.cols >= 2 && g.cols <= 4 && g.rows >= 2 && g.x + 4 * g.pitchX < W * 0.4);
+  const stash0 = left.find(g => g.cols === 4) || [...left].sort((a, b) => b.cols - a.cols || b.rows - a.rows)[0];
+  const stash = stash0 && stash0.cols < 4 ? padCols(stash0, 4) : stash0;
   if (stash) out.push({ ...stash, panel: 'stash' });
-  const backpack = four.find(g => g !== stash && g.x > W * 0.4);
+  const backpack = four.find(g => g !== stash0 && g.x > W * 0.4);
   if (backpack) out.push({ ...backpack, panel: 'backpack' });
   const quick = grids.find(g => g.cols <= 3 && backpack && g.x > backpack.x + backpack.cols * backpack.pitchX);
   if (quick) out.push({ ...quick, panel: 'quickUse' });
@@ -169,6 +174,59 @@ export function detectLayout(img: RgbaImage, L: Float32Array = lumMap(img)): Lay
   if (!panels.length) return null;
   const cellPx = panels[0].cell;
   return { cellPx, ui: Math.round((cellPx / (96 * img.height / 1080)) * 100) / 100, panels };
+}
+
+function padCols(g: Grid, cols: number): Grid {
+  const present: boolean[] = [];
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < cols; c++) present.push(c < g.cols ? g.present[r * g.cols + c] : false);
+  return { ...g, cols, present };
+}
+
+/* Posuvná oblast panelu: horní a spodní okraj viditelných políček. Řádek useknutý nahoře (posunutý STASH) má
+   viditelnou jen spodní část rámečku; jeho horní konec je horní okraj oblasti. Bez useknutého řádku leží okraj
+   těsně nad prvním celým řádkem. Odtud se měří hlavička STASH, takže nezávisí na poloze posuvníku.
+   partialTop / partialBottom = viditelná výška useknutého řádku v pixelech (0 = žádný). */
+export interface Viewport { top: number; bottom: number; partialTop: number; partialBottom: number }
+
+function frameOn(L: Float32Array, W: number, x: number, y: number): boolean {
+  for (const xx of [x - 1, x, x + 1]) {
+    if (xx < 3 || xx >= W) continue;
+    const v = L[y * W + xx], o = L[y * W + xx - 3];
+    if (o < GAP_MAX && v - o > EDGE) return true;
+  }
+  return false;
+}
+
+/* Délka souvislého rámečku od y ve směru dir (povolené 2 chybějící pixely). */
+function frameRun(L: Float32Array, W: number, H: number, x: number, y: number, dir: -1 | 1, max: number): number {
+  let last = -1, miss = 0;
+  for (let k = 0; k < max; k++) {
+    const yy = y + dir * k;
+    if (yy < 0 || yy >= H) break;
+    if (frameOn(L, W, x, yy)) { last = k; miss = 0; } else if (++miss > 2) break;
+  }
+  return last + 1;
+}
+
+export function viewportOf(img: RgbaImage, g: Grid, L: Float32Array = lumMap(img)): Viewport {
+  const W = img.width, H = img.height, gap = g.pitchY - g.cell;
+  const ups: number[] = [], downs: number[] = [];
+  for (let c = 0; c < g.cols; c++) {
+    if (!g.present.some((p, i) => p && i % g.cols === c)) continue;
+    const x = Math.round(g.x + c * g.pitchX);
+    /* od spodní hrany řádku nad mřížkou nahoru a od horní hrany řádku pod mřížkou dolů */
+    ups.push(frameRun(L, W, H, x, Math.round(g.y - gap - 3), -1, g.cell));
+    downs.push(frameRun(L, W, H, x, Math.round(g.y + g.rows * g.pitchY + 2), 1, g.cell));
+  }
+  const up = median(ups), down = median(downs);
+  const margin = Math.max(2, Math.round(g.pitchY * 0.04));
+  const partialTop = up >= 4 ? Math.min(g.cell, up + 3) : 0;
+  const partialBottom = down >= 4 ? Math.min(g.cell, down + 2) : 0;
+  return {
+    top: partialTop ? Math.round(g.y - gap - partialTop) : g.y - margin,
+    bottom: partialBottom ? Math.round(g.y + g.rows * g.pitchY + partialBottom) : Math.round(g.y + (g.rows - 1) * g.pitchY + g.cell + margin),
+    partialTop, partialBottom,
+  };
 }
 
 /* Políčko mřížky na pozici (řádek, sloupec). */

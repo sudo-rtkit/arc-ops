@@ -1,18 +1,22 @@
-/* Vstupní bod rozpoznávání: readScreenshot(img) přečte jeden snímek obrazovky INVENTORY. Výsledek obsahuje jen
-   čísla (polohy, počty, otisky), ne obrazová data, takže se snímek po přečtení může zahodít. */
+/* Vstupní bod rozpoznávání: readScreenshot(img) přečte jeden snímek obrazovky INVENTORY (nebo FINDINGS po raidu).
+   Výsledek obsahuje jen čísla (polohy, počty, otisky, podpisy řádků), ne obrazová data, takže se snímek po přečtení
+   může zahodít. */
 import { lumMap, type RgbaImage } from './image';
-import { detectLayout, type Box, type Grid, type PanelGrid, type PanelId } from './layout';
-import { brightShare, categoryArea, countArea, gridCells, iconArea, tierArea } from './cells';
+import { detectLayout, viewportOf, type Box, type Grid, type PanelGrid, type PanelId, type Viewport } from './layout';
+import { brightShare, categoryArea, cellSig, countArea, creamShare, frameLum, gridCells, iconArea, tierArea } from './cells';
 import { isCream, isGold, maskOf, numberTokens, parseGrouped, readCount, readTier, type Tier } from './digits';
 import { fingerprint } from './fingerprint';
 import { readRarity, type Rarity } from './rarity';
 import { coinsArea, panelLabelArea, stashHeaderArea } from './regions';
+import { findOverlays, occludedBy, type Overlay } from './overlays';
+import { readTooltip, type TooltipRead } from './tooltip';
 
 export type VisionWarning =
   | 'noInventory'        /* na snímku není mřížka inventory */
   | 'noStash'            /* mřížka je, ale chybí STASH (jen batoh) */
   | 'headerUnreadable'   /* nepřečtený počet míst v hlavičce STASH */
   | 'countUnreadable'    /* aspoň jeden nečitelný počet */
+  | 'occluded'           /* část políček zakrývá tooltip nebo nápověda */
   | 'scaleOdd';          /* neobvyklé měřítko (mimo 16:9 nebo jiné UI) */
 
 export interface CellRead {
@@ -24,7 +28,12 @@ export interface CellRead {
   fp: number[];
   /* hrubý otisk ikony kategorie vlevo dole (pomocný signál) */
   cat: number[];
+  /* název z tooltipu, když je políčko zvýrazněné (pod kurzorem) a tooltip jde přečíst */
+  name?: string;
 }
+
+/* Řádek useknutý okrajem posuvné oblasti: nečte se, ale jeho viditelná část pomáhá navázat posunuté snímky. */
+export interface PartialRow { visible: number; sigs: number[][] }
 
 export interface PanelRead {
   panel: PanelId; grid: Grid;
@@ -32,7 +41,14 @@ export interface PanelRead {
   cells: CellRead[];
   /* prázdná místa (řádek, sloupec) – pro spojování snímků */
   empty: { row: number; col: number }[];
+  /* místa zakrytá tooltipem nebo nápovědou: nečtou se a nepočítají */
+  hidden: { row: number; col: number }[];
   slots: number | null; slotsMax: number | null;
+  /* podpisy všech celých míst [řádek][sloupec] a useknutých řádků nad a pod mřížkou */
+  sigs: number[][][];
+  partialTop: PartialRow | null; partialBottom: PartialRow | null;
+  /* zvýrazněné místo (bílý rámeček pod kurzorem) */
+  selected: { row: number; col: number } | null;
 }
 
 export interface ScreenRead {
@@ -42,6 +58,8 @@ export interface ScreenRead {
   coins: number | null; premium: number | null;
   cells: CellRead[];
   panels: PanelRead[];
+  overlays: Overlay[];
+  tooltip: (TooltipRead & { cell: { panel: PanelId; row: number; col: number } | null }) | null;
   warnings: VisionWarning[];
 }
 
@@ -60,16 +78,25 @@ function categoryMap(img: RgbaImage, area: Box): number[] {
   return out;
 }
 
-function readPanel(img: RgbaImage, g: PanelGrid): PanelRead {
-  const cells: CellRead[] = [], empty: { row: number; col: number }[] = [];
+/* Prah obsazenosti: podíl světlých neutrálních pixelů v ikoně kategorie (prázdné místo 0, tmavý zaměřovač ~0,05). */
+export const CATEGORY_ICON_MIN = 0.02;
+
+function readPanel(img: RgbaImage, g: PanelGrid, overlays: Overlay[], vp: Viewport | null): PanelRead {
+  const cells: CellRead[] = [], empty: { row: number; col: number }[] = [], hidden: { row: number; col: number }[] = [];
+  const sigs: number[][][] = Array.from({ length: g.rows }, () => []);
+  const frames: { row: number; col: number; lum: number }[] = [];
   for (const gc of gridCells(g)) {
     const b = gc.box;
+    if (occludedBy(b, gc.framed, overlays, g.cell)) { hidden.push({ row: gc.row, col: gc.col }); sigs[gc.row][gc.col] = []; continue; }
+    sigs[gc.row][gc.col] = cellSig(img, b);
+    frames.push({ row: gc.row, col: gc.col, lum: frameLum(img, b) });
     const cnt = readCount(img, countArea(b));
     const tier = cnt ? null : readTier(img, tierArea(b));
     const rar = readRarity(img, b);
     const bright = brightShare(img, iconArea(b));
     const colored = rar.rarity !== 'common' && rar.rarity !== 'unknown';
-    const occupied = !!cnt || !!tier || colored || bright > 0.04;
+    /* Každý předmět má vlevo dole ikonu kategorie; prázdné místo ani zástupné ikony (kroužek, „náhodný“ symbol) ne. */
+    const occupied = !!cnt || !!tier || colored || bright > 0.04 || creamShare(img, categoryArea(b)) >= CATEGORY_ICON_MIN;
     if (!occupied) { if (gc.framed) empty.push({ row: gc.row, col: gc.col }); continue; }
     cells.push({
       row: gc.row, col: gc.col, box: b, rarity: rar.rarity,
@@ -82,18 +109,53 @@ function readPanel(img: RgbaImage, g: PanelGrid): PanelRead {
     const tok = numberTokens(img, panelLabelArea(g), isCream).find(t => /^\d+\/\d+$/.test(t.text));
     if (tok) [slots, slotsMax] = tok.text.split('/').map(Number);
   }
-  return { panel: g.panel, grid: g, cells, empty, slots, slotsMax };
+  const partial = (row: number, visible: number, top: boolean): PartialRow | null => {
+    if (!vp || visible < g.cell * 0.12) return null;
+    const out: number[][] = [];
+    for (let col = 0; col < g.cols; col++) {
+      const b: Box = { x: Math.round(g.x + col * g.pitchX), y: Math.round(g.y + row * g.pitchY), w: g.cell, h: g.cell };
+      out.push(occludedBy(b, true, overlays, g.cell) ? [] : top ? cellSig(img, b, vp.top + 1) : cellSig(img, b, -Infinity, vp.bottom - 1));
+    }
+    return { visible, sigs: out };
+  };
+  /* Zvýrazněné místo: dvojitý světlý rámeček rozbije hledání rámečku, takže je to místo uvnitř mřížky bez nalezeného
+     rámečku (a nezakryté), jehož obrys je světlejší než u ostatních míst panelu. */
+  const lums = frames.map(f => f.lum).sort((a, b) => a - b);
+  const med = lums.length ? lums[Math.floor(lums.length / 2)] : 0;
+  const top = frames.filter(f => !g.present[f.row * g.cols + f.col] && f.lum >= med + 8).sort((a, b) => b.lum - a.lum)[0];
+  const selected = top ? { row: top.row, col: top.col } : null;
+  return {
+    panel: g.panel, grid: g, cells, empty, hidden, slots, slotsMax, sigs, selected,
+    partialTop: vp ? partial(-1, vp.partialTop, true) : null,
+    partialBottom: vp ? partial(g.rows, vp.partialBottom, false) : null,
+  };
+}
+
+/* Hlavička STASH: pás se měří od horního okraje posuvné oblasti; když se nepřečte, zkusí se o kousek výš a níž. */
+function readHeader(img: RgbaImage, g: Grid, top: number): { slots: number | null; max: number | null; value: number | null } {
+  for (const f of [0, -0.06, 0.06, -0.12, 0.12]) {
+    const toks = numberTokens(img, stashHeaderArea(g, top, f * g.pitchY), isCream);
+    const m = toks.length ? /^(\d+)(?:\/(\d+))?$/.exec(toks[0].text) : null;
+    if (!m) continue;
+    const value = toks.length >= 2 ? parseGrouped(toks[toks.length - 1].text) : null;
+    return { slots: Number(m[1]), max: m[2] ? Number(m[2]) : null, value };
+  }
+  return { slots: null, max: null, value: null };
 }
 
 export function readScreenshot(img: RgbaImage, ctx: ReadContext = {}): ScreenRead {
   const base: ScreenRead = {
     width: img.width, height: img.height, cellPx: 0, ui: 0, panel: null,
-    headerSlots: null, headerSlotsMax: null, stashValue: null, coins: null, premium: null, cells: [], panels: [], warnings: [],
+    headerSlots: null, headerSlotsMax: null, stashValue: null, coins: null, premium: null, cells: [], panels: [], overlays: [], tooltip: null, warnings: [],
   };
-  const layout = detectLayout(img, lumMap(img));
+  const L = lumMap(img);
+  const layout = detectLayout(img, L);
   if (!layout) return { ...base, warnings: ['noInventory'] };
-  const panels = layout.panels.filter(p => !ctx.panels || ctx.panels.includes(p.panel)).map(p => readPanel(img, p));
-  const out: ScreenRead = { ...base, cellPx: layout.cellPx, ui: layout.ui, panels };
+  const overlays = findOverlays(img, layout.cellPx);
+  const stashGrid = layout.panels.find(p => p.panel === 'stash');
+  const vp = stashGrid ? viewportOf(img, stashGrid, L) : null;
+  const panels = layout.panels.filter(p => !ctx.panels || ctx.panels.includes(p.panel)).map(p => readPanel(img, p, overlays, p.panel === 'stash' ? vp : null));
+  const out: ScreenRead = { ...base, cellPx: layout.cellPx, ui: layout.ui, panels, overlays };
   const aspect = img.width / img.height;
   if (Math.abs(aspect - 16 / 9) > 0.05 || layout.ui < 0.8 || layout.ui > 1.25) out.warnings.push('scaleOdd');
 
@@ -103,17 +165,28 @@ export function readScreenshot(img: RgbaImage, ctx: ReadContext = {}): ScreenRea
   out.cells = primary?.cells ?? [];
   if (!stash) out.warnings.push('noStash');
   else {
-    const toks = numberTokens(img, stashHeaderArea(stash.grid), isCream);
-    const m = toks.length ? /^(\d+)(?:\/(\d+))?$/.exec(toks[0].text) : null;
-    if (m) { out.headerSlots = Number(m[1]); out.headerSlotsMax = m[2] ? Number(m[2]) : null; }
-    else out.warnings.push('headerUnreadable');
-    if (toks.length >= 2) out.stashValue = parseGrouped(toks[toks.length - 1].text);
+    const h = readHeader(img, stash.grid, vp!.top);
+    out.headerSlots = h.slots; out.headerSlotsMax = h.max; out.stashValue = h.value;
+    if (h.slots === null) out.warnings.push('headerUnreadable');
   }
   const coinBox = coinsArea(img, layout.cellPx);
   const coin = numberTokens(img, coinBox, isCream)[0];
   out.coins = coin ? parseGrouped(coin.text) : null;
   const prem = numberTokens(img, coinBox, isGold)[0];
   out.premium = prem ? parseGrouped(prem.text) : null;
+
+  /* Tooltip pojmenuje zvýrazněné políčko (to, nad kterým je kurzor). */
+  const tip = overlays.find(o => o.kind === 'tooltip');
+  if (tip) {
+    const t = readTooltip(img, tip.box, layout.cellPx);
+    if (t) {
+      const sel = panels.find(p => p.selected && p.cells.some(c => c.row === p.selected!.row && c.col === p.selected!.col));
+      const cell = sel ? { panel: sel.panel, row: sel.selected!.row, col: sel.selected!.col } : null;
+      if (sel && t.name) { const c = sel.cells.find(x => x.row === cell!.row && x.col === cell!.col)!; c.name = t.name; }
+      out.tooltip = { ...t, cell };
+    }
+  }
+  if (panels.some(p => p.hidden.length)) out.warnings.push('occluded');
   if (panels.some(p => p.cells.some(c => c.count === null && c.countText))) out.warnings.push('countUnreadable');
   return out;
 }

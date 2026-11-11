@@ -7,3 +7,9 @@ src-tauri/gen/schemas/
 test-results/
 playwright-report/
 
+
+# Vlastní snímky uživatele – jen lokálně (avatar, tag)
+tests/fixtures/vision/own/
+
+# Cache skriptu gen-catalog.mjs (stažená data MetaForge) – necommitovat
+scripts/.cache/

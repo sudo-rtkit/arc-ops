@@ -60,7 +60,7 @@ export function components(mask: Uint8Array, w: number, h: number): Comp[] {
 }
 
 /* Části jednoho znaku nad sebou (např. rozpadlé „×“ po zmenšení) se spojí. */
-function mergeStacked(cs: Comp[]): Comp[] {
+export function mergeStacked(cs: Comp[]): Comp[] {
   const list = [...cs].sort((a, b) => a.x0 - b.x0);
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = list[i], b = list[j];
