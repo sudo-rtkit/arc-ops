@@ -308,3 +308,25 @@
 .quest-items { list-style: none; padding-left: 0; }
 .project-card h3 { margin: 0; }
 .project-phase { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); border-top: var(--line-thin) solid var(--border-subtle); }
+
+/* ----- milník 4: rada u předmětu, úklid stashe, porovnání zbraní, vlastní tier list ----- */
+.advice-cell { min-width: 220px; }
+.advice { display: flex; align-items: center; gap: var(--space-2); }
+.advice .badge { flex: none; }
+.advice-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.advice .icon-btn[aria-pressed='true'] { color: var(--success); }
+.compare-table td.best { color: var(--success); font-weight: var(--weight-semibold); background: var(--success-bg); }
+.project-phase.done > b { color: var(--success); }
+.tl-board { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.tl-row { padding: var(--space-1); border: var(--line-thin) dashed transparent; border-radius: var(--radius-control); transition: border-color var(--t-fast), background var(--t-fast); }
+.tl-row.over, .tl-pool.over { border-color: var(--accent); background: var(--bg-selected); }
+.tier-label.t-D { color: var(--text-secondary); opacity: .8; }
+.tl-empty { align-self: center; padding: 6px 0; }
+.tl-chip {
+  border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-raised); color: var(--text-primary);
+  padding: 6px 10px; min-height: var(--control-md); font: var(--weight-semibold) var(--font-size-sm)/var(--line-sm) var(--font-ui); cursor: grab;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.tl-chip:hover { background: var(--bg-hover); }
+.tl-chip:active { cursor: grabbing; background: var(--bg-selected); }
+.tl-pool { margin-top: var(--space-2); padding: var(--space-2); border: var(--line-thin) dashed var(--border-subtle); border-radius: var(--radius-control); display: flex; flex-direction: column; gap: var(--space-2); }

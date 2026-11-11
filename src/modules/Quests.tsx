@@ -4,7 +4,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
-import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Tabs, cx } from '../ui/components';
+import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
 import { PROJECTS, QUESTS, locText, questById, questName, questStatus, type QuestStatus } from '../core/quests';
 import type { Qty } from '../core/data/arctracker';
 import { mapName } from './shared';
@@ -110,14 +110,16 @@ function Projects() {
   const t = useT();
   return (
     <Panel title={t('projects.title')}>
-      <p className="meta">{t('projects.hint')}</p>
+      <p className="meta">{t('projects.hint')} {t('projects.nextHint')}</p>
       <div className="cards">{PROJECTS.map(p => (
         <section key={p.id} className="panel project-card" data-project={p.id}>
           <div className="panel-body stack-sm">
             <h3>{locText(p.name, t.lang)}</h3>
             {p.start && <span className="meta">{p.end ? t('projects.dates', { from: p.start, to: p.end }) : t('projects.from', { from: p.start })}</span>}
+            <Stepper label={t('projects.doneAria', { name: locText(p.name, t.lang) })} value={s.projects[p.id] || 0} min={0} max={p.phases.length} onChange={n => actions.projectSetPhases(p.id, n)} />
+            <span className="meta">{t('projects.done')}: {s.projects[p.id] || 0} / {p.phases.length}</span>
             {p.phases.map(ph => (
-              <div key={ph.phase} className="project-phase">
+              <div key={ph.phase} className={cx('project-phase', ph.phase <= (s.projects[p.id] || 0) && 'done')}>
                 <b>{t('projects.phase', { n: ph.phase, name: locText(ph.name, t.lang) })}</b>
                 {ph.req.length > 0 && <div><span className="meta">{t('projects.req')}</span><Items list={ph.req} inventory={s.inventory} /></div>}
                 {ph.tasks.length > 0 && <div><span className="meta">{t('projects.tasks')}</span><ul className="quest-items">{ph.tasks.map((x, i) => <li key={i}>{locText(x, t.lang)}</li>)}</ul></div>}

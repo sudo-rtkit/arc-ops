@@ -9,13 +9,14 @@ import { getArc, getMaterials, getRoutes, getSell, getSources, getStations, getW
 import { planNeeds, stationTargets } from '../core/planner';
 import { recommend } from '../core/recommend';
 import { DASH } from '../ui/format';
-import { safeDecode } from '../core/util';
+import { dayKey, safeDecode } from '../core/util';
 import { nextNeeds, readiness, shopping, workshopProgress } from '../core/workshop';
 import { questNeeds, questProgress } from '../core/quests';
 import { phases } from '../core/phases';
 import { mapStatus } from '../core/maps';
 import { runStats } from '../core/runs';
 import { budget, totalPoints, planSteps, planName, nextPlanPoint } from '../core/skills';
+import { adviseAll } from '../core/advice';
 import { navigatorLang, setLang, t } from '../i18n';
 
 /* Jazyk prvního spuštění (a stavu bez uložené volby) podle navigator.language; pak platí volba v Settings. */
@@ -59,6 +60,8 @@ export function derive(s: AppState) {
     quests: questProgress(s.quests.done),
     targets: stationTargets(view, s.planner, s.goals, stations),
     recs: recommend(s, Date.now()),
+    /* milník 4: rada nech / recykluj / prodej pro každý předmět v Zásobě a Vybavení (klíč = klíč zásoby) */
+    advice: adviseAll(s, dayKey(Date.now()), s.settings.lang),
     workshop: workshopProgress(s.stations, stations),
     phases: phases({ profile: s.profile, stations: s.stations, skills: s.skills }),
     maps: mapStatus(s.profile.rounds),

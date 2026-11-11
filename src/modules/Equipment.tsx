@@ -2,7 +2,8 @@
    ostatní) po kategoriích. Ruční přidání, úprava počtu a smazání; počty zapisuje i rozpoznávání ze snímku. */
 import { useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { actions, useAppState } from '../store';
+import { actions, useAppState, useDerived } from '../store';
+import { AdviceCell } from '../ui/Advice';
 import { Badge, Btn, ConfirmButton, Dialog, Empty, IconBtn, Panel, Search, Select, Stepper } from '../ui/components';
 import { LIMITS } from '../core/state';
 import { ITEM_CATEGORIES, ITEM_TIERS, itemKey, type ItemCategory, type ItemStock, type ItemTier } from '../core/types';
@@ -61,6 +62,7 @@ function ItemDialog({ item, onClose }: { item: ItemStock | null; onClose: () => 
 
 export default function Equipment() {
   const s = useAppState();
+  const d = useDerived();
   const t = useT();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
@@ -83,10 +85,10 @@ export default function Equipment() {
           {rows.length === 0 ? <Empty action={<Btn onClick={() => { setQ(''); setCat(''); }}>{t('filter.clear')}</Btn>}>{t('filter.none')}</Empty> : (
             <div className="table-wrap tall">
               <table className="table mat-table equip-table">
-                <thead><tr><th>{t('common.name')}</th><th>{t('equip.tier')}</th><th className="num">{t('equip.count')}</th><th className="actions-cell"><span className="sr-only">{t('inv.actions')}</span></th></tr></thead>
+                <thead><tr><th>{t('common.name')}</th><th>{t('equip.tier')}</th><th className="num">{t('equip.count')}</th><th>{t('advice.col')}</th><th className="actions-cell"><span className="sr-only">{t('inv.actions')}</span></th></tr></thead>
                 {byCat.map(({ c, list }) => (
                   <tbody key={c} data-category={c}>
-                    <tr className="group-row"><th colSpan={4} scope="colgroup">{t(catKey(c))} <span className="meta">· {fmt(list.reduce((a, x) => a + x.count, 0))}</span></th></tr>
+                    <tr className="group-row"><th colSpan={5} scope="colgroup">{t(catKey(c))} <span className="meta">· {fmt(list.reduce((a, x) => a + x.count, 0))}</span></th></tr>
                     {list.map(x => {
                       const label = x.tier ? `${x.name} ${x.tier}` : x.name;
                       return (
@@ -94,6 +96,7 @@ export default function Equipment() {
                           <td><b className="wrap">{x.name}</b></td>
                           <td>{x.tier ? <Badge>{x.tier}</Badge> : <span className="muted">—</span>}</td>
                           <td className="num"><Stepper label={t('equip.countAria', { name: label })} value={x.count} min={1} max={LIMITS.inventory[1]} onChange={v => actions.itemSetCount(x.key, v)} /></td>
+                          <td className="advice-cell"><AdviceCell advice={d.advice.get(x.key)} label={label} /></td>
                           <td className="actions-cell"><span className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
                             <IconBtn ghost label={t('equip.editAria', { name: label })} icon={Pencil} onClick={() => setEdit(x)} />
                             <ConfirmButton size="sm" variant="ghost" icon={Trash2} title={t('equip.deleteTitle')} text={t('equip.deleteText', { name: label })}

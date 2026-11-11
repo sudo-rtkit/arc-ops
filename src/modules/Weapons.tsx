@@ -9,6 +9,10 @@ import { gameTexts, patchNotes, weaponPhases } from '../core/gametext';
 import { baseWeapon, hiddenWeapons, type Edited } from '../core/gamedata';
 import type { Weapon } from '../core/types';
 import { useT } from '../i18n/react';
+import { COMPARE_MAX, STAT_ROWS, bestIndexes, statsRow, tierRank, toggleCompare as toggleCmp } from '../core/compare';
+import { tierOf } from '../core/tierlist';
+import { fmt, fmtDec } from '../ui/format';
+import type { Key } from '../i18n';
 
 type W = Edited<Weapon>;
 const TIER_TONE: Record<string, 'accent' | 'success' | 'amber' | undefined> = { S: 'accent', A: 'success', B: 'amber', C: undefined };
@@ -83,7 +87,7 @@ export default function Weapons({ sub }: { sub: string }) {
   const [showHidden, setShowHidden] = useState(false);
   const list = d.weapons.filter(w => (!q || (w.name + ' ' + w.category + ' ' + w.ammo).toLowerCase().includes(q.toLowerCase())) && (!onlyArc || w.antiArc));
   const tiers = [...TIER_ORDER, ''];
-  const toggleCompare = (id: string) => setCompare(c => (c.includes(id) ? c.filter(x => x !== id) : c.length >= 3 ? c : [...c, id]));
+  const toggleCompare = (id: string) => setCompare(c => toggleCmp(c, id));
   const cmp = compare.map(id => d.weapons.find(w => w.id === id)).filter((w): w is W => !!w);
   const detail = d.weapons.find(w => w.id === open);
   const hidden = hiddenWeapons(s.gameData, t.lang);
@@ -118,7 +122,7 @@ export default function Weapons({ sub }: { sub: string }) {
                           {own && own !== w.tier && <Badge title={t('wpn.myRating')}>{t('wpn.mine', { v: own })}</Badge>}
                           {w.origin === 'vlastni' && <Badge tone="accent">{t('origin.vlastni')}</Badge>}
                         </button>
-                        <label className="wchip-cmp" title={t('wpn.compare')}><input type="checkbox" checked={compare.includes(w.id)} disabled={!compare.includes(w.id) && compare.length >= 3} onChange={() => toggleCompare(w.id)} /><span className="sr-only">{t('wpn.compareAria', { name: w.name })}</span></label>
+                        <label className="wchip-cmp" title={t('wpn.compare')}><input type="checkbox" checked={compare.includes(w.id)} disabled={!compare.includes(w.id) && compare.length >= COMPARE_MAX} onChange={() => toggleCompare(w.id)} /><span className="sr-only">{t('wpn.compareAria', { name: w.name })}</span></label>
                       </div>
                     );
                   })}
@@ -129,24 +133,46 @@ export default function Weapons({ sub }: { sub: string }) {
         </div>
         <p className="meta">{gameTexts(t.lang).tierHint}</p>
       </Panel>
-      {cmp.length > 0 && (
-        <Panel title={t('wpn.comparison')} actions={<Btn size="sm" variant="ghost" icon={X} onClick={() => setCompare([])}>{t('wpn.clearCompare')}</Btn>} flush>
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>{t('wpn.field')}</th>{cmp.map(w => <th key={w.id}>{w.name}</th>)}</tr></thead>
-              <tbody>
-                <tr><td>{t('wpn.tierDiary')}</td>{cmp.map(w => <td key={w.id}>{w.tier || '—'}</td>)}</tr>
-                <tr><td>{t('wpn.myRating')}</td>{cmp.map(w => <td key={w.id}>{s.weaponNotes[w.id]?.tier || '—'}</td>)}</tr>
-                <tr><td>Anti-ARC</td>{cmp.map(w => <td key={w.id}>{w.antiArc ? t('common.yes') : t('common.no')}</td>)}</tr>
-                <tr><td>{t('inv.category')}</td>{cmp.map(w => <td key={w.id}>{orNA(w.category)}</td>)}</tr>
-                <tr><td>{t('wpn.ammo')}</td>{cmp.map(w => <td key={w.id}>{orNA(w.ammo)}</td>)}</tr>
-                <tr><td>{t('wpn.phaseDiary')}</td>{cmp.map(w => <td key={w.id}>{WEAPON_PHASES.filter(p => (p[2] + ', ' + p[3]).includes(w.name)).map(p => p[0]).join(', ') || '—'}</td>)}</tr>
-                <tr><td>{t('maps.myNotes')}</td>{cmp.map(w => <td key={w.id} className="wrap">{s.weaponNotes[w.id]?.note || '—'}</td>)}</tr>
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
+      {cmp.length > 0 && (() => {
+        /* lepší hodnota v řádku je zvýrazněná (třída best + skrytý text pro čtečky) */
+        const cell = (vals: (number | null)[], lower: boolean, show: (v: number) => string, i: number) => {
+          const best = bestIndexes(vals, lower).includes(i);
+          const v = vals[i];
+          return <td key={cmp[i].id} className={cx('num', best && 'best')}>{v === null ? '—' : show(v)}{best && <span className="sr-only"> ({t('wpn.better')})</span>}</td>;
+        };
+        const tierRow = (label: string, tiers: (string | null | undefined)[]) => {
+          const ranks = tiers.map(tierRank);
+          /* nižší pořadí = lepší tier (S) */
+          return <tr><td>{label}</td>{cmp.map((w, i) => { const best = bestIndexes(ranks, true).includes(i); return <td key={w.id} className={cx(best && 'best')}>{tiers[i] || '—'}{best && <span className="sr-only"> ({t('wpn.better')})</span>}</td>; })}</tr>;
+        };
+        const names = cmp.map(w => w.name);
+        return (
+          <Panel title={t('wpn.comparison')} actions={<Btn size="sm" variant="ghost" icon={X} onClick={() => setCompare([])}>{t('wpn.clearCompare')}</Btn>} flush>
+            {cmp.length < 2 && <p className="meta" style={{ padding: '0 16px' }}>{t('wpn.compareMin')}</p>}
+            <div className="table-wrap">
+              <table className="table compare-table" data-testid="weapon-compare">
+                <thead><tr><th>{t('wpn.field')}</th>{cmp.map(w => <th key={w.id}>{w.name}</th>)}</tr></thead>
+                <tbody>
+                  {tierRow(t('wpn.tierDiary'), cmp.map(w => w.tier))}
+                  {tierRow(t('wpn.myRating'), cmp.map(w => s.weaponNotes[w.id]?.tier))}
+                  {tierRow(t('wpn.tierMine'), cmp.map(w => tierOf(s.tierList.weapons, w.id)))}
+                  <tr><td>Anti-ARC</td>{cmp.map(w => <td key={w.id}>{w.antiArc ? t('common.yes') : t('common.no')}</td>)}</tr>
+                  <tr><td>{t('inv.category')}</td>{cmp.map(w => <td key={w.id}>{orNA(w.category)}</td>)}</tr>
+                  <tr><td>{t('wpn.ammo')}</td>{cmp.map(w => <td key={w.id}>{orNA(w.ammo)}</td>)}</tr>
+                  {STAT_ROWS.map(r => {
+                    const vals = statsRow(names, r.key);
+                    if (vals.every(v => v === null)) return null;
+                    return <tr key={r.key} data-stat={r.key}><td>{t(`wpn.stat.${r.key}` as Key)}</td>{cmp.map((_, i) => cell(vals, !!r.lower, v => (r.dec && !Number.isInteger(v) ? fmtDec(v, 1) : fmt(v)), i))}</tr>;
+                  })}
+                  <tr><td>{t('wpn.phaseDiary')}</td>{cmp.map(w => <td key={w.id}>{WEAPON_PHASES.filter(p => (p[2] + ', ' + p[3]).includes(w.name)).map(p => p[0]).join(', ') || '—'}</td>)}</tr>
+                  <tr><td>{t('maps.myNotes')}</td>{cmp.map(w => <td key={w.id} className="wrap">{s.weaponNotes[w.id]?.note || '—'}</td>)}</tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="meta" style={{ padding: '0 16px' }}>{t('wpn.statsNote')}</p>
+          </Panel>
+        );
+      })()}
       <Panel title={t('wpn.byPhase')} flush>
         <div className="table-wrap">
           <table className="table">

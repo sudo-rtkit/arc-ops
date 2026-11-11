@@ -64,3 +64,34 @@ export function questNeeds(done: Record<string, number>, lang: Lang): QuestNeed[
 export function questProgress(done: Record<string, number>): { done: number; total: number } {
   return { done: QUESTS.filter(q => done[q.id]).length, total: QUESTS.length };
 }
+
+/* ----- projekty (milník 4): počet hotových fází, potřeby další fáze ----- */
+/* Projekt běží, když už začal a ještě neskončil (datum YYYY-MM-DD; chybějící datum nebrání). */
+export const projectActive = (p: { start?: string; end?: string }, today: string): boolean =>
+  (!p.start || p.start <= today) && (!p.end || p.end >= today);
+export const projectById = (id: string) => PROJECTS.find(p => p.id === id);
+
+/* Uložený počet hotových fází: jen známé projekty, 0 až počet fází. */
+export function normalizeProjects(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 200)) {
+    const p = projectById(k);
+    const n = Math.round(Number(v));
+    if (p && Number.isFinite(n) && n > 0) out[k] = Math.min(n, p.phases.length);
+  }
+  return out;
+}
+
+/* Potřeby další fáze každého běžícího projektu (předměty k odevzdání). */
+export function projectNeeds(done: Record<string, number>, today: string, lang: Lang): QuestNeed[] {
+  const out: QuestNeed[] = [];
+  for (const p of PROJECTS) {
+    if (!projectActive(p, today)) continue;
+    const phases = [...p.phases].sort((a, b) => a.phase - b.phase);
+    const next = phases[done[p.id] || 0];
+    if (!next || !next.req.length) continue;
+    out.push({ id: `${p.id}:${next.phase}`, label: `${locText(p.name, lang)} ${next.phase}`, mats: next.req.map(([m, n]) => [m, n] as [string, number]) });
+  }
+  return out;
+}

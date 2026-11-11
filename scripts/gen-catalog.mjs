@@ -122,6 +122,28 @@ ${list.map(e => `  { id: ${str(e.id)}, name: ${str(e.name)}, category: '${e.cate
 ];
 `);
 
+/* Milník 4: statistiky zbraní pro porovnání (stat_block MetaForge, tier I nebo zbraň bez tieru). Jen čísla. */
+const WSTAT = { damage: 'dmg', fireRate: 'fr', range: 'rng', stability: 'stab', agility: 'agi', stealth: 'stl', magazineSize: 'mag', weight: 'w' };
+const wstats = new Map();
+for (const x of items) {
+  if (x.item_type !== 'Weapon' || x.rarity === 'Amplified' || /Amplified/i.test(x.name)) continue;
+  const m = /^(.*?)(?:\s+(I|II|III|IV))?$/.exec(x.name.trim());
+  if (!m || (m[2] && m[2] !== 'I') || wstats.has(m[1])) continue;
+  const row = { n: m[1] };
+  for (const [k, short] of Object.entries(WSTAT)) { const v = Number(x.stat_block?.[k]); if (Number.isFinite(v) && v > 0) row[short] = Math.round(v * 10) / 10; }
+  if (Object.keys(row).length > 1) wstats.set(m[1], row);
+}
+const wlist = [...wstats.values()].sort((a, b) => a.n.localeCompare(b.n));
+writeFileSync('src/core/data/weaponStats.ts', `/* Statistiky zbraní ARC Raiders pro porovnání. Zdroj: MetaForge (odkaz v Settings → Zdroje dat), neoficiální, ne od Embarku.
+   Vygenerováno scripts/gen-catalog.mjs ${new Date().toISOString().slice(0, 10)} (${wlist.length} zbraní, hodnoty pro tier I). Jen čísla.
+   dmg = poškození, fr = kadence, rng = dostřel, stab = stabilita, agi = ovladatelnost, stl = nenápadnost, mag = zásobník, w = hmotnost (kg). */
+export interface WeaponStatRow { n: string; dmg?: number; fr?: number; rng?: number; stab?: number; agi?: number; stl?: number; mag?: number; w?: number }
+export const WEAPON_STATS: WeaponStatRow[] = [
+${wlist.map(r => `  { ${Object.entries(r).map(([k, v]) => `${k}: ${typeof v === 'string' ? str(v) : v}`).join(', ')} },`).join('\n')}
+];
+`);
+console.log(`statistiky zbraní: ${wlist.length} (src/core/data/weaponStats.ts)`);
+
 /* Materiály aplikace (deník, recepty stanic), které v katalogu pod stejným názvem nejsou. */
 const mats = getMaterials(defaultState()).map(m => m.name);
 const missing = mats.filter(n => !out.has(n.toLowerCase()));

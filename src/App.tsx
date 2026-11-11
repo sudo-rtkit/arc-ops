@@ -16,6 +16,7 @@ import Quests from './modules/Quests';
 import Maps from './modules/Maps';
 import ArcDb from './modules/ArcDb';
 import Weapons from './modules/Weapons';
+import ItemDb from './modules/ItemDb';
 import MoneyRuns from './modules/MoneyRuns';
 import Trials from './modules/Trials';
 import Journal from './modules/Journal';
@@ -26,7 +27,7 @@ import { useT } from './i18n/react';
 
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, quests: Quests, maps: Maps,
-  arc: ArcDb, weapons: Weapons, money: MoneyRuns, trials: Trials, journal: Journal, checklist: Checklist,
+  arc: ArcDb, weapons: Weapons, items: ItemDb, money: MoneyRuns, trials: Trials, journal: Journal, checklist: Checklist,
   stats: Statistics, settings: Settings,
 };
 

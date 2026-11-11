@@ -50,3 +50,19 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
   Data z veřejných endpointů ARC Tracker (bez přihlášení a bez propojení účtu), generuje `node scripts/gen-arctracker.mjs`
   (cache v `scripts/.cache/arctracker/`; `--offline` jen z cache) do `src/core/data/arctracker.ts`.
 - Plán: `docs/superpowers/plans/2026-11-11-milnik-3b.md`.
+
+## Doplňky (0.6.0)
+
+- **Rada nech / recykluj / prodej** u každého předmětu v Zásobě a Vybavení a záložka **Inventory → Úklid stashe**
+  (přebytky seřazené podle hodnoty na políčko, uvolněná místa, prodejní hodnota). Pravidla: `src/core/advice.ts`;
+  „vždy nechat“ je volba hráče (`advice.keep`). Nic se samo nemaže ani neprodává.
+- **Item Database**: recyklace tam i zpět (vlastněné předměty zvýrazněné), blueprinty s ručním odškrtnutím a filtrem
+  chybějících, nabídka obchodníků (cena, kusy, denní limit, úroveň; vždy s datem dat) a **vlastní tier list** S–D
+  pro zbraně i předměty (přetahování myší i klávesnicí).
+- **Weapons**: porovnání 2–4 zbraní se statistikami (tier I), lepší hodnota zvýrazněná.
+- **Maps → Rozpis událostí**: odkaz na oficiální přehled podmínek map od Embarku (`arcraiders.com/map-conditions`), otevře se na kliknutí.
+- **Quests → Projekty**: počet hotových fází; předměty další fáze běžícího projektu se počítají do rady „nech“.
+- Data: `src/core/data/itemdata.ts` (hodnota, hmotnost, stack, recyklace, blueprinty, obchodníci) z veřejného
+  `/api/items` ARC Tracker (`node scripts/gen-arctracker.mjs`) a `src/core/data/weaponStats.ts` ze statistik MetaForge
+  (`node scripts/gen-catalog.mjs`). Obojí z cache, bez obrázků a popisů. Stav: schéma 5 (migrace ze 4, nová pole i v záloze).
+- Plán: `docs/superpowers/plans/2026-11-11-milnik-4.md`.

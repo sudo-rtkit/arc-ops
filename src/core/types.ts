@@ -151,9 +151,18 @@ export interface GameDataEdits {
 /* ----- úkoly (milník 3b): id úkolu → čas zaškrtnutí ----- */
 export interface QuestsState { done: Record<string, number> }
 
-/* Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
+/* ----- milník 4: rady k předmětům, blueprinty, vlastní tier list, fáze projektů ----- */
+export const TIER_IDS = ['S', 'A', 'B', 'C', 'D'] as const;
+export type TierId = typeof TIER_IDS[number];
+/* Seřazené seznamy v každém tieru: u zbraní id zbraně, u předmětů anglický název. */
+export type TierLists = Record<TierId, string[]>;
+export interface TierListState { weapons: TierLists; items: TierLists }
+/* keep: klíč předmětu (název materiálu, nebo název + tier) → hráč chce předmět vždy nechat */
+export interface AdviceState { keep: Record<string, true> }
+
+/* Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
 export interface AppState {
-  schema: 4;
+  schema: 5;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -177,6 +186,13 @@ export interface AppState {
   vision: VisionState;
   /* milník 3b: zaškrtnuté úkoly (data ARC Tracker) */
   quests: QuestsState;
+  /* milník 4 */
+  advice: AdviceState;
+  /* naučené blueprinty: název blueprintu → čas odškrtnutí */
+  blueprints: Record<string, number>;
+  tierList: TierListState;
+  /* projekty: id → počet hotových fází */
+  projects: Record<string, number>;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

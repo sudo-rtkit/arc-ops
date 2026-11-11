@@ -6,6 +6,8 @@
 //   Žádné uživatelské endpointy, klíče ani propojení účtu: synchronizace hráčského účtu porušuje podmínky Embarku.
 // - Odpovědi se ukládají do scripts/.cache/arctracker/ (v .gitignore); --offline použije jen cache.
 // - Zapíše src/core/data/arctracker.ts: id, názvy, krátké cíle úkolů, požadavky, odměny, fáze. Bez popisů a příběhu.
+// - Milník 4: zapíše i src/core/data/itemdata.ts z téhož /api/items: hodnota, hmotnost, stack, výstupy recyklace,
+//   příznak blueprintu a nabídka obchodníků (cena, kusy, denní limit, úroveň). Jen názvy a čísla.
 //   Texty jsou vícejazyčné ({ en, de, … }); bere se cs, když existuje, jinak en.
 // - Porovná workshop s ručně převedenými stanicemi aplikace (src/core/data/stations.ts) a rozdíly i názvy, které
 //   nesedí na materiály aplikace nebo katalog MetaForge, zapíše do docs/superpowers/plans/catalog-mismatch.md
@@ -114,6 +116,62 @@ ${P.map(p => '  ' + lit(p) + ',').join('\n')}
 `;
 writeFileSync('src/core/data/arctracker.ts', out);
 console.log(`zapsáno src/core/data/arctracker.ts (${(out.length / 1024).toFixed(0)} kB)`);
+
+/* ----- milník 4: čísla o předmětech a nabídka obchodníků (z /api/items, žádný další endpoint) -----
+   Prodejní hodnota, hmotnost, stack, výstupy recyklace, příznak „vyrábí se jen s blueprintem“ a typ (Blueprint = plán).
+   Vynechá se vzhled Outpostu (nábytek, místnosti, designy, šablony) a varianty Amplified s módy („·“ v názvu). */
+const SKIP_IT = new Set(['Design', 'Stencil', 'Outpost Furniture', 'Outpost Room']);
+const RAR = { Common: 'common', Uncommon: 'uncommon', Rare: 'rare', Epic: 'epic', Legendary: 'legendary' };
+const num = (v, d = 2) => (Number.isFinite(v) && v > 0 ? Math.round(v * 10 ** d) / 10 ** d : undefined);
+const idPairs = obj => Object.entries(obj || {}).filter(([, q]) => q > 0).map(([id, q]) => [nameOf(id), Math.round(q)]);
+const seenIt = new Set();
+const IT = [];
+for (const x of [...itemsRaw].sort((a, b) => Number(!!a.phasedOut) - Number(!!b.phasedOut))) {
+  const n = clean(x.name?.en);
+  if (!n || n.includes('·') || SKIP_IT.has(x.type) || seenIt.has(n.toLowerCase())) continue;
+  seenIt.add(n.toLowerCase());
+  const r = idPairs(x.recyclesInto);
+  IT.push({
+    n, ty: clean(x.type), ...(RAR[x.rarity] ? { ra: RAR[x.rarity] } : {}),
+    ...(num(x.value, 0) ? { v: num(x.value, 0) } : {}), ...(num(x.weightKg) ? { w: num(x.weightKg) } : {}),
+    ...(num(x.stackSize, 0) ? { s: num(x.stackSize, 0) } : {}), ...(r.length ? { r } : {}), ...(x.blueprintLocked ? { bp: 1 } : {}),
+  });
+}
+IT.sort((a, b) => a.n.localeCompare(b.n));
+const costName = id => (id === 'coins' ? 'Coins' : nameOf(id));
+const OFFERS = [];
+for (const x of itemsRaw) for (const v of x.vendors || []) {
+  const n = clean(x.name?.en);
+  if (!n || !v?.trader) continue;
+  OFFERS.push({
+    trader: clean(v.trader), item: n, cost: Object.entries(v.cost || {}).filter(([, q]) => q > 0).map(([id, q]) => [costName(id), Math.round(q)]),
+    ...(v.quantity > 1 ? { qty: Math.round(v.quantity) } : {}), ...(v.limit > 0 ? { limit: Math.round(v.limit) } : {}),
+    ...(v.refreshSeconds > 0 ? { refreshH: Math.round(v.refreshSeconds / 3600) } : {}), ...(v.requiredLevel > 0 ? { level: Math.round(v.requiredLevel) } : {}),
+  });
+}
+OFFERS.sort((a, b) => a.trader.localeCompare(b.trader) || a.item.localeCompare(b.item));
+const itemsJson = await getJson('items');
+const ITEMS_DATE = String(itemsJson.generatedAt || new Date().toISOString()).slice(0, 10);
+const outItems = `/* Čísla o předmětech ARC Raiders a nabídka obchodníků. Zdroj: ARC Tracker (odkaz v Settings → Zdroje dat), neoficiální,
+   ne od Embarku. Vygenerováno scripts/gen-arctracker.mjs ${new Date().toISOString().slice(0, 10)} z veřejného /api/items (data ze dne
+   ${ITEMS_DATE}; ${IT.length} předmětů, ${OFFERS.length} nabídek). Jen anglický název, typ, vzácnost a čísla; žádné popisy ani obrázky.
+   n = název, ty = typ, ra = vzácnost, v = prodejní hodnota, w = hmotnost (kg), s = velikost stacku, r = výstupy recyklace,
+   bp = vyrábí se jen s naučeným blueprintem. Nabídka: cost = cena (Coins nebo předmět), qty = kusů za nákup,
+   limit = nákupů za refreshH hodin, level = potřebná úroveň obchodníka. */
+import type { Qty } from './arctracker';
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export interface ItemDataRow { n: string; ty: string; ra?: ItemRarity; v?: number; w?: number; s?: number; r?: Qty[]; bp?: 1 }
+export interface TraderOffer { trader: string; item: string; cost: Qty[]; qty?: number; limit?: number; refreshH?: number; level?: number }
+export const ITEMS_DATE = '${ITEMS_DATE}';
+export const ITEM_DATA: ItemDataRow[] = [
+${IT.map(x => '  ' + lit(x) + ',').join('\n')}
+];
+export const TRADER_OFFERS: TraderOffer[] = [
+${OFFERS.map(x => '  ' + lit(x) + ',').join('\n')}
+];
+`;
+writeFileSync('src/core/data/itemdata.ts', outItems);
+console.log(`zapsáno src/core/data/itemdata.ts (${IT.length} předmětů, ${IT.filter(x => x.r).length} s recyklací, ${IT.filter(x => x.ty === 'Blueprint').length} blueprintů, ${OFFERS.length} nabídek, ${(outItems.length / 1024).toFixed(0)} kB)`);
 
 /* ----- porovnání s daty aplikace ----- */
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });

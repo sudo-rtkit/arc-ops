@@ -19,7 +19,7 @@ describe('záloha', () => {
     expect(parseBackup('{nic')).toEqual({ error: ERR_INVALID });
     expect(parseBackup('[]')).toEqual({ error: ERR_INVALID });
     expect(parseBackup('{"foo":1}')).toEqual({ error: ERR_INVALID });
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 5, state: {} }))).toEqual({ error: ERR_NEWER });
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 6, state: {} }))).toEqual({ error: ERR_NEWER });
     expect(parseBackup(JSON.stringify({ schema: 9 }))).toEqual({ error: ERR_NEWER });
   });
   it('snese BOM na začátku souboru', () => {

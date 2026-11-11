@@ -9,6 +9,9 @@ import { emptyMapNotes, LIMITS } from '../core/state';
 import { MAP_COUNT } from './shared';
 import { useT } from '../i18n/react';
 
+/* Oficiální rozpis podmínek map (událostí) od Embarku; ověřeno 11. 11. 2026. Otevře se jen na kliknutí (ExtLink). */
+const EVENTS_URL = 'https://arcraiders.com/map-conditions';
+
 function UnlockAxis() {
   const d = useDerived();
   const t = useT();
@@ -126,6 +129,10 @@ export default function Maps() {
           );
         })}
       </div>
+      <Panel title={t('maps.events')}>
+        <p className="meta">{t('maps.eventsHint')}</p>
+        <div className="stack-sm" data-testid="events-link"><ExtLink url={EVENTS_URL}>{t('maps.eventsLink')}</ExtLink></div>
+      </Panel>
       <Panel title={t('maps.conditions')}>
         <dl className="dl">{conditions(t.lang).map(([k, v]) => <div key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
         <p className="meta">{texts.pendola}</p>

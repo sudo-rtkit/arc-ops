@@ -19,7 +19,9 @@ import { STATIONS } from '../core/data/stations';
 import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
-import { setQuestDone } from '../core/quests';
+import { projectById, setQuestDone } from '../core/quests';
+import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
+import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
@@ -60,10 +62,10 @@ export interface AppOptions { now?: () => number; debounceMs?: number; retryMs?:
 
 export type ProfileField = 'level' | 'coins' | 'xp' | 'xpNext' | 'rounds' | 'expBonus' | 'rewardPass' | 'amplified';
 export type ResetModule = 'profile' | 'skills' | 'workshop' | 'inventory' | 'quests' | 'raids' | 'trials' | 'checklists' | 'maps' | 'arc' | 'weapons' | 'dashboard' | 'steps'
-  | 'goals' | 'planner' | 'loadouts' | 'routes';
+  | 'goals' | 'planner' | 'loadouts' | 'routes' | 'blueprints' | 'tiers';
 
 /* Moduly pro reset; název a dopad jsou ve slovníku (reset.<id>.name / reset.<id>.impact). */
-export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'quests', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes'] as ResetModule[]).map(id => ({ id }));
+export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'quests', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes', 'blueprints', 'tiers'] as ResetModule[]).map(id => ({ id }));
 export const resetName = (id: ResetModule): string => t(`reset.${id}.name` as Key);
 export const resetImpact = (id: ResetModule): string => t(`reset.${id}.impact` as Key);
 
@@ -560,6 +562,52 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
       return n;
     },
+    /* milník 4: rada „vždy nechat“, naučené blueprinty, vlastní tier list, hotové fáze projektů */
+    adviceKeep(key: string, keep: boolean) {
+      const k = text(key, 130).trim();
+      change(s => {
+        if (!k || !!s.advice.keep[k] === keep) return false;
+        if (keep) s.advice.keep[k] = true; else delete s.advice.keep[k];
+      });
+    },
+    blueprintSet(name: string, learned: boolean) {
+      const n = text(name, 120).trim();
+      change(s => {
+        if (!n || !!s.blueprints[n] === learned) return false;
+        if (learned) s.blueprints[n] = now(); else delete s.blueprints[n];
+      });
+    },
+    tierPlace(list: 'weapons' | 'items', id: string, tier: TierId | null, index?: number) {
+      const v = text(id, 130).trim();
+      change(s => {
+        const next = placeTier(s.tierList[list], v, tier, index);
+        if (!v || JSON.stringify(next) === JSON.stringify(s.tierList[list])) return false;
+        s.tierList[list] = next;
+      });
+    },
+    tierMove(list: 'weapons' | 'items', id: string, how: 'left' | 'right' | 'up' | 'down') {
+      change(s => {
+        const cur = s.tierList[list];
+        const next = how === 'left' || how === 'right' ? moveWithin(cur, id, how === 'left' ? -1 : 1) : shiftTier(cur, id, how === 'up' ? -1 : 1);
+        if (next === cur || JSON.stringify(next) === JSON.stringify(cur)) return false;
+        s.tierList[list] = next;
+      });
+    },
+    tierClear(list: 'weapons' | 'items') {
+      change(s => {
+        if (!Object.values(s.tierList[list]).some(x => x.length)) return false;
+        s.tierList[list] = emptyTierList()[list];
+      });
+    },
+    projectSetPhases(id: string, n: number) {
+      const p = projectById(id);
+      if (!p) return;
+      const v = clampInt(n, 0, p.phases.length);
+      change(s => {
+        if ((s.projects[id] || 0) === v) return false;
+        if (v) s.projects[id] = v; else delete s.projects[id];
+      });
+    },
     addPlannerItem(input: Partial<PlannerItem>): string {
       const id = uid();
       change(s => { s.planner.items.push(normalizePlanner({ items: [{ ...input, id }] }).items[0]); });
@@ -835,8 +883,10 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'profile': s.profile = d.profile; s.profileLog = []; break;
         case 'skills': s.skills = d.skills; break;
         case 'workshop': s.stations = d.stations; s.gameData.recipes = {}; break;
-        case 'quests': s.quests = d.quests; break;
-        case 'inventory': s.inventory = {}; s.items = {}; s.gameData.materials = {}; s.gameData.materialsCustom = []; break;
+        case 'quests': s.quests = d.quests; s.projects = {}; break;
+        case 'inventory': s.inventory = {}; s.items = {}; s.gameData.materials = {}; s.gameData.materialsCustom = []; s.advice = d.advice; break;
+        case 'blueprints': s.blueprints = {}; break;
+        case 'tiers': s.tierList = d.tierList; break;
         case 'raids': s.raids = []; for (const g of s.goals) g.doneRaid = ''; break;
         case 'trials': s.trials = { ...d.trials, week: s.trials.week }; break;
         case 'checklists': s.checklists = { templates: defaultTemplates(s.settings.lang), active: RAID_TEMPLATE_ID, checked: {}, routeChecks: {} }; break;

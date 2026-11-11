@@ -1,5 +1,5 @@
 import {
-  BookOpen, Bot, ChartNoAxesCombined, Coins, Crosshair, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
+  BookOpen, Bot, Boxes, ChartNoAxesCombined, Coins, Crosshair, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
   ScrollText, Settings, Trophy, UserRound, type LucideIcon,
 } from 'lucide-react';
 
@@ -17,6 +17,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'maps', name: 'Maps', icon: Map, group: 'explore' },
   { id: 'arc', name: 'ARC Database', icon: Bot, group: 'explore' },
   { id: 'weapons', name: 'Weapons', icon: Crosshair, group: 'explore' },
+  { id: 'items', name: 'Item Database', icon: Boxes, group: 'explore' },
   { id: 'money', name: 'Money Runs', icon: Coins, group: 'raids' },
   { id: 'trials', name: 'Weekly Trials', icon: Trophy, group: 'raids' },
   { id: 'journal', name: 'Raid Journal', icon: BookOpen, group: 'raids' },

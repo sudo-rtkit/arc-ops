@@ -4,8 +4,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { SAMPLE_V1 } from '../core/sample';
 
 const CZ = /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/;
-const MODULES = ['dashboard', 'profile', 'skills', 'workshop', 'inventory', 'maps', 'arc', 'weapons', 'money', 'trials', 'journal', 'checklist', 'stats', 'settings'];
-const SUBTABS = ['dashboard/goals', 'dashboard/recs', 'inventory/import', 'inventory/shopping', 'inventory/hunt', 'inventory/planner', 'weapons/loadouts', 'skills/plan', 'skills/builds'];
+const MODULES = ['dashboard', 'profile', 'skills', 'workshop', 'inventory', 'maps', 'arc', 'weapons', 'items', 'money', 'trials', 'journal', 'checklist', 'stats', 'settings'];
+const SUBTABS = ['dashboard/goals', 'dashboard/recs', 'inventory/import', 'inventory/shopping', 'inventory/hunt', 'inventory/planner', 'inventory/equipment', 'inventory/cleanup', 'items/blueprints', 'items/traders', 'items/tiers', 'weapons/loadouts', 'skills/plan', 'skills/builds'];
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -127,7 +127,7 @@ test.describe('angličtina podle navigator.language', () => {
     expect(st.checklists.templates[0].name).toBe('Before the raid');
   });
 
-  test('všech 14 modulů a záložky v angličtině bez českých textů a bez chyby', async ({ page }) => {
+  test('všech 15 modulů a záložky v angličtině bez českých textů a bez chyby', async ({ page }) => {
     const errors = watchErrors(page);
     await importSampleEn(page);
     for (const id of [...MODULES, ...SUBTABS]) {

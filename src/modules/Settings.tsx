@@ -16,6 +16,8 @@ import { LANGS, LANG_NAMES, type Key } from '../i18n';
 import { snapshotLabel } from '../i18n/system';
 import { catalogCount } from '../core/catalog';
 import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
+import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
+import { WEAPON_STATS } from '../core/data/weaponStats';
 
 /* Odkazy na zdroje herních dat (uvedení zdroje). Otevřou se jen na kliknutí; aplikace z nich nic nestahuje. */
 const METAFORGE_URL = 'https://metaforge.app/arc-raiders';
@@ -246,9 +248,10 @@ export default function Settings({ sub }: { sub: string }) {
         <p data-testid="data-sources-arc">{t('settings.sourcesArc')}</p>
         <div className="stack-sm"><ExtLink url={ARCTRACKER_URL}>{t('settings.sourcesArcLink')}</ExtLink></div>
         <p className="meta">{t('settings.sourcesArcData', { quests: AT_QUESTS.length, modules: AT_HIDEOUT.length, projects: AT_PROJECTS.length, date: AT_DATE })}</p>
+        <p className="meta" data-testid="data-sources-items">{t('settings.sourcesItems', { items: ITEM_DATA.length, offers: TRADER_OFFERS.length, date: ITEMS_DATE, weapons: WEAPON_STATS.length })}</p>
       </Panel>
       <Panel title={t('settings.about')}>
-        <p>{t('settings.version', { v: '0.5' })}</p>
+        <p>{t('settings.version', { v: '0.6' })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
       </Panel>
