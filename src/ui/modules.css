@@ -258,3 +258,30 @@
 /* šablony checklistu: vybraná = selected, ne vyplněné primary */
 .template-pick .btn.selected, .template-pick .btn.selected:hover:not(:disabled) { background: var(--bg-selected); border-color: var(--accent); color: var(--text-primary); }
 .template-pick .btn .mono { color: var(--text-secondary); font-weight: var(--weight-medium); }
+
+/* ----- Inventory → Ze snímku (milník 3a) ----- */
+.scan-drop {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center;
+  padding: var(--space-6) var(--space-4); border: var(--line-thin) dashed var(--border-control); border-radius: var(--radius-panel);
+  background: var(--surface-inset); color: var(--text-secondary); transition: border-color var(--t-fast), background var(--t-fast);
+}
+.scan-drop > svg { color: var(--accent); }
+.scan-drop.over { border-color: var(--accent); background: var(--accent-bg); }
+.scan-drop p { margin: 0; }
+.scan-shots { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.scan-shot { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.scan-shot canvas { display: block; max-width: 320px; border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-inset); }
+.scan-thumb { display: block; width: 40px; height: 40px; border-radius: var(--radius-control); background: var(--surface-inset); }
+.scan-table { min-width: 860px; }
+.scan-table td:nth-child(2) { min-width: 280px; }
+.scan-table .stepper { justify-content: flex-end; }
+.scan-item { display: flex; flex-direction: column; gap: var(--space-1); }
+.scan-item .field { margin: 0; }
+.scan-legend { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.scan-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 2px solid currentColor; }
+.scan-legend .dot.success { color: var(--success); }
+.scan-legend .dot.warning { color: var(--warning); }
+.scan-legend .dot.danger { color: var(--danger); }
+.danger-text { color: var(--danger); }
+.check-row.disabled { cursor: not-allowed; }
+.check-row.disabled .check-text > span { color: var(--text-muted); }

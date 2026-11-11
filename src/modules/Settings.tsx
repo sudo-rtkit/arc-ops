@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Camera, Copy, Download, FolderOpen, History, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { actions, app, useApp, useAppState } from '../store';
 import { RESET_MODULES, resetImpact, resetName, type ResetModule } from '../store/app';
-import { Badge, Btn, Confirm, Dialog, Empty, ExtLink, FieldError, PageHead, Panel, Select } from '../ui/components';
+import { Badge, Btn, Confirm, ConfirmButton, Dialog, Empty, ExtLink, FieldError, PageHead, Panel, Select } from '../ui/components';
 import { fmtBytes, fmtDateTime } from '../ui/format';
 import { backupErrorText, backupFileName, parseBackup, type ParsedBackup } from '../core/backup';
 import type { SnapshotInfo } from '../storage/adapter';
@@ -206,6 +206,12 @@ export default function Settings({ sub }: { sub: string }) {
           <dt>{t('settings.files')}</dt><dd className="meta">{t('settings.filesVal')}</dd>
           <dt>{t('settings.changed')}</dt><dd>{s.meta.updatedAt ? fmtDateTime(s.meta.updatedAt) : '—'}</dd>
           <dt>{t('settings.saved')}</dt><dd>{lastSavedAt ? fmtDateTime(lastSavedAt) : '—'}</dd>
+          <dt>{t('settings.learned')}</dt>
+          <dd className="row"><span className="mono" data-testid="learned-count">{s.vision.learned.length}</span>
+            <ConfirmButton size="sm" variant="ghost" icon={Trash2} disabled={!s.vision.learned.length} title={t('settings.learnedConfirmTitle')}
+              text={t('settings.learnedConfirmText', { count: s.vision.learned.length })} confirmLabel={t('settings.learnedClear')}
+              onConfirm={() => { actions.clearLearned(); app.notify(t('notice.learnedCleared')); }}>{t('settings.learnedClear')}</ConfirmButton>
+            <span className="meta">{t('settings.learnedHint')}</span></dd>
           {s.meta.importedFrom && <><dt>Import</dt><dd>{s.meta.importedFrom.source === 'denik-v1' ? t('settings.oldDiary') : s.meta.importedFrom.source}, {fmtDateTime(s.meta.importedFrom.at)}</dd></>}
         </dl>
         <label className="toggle"><input type="checkbox" checked={s.settings.autoSnapshot} onChange={e => actions.setAutoSnapshot(e.target.checked)} />{t('settings.autoSnap')}</label>
@@ -228,7 +234,7 @@ export default function Settings({ sub }: { sub: string }) {
         </div>
       </Panel>
       <Panel title={t('settings.about')}>
-        <p>{t('settings.version', { v: '0.3' })}</p>
+        <p>{t('settings.version', { v: '0.4' })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
       </Panel>

@@ -19,7 +19,9 @@
     ],
     "emptyFrom": { "row": 1, "col": 3 },
     "backpack": { "slots": "2/14", "counts": [64, 8] },
-    "quickUse": { "slots": "2/4", "counts": [2, 1] }
+    "quickUse": { "slots": "2/4", "counts": [2, 1] },
+    "_noteGroups": "sameItemGroups: cells showing the same item, read by eye. (0,1)/(0,2) are the same light ammo box, (0,3)/(1,0)/(1,1) the same medium ammo box.",
+    "sameItemGroups": [[[0, 0]], [[0, 1], [0, 2]], [[0, 3], [1, 0], [1, 1]], [[1, 2]]]
   },
   "sample-stash-all-tooltip-1080p.png": {
     "size": [1919, 1079],
@@ -39,7 +41,12 @@
       [2, 5, 1, 5]
     ],
     "partialRowIgnored": 6,
-    "selectedCell": { "row": 2, "col": 3 }
+    "selectedCell": { "row": 2, "col": 3 },
+    "_noteGroups": "sameItemGroups: cells showing the same item (same icon and rarity), read by eye from a 2x crop; used to measure icon pairing. (2,0) looks like (3,2)/(3,3) but has a different (green) part, so it is a separate item.",
+    "sameItemGroups": [
+      [[0, 0], [0, 1], [0, 2]], [[0, 3], [1, 0], [1, 1]], [[1, 2]], [[1, 3]], [[2, 0]], [[2, 1], [2, 2], [2, 3]],
+      [[3, 0], [3, 1]], [[3, 2], [3, 3]], [[4, 0]], [[4, 1]], [[4, 2], [4, 3], [5, 0]], [[5, 1], [5, 2]], [[5, 3]]
+    ]
   },
   "sample-stash-all-top-1080p.png": {
     "size": [1919, 1079],
@@ -48,7 +55,8 @@
     "headerSlotsMax": 268,
     "stashValue": 752983,
     "coins": 51060,
-    "verify": true,
+    "verify": false,
+    "_verified": "2026-11-11: tiers checked on a 3x enlarged crop of rows 3-5 and rows 0-2 have no tier (augments and shields); no change was needed. verify switched to false.",
     "_note2": "No stack counts on this screenshot (augments, shields, weapons). Weapons show a tier in the bottom-right corner.",
     "tiersByRow": [
       [null, null, null, null],

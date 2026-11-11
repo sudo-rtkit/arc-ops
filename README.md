@@ -24,3 +24,14 @@ UI je česky (výchozí) a anglicky; jazyk se přepíná v Settings & Backup.
 - Uživatelský text a už uložený obsah se nikdy nepřepisuje; výchozí obsah vzniká v jazyce stavu (`settings.lang`).
 
 Podrobnosti: `docs/superpowers/plans/2026-11-12-i18n-en.md`.
+
+## Rozpoznávání ze snímků (0.4.0)
+
+Inventory → **Ze snímku**: hráč vloží vlastní snímek obrazovky INVENTORY (Ctrl+V, přetažení, výběr souborů).
+Aplikace přečte políčka STASH, počty, hlavičku (kontrolní součet) a mince, ukáže potvrzovací tabulku a po potvrzení
+přepíše materiály v Zásobě a mince v profilu (před zápisem snímek stavu `import`). Snímky se neukládají, uloží se jen
+otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou nijak nekomunikuje.
+
+- Jádro: `src/core/vision/` (čisté funkce nad RGBA bufferem), převod na změny stavu: `src/core/visionImport.ts`.
+- Vzory číslic: `GEN_GLYPHS=1 pnpm vitest run tests/vision/glyphs.gen.test.ts` (ze snímků v `tests/fixtures/vision/`).
+- Návrh: `docs/superpowers/specs/2026-11-11-rozpoznavani-ze-snimku-design.md`, plán: `docs/superpowers/plans/2026-11-11-milnik-3a-rozpoznavani.md`.

@@ -195,10 +195,10 @@ export function Select({ label, value, onChange, options, hideLabel, id: idIn }:
 }
 
 /* ----- Checkbox řádek ----- */
-export function Check({ checked, onChange, children, note, prefix }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; note?: ReactNode; prefix?: ReactNode }) {
+export function Check({ checked, onChange, children, note, prefix, disabled }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; note?: ReactNode; prefix?: ReactNode; disabled?: boolean }) {
   return (
-    <label className={cx('check-row', checked && 'done')}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    <label className={cx('check-row', checked && 'done', disabled && 'disabled')}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
       <span className="check-text">{prefix}<span>{children}</span>{note && <small>{note}</small>}</span>
     </label>
   );

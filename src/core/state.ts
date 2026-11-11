@@ -1,4 +1,5 @@
-/* Výchozí stav a normalizace schématu 2. normalize doplní chybějící pole a ořízne hodnoty, takže se načte
+/* Výchozí stav a normalizace schématu 3 (schéma 2 se načte stejnou cestou a dostane prázdné items a vision).
+   normalize doplní chybějící pole a ořízne hodnoty, takže se načte
    i neúplná nebo starší záloha. Meze odpovídají původnímu deníku. */
 import type {
   AppState, ArcUnit, ChecklistTemplate, GameDataEdits, MapNotes, Poi, ProfileLogEntry, Raid, RaidType, Recipe,
@@ -8,6 +9,7 @@ import { normalizeItems } from './raidItems';
 import { normalizeGoals } from './goals';
 import { emptyPlanner, normalizePlanner } from './planner';
 import { normalizeLoadouts } from './loadouts';
+import { normalizeItemStock, normalizeVision, emptyVision } from './visionState';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, BUILD_PREFIX } from './skills';
 import { PLANS } from './data/skills';
@@ -17,7 +19,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 2 as const;
+export const SCHEMA = 3 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -65,6 +67,8 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     goals: [],
     planner: emptyPlanner(),
     loadouts: [],
+    items: {},
+    vision: emptyVision(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -368,6 +372,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.goals = normalizeGoals(r.goals, now);
   out.planner = normalizePlanner(r.planner);
   out.loadouts = normalizeLoadouts(r.loadouts);
+  out.items = normalizeItemStock(r.items);
+  out.vision = normalizeVision(r.vision);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   return out;

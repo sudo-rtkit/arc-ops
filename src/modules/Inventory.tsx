@@ -9,9 +9,10 @@ import { LIMITS } from '../core/state';
 import type { Material } from '../core/types';
 import type { ShoppingRow } from '../core/workshop';
 import Planner from './Planner';
+import ScreenImport from './ScreenImport';
 import { useT } from '../i18n/react';
 
-type Tab = 'stock' | 'shopping' | 'hunt' | 'planner';
+type Tab = 'stock' | 'import' | 'shopping' | 'hunt' | 'planner';
 type Show = 'all' | 'have' | 'needed' | 'missing' | 'surplus';
 
 /* Kategorie a původ se ukládají v původní (české) podobě; zobrazují se přeložené. Nezměněné pole se uloží beze změny. */
@@ -155,14 +156,15 @@ function Hunt() {
 export default function Inventory({ sub }: { sub: string }) {
   const d = useDerived();
   const t = useT();
-  const tab: Tab = sub === 'shopping' || sub === 'hunt' || sub === 'planner' ? sub : 'stock';
+  const tab: Tab = sub === 'import' || sub === 'shopping' || sub === 'hunt' || sub === 'planner' ? sub : 'stock';
   const missing = d.shop.filter(x => x.missing > 0);
   return (
     <div className="page">
       <PageHead title="Inventory" sub={t('inv.sub')} />
       <Tabs label="Inventory" value={tab} onChange={v => navigate('inventory', v === 'stock' ? '' : v)}
-        tabs={[{ id: 'stock', label: t('inv.tab.stock') }, { id: 'shopping', label: <>{t('inv.tab.shopping')} {missing.length > 0 && <Badge tone="amber">{missing.length}</Badge>}</> }, { id: 'hunt', label: t('inv.hunt') }, { id: 'planner', label: <>Material Planner {d.plan.some(x => x.missing > 0) && <Badge tone="amber">{d.plan.filter(x => x.missing > 0).length}</Badge>}</> }]} />
+        tabs={[{ id: 'stock', label: t('inv.tab.stock') }, { id: 'import', label: t('inv.tab.import') }, { id: 'shopping', label: <>{t('inv.tab.shopping')} {missing.length > 0 && <Badge tone="amber">{missing.length}</Badge>}</> }, { id: 'hunt', label: t('inv.hunt') }, { id: 'planner', label: <>Material Planner {d.plan.some(x => x.missing > 0) && <Badge tone="amber">{d.plan.filter(x => x.missing > 0).length}</Badge>}</> }]} />
       {tab === 'stock' && <Stock />}
+      {tab === 'import' && <ScreenImport />}
       {tab === 'shopping' && (
         <Panel title={t('inv.shoppingTitle')} flush actions={<span className="meta">{t('inv.shoppingMissing', { count: missing.length })}</span>}>
           <p className="meta" style={{ padding: '0 16px' }}>{gameTexts(t.lang).shoppingHint}</p>

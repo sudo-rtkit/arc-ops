@@ -45,7 +45,27 @@ export interface Weapon {
 }
 export interface Material { name: string; category: string; source: string; custom: boolean }
 
-/* ----- uživatelský stav (schéma 2) ----- */
+/* ----- předměty mimo materiály (milník 3b: záložka Vybavení, loot z batohu) ----- */
+export type ItemCategory = 'weapon' | 'shield' | 'augment' | 'ammo' | 'quickUse' | 'key' | 'other';
+export const ITEM_CATEGORIES: ItemCategory[] = ['weapon', 'shield', 'augment', 'ammo', 'quickUse', 'key', 'other'];
+export type ItemTier = 'I' | 'II' | 'III' | 'IV';
+export const ITEM_TIERS: ItemTier[] = ['I', 'II', 'III', 'IV'];
+/* Klíč předmětu je název + tier (zbraně různých tierů jsou různé položky). */
+export interface ItemStock { key: string; name: string; category: ItemCategory; tier?: ItemTier; count: number }
+export const itemKey = (name: string, tier?: ItemTier): string => (tier ? `${name} ${tier}` : name);
+
+/* ----- rozpoznávání ze snímků (milník 3a) ----- */
+export type { LearnedFp } from './vision/match';
+/* Nejvýš tolik naučených otisků; při překročení se odmažou nejstarší. */
+export const LEARNED_MAX = 2000;
+export interface VisionState {
+  learned: import('./vision/match').LearnedFp[];
+  /* poslední změřená velikost políčka a měřítko UI */
+  profile: { cellPx: number; ui: number } | null;
+  lastImportAt: number;
+}
+
+/* ----- uživatelský stav (schéma 3; 2 → 3 doplnilo items a vision) ----- */
 export interface Profile {
   level: number; coins: number; xp: number; xpNext: number;
   rounds: number; expBonus: number; rewardPass: number; amplified: number;
@@ -129,7 +149,7 @@ export interface GameDataEdits {
 }
 
 export interface AppState {
-  schema: 2;
+  schema: 3;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -148,6 +168,9 @@ export interface AppState {
   goals: Goal[];
   planner: PlannerState;
   loadouts: Loadout[];
+  /* milník 3b: ostatní předměty (zbraně, štíty, augmenty, munice, …); materiály zůstávají v inventory */
+  items: Record<string, ItemStock>;
+  vision: VisionState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

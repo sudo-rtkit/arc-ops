@@ -5,7 +5,7 @@ import { SAMPLE_V1 } from '../core/sample';
 
 const CZ = /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/;
 const MODULES = ['dashboard', 'profile', 'skills', 'workshop', 'inventory', 'maps', 'arc', 'weapons', 'money', 'trials', 'journal', 'checklist', 'stats', 'settings'];
-const SUBTABS = ['dashboard/goals', 'dashboard/recs', 'inventory/shopping', 'inventory/hunt', 'inventory/planner', 'weapons/loadouts', 'skills/plan', 'skills/builds'];
+const SUBTABS = ['dashboard/goals', 'dashboard/recs', 'inventory/import', 'inventory/shopping', 'inventory/hunt', 'inventory/planner', 'weapons/loadouts', 'skills/plan', 'skills/builds'];
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];

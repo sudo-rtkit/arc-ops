@@ -1,7 +1,7 @@
 {
   "name": "arc-raiders-companion",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Osobní operační centrum hráče ARC Raiders. Neoficiální, offline, bez zásahů do hry.",
   "type": "module",
   "scripts": {
@@ -27,9 +27,11 @@
     "@playwright/test": "^1.65.0",
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^26.6.6",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "pngjs": "^7.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.7",
     "vitest": "^5.1.0"

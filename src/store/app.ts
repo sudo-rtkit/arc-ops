@@ -18,6 +18,7 @@ import { normalizeLoadout } from '../core/loadouts';
 import { STATIONS } from '../core/data/stations';
 import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
+import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
 
@@ -384,6 +385,18 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
     },
     deleteCustomMaterial(name: string) { change(s => { s.gameData.materialsCustom = s.gameData.materialsCustom.filter(m => m.name !== name); }); },
+
+    /* rozpoznávání ze snímků: před zápisem vždy snímek stavu (druh import); když se nepodaří, nic se nezapíše. */
+    async importFromScreens(input: VisionApply): Promise<VisionSummary | null> {
+      if (!get().ready) return null;
+      await doSave();
+      if (!(await snapshot('import', 'pred importem ze snimku'))) return null;
+      let sum: VisionSummary | null = null;
+      change(s => { sum = applyVisionImport(s, input, now()); });
+      await doSave();
+      return sum;
+    },
+    clearLearned() { change(s => { if (!s.vision.learned.length) return false; s.vision.learned = []; }); },
 
     /* raidy: zápis přidá kolo, mince profilu ani zásoba se nemění. Úprava nemění kola ani zásobu.
        Loot se do Inventory převádí jen výslovně, a to jen rozdíl proti už převedenému. */
