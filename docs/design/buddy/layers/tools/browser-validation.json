@@ -1,0 +1,37 @@
+{
+  "result": "PASS",
+  "offlineFileURL": true,
+  "manifestMatchesJSON": true,
+  "canvasReferenceScreenshots": 76,
+  "wardrobeSelections": 400,
+  "formsAndStates": 35,
+  "transitions": [
+    [
+      0,
+      15
+    ],
+    [
+      15,
+      30
+    ],
+    [
+      30,
+      45
+    ],
+    [
+      45,
+      60
+    ]
+  ],
+  "scalePixels": [
+    64,
+    128
+  ],
+  "collectionPersistsWithinSession": true,
+  "toggles": true,
+  "oneShotReturnToIdle": true,
+  "sparkleCompletes": true,
+  "reducedMotion": true,
+  "errors": [],
+  "remote": []
+}

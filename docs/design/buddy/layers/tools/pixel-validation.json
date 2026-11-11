@@ -1,0 +1,6 @@
+{
+  "result": "PASS",
+  "exactBrowserPixelComparisons": 76,
+  "eyeClearanceComposites": 15200,
+  "method": "Default Edge file:// canvas screenshots versus Pillow reference, RGB on #141719; every part rendered on every body frame, eye pixels preserved."
+}

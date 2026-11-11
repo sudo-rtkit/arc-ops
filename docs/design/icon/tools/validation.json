@@ -1,0 +1,580 @@
+{
+  "character": "Ops / Explorer / průzkumník",
+  "variants": {
+    "v1": {
+      "pngs": [
+        {
+          "file": "v1\\favicon.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "3408ebc12c13a4e554d6f1ec3a775fbb7ca5fe44d3de72e969702196d15240b1"
+        },
+        {
+          "file": "v1\\icon.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "4a341a98aed476f95cc0cf131818cb13b419136c4d508f6646c5a18f051e5e3e"
+        },
+        {
+          "file": "v1\\icon128.png",
+          "size": [
+            128,
+            128
+          ],
+          "sha256": "cc6660d6f8da6b2197ccb67daeab010f9834d35f83ca84ce89572d62c54b2865"
+        },
+        {
+          "file": "v1\\icon16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "be627718f6fedaec0d27efb6525e379d8653644fefa74f009b3a8feb360fe62e"
+        },
+        {
+          "file": "v1\\icon24.png",
+          "size": [
+            24,
+            24
+          ],
+          "sha256": "98112c6c4b7f1c172c02529b5508fa7a58230387bfd34a873e966016537c3d63"
+        },
+        {
+          "file": "v1\\icon256.png",
+          "size": [
+            256,
+            256
+          ],
+          "sha256": "e74658362cddbf9d6153a048a1f634c42dceb298d382fb8fdf05dbcdef636d91"
+        },
+        {
+          "file": "v1\\icon32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "a825a93cffae42476d2085522792f2988f8fd81bc7cdda333ae7798e4a9d14d2"
+        },
+        {
+          "file": "v1\\icon48.png",
+          "size": [
+            48,
+            48
+          ],
+          "sha256": "5544431516465cb24d5f17aa7c64cced9e72081b58e592fd938d19f3c01a8993"
+        },
+        {
+          "file": "v1\\icon64.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "3408ebc12c13a4e554d6f1ec3a775fbb7ca5fe44d3de72e969702196d15240b1"
+        },
+        {
+          "file": "v1\\tauri-icons\\128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "sha256": "cc6660d6f8da6b2197ccb67daeab010f9834d35f83ca84ce89572d62c54b2865"
+        },
+        {
+          "file": "v1\\tauri-icons\\128x128@2x.png",
+          "size": [
+            256,
+            256
+          ],
+          "sha256": "e74658362cddbf9d6153a048a1f634c42dceb298d382fb8fdf05dbcdef636d91"
+        },
+        {
+          "file": "v1\\tauri-icons\\32x32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "a825a93cffae42476d2085522792f2988f8fd81bc7cdda333ae7798e4a9d14d2"
+        },
+        {
+          "file": "v1\\tauri-icons\\64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "3408ebc12c13a4e554d6f1ec3a775fbb7ca5fe44d3de72e969702196d15240b1"
+        },
+        {
+          "file": "v1\\tauri-icons\\icon.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "4a341a98aed476f95cc0cf131818cb13b419136c4d508f6646c5a18f051e5e3e"
+        },
+        {
+          "file": "v1\\tauri-icons\\source.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "4a341a98aed476f95cc0cf131818cb13b419136c4d508f6646c5a18f051e5e3e"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square107x107Logo.png",
+          "size": [
+            107,
+            107
+          ],
+          "sha256": "7745e7a1b8b59f5dc3aa1efc5fb4c074ddd2a37d7c3719fecb9105670babf30e"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square142x142Logo.png",
+          "size": [
+            142,
+            142
+          ],
+          "sha256": "2321392fcf6a79b3a3c99a836b6a0ac7da8ee17560b15ce2b1847ab89cc47692"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square150x150Logo.png",
+          "size": [
+            150,
+            150
+          ],
+          "sha256": "6a6384e8e31e0b32275b377e656c36721060815ddd6558b946a96bad98f426c1"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square284x284Logo.png",
+          "size": [
+            284,
+            284
+          ],
+          "sha256": "36f806627590fd38dd00cc86acc0e00a4528e6ad98a5ed179635887e3d7123cf"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square30x30Logo.png",
+          "size": [
+            30,
+            30
+          ],
+          "sha256": "702957abb7d1c1031d6eba12230f68b6239b03cf410efe225c81afc9b0f11d3d"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square310x310Logo.png",
+          "size": [
+            310,
+            310
+          ],
+          "sha256": "180f766c3ebf541f33fbd33b18bcc2fb7236999fa5c07e1382db87bcf7c32ad8"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square44x44Logo.png",
+          "size": [
+            44,
+            44
+          ],
+          "sha256": "34a29dd2f49b74d213f288d3cb2f1a139ec5d74a83f0ee54822c4861bf4616f9"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square71x71Logo.png",
+          "size": [
+            71,
+            71
+          ],
+          "sha256": "aca9cc9cb68ec79f75217811ee7f13a6581755645b8d3c66a890b4f2fbddce69"
+        },
+        {
+          "file": "v1\\tauri-icons\\Square89x89Logo.png",
+          "size": [
+            89,
+            89
+          ],
+          "sha256": "6c11436f8ade249f2539eed3872529c553598e2855efc4d08c2a8a15677fd1e8"
+        },
+        {
+          "file": "v1\\tauri-icons\\StoreLogo.png",
+          "size": [
+            50,
+            50
+          ],
+          "sha256": "e417d132b191717f4997f04bbd1bb573d33763ecbd86e2a2b953d8175c03b18b"
+        },
+        {
+          "file": "v1\\tray-dark-16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "973582cac19da664d815863d2498adebe116d3875f72e551ec0ccc01a31c8591"
+        },
+        {
+          "file": "v1\\tray-dark-32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "4b6293ac217597a51bb66df252ef7ac6d79c8d1f0f18c913865934b717acb9fe"
+        },
+        {
+          "file": "v1\\tray-light-16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "ede715e6daf29b077e615cd8ea0fe792bc610fbc8176d967c3255f3144649c3a"
+        },
+        {
+          "file": "v1\\tray-light-32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "11139c67563110444c2096ab14ff1e617c76cf71a5ee6c003f15792b2d23fb95"
+        },
+        {
+          "file": "v1\\tray16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "973582cac19da664d815863d2498adebe116d3875f72e551ec0ccc01a31c8591"
+        },
+        {
+          "file": "v1\\tray32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "4b6293ac217597a51bb66df252ef7ac6d79c8d1f0f18c913865934b717acb9fe"
+        }
+      ],
+      "icoFrames": [
+        16,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "tauriFiles": [
+        "128x128.png",
+        "128x128@2x.png",
+        "32x32.png",
+        "64x64.png",
+        "Square107x107Logo.png",
+        "Square142x142Logo.png",
+        "Square150x150Logo.png",
+        "Square284x284Logo.png",
+        "Square30x30Logo.png",
+        "Square310x310Logo.png",
+        "Square44x44Logo.png",
+        "Square71x71Logo.png",
+        "Square89x89Logo.png",
+        "StoreLogo.png",
+        "icon.icns",
+        "icon.ico",
+        "icon.png",
+        "source.png"
+      ]
+    },
+    "v2": {
+      "pngs": [
+        {
+          "file": "v2\\favicon.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "1abc5050ea37143f76b35e4bdddebfe9c9aae21c5fa03d39f5906b3f3b0a738b"
+        },
+        {
+          "file": "v2\\icon.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "c38e0d69dc1e00f66eb11997903abd6d55945d3c8c99a3d2c8ae41cf785101e6"
+        },
+        {
+          "file": "v2\\icon128.png",
+          "size": [
+            128,
+            128
+          ],
+          "sha256": "1c22ef62db0f98622e2d1f55cf6cccf93fe87ab5d72724e5b87724480b0e4002"
+        },
+        {
+          "file": "v2\\icon16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "74e6a0b25aa65cec251f1a9f8b45206c8036faa11a4faf7b659f586597790191"
+        },
+        {
+          "file": "v2\\icon24.png",
+          "size": [
+            24,
+            24
+          ],
+          "sha256": "25aa5cb3de984218059f14bea692eba51b643f756a1c46313c28c7b554a655ba"
+        },
+        {
+          "file": "v2\\icon256.png",
+          "size": [
+            256,
+            256
+          ],
+          "sha256": "3dbd60e00600319c972be0ef4f483945c942db800f29567c0099be8cd229c292"
+        },
+        {
+          "file": "v2\\icon32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "804bd2f8badffd113a05656ce38b71dc72201c583e7ffdb51116d56787ae56dd"
+        },
+        {
+          "file": "v2\\icon48.png",
+          "size": [
+            48,
+            48
+          ],
+          "sha256": "d3aa226fdf211dbc1280583916e228b032b7dd24f4be6b6dc76c2567560a0315"
+        },
+        {
+          "file": "v2\\icon64.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "1abc5050ea37143f76b35e4bdddebfe9c9aae21c5fa03d39f5906b3f3b0a738b"
+        },
+        {
+          "file": "v2\\tauri-icons\\128x128.png",
+          "size": [
+            128,
+            128
+          ],
+          "sha256": "1c22ef62db0f98622e2d1f55cf6cccf93fe87ab5d72724e5b87724480b0e4002"
+        },
+        {
+          "file": "v2\\tauri-icons\\128x128@2x.png",
+          "size": [
+            256,
+            256
+          ],
+          "sha256": "3dbd60e00600319c972be0ef4f483945c942db800f29567c0099be8cd229c292"
+        },
+        {
+          "file": "v2\\tauri-icons\\32x32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "804bd2f8badffd113a05656ce38b71dc72201c583e7ffdb51116d56787ae56dd"
+        },
+        {
+          "file": "v2\\tauri-icons\\64x64.png",
+          "size": [
+            64,
+            64
+          ],
+          "sha256": "1abc5050ea37143f76b35e4bdddebfe9c9aae21c5fa03d39f5906b3f3b0a738b"
+        },
+        {
+          "file": "v2\\tauri-icons\\icon.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "c38e0d69dc1e00f66eb11997903abd6d55945d3c8c99a3d2c8ae41cf785101e6"
+        },
+        {
+          "file": "v2\\tauri-icons\\source.png",
+          "size": [
+            1024,
+            1024
+          ],
+          "sha256": "c38e0d69dc1e00f66eb11997903abd6d55945d3c8c99a3d2c8ae41cf785101e6"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square107x107Logo.png",
+          "size": [
+            107,
+            107
+          ],
+          "sha256": "790574caf5b12f5d8b7bbf3434edb5d465002b45bcc08240db94dda64cfe7744"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square142x142Logo.png",
+          "size": [
+            142,
+            142
+          ],
+          "sha256": "850f323e64898d32860134bd05905cbd498b702bf9faedbb07dbef2d6f5c8191"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square150x150Logo.png",
+          "size": [
+            150,
+            150
+          ],
+          "sha256": "14947bb10adf2bffc8e63b54d084ea794caf50b183392af80bad7f1fa3603d74"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square284x284Logo.png",
+          "size": [
+            284,
+            284
+          ],
+          "sha256": "f50d712c667a5d162de02a57d4c3b1a1e6dc76fdd7f8be1271173e096a1422d4"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square30x30Logo.png",
+          "size": [
+            30,
+            30
+          ],
+          "sha256": "549a1fd19c9f2c7022467d47190a628c5d5291a034a62a496db17462b79d9493"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square310x310Logo.png",
+          "size": [
+            310,
+            310
+          ],
+          "sha256": "f8c7da7565de29ac221ed3a0add39d4a9e5de72e46dcf2d7db59140b39156db8"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square44x44Logo.png",
+          "size": [
+            44,
+            44
+          ],
+          "sha256": "6fa0c3553bb58cc476583bf5a149de1f64a82db87143a2f2ac48db7900db2e2b"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square71x71Logo.png",
+          "size": [
+            71,
+            71
+          ],
+          "sha256": "35b7d447461782a6d751b7ec2c262164fb20792acb0400d9ba2d3c20b9a52470"
+        },
+        {
+          "file": "v2\\tauri-icons\\Square89x89Logo.png",
+          "size": [
+            89,
+            89
+          ],
+          "sha256": "b09dd911035072869a1b722d788f9f0089df96a4c92da2b10c7b1389387ec1b2"
+        },
+        {
+          "file": "v2\\tauri-icons\\StoreLogo.png",
+          "size": [
+            50,
+            50
+          ],
+          "sha256": "47f50fbd525e38a665c424cbf95b05f5cd328d89a2fd05308942bce88fc1dce8"
+        },
+        {
+          "file": "v2\\tray-dark-16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "973582cac19da664d815863d2498adebe116d3875f72e551ec0ccc01a31c8591"
+        },
+        {
+          "file": "v2\\tray-dark-32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "4b6293ac217597a51bb66df252ef7ac6d79c8d1f0f18c913865934b717acb9fe"
+        },
+        {
+          "file": "v2\\tray-light-16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "ede715e6daf29b077e615cd8ea0fe792bc610fbc8176d967c3255f3144649c3a"
+        },
+        {
+          "file": "v2\\tray-light-32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "11139c67563110444c2096ab14ff1e617c76cf71a5ee6c003f15792b2d23fb95"
+        },
+        {
+          "file": "v2\\tray16.png",
+          "size": [
+            16,
+            16
+          ],
+          "sha256": "973582cac19da664d815863d2498adebe116d3875f72e551ec0ccc01a31c8591"
+        },
+        {
+          "file": "v2\\tray32.png",
+          "size": [
+            32,
+            32
+          ],
+          "sha256": "4b6293ac217597a51bb66df252ef7ac6d79c8d1f0f18c913865934b717acb9fe"
+        }
+      ],
+      "icoFrames": [
+        16,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "tauriFiles": [
+        "128x128.png",
+        "128x128@2x.png",
+        "32x32.png",
+        "64x64.png",
+        "Square107x107Logo.png",
+        "Square142x142Logo.png",
+        "Square150x150Logo.png",
+        "Square284x284Logo.png",
+        "Square30x30Logo.png",
+        "Square310x310Logo.png",
+        "Square44x44Logo.png",
+        "Square71x71Logo.png",
+        "Square89x89Logo.png",
+        "StoreLogo.png",
+        "icon.icns",
+        "icon.ico",
+        "icon.png",
+        "source.png"
+      ]
+    }
+  },
+  "checks": [
+    "Binary alpha and source palette in all PNGs",
+    "Independent layouts at 16/24/32/48/64",
+    "Seven exact PNG frames in each ICO",
+    "All original Tauri asset filenames matched, including optional ICNS",
+    "Offline relative preview references resolve",
+    "Transparent tray corners, both contrast treatments"
+  ],
+  "sources": {
+    "docs\\design\\buddy\\layers\\ops-layers.json": "91c9b8b97ca78dbc6b70c859595845c3f41ad20fbe3d697c96245fab744d91e7",
+    "docs\\design\\buddy\\layers\\composite\\level-15.png": "e3fc3a01a9d3791f8a5549ac5e374eaaf23aab501f72d078a5773bc3e5b4a099",
+    "src\\ui\\tokens.css": "4baf11d53a17e629f8d65b785b559bc620b9f63ee3fcbcc844b0133676e86f53"
+  }
+}

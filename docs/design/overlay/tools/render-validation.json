@@ -1,0 +1,548 @@
+{
+  "status": "OK",
+  "errors": [],
+  "remoteRequests": [],
+  "exports": [
+    {
+      "file": "overview.png",
+      "query": "tab=overview",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "quests.png",
+      "query": "tab=quests",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "shopping.png",
+      "query": "tab=shopping",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "capture.png",
+      "query": "tab=capture",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": {
+          "x": 990.578125,
+          "y": 775.5,
+          "width": 198.421875,
+          "height": 41,
+          "bottom": 816.5
+        },
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/opacity-70.png",
+      "query": "tab=overview&opacity=70",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.7)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/opacity-90.png",
+      "query": "tab=overview&opacity=90",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/opacity-100.png",
+      "query": "tab=overview&opacity=100",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgb(20, 23, 25)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/focus.png",
+      "query": "tab=quests&focus=1",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/hover.png",
+      "query": "tab=capture&hover=1",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": {
+          "x": 990.578125,
+          "y": 775.5,
+          "width": 198.421875,
+          "height": 41,
+          "bottom": 816.5
+        },
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/empty.png",
+      "query": "tab=capture&mode=empty",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    },
+    {
+      "file": "states/error.png",
+      "query": "tab=capture&mode=error",
+      "width": 1920,
+      "height": 1080,
+      "layout": {
+        "panel": {
+          "x": 410,
+          "y": 160,
+          "width": 1100,
+          "height": 760,
+          "bottom": 920
+        },
+        "content": {
+          "x": 410,
+          "y": 307,
+          "width": 1100,
+          "height": 546,
+          "bottom": 853
+        },
+        "scrollHeight": 546,
+        "clientHeight": 546,
+        "horizontalOverflow": false,
+        "approve": null,
+        "fonts": [
+          {
+            "family": "Inter",
+            "loaded": true
+          },
+          {
+            "family": "Chakra Petch",
+            "loaded": true
+          },
+          {
+            "family": "JetBrains Mono",
+            "loaded": true
+          }
+        ],
+        "opacity": "rgba(20, 23, 25, 0.9)",
+        "rarity": {
+          "common": "#BEB7AF",
+          "uncommon": "#20B850",
+          "rare": "#00A8F0",
+          "epic": "#C83098",
+          "legendary": "#F8C000"
+        }
+      }
+    }
+  ],
+  "interactions": "tabs, arrow navigation, real focus ring, real hover colour, uncertain correction, explicit confirmation, Esc, Ops, reopening"
+}

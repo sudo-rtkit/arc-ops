@@ -1,0 +1,17 @@
+{
+  "exports": 11,
+  "dimensions": "OK",
+  "statesSheet": "1800x1548",
+  "localAssets": "OK",
+  "fontLicenses": 3,
+  "renderChecks": "OK",
+  "opsFrames": {
+    "idle": 8,
+    "scanning": 8,
+    "done": 5,
+    "unsure": 5,
+    "sleeping": 6,
+    "alert": 4,
+    "drag": 2
+  }
+}

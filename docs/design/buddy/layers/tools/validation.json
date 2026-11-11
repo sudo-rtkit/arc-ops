@@ -1,0 +1,609 @@
+{
+  "forms": 5,
+  "bodyFrames": 190,
+  "bodySheets": 35,
+  "slots": 16,
+  "parts": 80,
+  "partFiles": 200,
+  "numberedTagTiles": 380,
+  "unlockEvents": 76,
+  "newPartUnlocks": 80,
+  "nonTagUnlockLevels": 75,
+  "level0Plain": true,
+  "visibleUnlocks": [
+    {
+      "level": 1,
+      "parts": [
+        "antenna-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 41
+    },
+    {
+      "level": 2,
+      "parts": [
+        "visor-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 49
+    },
+    {
+      "level": 3,
+      "parts": [
+        "armour-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 77
+    },
+    {
+      "level": 4,
+      "parts": [
+        "backpack-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 258
+    },
+    {
+      "level": 5,
+      "parts": [
+        "tool-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 64
+    },
+    {
+      "level": 6,
+      "parts": [
+        "badges-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 30
+    },
+    {
+      "level": 7,
+      "parts": [
+        "paint-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 16
+    },
+    {
+      "level": 8,
+      "parts": [
+        "shoulders-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 85
+    },
+    {
+      "level": 9,
+      "parts": [
+        "lamp-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 46
+    },
+    {
+      "level": 10,
+      "parts": [
+        "cables-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 14
+    },
+    {
+      "level": 11,
+      "parts": [
+        "charm-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 34
+    },
+    {
+      "level": 12,
+      "parts": [
+        "cape-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 130
+    },
+    {
+      "level": 13,
+      "parts": [
+        "fin-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 73
+    },
+    {
+      "level": 14,
+      "parts": [
+        "belt-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 90
+    },
+    {
+      "level": 15,
+      "parts": [
+        "radio-1"
+      ],
+      "changedPixelsExcludingTagAndForm": 48
+    },
+    {
+      "level": 16,
+      "parts": [
+        "antenna-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 53
+    },
+    {
+      "level": 17,
+      "parts": [
+        "visor-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 26
+    },
+    {
+      "level": 18,
+      "parts": [
+        "armour-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 38
+    },
+    {
+      "level": 19,
+      "parts": [
+        "backpack-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 135
+    },
+    {
+      "level": 20,
+      "parts": [
+        "tool-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 32
+    },
+    {
+      "level": 21,
+      "parts": [
+        "badges-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 16
+    },
+    {
+      "level": 22,
+      "parts": [
+        "paint-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 18
+    },
+    {
+      "level": 23,
+      "parts": [
+        "shoulders-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 44
+    },
+    {
+      "level": 24,
+      "parts": [
+        "lamp-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 24
+    },
+    {
+      "level": 25,
+      "parts": [
+        "cables-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 10
+    },
+    {
+      "level": 26,
+      "parts": [
+        "charm-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 16
+    },
+    {
+      "level": 27,
+      "parts": [
+        "cape-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 50
+    },
+    {
+      "level": 28,
+      "parts": [
+        "fin-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 66
+    },
+    {
+      "level": 29,
+      "parts": [
+        "belt-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 40
+    },
+    {
+      "level": 30,
+      "parts": [
+        "radio-2"
+      ],
+      "changedPixelsExcludingTagAndForm": 36
+    },
+    {
+      "level": 31,
+      "parts": [
+        "antenna-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 95
+    },
+    {
+      "level": 32,
+      "parts": [
+        "visor-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 37
+    },
+    {
+      "level": 33,
+      "parts": [
+        "armour-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 32
+    },
+    {
+      "level": 34,
+      "parts": [
+        "backpack-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 123
+    },
+    {
+      "level": 35,
+      "parts": [
+        "tool-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 49
+    },
+    {
+      "level": 36,
+      "parts": [
+        "badges-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 19
+    },
+    {
+      "level": 37,
+      "parts": [
+        "paint-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 21
+    },
+    {
+      "level": 38,
+      "parts": [
+        "shoulders-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 83
+    },
+    {
+      "level": 39,
+      "parts": [
+        "lamp-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 25
+    },
+    {
+      "level": 40,
+      "parts": [
+        "cables-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 29
+    },
+    {
+      "level": 41,
+      "parts": [
+        "charm-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 30
+    },
+    {
+      "level": 42,
+      "parts": [
+        "cape-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 88
+    },
+    {
+      "level": 43,
+      "parts": [
+        "fin-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 74
+    },
+    {
+      "level": 44,
+      "parts": [
+        "belt-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 60
+    },
+    {
+      "level": 45,
+      "parts": [
+        "radio-3"
+      ],
+      "changedPixelsExcludingTagAndForm": 33
+    },
+    {
+      "level": 46,
+      "parts": [
+        "antenna-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 96
+    },
+    {
+      "level": 47,
+      "parts": [
+        "visor-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 75
+    },
+    {
+      "level": 48,
+      "parts": [
+        "armour-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 5
+    },
+    {
+      "level": 49,
+      "parts": [
+        "backpack-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 17
+    },
+    {
+      "level": 50,
+      "parts": [
+        "tool-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 78
+    },
+    {
+      "level": 51,
+      "parts": [
+        "badges-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 20
+    },
+    {
+      "level": 52,
+      "parts": [
+        "paint-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 32
+    },
+    {
+      "level": 53,
+      "parts": [
+        "shoulders-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 66
+    },
+    {
+      "level": 54,
+      "parts": [
+        "lamp-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 40
+    },
+    {
+      "level": 55,
+      "parts": [
+        "cables-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 13
+    },
+    {
+      "level": 56,
+      "parts": [
+        "charm-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 32
+    },
+    {
+      "level": 57,
+      "parts": [
+        "cape-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 90
+    },
+    {
+      "level": 58,
+      "parts": [
+        "fin-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 79
+    },
+    {
+      "level": 59,
+      "parts": [
+        "belt-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 72
+    },
+    {
+      "level": 60,
+      "parts": [
+        "radio-4"
+      ],
+      "changedPixelsExcludingTagAndForm": 31
+    },
+    {
+      "level": 61,
+      "parts": [
+        "antenna-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 95
+    },
+    {
+      "level": 62,
+      "parts": [
+        "visor-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 44
+    },
+    {
+      "level": 63,
+      "parts": [
+        "armour-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 43
+    },
+    {
+      "level": 64,
+      "parts": [
+        "backpack-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 101
+    },
+    {
+      "level": 65,
+      "parts": [
+        "tool-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 73
+    },
+    {
+      "level": 66,
+      "parts": [
+        "badges-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 18
+    },
+    {
+      "level": 67,
+      "parts": [
+        "paint-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 31
+    },
+    {
+      "level": 68,
+      "parts": [
+        "shoulders-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 79
+    },
+    {
+      "level": 69,
+      "parts": [
+        "lamp-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 15
+    },
+    {
+      "level": 70,
+      "parts": [
+        "cables-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 28
+    },
+    {
+      "level": 71,
+      "parts": [
+        "charm-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 19
+    },
+    {
+      "level": 72,
+      "parts": [
+        "cape-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 63
+    },
+    {
+      "level": 73,
+      "parts": [
+        "fin-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 92
+    },
+    {
+      "level": 74,
+      "parts": [
+        "belt-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 76
+    },
+    {
+      "level": 75,
+      "parts": [
+        "radio-5"
+      ],
+      "changedPixelsExcludingTagAndForm": 40
+    }
+  ],
+  "silhouettes": [
+    {
+      "form": "rookie",
+      "bbox": [
+        14,
+        24,
+        50,
+        55
+      ],
+      "opaquePixels": 830,
+      "sha256": "c1a18de99bd8793e2dc31a4fa4ac735bd7b2a929677409e9c0b16e03f8bba3cc"
+    },
+    {
+      "form": "explorer",
+      "bbox": [
+        9,
+        8,
+        53,
+        58
+      ],
+      "opaquePixels": 1248,
+      "sha256": "eeec70f84f2f4d28f6caedc9885e97d9c1d03d4b4bad0e7a3ce92d9ddd64a9a5"
+    },
+    {
+      "form": "scavenger",
+      "bbox": [
+        7,
+        20,
+        57,
+        58
+      ],
+      "opaquePixels": 1519,
+      "sha256": "36d7ab4caef8ed179c35d643bd049e7783a1c2be035170cde0aa72640c935a40"
+    },
+    {
+      "form": "veteran",
+      "bbox": [
+        5,
+        18,
+        60,
+        58
+      ],
+      "opaquePixels": 1751,
+      "sha256": "1e3f9316772286ea18806a3272bb401c97e0084145063b661d8c94105df6939c"
+    },
+    {
+      "form": "legend",
+      "bbox": [
+        4,
+        18,
+        61,
+        58
+      ],
+      "opaquePixels": 1981,
+      "sha256": "b8331635d4c3204eae349659721998beb2a7955f7dc5be403ff0962e51fdf3cd"
+    }
+  ],
+  "transformFrames": 40,
+  "sparkleFrames": 6,
+  "paletteColorsUsed": 12,
+  "paletteColorsAllowed": 14,
+  "alpha": [
+    0,
+    255
+  ],
+  "partAnchorBoundsChecks": 15200,
+  "uniqueDefaultComposites": 76,
+  "pngAssetsChecked": 240,
+  "result": "PASS"
+}

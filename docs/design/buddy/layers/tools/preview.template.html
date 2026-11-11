@@ -1,0 +1,69 @@
+﻿<!doctype html><html lang="cs"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ops // vrstvený šatník</title>
+<style>
+:root{color-scheme:dark;font:15px/1.5 system-ui,sans-serif;background:#141719;color:#F2EEE7}*{box-sizing:border-box}body{max-width:1100px;margin:auto;padding:36px 24px}h1{font-size:30px;margin:4px 0 12px}h2{font-size:16px}p{color:#A2A8AA}.eyebrow{color:#F4AD82;font:13px monospace;letter-spacing:2px}.panel{background:#1D2225;border:1px solid #596267;padding:24px;margin-top:20px}header{display:flex;gap:24px;justify-content:space-between;align-items:end}.controls{display:flex;gap:18px;align-items:center;flex-wrap:wrap}label{display:flex;gap:8px;align-items:center}select,button{font:inherit;border:1px solid #596267;background:#272D31;color:#F2EEE7;padding:8px}button{cursor:pointer}button.primary{background:#F4AD82;color:#141719;border-color:#F4AD82}button:disabled{opacity:.45;cursor:default}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #FFC69F;outline-offset:3px}input[type=range]{accent-color:#F4AD82;flex:1;min-width:220px}.stages{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.stage{min-height:230px;display:flex;align-items:center;justify-content:center;position:relative;background:#141719;border:1px solid #272D31}.busy{background-color:#747778;background-image:repeating-linear-gradient(37deg,transparent 0 11px,#5b6061 11px 16px,transparent 16px 24px),repeating-linear-gradient(118deg,transparent 0 21px,#8a8c87 21px 26px,transparent 26px 40px)}canvas{image-rendering:pixelated;image-rendering:crisp-edges;width:128px;height:128px}.caption{position:absolute;left:12px;bottom:8px;background:#141719;color:#F2EEE7;padding:2px 6px;font:12px monospace}.wardrobe{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.slot{display:grid;grid-template-columns:24px 130px 1fr;align-items:center;gap:8px}.slot select{width:100%}.muted{color:#A2A8AA;font-size:13px}#event{min-height:25px;color:#FFC69F}#error{color:#F09B9E}footer{margin-top:24px;font-size:13px;color:#A2A8AA}a{color:#F4AD82}@media(max-width:720px){header{display:block}.wardrobe,.stages{grid-template-columns:1fr}.slot{grid-template-columns:24px 110px 1fr}body{padding:20px 12px}}
+</style>
+<header><div><div class="eyebrow">OPS // POLNÍ ŠATNÍK</div><h1>Jedna bedna. Sedmdesát šest příběhů.</h1><p>Originální Bedňák B · vrstvy 64 × 64 px · bez sítě</p></div><a href="composite/all-levels.png">Přehled všech levelů ↗</a></header>
+<section class="panel"><div class="controls"><label for="level">Level <strong id="number">0</strong></label><input id="level" type="range" min="0" max="75" value="0"><strong id="form"></strong></div><p id="event" aria-live="polite"></p>
+<div class="controls"><label>Stav <select id="state"></select></label><label>Měřítko <select id="scale"><option value="1">1× / 64 px</option><option value="2" selected>2× / 128 px</option></select></label><button id="pause">Pozastavit</button><button id="transform" class="primary">Proměnit v další podobu</button><button id="sparkle">Nový díl ✦</button></div>
+<div class="stages"><div class="stage"><canvas id="dark" width="64" height="64" aria-label="Ops na grafitovém pozadí"></canvas><span class="caption">GRAFIT #141719</span></div><div class="stage busy"><canvas id="busy" width="64" height="64" aria-label="Ops na rušném šedém pozadí"></canvas><span class="caption">KONTROLA SILUETY</span></div></div><p id="status" class="muted"></p><p id="error" role="alert"></p></section>
+<section class="panel"><div class="controls"><h2>Šatník / odemčené díly</h2><button id="auto">Automaticky podle levelu</button><label><input type="checkbox" id="all"> Návrhář: všechny díly</label></div><p class="muted">Vypnutí slotu skryje vrstvu. Ruční výběr platí do změny levelu. Sbírka v tomto náhledu drží nejvyšší navštívený level po dobu otevření stránky.</p><div class="wardrobe" id="wardrobe"></div></section>
+<footer>Všechny vrstvy se skládají živě podle manifestu. JSON je vložen beze změny z <a href="ops-layers.json">ops-layers.json</a>, aby náhled fungoval i přes file://. Úpravy JSON promítněte spuštěním tools/build.py. Žádné herní assety, fonty ani knihovny.</footer>
+<script id="manifest" type="application/json">__MANIFEST__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.querySelector('#manifest').textContent),$=id=>document.getElementById(id);
+const images=new Map(), contexts=[$('dark'),$('busy')].map(c=>c.getContext('2d'));
+let level=0,maxLevel=0,state='idle',frame=0,outfit={},visible={},paused=false,elapsed=0,last=0,fx=null,transition=null,ready=false;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+const catalog=new Map(data.parts.map(p=>[p.id,p]));
+function image(path){if(!images.has(path)){const im=new Image();im.src=path;images.set(path,im)}return images.get(path)}
+function formAt(n){return data.forms.find(f=>n>=f.levels[0]&&n<=f.levels[1])}
+function asset(p,f){return p.forms?.[f.id]||p}
+function unlocked(){return new Set(data.unlocks.filter(e=>e.level<=maxLevel).flatMap(e=>e.unlockedParts))}
+for(const [s,meta] of Object.entries(data.states)){const o=new Option(meta.label,s);$('state').add(o)}
+for(const [slot,label] of Object.entries(data.slots)){
+ visible[slot]=true;const row=document.createElement('div');row.className='slot';
+ const check=document.createElement('input');check.type='checkbox';check.checked=true;check.id='visible-'+slot;check.setAttribute('aria-label','Zobrazit '+label);check.onchange=()=>{visible[slot]=check.checked;draw()};
+ const lab=document.createElement('label');lab.textContent=label;lab.htmlFor='part-'+slot;
+ const sel=document.createElement('select');sel.id='part-'+slot;sel.onchange=()=>{outfit[slot]=sel.value||null;draw()};row.append(check,lab,sel);$('wardrobe').append(row);
+}
+function wardrobe(){const available=unlocked();for(const slot of Object.keys(data.slots)){const sel=$('part-'+slot);sel.replaceChildren();sel.add(new Option('Bez dílu',''));for(const p of data.parts.filter(p=>p.slot===slot))if($('all').checked||available.has(p.id))sel.add(new Option(p.name.cs,p.id));sel.value=outfit[slot]||''}}
+function chooseLevel(n,spark=false){level=n;maxLevel=Math.max(maxLevel,n);$('level').value=n;$('number').textContent=n;outfit={...data.unlocks[n].defaultOutfit};$('form').textContent=formAt(n).name.cs;$('event').textContent=data.unlocks[n].label;$('transform').disabled=level>=60;frame=0;elapsed=0;transition=null;fx=null;wardrobe();if(spark&&!paused&&!reduced.matches)fx={index:0,time:0};draw()}
+function draw(){
+ if(!ready)return;
+ const f=formAt(level),st=f.states[state],meta=st.frames[frame];
+ for(const ctx of contexts){ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,64,64);
+  if(transition){const t=transition.spec;ctx.drawImage(image(t.file),transition.index*64,0,64,64,0,0,64,64)}
+  else for(const slot of [...data.drawOrder].sort((a,b)=>meta.zOrder[a]-meta.zOrder[b])){
+   if(slot==='body')ctx.drawImage(image(st.file),frame*64,0,64,64,0,0,64,64);
+   else if(visible[slot]&&outfit[slot]){const p=catalog.get(outfit[slot]),a=asset(p,f),im=image(a.file),[x,y]=meta.anchors[slot],[ox,oy]=a.offset;if(slot==='tag')ctx.drawImage(im,level*13,0,13,9,x+ox,y+oy,13,9);else ctx.drawImage(im,x+ox,y+oy)}
+  }
+  if(fx)ctx.drawImage(image(data.fx.sparkle.file),fx.index*64,0,64,64,0,0,64,64);
+ }
+ $('status').textContent=transition?'Sestavování nové podoby…':`${f.name.cs} / ${st.label} / snímek ${frame+1} z ${st.frameCount}`;
+}
+function tick(now){let dt=last?Math.min(now-last,100):0;last=now;
+ if(ready&&!paused&&!reduced.matches){
+  if(transition){transition.time+=dt;while(transition&&transition.time>=transition.spec.durationsMs[transition.index]){transition.time-=transition.spec.durationsMs[transition.index];transition.index++;if(transition.index>=transition.spec.frameCount){const target=transition.target;chooseLevel(target,true);state='idle';$('state').value=state;frame=0}}}
+  else{elapsed+=dt;let st=data.states[state];while(elapsed>=st.durationsMs[frame]){elapsed-=st.durationsMs[frame];frame++;if(frame>=st.frameCount){if(st.loop)frame=0;else{state=st.returnTo||'idle';$('state').value=state;frame=0;st=data.states[state]}}}}
+  if(fx){fx.time+=dt;if(fx.time>=data.fx.sparkle.durationsMs[fx.index]){fx.time-=data.fx.sparkle.durationsMs[fx.index];fx.index++;if(fx.index>=data.fx.sparkle.frameCount)fx=null}}
+  draw();
+ }
+ requestAnimationFrame(tick);
+}
+$('level').oninput=()=>chooseLevel(Number($('level').value),true);
+$('state').onchange=()=>{state=$('state').value;frame=0;elapsed=0;transition=null;draw()};
+$('scale').onchange=()=>{for(const c of [$('dark'),$('busy')])c.style.width=c.style.height=64*Number($('scale').value)+'px'};
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Pokračovat':'Pozastavit'};
+$('auto').onclick=()=>{outfit={...data.unlocks[level].defaultOutfit};wardrobe();draw()};$('all').onchange=wardrobe;
+$('sparkle').onclick=()=>{if(!reduced.matches)fx={index:0,time:0};$('event').textContent='Nový díl do sbírky';draw()};
+$('transform').onclick=()=>{const f=formAt(level),spec=data.transforms.find(t=>t.from===f.id);if(!spec)return;const target=data.forms.find(f=>f.id===spec.to).levels[0];if(reduced.matches)chooseLevel(target);else{transition={spec,target,index:0,time:0};fx=null;draw()}};
+reduced.addEventListener('change',()=>{if(reduced.matches){if(transition)chooseLevel(transition.target);fx=null;frame=0;draw()}});
+window.opsPreview={data,get status(){return {ready,level,maxLevel,state,frame,paused,transition:transition?.index??null,sparkle:fx?.index??null,outfit:{...outfit}}},draw};
+(async()=>{try{
+ const paths=new Set([...data.forms.flatMap(f=>Object.values(f.states).map(s=>s.file)),...data.parts.flatMap(p=>[p.file,...Object.values(p.forms||{}).map(a=>a.file)]),...data.transforms.map(t=>t.file),data.fx.sparkle.file]);
+ await Promise.all([...paths].map(p=>image(p).decode()));ready=true;chooseLevel(0);requestAnimationFrame(tick);
+}catch(e){$('error').textContent='Nepodařilo se načíst vrstvy: '+e.message}})();
+</script></html>
+<style>:root{line-height:24px}.stage canvas{position:absolute;left:32px;top:40px}</style>
+
