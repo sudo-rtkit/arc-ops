@@ -12,6 +12,7 @@ import Profile from './modules/Profile';
 import SkillTree from './modules/SkillTree';
 import Workshop from './modules/Workshop';
 import Inventory from './modules/Inventory';
+import Quests from './modules/Quests';
 import Maps from './modules/Maps';
 import ArcDb from './modules/ArcDb';
 import Weapons from './modules/Weapons';
@@ -24,7 +25,7 @@ import Settings from './modules/Settings';
 import { useT } from './i18n/react';
 
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
-  dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, maps: Maps,
+  dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, quests: Quests, maps: Maps,
   arc: ArcDb, weapons: Weapons, money: MoneyRuns, trials: Trials, journal: Journal, checklist: Checklist,
   stats: Statistics, settings: Settings,
 };

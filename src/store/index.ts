@@ -11,6 +11,7 @@ import { recommend } from '../core/recommend';
 import { DASH } from '../ui/format';
 import { safeDecode } from '../core/util';
 import { nextNeeds, readiness, shopping, workshopProgress } from '../core/workshop';
+import { questNeeds, questProgress } from '../core/quests';
 import { phases } from '../core/phases';
 import { mapStatus } from '../core/maps';
 import { runStats } from '../core/runs';
@@ -35,7 +36,9 @@ export function derive(s: AppState) {
   const sources = getSources(s.gameData);
   const view = { stations: s.stations, inventory: s.inventory, profile: s.profile };
   const needs = nextNeeds(view, stations).map(n => ({ ...n, ready: readiness(s.inventory, n.mats) }));
-  const shop = shopping(view, stations, sources);
+  /* předměty pro dostupné úkoly jdou do nákupního seznamu i Planneru jako potřeby stanic */
+  const questNeedList = questNeeds(s.quests.done, s.settings.lang);
+  const shop = shopping(view, stations, sources, questNeedList.map(q => ({ label: t('quests.use', { name: q.label }), mats: q.mats })));
   const steps = planSteps(s.skills.activePlan, s.skills.builds);
   const weapons = getWeapons(s.gameData);
   const allRoutes = routeLookup(s.gameData);
@@ -52,7 +55,8 @@ export function derive(s: AppState) {
     routeName: (id: string): string => (id ? routeNames[id] || id : DASH),
     loadoutName: (id: string): string => (id ? loadoutNames[id] || t('common.deletedLoadout') : DASH),
     sell: getSell(s.gameData),
-    plan: planNeeds(view, s.planner, s.goals, stations, sources),
+    plan: planNeeds(view, s.planner, s.goals, stations, sources, questNeedList),
+    quests: questProgress(s.quests.done),
     targets: stationTargets(view, s.planner, s.goals, stations),
     recs: recommend(s, Date.now()),
     workshop: workshopProgress(s.stations, stations),

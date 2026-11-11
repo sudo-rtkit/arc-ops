@@ -1,6 +1,6 @@
 import {
   BookOpen, Bot, ChartNoAxesCombined, Coins, Crosshair, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
-  Settings, Trophy, UserRound, type LucideIcon,
+  ScrollText, Settings, Trophy, UserRound, type LucideIcon,
 } from 'lucide-react';
 
 /* group = klíč skupiny (nav.group.*); název modulu je herní/produktový a je v obou jazycích stejný. */
@@ -13,6 +13,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'skills', name: 'Skill Tree', icon: GitBranch, group: 'progress' },
   { id: 'workshop', name: 'Workshop', icon: Hammer, group: 'progress' },
   { id: 'inventory', name: 'Inventory', icon: Package, group: 'progress' },
+  { id: 'quests', name: 'Quests', icon: ScrollText, group: 'progress' },
   { id: 'maps', name: 'Maps', icon: Map, group: 'explore' },
   { id: 'arc', name: 'ARC Database', icon: Bot, group: 'explore' },
   { id: 'weapons', name: 'Weapons', icon: Crosshair, group: 'explore' },

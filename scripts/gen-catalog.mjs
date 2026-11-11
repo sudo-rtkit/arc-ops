@@ -126,7 +126,10 @@ ${list.map(e => `  { id: ${str(e.id)}, name: ${str(e.name)}, category: '${e.cate
 const mats = getMaterials(defaultState()).map(m => m.name);
 const missing = mats.filter(n => !out.has(n.toLowerCase()));
 const near = n => list.map(e => e.name).filter(c => c.toLowerCase().includes(n.toLowerCase().split(' ')[0])).slice(0, 4);
-writeFileSync('docs/superpowers/plans/catalog-mismatch.md', `# Katalog MetaForge × materiály aplikace
+/* Oddíl ARC Tracker zapisuje scripts/gen-arctracker.mjs; při přegenerování katalogu se zachová. */
+const MISMATCH = 'docs/superpowers/plans/catalog-mismatch.md';
+const atSection = existsSync(MISMATCH) ? (readFileSync(MISMATCH, 'utf8').split(/\n## ARC Tracker\n/)[1] ?? null) : null;
+writeFileSync(MISMATCH, `# Katalog MetaForge × materiály aplikace
 
 Vygenerováno \`scripts/gen-catalog.mjs\` ${new Date().toISOString().slice(0, 10)}. Materiály aplikace (deník, recepty stanic), které v katalogu
 MetaForge pod stejným anglickým názvem nejsou: ${missing.length} z ${mats.length}. Ke kontrole ručně (překlep, přejmenování ve hře, nebo
@@ -135,5 +138,5 @@ předmět, který MetaForge nevede). Rozpoznávání je u nich jen přes naučen
 | Materiál v aplikaci | Podobné názvy v katalogu |
 |---|---|
 ${missing.map(n => `| ${n} | ${near(n).join(', ') || '—'} |`).join('\n')}
-`);
+${atSection !== null ? `\n## ARC Tracker\n${atSection}` : ''}`);
 console.log(`neshody názvů materiálů: ${missing.length} (docs/superpowers/plans/catalog-mismatch.md)`);

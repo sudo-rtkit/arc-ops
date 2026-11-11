@@ -42,7 +42,7 @@ export function parseBackup(textIn: string, now: number = Date.now(), lang: Lang
   }
   if (typeof raw.schema === 'number') {
     if (raw.schema > SCHEMA) return { error: ERR_NEWER };
-    if (raw.schema === 2 || raw.schema === SCHEMA) return { kind: 'app', state: normalize(raw, now, lang), report: null, exportedAt: null };
+    if (raw.schema >= 2 && raw.schema <= SCHEMA) return { kind: 'app', state: normalize(raw, now, lang), report: null, exportedAt: null };
     return { error: ERR_INVALID };
   }
   if (isDiaryV1(raw)) {

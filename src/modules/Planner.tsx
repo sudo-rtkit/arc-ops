@@ -64,6 +64,7 @@ export default function Planner() {
         actions={<><Btn size="sm" onClick={() => actions.plannerAll('next')}>{t('plan.allNext')}</Btn><Btn size="sm" onClick={() => actions.plannerAll('max')}>{t('plan.allMax')}</Btn><Btn size="sm" variant="ghost" disabled={!Object.keys(s.planner.stations).length} onClick={() => actions.plannerAll('clear')}>{t('plan.clearTargets')}</Btn></>}>
         <div style={{ padding: '0 16px' }}>
           <label className="toggle"><input type="checkbox" checked={s.planner.includeGoals} onChange={e => actions.setPlannerIncludeGoals(e.target.checked)} />{t('plan.includeGoals')}</label>
+          <label className="toggle"><input type="checkbox" checked={s.planner.includeQuests} onChange={e => actions.setPlannerIncludeQuests(e.target.checked)} />{t('plan.includeQuests')}</label>
         </div>
         <div className="table-wrap"><table className="table">
           <thead><tr><th>{t('plan.station')}</th><th className="num">{t('plan.now')}</th><th>{t('plan.planTarget')}</th><th>{t('plan.fromGoals')}</th><th className="num">{t('plan.plannedLevel')}</th></tr></thead>

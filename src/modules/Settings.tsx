@@ -15,9 +15,11 @@ import { useT, type TFn } from '../i18n/react';
 import { LANGS, LANG_NAMES, type Key } from '../i18n';
 import { snapshotLabel } from '../i18n/system';
 import { catalogCount } from '../core/catalog';
+import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
 
-/* Jediný odkaz na zdroj dat o předmětech (uvedení zdroje podle podmínek MetaForge). Otevře se jen na kliknutí. */
+/* Odkazy na zdroje herních dat (uvedení zdroje). Otevřou se jen na kliknutí; aplikace z nich nic nestahuje. */
 const METAFORGE_URL = 'https://metaforge.app/arc-raiders';
+const ARCTRACKER_URL = 'https://arctracker.io';
 
 const KIND_KEY: Record<string, Key> = { auto: 'snap.kind.auto', manual: 'snap.kind.manual', import: 'snap.kind.import', restore: 'snap.kind.restore', reset: 'snap.kind.reset' };
 
@@ -241,6 +243,9 @@ export default function Settings({ sub }: { sub: string }) {
         <p data-testid="data-sources">{t('settings.sourcesText')}</p>
         <div className="stack-sm"><ExtLink url={METAFORGE_URL}>{t('settings.sourcesLink')}</ExtLink></div>
         <p className="meta">{t('settings.sourcesCatalog', { items: catalogCount().items, fp: catalogCount().withFp })}</p>
+        <p data-testid="data-sources-arc">{t('settings.sourcesArc')}</p>
+        <div className="stack-sm"><ExtLink url={ARCTRACKER_URL}>{t('settings.sourcesArcLink')}</ExtLink></div>
+        <p className="meta">{t('settings.sourcesArcData', { quests: AT_QUESTS.length, modules: AT_HIDEOUT.length, projects: AT_PROJECTS.length, date: AT_DATE })}</p>
       </Panel>
       <Panel title={t('settings.about')}>
         <p>{t('settings.version', { v: '0.5' })}</p>

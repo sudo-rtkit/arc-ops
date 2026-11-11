@@ -1,6 +1,6 @@
 /* Material Planner: součet materiálu na cílové úrovně stanic, crafting, vlastní cíle a cíle z Goal Trackeru.
    Každý požadavek nese klíč zdroje; součet jde přes jedinečné klíče, takže se nic nezapočítá dvakrát. */
-import type { Goal, PlannerItem, PlannerState, Station } from './types';
+import type { Goal, PlannerItem, PlannerState, Recipe, Station } from './types';
 import { clampInt, isObj, text, uid } from './util';
 import { STATIONS, SOURCES } from './data/stations';
 import { normalizeItems } from './raidItems';
@@ -8,7 +8,7 @@ import { reqBlock, type WorkshopView } from './workshop';
 import { isDone } from './goals';
 import { t } from '../i18n';
 
-export type ReqKind = 'station' | 'craft' | 'custom' | 'goal';
+export type ReqKind = 'station' | 'craft' | 'custom' | 'goal' | 'quest';
 export interface Requirement { key: string; kind: ReqKind; label: string; mat: string; qty: number; blocked: string | null }
 export interface PlanRow {
   mat: string; need: number; have: number; missing: number; src: string; arc: boolean;
@@ -18,7 +18,7 @@ export interface PlanRow {
 }
 export interface StationTarget { station: Station; current: number; target: number; fromPlan: number; fromGoals: number; goalTitles: string[] }
 
-export const emptyPlanner = (): PlannerState => ({ stations: {}, items: [], includeGoals: true });
+export const emptyPlanner = (): PlannerState => ({ stations: {}, items: [], includeGoals: true, includeQuests: true });
 
 /* Cílová úroveň stanice = max(aktuální, plán, otevřené cíle stanic). Úrovně se tak nikdy nepočítají dvakrát. */
 export function stationTargets(view: WorkshopView, planner: PlannerState, goals: Goal[], stations: Station[] = STATIONS): StationTarget[] {
@@ -31,7 +31,7 @@ export function stationTargets(view: WorkshopView, planner: PlannerState, goals:
   });
 }
 
-export function planRequirements(view: WorkshopView, planner: PlannerState, goals: Goal[], stations: Station[] = STATIONS): Requirement[] {
+export function planRequirements(view: WorkshopView, planner: PlannerState, goals: Goal[], stations: Station[] = STATIONS, quests: { id: string; label: string; mats: Recipe }[] = []): Requirement[] {
   const reqs = new Map<string, Requirement>();
   const add = (r: Requirement) => {
     const k = r.key + '|' + r.mat;
@@ -57,12 +57,16 @@ export function planRequirements(view: WorkshopView, planner: PlannerState, goal
       add({ key: `goal:${g.id}`, kind: 'goal', label: t('planner.req.goal', { title: g.title }), mat: g.link.mat, qty: g.link.qty, blocked: null });
     }
   }
+  /* Dostupné úkoly: předměty, které je potřeba donést ze zásoby (milník 3b). */
+  if (planner.includeQuests) {
+    for (const q of quests) for (const [mat, qty] of q.mats) add({ key: `quest:${q.id}`, kind: 'quest', label: t('planner.req.quest', { name: q.label }), mat, qty, blocked: null });
+  }
   return [...reqs.values()];
 }
 
-export function planNeeds(view: WorkshopView, planner: PlannerState, goals: Goal[], stations: Station[] = STATIONS, sources: Record<string, string> = SOURCES): PlanRow[] {
+export function planNeeds(view: WorkshopView, planner: PlannerState, goals: Goal[], stations: Station[] = STATIONS, sources: Record<string, string> = SOURCES, quests: { id: string; label: string; mats: Recipe }[] = []): PlanRow[] {
   const by: Record<string, PlanRow> = {};
-  for (const r of planRequirements(view, planner, goals, stations)) {
+  for (const r of planRequirements(view, planner, goals, stations, quests)) {
     const row = (by[r.mat] ||= { mat: r.mat, need: 0, have: 0, missing: 0, src: '', arc: false, sources: [], contention: false });
     row.need += r.qty;
     row.sources.push({ key: r.key, kind: r.kind, label: r.label, qty: r.qty, blocked: r.blocked });
@@ -105,6 +109,6 @@ export function normalizePlanner(raw: unknown): PlannerState {
     seen.add(i.id);
     return i;
   });
-  return { stations, items, includeGoals: p.includeGoals !== false };
+  return { stations, items, includeGoals: p.includeGoals !== false, includeQuests: p.includeQuests !== false };
 }
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { SAMPLE_V1 } from '../core/sample';
 
 const MODULES: [string, string][] = [
-  ['dashboard', 'Dashboard'], ['profile', 'Player Profile'], ['skills', 'Skill Tree'], ['workshop', 'Workshop'], ['inventory', 'Inventory'],
+  ['dashboard', 'Dashboard'], ['profile', 'Player Profile'], ['skills', 'Skill Tree'], ['workshop', 'Workshop'], ['inventory', 'Inventory'], ['quests', 'Quests'],
   ['maps', 'Maps'], ['arc', 'ARC Database'], ['weapons', 'Weapons'], ['money', 'Money Runs'], ['trials', 'Weekly Trials'],
   ['journal', 'Raid Journal'], ['checklist', 'Raid Checklist'], ['stats', 'Statistics'], ['settings', 'Settings & Backup'],
 ];
@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-test('všech 14 modulů se otevře bez chyby v konzoli', async ({ page }) => {
+test('všech 15 modulů se otevře bez chyby v konzoli', async ({ page }) => {
   const errors = watchErrors(page);
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
   for (const [id, name] of MODULES) {

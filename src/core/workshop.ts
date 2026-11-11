@@ -43,16 +43,17 @@ export interface ShoppingRow {
   have: number; missing: number; src: string; arc: boolean;
 }
 
-/* Součet materiálu na další úroveň všech stanic; jeden řádek na materiál. */
-export function shopping(view: WorkshopView, stations: Station[] = STATIONS, sources: Record<string, string> = SOURCES): ShoppingRow[] {
+/* Součet materiálu na další úroveň všech stanic; jeden řádek na materiál. extra = další potřeby se stejným
+   významem (milník 3b: předměty, které je potřeba donést pro dostupné úkoly). */
+export function shopping(view: WorkshopView, stations: Station[] = STATIONS, sources: Record<string, string> = SOURCES, extra: { label: string; mats: Recipe }[] = []): ShoppingRow[] {
   const agg: Record<string, { mat: string; need: number; uses: string[] }> = {};
-  for (const nn of nextNeeds(view, stations)) {
-    for (const [m, n] of nn.mats) {
-      if (!agg[m]) agg[m] = { mat: m, need: 0, uses: [] };
-      agg[m].need += n;
-      agg[m].uses.push(nn.station.name + ' ' + nn.level);
-    }
-  }
+  const add = (m: string, n: number, use: string) => {
+    if (!agg[m]) agg[m] = { mat: m, need: 0, uses: [] };
+    agg[m].need += n;
+    agg[m].uses.push(use);
+  };
+  for (const nn of nextNeeds(view, stations)) for (const [m, n] of nn.mats) add(m, n, nn.station.name + ' ' + nn.level);
+  for (const x of extra) for (const [m, n] of x.mats) add(m, n, x.label);
   return Object.values(agg).map(x => {
     const have = view.inventory[x.mat] || 0;
     const src = sources[x.mat] || 'Loot';

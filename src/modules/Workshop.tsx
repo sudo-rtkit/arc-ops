@@ -7,6 +7,7 @@ import { readiness, reqBlock } from '../core/workshop';
 import { STATIONS as BASE_STATIONS } from '../core/data/stations';
 import { gameTexts, sourceLabel, stationNote, stationRole } from '../core/gametext';
 import { recipeKey } from '../core/gamedata';
+import { AT_DATE } from '../core/data/arctracker';
 import type { Recipe, Station } from '../core/types';
 import { LIMITS } from '../core/state';
 import { useT } from '../i18n/react';
@@ -112,6 +113,7 @@ export default function Workshop() {
   return (
     <div className="page">
       <PageHead title="Workshop" sub={t('ws.sub')} />
+      {!Object.keys(s.gameData.recipes).length && <p className="meta" data-testid="ws-verified">{t('ws.verified', { date: AT_DATE })}</p>}
       <Panel title={t('ws.panel')} actions={<span className="mono meta">{t('ws.levels', { n: d.workshop.now, max: d.workshop.max })}</span>}>
         <Progress value={d.workshop.now} max={d.workshop.max} showValue={false} label={t('ws.total')} />
         <p className="meta">{texts.workshopHint}</p>

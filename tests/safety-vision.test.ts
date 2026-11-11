@@ -34,6 +34,25 @@ describe('bezpečnost rozpoznávání', () => {
     expect(settings.match(/https:\/\/metaforge\.app[^'"`]*/g)).toEqual(['https://metaforge.app/arc-raiders']);
     expect(settings).toMatch(/<ExtLink url=\{METAFORGE_URL\}/);
   });
+  it('v src/ není URL ARC Tracker (kromě odkazu a jeho textu v Settings → Zdroje dat), ani uživatelské endpointy a klíče', () => {
+    const hits = src.filter(f => /arctracker\.io/i.test(readFileSync(f, 'utf8'))).map(rel);
+    expect(hits.filter(f => f !== 'src/modules/Settings.tsx' && f !== 'src/i18n/cs.ts' && f !== 'src/i18n/en.ts')).toEqual([]);
+    const settings = readFileSync(join(root, 'src', 'modules', 'Settings.tsx'), 'utf8');
+    expect(settings.match(/https:\/\/arctracker\.io[^'"`]*/g)).toEqual(['https://arctracker.io']);
+    expect(settings).toMatch(/<ExtLink url=\{ARCTRACKER_URL\}/);
+    /* žádné propojení hráčského účtu (porušuje podmínky Embarku) */
+    for (const word of ['/api/v2/user', 'X-App-Key', 'arc_k1_', 'arc_u1_', 'Authorization']) {
+      expect(src.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);
+    }
+  });
+  it('data ARC Tracker obsahují jen id, názvy, cíle, požadavky, odměny a fáze (bez popisů a URL)', async () => {
+    const txt = readFileSync(join(root, 'src', 'core', 'data', 'arctracker.ts'), 'utf8');
+    expect(/https?:\/\/|\.png|description|videoUrl|youtu/i.test(txt)).toBe(false);
+    const { AT_QUESTS, AT_HIDEOUT, AT_PROJECTS } = await import('../src/core/data/arctracker');
+    for (const q of AT_QUESTS) for (const k of Object.keys(q)) expect(['id', 'name', 'trader', 'maps', 'objectives', 'deliver', 'questItems', 'rewards', 'xp', 'prev', 'research']).toContain(k);
+    for (const m of AT_HIDEOUT) for (const k of Object.keys(m)) expect(['id', 'name', 'maxLevel', 'levels']).toContain(k);
+    for (const p of AT_PROJECTS) for (const k of Object.keys(p)) expect(['id', 'name', 'start', 'end', 'phases']).toContain(k);
+  });
   it('katalog obsahuje jen id, název, kategorii, vzácnost a otisk (žádné obrázky, popisy ani URL)', async () => {
     const txt = readFileSync(join(root, 'src', 'core', 'data', 'catalog.ts'), 'utf8').replace(/f: '[A-Za-z0-9+/=]*'/g, ''); /* otisky v base64 mohou náhodou obsahovat písmena */
     expect(/https?:\/\/|\.png|\.webp|description|icon/i.test(txt)).toBe(false);

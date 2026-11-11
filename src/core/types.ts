@@ -104,7 +104,7 @@ export interface Goal {
 
 /* ----- Material Planner ----- */
 export interface PlannerItem { id: string; kind: 'craft' | 'custom'; name: string; qty: number; mats: ItemQty[] }
-export interface PlannerState { stations: Record<string, number>; items: PlannerItem[]; includeGoals: boolean }
+export interface PlannerState { stations: Record<string, number>; items: PlannerItem[]; includeGoals: boolean; includeQuests: boolean }
 
 /* ----- loadouty ----- */
 export interface Loadout {
@@ -148,8 +148,12 @@ export interface GameDataEdits {
   sellHidden: Record<string, true>;
 }
 
+/* ----- úkoly (milník 3b): id úkolu → čas zaškrtnutí ----- */
+export interface QuestsState { done: Record<string, number> }
+
+/* Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
 export interface AppState {
-  schema: 3;
+  schema: 4;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -171,6 +175,8 @@ export interface AppState {
   /* milník 3b: ostatní předměty (zbraně, štíty, augmenty, munice, …); materiály zůstávají v inventory */
   items: Record<string, ItemStock>;
   vision: VisionState;
+  /* milník 3b: zaškrtnuté úkoly (data ARC Tracker) */
+  quests: QuestsState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

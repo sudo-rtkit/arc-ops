@@ -10,6 +10,7 @@ import { normalizeGoals } from './goals';
 import { emptyPlanner, normalizePlanner } from './planner';
 import { normalizeLoadouts } from './loadouts';
 import { normalizeItemStock, normalizeVision, emptyVision } from './visionState';
+import { normalizeQuestDone } from './quests';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, BUILD_PREFIX } from './skills';
 import { PLANS } from './data/skills';
@@ -19,7 +20,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 3 as const;
+export const SCHEMA = 4 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -69,6 +70,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     loadouts: [],
     items: {},
     vision: emptyVision(),
+    quests: { done: {} },
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -374,6 +376,7 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.loadouts = normalizeLoadouts(r.loadouts);
   out.items = normalizeItemStock(r.items);
   out.vision = normalizeVision(r.vision);
+  out.quests = { done: normalizeQuestDone(objOf(r.quests).done) };
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   return out;

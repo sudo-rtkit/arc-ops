@@ -297,3 +297,14 @@
 .loot-scan-table td:nth-child(3) { min-width: 240px; }
 .loot-scan-table .stepper { justify-content: flex-end; }
 .loot-scan-table tr.muted td { opacity: 0.55; }
+
+/* ----- Quests (milník 3b, data ARC Tracker) ----- */
+.quest-table { min-width: 860px; }
+.quest-table td:nth-child(2) { min-width: 240px; }
+.quest-table td:nth-child(4), .quest-table td:nth-child(5) { max-width: 260px; }
+.quest-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3) var(--space-4); padding: var(--space-2) 0; }
+.quest-detail h4 { margin: 0 0 var(--space-1); font-size: inherit; color: var(--text-secondary); font-weight: var(--weight-semibold); }
+.quest-items, .quest-objectives { margin: 0; padding-left: 1.2em; }
+.quest-items { list-style: none; padding-left: 0; }
+.project-card h3 { margin: 0; }
+.project-phase { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); border-top: var(--line-thin) solid var(--border-subtle); }

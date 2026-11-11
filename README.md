@@ -46,4 +46,7 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - **Inventory → Vybavení**: evidence předmětů mimo materiály po kategoriích; import ze snímku do ní zapisuje přesné počty.
 - **Zápis raidu → Loot ze snímku**: batoh a quick use ze snímku po raidu, minus zadaná výbava, předvyplní loot ke kontrole.
 - Vlastní snímky hráče v `tests/fixtures/vision/own/` jsou jen lokálně (v .gitignore); testy nad nimi se bez nich přeskočí.
+- **Quests**: úkoly obchodníků s ručním zaškrtnutím, předměty k donesení v nákupním seznamu a Planneru, projekty sezóny.
+  Data z veřejných endpointů ARC Tracker (bez přihlášení a bez propojení účtu), generuje `node scripts/gen-arctracker.mjs`
+  (cache v `scripts/.cache/arctracker/`; `--offline` jen z cache) do `src/core/data/arctracker.ts`.
 - Plán: `docs/superpowers/plans/2026-11-11-milnik-3b.md`.

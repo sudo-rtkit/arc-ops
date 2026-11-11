@@ -19,6 +19,7 @@ import { STATIONS } from '../core/data/stations';
 import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { setQuestDone } from '../core/quests';
 import { normalizeItemStock } from '../core/visionState';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
@@ -58,11 +59,11 @@ export interface AppStore {
 export interface AppOptions { now?: () => number; debounceMs?: number; retryMs?: number; maxRetryMs?: number; lang?: Lang; weekCheckMs?: number }
 
 export type ProfileField = 'level' | 'coins' | 'xp' | 'xpNext' | 'rounds' | 'expBonus' | 'rewardPass' | 'amplified';
-export type ResetModule = 'profile' | 'skills' | 'workshop' | 'inventory' | 'raids' | 'trials' | 'checklists' | 'maps' | 'arc' | 'weapons' | 'dashboard' | 'steps'
+export type ResetModule = 'profile' | 'skills' | 'workshop' | 'inventory' | 'quests' | 'raids' | 'trials' | 'checklists' | 'maps' | 'arc' | 'weapons' | 'dashboard' | 'steps'
   | 'goals' | 'planner' | 'loadouts' | 'routes';
 
 /* Moduly pro reset; název a dopad jsou ve slovníku (reset.<id>.name / reset.<id>.impact). */
-export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes'] as ResetModule[]).map(id => ({ id }));
+export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'quests', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes'] as ResetModule[]).map(id => ({ id }));
 export const resetName = (id: ResetModule): string => t(`reset.${id}.name` as Key);
 export const resetImpact = (id: ResetModule): string => t(`reset.${id}.impact` as Key);
 
@@ -546,6 +547,19 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
     },
     setPlannerIncludeGoals(v: boolean) { change(s => { if (s.planner.includeGoals === v) return false; s.planner.includeGoals = v; }); },
+    setPlannerIncludeQuests(v: boolean) { change(s => { if (s.planner.includeQuests === v) return false; s.planner.includeQuests = v; }); },
+
+    /* úkoly: zaškrtnutí doplní i předchozí úkoly řetězu (splněný úkol je nemá jak přeskočit) */
+    questSet(id: string, done: boolean): number {
+      let n = 0;
+      change(s => {
+        const next = setQuestDone(s.quests.done, id, done, now());
+        n = Object.keys(next).length - Object.keys(s.quests.done).length;
+        if (next === s.quests.done || (n === 0 && !!s.quests.done[id] === done)) return false;
+        s.quests.done = next;
+      });
+      return n;
+    },
     addPlannerItem(input: Partial<PlannerItem>): string {
       const id = uid();
       change(s => { s.planner.items.push(normalizePlanner({ items: [{ ...input, id }] }).items[0]); });
@@ -821,6 +835,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'profile': s.profile = d.profile; s.profileLog = []; break;
         case 'skills': s.skills = d.skills; break;
         case 'workshop': s.stations = d.stations; s.gameData.recipes = {}; break;
+        case 'quests': s.quests = d.quests; break;
         case 'inventory': s.inventory = {}; s.items = {}; s.gameData.materials = {}; s.gameData.materialsCustom = []; break;
         case 'raids': s.raids = []; for (const g of s.goals) g.doneRaid = ''; break;
         case 'trials': s.trials = { ...d.trials, week: s.trials.week }; break;

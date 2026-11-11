@@ -95,6 +95,13 @@ Snímek po raidu → rozpozná BACKPACK (a QUICK USE). Od výsledku se odečte v
 - „Naučené ikony: 37 · Smazat naučené“ (s potvrzením).
 - „Zdroje dat“ s MetaForge (3b).
 
+### Quests a projekty (3b, doplněk)
+Veřejná herní data ARC Tracker (úkoly, hideout, projekty; bez přihlášení a bez propojení účtu). Modul Quests: seznam
+úkolů s ručním zaškrtnutím (zaškrtnutí doplní předchozí úkoly řetězu), cíle, předměty k donesení a odměny; předměty
+k donesení u dostupných úkolů jdou do nákupního seznamu a Planneru. Záložka Projekty je přehled fází. Workshop se
+s daty ARC Tracker shoduje, zdrojem zůstávají stanice z deníku. Stav: schéma 4 (`quests.done`, `planner.includeQuests`).
+Uvedení zdroje v Settings → Zdroje dat. Podrobnosti: plán 3b.
+
 ## 4. Chybové stavy
 
 | Situace | Chování |

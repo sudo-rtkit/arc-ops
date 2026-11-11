@@ -52,7 +52,7 @@ describe('zpětné načtení', () => {
     expect(s.gameData.recipes['gunsmith:3']).toEqual([['Metal Parts', 5]]);
     expect(s.goals).toEqual([]);
     expect(s.loadouts).toEqual([]);
-    expect(s.planner).toEqual({ stations: {}, items: [], includeGoals: true });
+    expect(s.planner).toEqual({ stations: {}, items: [], includeGoals: true, includeQuests: true });
     expect(s.gameData.routes).toEqual({});
     expect(s.gameData.sellCustom).toEqual([]);
     /* nové karty dashboardu se přidají na konec, skrytí a pořadí zůstanou */

@@ -20,9 +20,9 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-test('nové záložky Dashboardu, Inventory a Weapons se otevřou bez chyby; navigace má 14 položek', async ({ page }) => {
+test('nové záložky Dashboardu, Inventory a Weapons se otevřou bez chyby; navigace má 15 položek', async ({ page }) => {
   const errors = watchErrors(page);
-  await expect(page.locator('.sidebar a.nav-item')).toHaveCount(14);
+  await expect(page.locator('.sidebar a.nav-item')).toHaveCount(15);
   for (const [hash, text] of [['#dashboard/goals', 'Goal Tracker'], ['#dashboard/recs', 'Zapiš první raid'], ['#inventory/planner', 'Cílové úrovně stanic'], ['#weapons/loadouts', 'Zatím nemáš uložený loadout']]) {
     await page.goto('/' + hash);
     await expect(page.getByText(text).first()).toBeVisible();

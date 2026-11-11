@@ -28,9 +28,9 @@ const M2 = { ...M1, goals: [{ id: 'g', title: 'Cíl uživatele', link: { kind: '
 afterEach(() => setLang('cs'));
 
 describe('stav: pole settings.lang', () => {
-  /* Pole lang schéma nezvedlo (0.3.0); schéma 3 přišlo až s milníkem 3a (items, vision). */
-  it('schéma zvedl až milník 3a, ne pole lang', () => {
-    expect(SCHEMA).toBe(3);
+  /* Pole lang schéma nezvedlo (0.3.0); schéma 3 přišlo s milníkem 3a (items, vision), 4 s úkoly (3b). */
+  it('schéma zvedly až milníky 3a a 3b, ne pole lang', () => {
+    expect(SCHEMA).toBe(4);
   });
 
   it('starší stav (milník 1 a 2) se načte beze ztrát a chybějící jazyk dostane výchozí hodnotu', () => {
