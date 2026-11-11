@@ -1,0 +1,85 @@
+/* Instance store pro UI a hooky pro React. */
+import { useMemo, useSyncExternalStore } from 'react';
+import { useStore } from 'zustand';
+import { createApp, type AppStore } from './app';
+import { createStorage } from '../storage';
+import { setExternalOpener } from '../ui/components';
+import type { AppState } from '../core/types';
+import { getArc, getMaterials, getRoutes, getSell, getSources, getStations, getWeapons, routeLookup } from '../core/gamedata';
+import { planNeeds, stationTargets } from '../core/planner';
+import { recommend } from '../core/recommend';
+import { DASH } from '../ui/format';
+import { nextNeeds, readiness, shopping, workshopProgress } from '../core/workshop';
+import { phases } from '../core/phases';
+import { mapStatus } from '../core/maps';
+import { runStats } from '../core/runs';
+import { budget, totalPoints, planSteps, planName, nextPlanPoint } from '../core/skills';
+import { navigatorLang, setLang, t } from '../i18n';
+
+/* Jazyk prvního spuštění (a stavu bez uložené volby) podle navigator.language; pak platí volba v Settings. */
+export const app = createApp(createStorage(), { lang: navigatorLang() });
+export const actions = app.actions;
+setExternalOpener(url => { if (url.startsWith('https://')) void app.storage.openExternal(url).catch(() => app.notify(t('notice.linkFailed'), 'danger')); });
+
+/* Jazyk UI sleduje stav: přihlášení proběhne dřív než u Reactu, takže komponenty už při překreslení čtou nový jazyk. */
+setLang(app.store.getState().state.settings.lang);
+app.store.subscribe(st => setLang(st.state.settings.lang));
+
+export function useApp<T>(sel: (s: AppStore) => T): T { return useStore(app.store, sel); }
+export const useAppState = (): AppState => useApp(s => s.state);
+
+/* Odvozené hodnoty: počítají se v jádru, jednou na změnu stavu. */
+export function derive(s: AppState) {
+  const stations = getStations(s.gameData);
+  const sources = getSources(s.gameData);
+  const view = { stations: s.stations, inventory: s.inventory, profile: s.profile };
+  const needs = nextNeeds(view, stations).map(n => ({ ...n, ready: readiness(s.inventory, n.mats) }));
+  const shop = shopping(view, stations, sources);
+  const steps = planSteps(s.skills.activePlan, s.skills.builds);
+  const weapons = getWeapons(s.gameData);
+  const allRoutes = routeLookup(s.gameData);
+  const routeNames: Record<string, string> = Object.fromEntries(allRoutes.map(r => [r.id, r.name]));
+  const loadoutNames: Record<string, string> = Object.fromEntries(s.loadouts.map(l => [l.id, l.name]));
+  return {
+    stations, sources, needs, shop,
+    materials: getMaterials(s),
+    arc: getArc(s.gameData),
+    weapons,
+    weaponName: (id: string): string => weapons.find(w => w.id === id)?.name || id,
+    routes: getRoutes(s.gameData),
+    allRoutes,
+    routeName: (id: string): string => (id ? routeNames[id] || id : DASH),
+    loadoutName: (id: string): string => (id ? loadoutNames[id] || t('common.deletedLoadout') : DASH),
+    sell: getSell(s.gameData),
+    plan: planNeeds(view, s.planner, s.goals, stations, sources),
+    targets: stationTargets(view, s.planner, s.goals, stations),
+    recs: recommend(s, Date.now()),
+    workshop: workshopProgress(s.stations, stations),
+    phases: phases({ profile: s.profile, stations: s.stations, skills: s.skills }),
+    maps: mapStatus(s.profile.rounds),
+    runs: runStats(s.raids),
+    used: totalPoints(s.skills.current),
+    budget: budget(s.profile),
+    planSteps: steps,
+    planName: planName(s.skills.activePlan, s.skills.builds),
+    nextPoint: nextPlanPoint(s.skills.current, steps),
+  };
+}
+export type Derived = ReturnType<typeof derive>;
+export function useDerived(): Derived {
+  const s = useAppState();
+  return useMemo(() => derive(s), [s]);
+}
+
+/* ----- směrování přes location.hash: #modul nebo #modul/podsekce ----- */
+function subscribeHash(cb: () => void) { window.addEventListener('hashchange', cb); return () => window.removeEventListener('hashchange', cb); }
+const getHash = () => window.location.hash;
+export function useRoute(): { module: string; sub: string } {
+  const h = useSyncExternalStore(subscribeHash, getHash, () => '');
+  const [module, sub = ''] = h.replace(/^#\/?/, '').split('/');
+  return { module: module || 'dashboard', sub: decodeURIComponent(sub) };
+}
+export function navigate(module: string, sub?: string) {
+  const h = '#' + module + (sub ? '/' + encodeURIComponent(sub) : '');
+  if (window.location.hash !== h) window.location.hash = h;
+}

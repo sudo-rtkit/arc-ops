@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-11",
+  "old_tokens_preserved": 57,
+  "total_tokens": 126,
+  "missing_tokens": [],
+  "css_block_equals_standalone": true,
+  "screenshots": {
+    "00-dashboard-fresh-1280.png": [
+      1280,
+      800
+    ],
+    "arc-1280.png": [
+      1280,
+      800
+    ],
+    "checklist-1280.png": [
+      1280,
+      800
+    ],
+    "dashboard-1280.png": [
+      1280,
+      800
+    ],
+    "dashboard-1920.png": [
+      1920,
+      1080
+    ],
+    "dashboard-goals-1280.png": [
+      1280,
+      800
+    ],
+    "dashboard-recs-1280.png": [
+      1280,
+      800
+    ],
+    "inventory-1280.png": [
+      1280,
+      800
+    ],
+    "inventory-planner-1280.png": [
+      1280,
+      800
+    ],
+    "journal-1280.png": [
+      1280,
+      800
+    ],
+    "journal-detail-1280.png": [
+      1280,
+      800
+    ],
+    "maps-1280.png": [
+      1280,
+      800
+    ],
+    "money-1280.png": [
+      1280,
+      800
+    ],
+    "profile-1280.png": [
+      1280,
+      800
+    ],
+    "settings-1280.png": [
+      1280,
+      800
+    ],
+    "skills-1280.png": [
+      1280,
+      800
+    ],
+    "stats-1280.png": [
+      1280,
+      800
+    ],
+    "trials-1280.png": [
+      1280,
+      800
+    ],
+    "weapons-1280.png": [
+      1280,
+      800
+    ],
+    "weapons-loadouts-1280.png": [
+      1280,
+      800
+    ],
+    "workshop-1280.png": [
+      1280,
+      800
+    ]
+  },
+  "mockups": {
+    "components-gpt-image.png": [
+      1672,
+      941
+    ],
+    "dashboard-gpt-image.png": [
+      1920,
+      1080
+    ],
+    "journal-gpt-image.png": [
+      1402,
+      1122
+    ],
+    "planner-gpt-image.png": [
+      1586,
+      992
+    ]
+  },
+  "capture_page_errors": [],
+  "limitations": "Generated visual references; exact implementation governed by visual-v2.md and tokens-v2.css. See mockups/review.md."
+}

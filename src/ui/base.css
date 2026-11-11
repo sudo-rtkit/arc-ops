@@ -1,0 +1,53 @@
+/* Základ podle docs/design/visual-v2.md kap. 3 (typografie, kontrast, focus). */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font: var(--weight-regular) var(--font-size-md)/var(--line-md) var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-head); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-head); }
+h1 { font-size: var(--font-size-h1); line-height: var(--line-h1); }
+h2 { font-size: var(--font-size-h2); line-height: var(--line-lg); }
+h3 { font-size: var(--font-size-h3); line-height: var(--line-lg); }
+p { margin: 0; }
+b, strong { font-weight: var(--weight-semibold); }
+a { color: var(--accent); transition: color var(--t-fast); }
+a:hover { color: var(--accent-hover); }
+a:active { color: var(--accent-pressed); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
+::selection { background: var(--bg-selected); color: var(--text-primary); }
+::placeholder { color: var(--text-muted); opacity: 1; }
+.mono, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.num { text-align: right; }
+.muted { color: var(--text-muted); }
+.secondary-text { color: var(--text-secondary); }
+.amber { color: var(--amber); }
+.orange { color: var(--orange); }
+.success { color: var(--success); }
+.danger { color: var(--danger); }
+.accent { color: var(--accent); }
+.label {
+  font: var(--weight-semibold) var(--font-size-xs)/var(--line-xs) var(--font-ui); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--text-muted);
+}
+.meta { font: var(--weight-medium) var(--font-size-xs)/var(--line-xs) var(--font-ui); color: var(--text-muted); }
+.meta.mono, .mono.meta { font-family: var(--font-mono); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.wrap { overflow-wrap: anywhere; }
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); border: 3px solid var(--bg-app); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-control); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

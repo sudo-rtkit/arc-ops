@@ -1,0 +1,26 @@
+# ARC Raiders Companion
+
+Neoficiální offline desktopová aplikace pro hráče ARC Raiders (Tauri 2, React 19, TypeScript, Vite, pnpm).
+UI je česky (výchozí) a anglicky; jazyk se přepíná v Settings & Backup.
+
+## Vývoj
+
+- `pnpm dev` (prohlížeč, localStorage), `pnpm tauri dev` (desktop)
+- `pnpm test` (Vitest), `pnpm build`, `pnpm e2e` (Playwright nad sestavenou aplikací), `cd src-tauri && cargo test`
+- `pnpm tauri build` (NSIS instalátor s volbou češtiny a angličtiny)
+
+## Texty a jazyky (i18n)
+
+**Každý nový text UI musí jít přes slovník v obou jazycích.** Natvrdo psaný text v `src/modules`, `src/shell` ani
+`src/ui` neprojde testem `tests/i18n/guard.test.ts`.
+
+- Klíč přidej do `src/i18n/cs.ts` (zdroj pravdy) i do `src/i18n/en.ts`. Chybějící klíč v angličtině je chyba `tsc`,
+  parita a prázdné hodnoty hlídá `tests/i18n/dict.test.ts`.
+- V komponentě: `const t = useT();` a `t('klic', { name, count })`. Plurál: `{ one, few, other }` podle `count`
+  (cs 1 / 2–4 / 5+, en 1 / jinak). Čísla v parametrech se formátují podle jazyka, `{x:pct}` jsou procenta, `{x:raw}` bez formátu.
+- Čísla, data a časy jen přes `src/ui/format.ts` (`fmt`, `fmtDate`, `pct`, …), ty berou jazyk z UI.
+- Popisné texty herních dat: česky v `src/core/data/*`, anglicky v `src/core/data/en.ts`, výběr podle jazyka v
+  `src/core/gametext.ts`. Herní názvy (předměty, mapy, ARC, skilly, stanice, zbraně) se nepřekládají.
+- Uživatelský text a už uložený obsah se nikdy nepřepisuje; výchozí obsah vzniká v jazyce stavu (`settings.lang`).
+
+Podrobnosti: `docs/superpowers/plans/2026-11-12-i18n-en.md`.

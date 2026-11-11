@@ -1,0 +1,8 @@
+﻿import json,re
+from pathlib import Path
+from PIL import Image
+p=Path('docs/design'); doc=(p/'visual-v2.md').read_text(encoding='utf-8'); tokens=(p/'tokens-v2.css').read_text(encoding='utf-8');old=set(re.findall(r'(--[\w-]+)\s*:',Path('src/ui/tokens.css').read_text(encoding='utf-8')));new=set(re.findall(r'(--[\w-]+)\s*:',tokens)); assert not old-new;assert '```css\n'+tokens+'```' in doc;assert '<!--' not in doc
+captures={f.name:Image.open(f).size for f in sorted((p/'current').glob('*.png'))};assert len(captures)==21;assert captures['dashboard-1920.png']==(1920,1080);assert all(s==(1280,800) for n,s in captures.items() if n!='dashboard-1920.png')
+mockups={f.name:Image.open(f).size for f in sorted((p/'mockups').glob('*.png'))};assert len(mockups)==4;assert mockups['dashboard-gpt-image.png']==(1920,1080)
+audit={'date':'2026-11-11','old_tokens_preserved':len(old),'total_tokens':len(new),'missing_tokens':sorted(old-new),'css_block_equals_standalone':True,'screenshots':captures,'mockups':mockups,'capture_page_errors':json.loads((p/'current/capture-manifest.json').read_text())['errors'],'limitations':'Generated visual references; exact implementation governed by visual-v2.md and tokens-v2.css. See mockups/review.md.'};(p/'verification.json').write_text(json.dumps(audit,indent=2,ensure_ascii=False),encoding='utf-8')
+files=sorted(str(f.relative_to(p)).replace('\\','/') for f in p.rglob('*') if f.is_file() and f.name!='files.md');(p/'files.md').write_text('# Vytvořené nebo obnovené soubory\n\n'+''.join('- `'+f+'`\n' for f in files),encoding='utf-8');print(json.dumps(audit,ensure_ascii=False))
