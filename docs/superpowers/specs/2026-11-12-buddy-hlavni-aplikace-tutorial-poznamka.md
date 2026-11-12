@@ -42,6 +42,27 @@ Ukázkové texty k doladění:
   Odpovědi: „Sedí, uložit“ / „Opravit“. Hodnota musí pocházet ze skutečného výsledku rozpoznání.
 - Závěr: „Máme základ. Kliknutím na mě otevřeš výbavu a plány. Budu tady, až se vrátíš.“
 
+## Povaha Opse (schváleno 12. 11. 2026)
+
+Uživatel chce volbu povahy Opse v dialozích. Inspirací je ukecanost a sebeironie Claptrapa z Borderlands,
+ale přebírá se **jen tón textů**, nikdy vzhled ani hlášky té postavy (cizí IP).
+
+- Volba v nastavení: **Věcný** / **Kamarádský** (výchozí) / **Drzý**. Každá hláška má varianty pro všechny tři povahy.
+  - Věcný: „Chybí ti 2× Power Cable na Gear Bench 2.“
+  - Kamarádský: „Ještě dva kabely a Gear Bench je tvůj, raidere.“
+  - Drzý: „Dva kabely. DVA. Viděl jsem tě projít kolem tří a nechat je tam ležet.“
+- Varianty se střídají (pro každou situaci víc hlášek), aby se neopakovaly pořád dokola.
+- Drzost nikdy nesmí být urážlivá ani vulgární; žádné narážky na skutečné hráče.
+- Při hraní Ops nevyrušuje (stejné pravidlo jako u zvuků): bubliny jen při práci s Opsem nebo overlayem.
+- Připravené texty v CS i EN, offline, žádný AI chat.
+
+## Kompaktní režim hlavního okna (schváleno 12. 11. 2026)
+
+Uživatel zvolil **kompaktní režim** místo „Opse jako hlavní aplikace“: hlavní okno půjde přepnout do malého okna
+(asi 420 × 720, volitelně vždy navrchu) s levelem a XP, mincemi, aktivními úkoly, nákupy, další úrovní stanice
+a rychlými akcemi (snímek, zápis raidu, úklid stashe); jedním kliknutím zpět na celou aplikaci. Buddy zůstává
+volitelný doplněk nad hrou. Návrh kreslí Sol v `docs/design/compact/`, implementace Opus.
+
 ## Při příštím projití s Claudem
 
 - Upřesnit rozsah buildu, průběh dialogů a návaznost na připravované rozpoznávání profilu a dalších obrazovek.
