@@ -20,6 +20,8 @@ import { emptyOpsPrefs, normalizeOpsPrefs } from './opsPrefs';
 import { emptyGames, normalizeGames } from './minigames';
 import { emptyRounds, normalizeRounds } from './gameRounds';
 import { migrateMaterialNames } from './materialRename';
+import { normalizeRaidPlan } from './raidPrep';
+import { isLootArea, isPoiType } from './lootAreas';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -28,7 +30,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 12 as const;
+export const SCHEMA = 13 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -46,7 +48,7 @@ export const defaultTemplates = (lang: Lang = 'cs'): ChecklistTemplate[] => [{
   id: RAID_TEMPLATE_ID, name: tl(lang, 'default.raidTemplate'), items: raidCheckText(lang).map((x, i) => ({ id: raidCheckId(i), text: x })),
 }];
 export const defaultStations = (): Record<string, number> => Object.fromEntries(STATIONS.map(s => [s.id, s.min]));
-export const emptyMapNotes = (): MapNotes => ({ notes: '', visited: {}, pois: [], todo: [] });
+export const emptyMapNotes = (): MapNotes => ({ notes: '', visited: {}, pois: [], todo: [], harmonise: true, img: null });
 export const emptyGameData = (): GameDataEdits => ({
   arc: {}, arcCustom: [], arcHidden: {}, weapons: {}, weaponsCustom: [], weaponsHidden: {},
   materials: {}, materialsCustom: [], recipes: {},
@@ -88,6 +90,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     opsPrefs: emptyOpsPrefs(),
     games: emptyGames(),
     gameRounds: emptyRounds(),
+    raidPlan: null,
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -178,6 +181,29 @@ function normalizeTemplates(raw: unknown, lang: Lang): ChecklistTemplate[] {
   return list;
 }
 
+/* Body map: starší bod jen s názvem a poznámkou (do 0.13.1) dostane typ „poznámka“, neznámý typ místa a žádnou
+   polohu, takže nic nezmizí. Poloha je relativní (0–1); neplatná se zahodí, bod zůstane v seznamu. */
+const rel = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? Math.round(v * 1e5) / 1e5 : undefined);
+export function normalizePois(raw: unknown): Poi[] {
+  const seen = new Set<string>();
+  return arr(raw).filter(isObj).slice(0, 300).map((p): Poi => {
+    let id = text(p.id || uid(), 24);
+    if (seen.has(id)) id = uid() + seen.size;
+    seen.add(id);
+    const x = rel(p.x), y = rel(p.y);
+    return {
+      id, name: text(p.name, 120), note: text(p.note, 1000),
+      type: isPoiType(p.type) ? p.type : 'note', area: isLootArea(p.area) ? p.area : '',
+      ...(x !== undefined && y !== undefined ? { x, y } : {}),
+    };
+  });
+}
+function normalizeMapImage(raw: unknown): MapNotes['img'] {
+  if (!isObj(raw)) return null;
+  const w = clampInt(raw.w || 0, 0, 20000), h = clampInt(raw.h || 0, 0, 20000);
+  return w > 0 && h > 0 ? { w, h, at: clampInt(raw.at || 0, 0, 9e15) } : null;
+}
+
 function normalizeMapNotes(raw: unknown): Record<string, MapNotes> {
   const out: Record<string, MapNotes> = {};
   for (const [k, v] of Object.entries(objOf(raw))) {
@@ -185,8 +211,11 @@ function normalizeMapNotes(raw: unknown): Record<string, MapNotes> {
     out[k] = {
       notes: text(v.notes, 8000),
       visited: trueMap(v.visited, () => true, 200),
-      pois: arr(v.pois).filter(isObj).slice(0, 300).map((p): Poi => ({ id: text(p.id || uid(), 24), name: text(p.name, 120), note: text(p.note, 1000) })),
+      pois: normalizePois(v.pois),
       todo: arr(v.todo).filter(isObj).slice(0, 300).map((t): StepItem => ({ id: text(t.id || uid(), 24), text: text(t.text, 300), done: t.done === true })),
+      /* schéma 13 (0.14.0): ve starším stavu chybí; sladění barev zapnuté, bez snímku */
+      harmonise: v.harmonise !== false,
+      img: normalizeMapImage(v.img),
     };
   }
   return out;
@@ -423,6 +452,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   /* schéma 12 (0.13.0): rozehraná kola miniher; ve starším stavu chybí a začnou prázdná. Vadné kolo jedné hry se
      zahodí samo, ostatní data (i rekordy a nátěry) zůstanou. */
   out.gameRounds = normalizeRounds(r.gameRounds);
+  /* schéma 13 (0.14.0): aktivní plán raidu; ve starším stavu chybí a začne prázdný. Body map viz normalizePois. */
+  out.raidPlan = normalizeRaidPlan(r.raidPlan);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */

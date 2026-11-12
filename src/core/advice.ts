@@ -45,6 +45,11 @@ export function needIndex(list: NeedInput[]): NeedIndex {
    další fáze běžících projektů a nenaučené blueprinty ve vybavení. Úkoly a cíle se počítají vždy (i když je
    Planner nezahrnuje). today = YYYY-MM-DD. */
 export function collectNeeds(s: AppState, today: string, lang: Lang): NeedIndex {
+  return needIndex(collectNeedList(s, today, lang));
+}
+/* Seznam potřeb před sečtením (0.14.0: příprava na raid k němu přidá požadavky plánu, needIndex je sečte bez dvojího
+   počítání stejného zdroje). */
+export function collectNeedList(s: AppState, today: string, lang: Lang): NeedInput[] {
   const stations = getStations(s.gameData);
   const view = { stations: s.stations, inventory: s.inventory, profile: s.profile };
   const list: NeedInput[] = [];
@@ -61,7 +66,7 @@ export function collectNeeds(s: AppState, today: string, lang: Lang): NeedIndex 
   for (const it of Object.values(s.items)) {
     if (isBlueprint(it.name) && !s.blueprints[it.name]) list.push({ key: `blueprint:${it.name}`, kind: 'blueprint', label: t('advice.src.blueprint'), mat: it.name, qty: 1 });
   }
-  return needIndex(list);
+  return list;
 }
 
 export interface StockEntry { key: string; name: string; count: number; kind: 'material' | 'item' }

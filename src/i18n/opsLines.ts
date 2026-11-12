@@ -258,6 +258,26 @@ const cs = {
     friendly: ['Všechno sedí. Čekáš na zápas? Dáme spolu Stash Tetris nebo kvíz?', 'Nic nechybí, raidere. Mimo raid si můžeme zahrát minihru, jestli chceš.'],
     cheeky: ['Nic nechybí. Nuda. Co takhle Stash Tetris? Stejně tě porazím.', 'Hotovo. Jestli se nudíš v lobby, mám pro tebe kvíz. Těžký.'],
   },
+  /* ----- 0.14.0: spuštění plánu raidu ----- */
+  'raid.start': {
+    plain: [
+      { one: 'Plán uložen. Mapa {map:raw}, k hledání {count} kus.', few: 'Plán uložen. Mapa {map:raw}, k hledání {count} kusy.', other: 'Plán uložen. Mapa {map:raw}, k hledání {count} kusů.' },
+      { one: 'Cíl: {map:raw}. Seznam má {count} kus. Seznam najdeš v overlayi.', few: 'Cíl: {map:raw}. Seznam má {count} kusy. Seznam najdeš v overlayi.', other: 'Cíl: {map:raw}. Seznam má {count} kusů. Seznam najdeš v overlayi.' },
+    ],
+    friendly: [
+      { one: 'Jedem na {map:raw}! Hledáme {count} kus, seznam máš v overlayi.', few: 'Jedem na {map:raw}! Hledáme {count} kusy, seznam máš v overlayi.', other: 'Jedem na {map:raw}! Hledáme {count} kusů, seznam máš v overlayi.' },
+      { one: 'Plán sedí. {map:raw} a {count} kus k nalezení. Hodně štěstí!', few: 'Plán sedí. {map:raw} a {count} kusy k nalezení. Hodně štěstí!', other: 'Plán sedí. {map:raw} a {count} kusů k nalezení. Hodně štěstí!' },
+    ],
+    cheeky: [
+      { one: '{map:raw}, {count} kus. Zvládneš to, já tě budu kritizovat z bezpečí.', few: '{map:raw}, {count} kusy. Zvládneš to, já tě budu kritizovat z bezpečí.', other: '{map:raw}, {count} kusů. Zvládneš to, já tě budu kritizovat z bezpečí.' },
+      { one: 'Nákupní seznam na {map:raw}: {count} kus. Účtenku nechci.', few: 'Nákupní seznam na {map:raw}: {count} kusy. Účtenku nechci.', other: 'Nákupní seznam na {map:raw}: {count} kusů. Účtenku nechci.' },
+    ],
+  },
+  'raid.startEmpty': {
+    plain: ['Plán uložen. Mapa {map:raw}, nic nechybí.', 'Cíl: {map:raw}. Seznam je prázdný.'],
+    friendly: ['Jedem na {map:raw}! Nic nechybí, tak hlavně vydělávej.', 'Plán je venku: {map:raw}. Seznam je prázdný, užij si raid.'],
+    cheeky: ['{map:raw} a prázdný seznam. Turistika, nebo money run?', 'Nic nechybí. Tak aspoň přines něco hezkého z {map:raw}.'],
+  },
   'game.win': {
     plain: ['Kolo vyhrané.', 'Dobrý výsledek.'],
     friendly: ['Paráda, tohle kolo je tvoje!', 'Výborně! Takhle se balí batoh.'],
@@ -537,6 +557,26 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['All done. Outside a raid you can try a minigame: Stash Tetris or the quiz.', 'Nothing missing. The Minigames module has Stash Tetris and a recycle quiz.'],
     friendly: ['All good. Waiting for a match? Fancy some Stash Tetris or the quiz?', 'Nothing missing, raider. Outside a raid we can play a minigame, if you like.'],
     cheeky: ['Nothing missing. Boring. How about Stash Tetris? I will win anyway.', 'Done. If the lobby bores you, I have a quiz. A hard one.'],
+  },
+  /* ----- 0.14.0: raid plan started ----- */
+  'raid.start': {
+    plain: [
+      { one: 'Plan saved. Map {map:raw}, {count} unit to find.', other: 'Plan saved. Map {map:raw}, {count} units to find.' },
+      { one: 'Target: {map:raw}. The list has {count} unit. It is in the overlay.', other: 'Target: {map:raw}. The list has {count} units. It is in the overlay.' },
+    ],
+    friendly: [
+      { one: 'Off to {map:raw}! We are after {count} unit; your list is in the overlay.', other: 'Off to {map:raw}! We are after {count} units; your list is in the overlay.' },
+      { one: 'Plan locked in. {map:raw} and {count} unit to find. Good luck!', other: 'Plan locked in. {map:raw} and {count} units to find. Good luck!' },
+    ],
+    cheeky: [
+      { one: '{map:raw}, {count} unit. You can do it, I will critique from safety.', other: '{map:raw}, {count} units. You can do it, I will critique from safety.' },
+      { one: 'Shopping list for {map:raw}: {count} unit. Keep the receipt.', other: 'Shopping list for {map:raw}: {count} units. Keep the receipt.' },
+    ],
+  },
+  'raid.startEmpty': {
+    plain: ['Plan saved. Map {map:raw}, nothing missing.', 'Target: {map:raw}. The list is empty.'],
+    friendly: ['Off to {map:raw}! Nothing missing, so go make some money.', 'Plan is out: {map:raw}. Empty list, enjoy the raid.'],
+    cheeky: ['{map:raw} with an empty list. Sightseeing or money run?', 'Nothing missing. Bring me something shiny from {map:raw}.'],
   },
   'game.win': {
     plain: ['Round won.', 'Good result.'],

@@ -397,6 +397,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const q = p as { id?: unknown; done?: unknown } | null;
       if (q && typeof q.id === 'string' && typeof q.done === 'boolean') app.actions.questSet(q.id, q.done);
     }));
+    /* 0.14.0: zaškrtnutí „mám“ v záložce Raid; jen orientační, inventář se nemění */
+    offs.push(bus.on('raidFound', p => {
+      const o = p as { mat?: unknown; on?: unknown } | null;
+      if (o && typeof o.mat === 'string' && typeof o.on === 'boolean') app.actions.setRaidFound(o.mat, o.on);
+    }));
     /* 0.10.1: rychlé úpravy z modulů overlaye; jen známé operace a hodnoty, provede je stejná akce store */
     offs.push(bus.on('edit', p => applyEdit(p)));
     offs.push(bus.on('opacity', p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); }));

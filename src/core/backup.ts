@@ -4,14 +4,28 @@ import { isObj } from './util';
 import { normalize, SCHEMA } from './state';
 import { importV1, isDiaryV1, type ImportReport } from './importV1';
 import { tl, type Lang } from '../i18n';
+import { MAPS } from './data/maps';
 
 export const APP_ID = 'arc-raiders-companion';
 
-export interface BackupFile { app: typeof APP_ID; schema: number; exportedAt: string; state: AppState }
+/* mapImages (0.14.0): vlastní snímky map, jen když je hráč do zálohy výslovně přidá (výchozí vypnuto). */
+export interface BackupImage { mapId: string; dataUrl: string; w: number; h: number }
+export interface BackupFile { app: typeof APP_ID; schema: number; exportedAt: string; state: AppState; mapImages?: BackupImage[] }
 
-export function makeBackup(state: AppState, now: Date = new Date()): string {
+export function makeBackup(state: AppState, now: Date = new Date(), mapImages: BackupImage[] = []): string {
   const file: BackupFile = { app: APP_ID, schema: SCHEMA, exportedAt: now.toISOString(), state };
+  if (mapImages.length) file.mapImages = mapImages;
   return JSON.stringify(file, null, 1);
+}
+
+/* Snímky map ze zálohy: jen známé mapy, obrázková data URL (PNG, JPEG, WebP) a kladné rozměry. */
+const IMG_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+export function backupImages(raw: unknown): BackupImage[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  return raw.filter(isObj).filter(x => typeof x.mapId === 'string' && MAPS.some(m => m.id === x.mapId) && !seen.has(x.mapId as string)
+    && typeof x.dataUrl === 'string' && IMG_RE.test(x.dataUrl) && Number(x.w) > 0 && Number(x.h) > 0 && !!seen.add(x.mapId as string))
+    .map(x => ({ mapId: String(x.mapId), dataUrl: String(x.dataUrl), w: Math.round(Number(x.w)), h: Math.round(Number(x.h)) }));
 }
 
 /* Název souboru zálohy v jazyce UI (bez diakritiky): arc-companion-zaloha-… / arc-companion-backup-… */
@@ -21,7 +35,7 @@ export const backupFileName = (now: Date = new Date(), lang: Lang = 'cs'): strin
 };
 
 export type ParsedBackup =
-  | { kind: 'app' | 'diary'; state: AppState; report: ImportReport | null; exportedAt: string | null }
+  | { kind: 'app' | 'diary'; state: AppState; report: ImportReport | null; exportedAt: string | null; mapImages?: BackupImage[] }
   | { error: string };
 
 /* Kódy chyb jsou české texty z dřívějších verzí; UI je přeloží přes backupErrorText. */
@@ -38,7 +52,8 @@ export function parseBackup(textIn: string, now: number = Date.now(), lang: Lang
   if (raw.app === APP_ID) {
     if (typeof raw.schema !== 'number' || raw.schema > SCHEMA) return { error: typeof raw.schema === 'number' ? ERR_NEWER : ERR_INVALID };
     if (!isObj(raw.state)) return { error: ERR_INVALID };
-    return { kind: 'app', state: normalize(raw.state, now, lang), report: null, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null };
+    const images = backupImages(raw.mapImages);
+    return { kind: 'app', state: normalize(raw.state, now, lang), report: null, exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : null, ...(images.length ? { mapImages: images } : {}) };
   }
   if (typeof raw.schema === 'number') {
     if (raw.schema > SCHEMA) return { error: ERR_NEWER };

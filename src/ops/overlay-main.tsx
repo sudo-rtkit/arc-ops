@@ -13,6 +13,7 @@ import '@fontsource/jetbrains-mono/latin-ext-500.css';
 import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import '../ui/tokens.css';
+import '../ui/maps.css';
 import './overlay.css';
 import OverlayApp from './OverlayApp';
 

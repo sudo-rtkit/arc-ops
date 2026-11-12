@@ -87,7 +87,7 @@ for (const lang of ['cs', 'en'] as const) {
       await page.getByRole('button', { name: L.scale2 }).click();
       await page.waitForTimeout(700);
       let st = await stateOf(page);
-      expect(st.schema).toBe(12);
+      expect(st.schema).toBe(13);
       expect(st.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, opacity: 90, autoOpen: false });
       await sw.uncheck();
       await expect(page.getByTestId('ops-off')).toBeVisible();

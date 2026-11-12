@@ -1,6 +1,6 @@
 import {
   BookOpen, Bot, Boxes, ChartNoAxesCombined, Coins, Crosshair, Gamepad2, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
-  ScrollText, Settings, Trophy, UserRound, type LucideIcon,
+  ScrollText, Settings, Target, Trophy, UserRound, type LucideIcon,
 } from 'lucide-react';
 
 import type { Key } from '../i18n';
@@ -21,6 +21,8 @@ export const MODULES: ModuleDef[] = [
   { id: 'arc', name: 'ARC Database', icon: Bot, group: 'explore' },
   { id: 'weapons', name: 'Weapons', icon: Crosshair, group: 'explore' },
   { id: 'items', name: 'Item Database', icon: Boxes, group: 'explore' },
+  /* 0.14.0: příprava na raid (spec 2026-11-12-priprava-na-raid-design.md) */
+  { id: 'raid', name: 'Raid Prep', nameKey: 'nav.raidPrep', icon: Target, group: 'raids' },
   { id: 'money', name: 'Money Runs', icon: Coins, group: 'raids' },
   { id: 'trials', name: 'Weekly Trials', icon: Trophy, group: 'raids' },
   { id: 'journal', name: 'Raid Journal', icon: BookOpen, group: 'raids' },

@@ -150,13 +150,13 @@ describe('Ops: animace a okno', () => {
 
 describe('schéma 6', () => {
   it('výchozí stav má buddyho vypnutého; stav schématu 5 se načte beze ztrát a dostane výchozí hodnoty', () => {
-    expect(SCHEMA).toBe(12);
+    expect(SCHEMA).toBe(13);
     const d = defaultState(NOW);
     expect(d.buddy).toEqual(emptyBuddy());
     expect(d.buddy.enabled).toBe(false);
     const old = { schema: 5, profile: { level: 33 }, inventory: { 'Metal Parts': 4 }, tierList: { weapons: { S: ['x'] } } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(12);
+    expect(s.schema).toBe(13);
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
     expect(s.buddy).toEqual(emptyBuddy());
     expect(resolveOutfit(s.profile.level, s.buddy)).toEqual(OPS.unlocks[33].defaultOutfit);

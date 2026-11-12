@@ -187,3 +187,40 @@ button, input { font: inherit; color: inherit; }
 .ov-filter input[type='search'] { flex: 1; min-width: 140px; }
 .ov-tabs { overflow-x: auto; }
 .ov-review .pr-confs { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ----- 0.14.0: záložka Raid (návrh docs/design/maps/raid.html) ----- */
+.ovr { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 26px; align-items: start; }
+.ovr-left, .ovr-right { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.ovr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ovr-head h2 { margin: 0; font: 600 20px/1.2 var(--font-head); }
+.ovr-head span { font-size: 12px; color: var(--text-secondary); }
+.ovr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ovr-row label { display: flex; align-items: center; gap: 12px; min-height: 62px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #465158; border-radius: 4px; background: var(--bg-panel); cursor: pointer; }
+.ovr-row input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.ovr-row b { display: block; }
+.ovr-row .map-badges { margin-top: 3px; }
+.ovr-row strong { font: 600 20px var(--font-head); }
+.ovr-row.found label { opacity: .65; }
+.ovr-row.found b { text-decoration: line-through; }
+.ovr-lookup { margin-top: 8px; border-top: 1px solid var(--overlay-line); padding-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.ovr-lookup h3 { margin: 0 0 4px; font: 600 16px/1.3 var(--font-head); }
+.ovr-lookup label { font-size: 12px; }
+.ovr-search { position: relative; }
+.ovr-search input { width: 100%; box-sizing: border-box; height: 36px; padding: 0 34px 0 10px; background: #171D20; border: 1px solid var(--border-control); border-radius: 4px; }
+.ovr-search input::-webkit-search-cancel-button { display: none; }
+.ovr-search button { position: absolute; right: 4px; top: 4px; height: 28px; width: 28px; display: grid; place-items: center; background: transparent; border: 0; color: var(--accent); cursor: pointer; }
+.ovr-advice { display: grid; grid-template-columns: 92px 1fr; gap: 0 8px; padding: 10px 12px; background: #22352C; border-left: 3px solid #91CFAB; }
+.ovr-advice > b { font: 12px var(--font-mono); color: #91CFAB; letter-spacing: .04em; }
+.ovr-advice strong { font-size: 13px; }
+.ovr-advice p { grid-column: 2; margin: 3px 0 0; font-size: 12.5px; }
+.ovr-advice.sell { border-left-color: var(--amber); }
+.ovr-advice.recycle { border-left-color: #9CBFE0; }
+.ovr-advice.unknown, .ovr-advice.none { background: var(--bg-panel); border-left-color: var(--border-control); }
+.ovr-advice.unknown > b, .ovr-advice.none > b { color: var(--text-muted); }
+.ovr-mini { position: relative; overflow: hidden; background: #171D20; border: 1px solid var(--overlay-line); border-radius: 4px; }
+.ovr-nomap { height: 310px; display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box; border: 1px dashed var(--overlay-line); border-radius: 4px; color: var(--text-secondary); font-size: 12.5px; }
+.ovr-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 4px; }
+.ovr-lines { list-style: none; margin: 0; padding: 0; font-size: 12px; line-height: 1.8; }
+.ovr-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding-top: 22px; }
+.ovr-empty h2 { margin: 0; font: 600 28px/1.25 var(--font-head); }
+.ovr-empty p { margin: 0; color: var(--text-secondary); }

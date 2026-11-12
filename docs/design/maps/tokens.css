@@ -1,0 +1,32 @@
+:root{--map-paper:#171D20;--map-ink:#F2EEE7;--map-secondary:#C8C7C2;--map-muted:#A2A8AA;--map-accent:#F4AD82;--map-line:#849095;--map-grid:#D5DDD51C;--map-halo:#F2EEE7;--map-chip:#171D20;--map-chip-ink:#F2EEE7;--map-filter:saturate(.38) sepia(.22) hue-rotate(345deg) brightness(.72) contrast(.92);
+--loot-arc:#F4AD82;
+--loot-electrical:#E6D16F;
+--loot-mechanical:#9CBFE0;
+--loot-nature:#94CBA0;
+--loot-residential:#E9B2C9;
+--loot-medical:#78D2C6;
+--loot-commercial:#ECC396;
+--loot-old-world:#C4BEAB;
+--loot-technological:#BAABF2;
+--loot-security:#ACCAD5;
+--loot-exodus:#E9A4F0;
+--loot-industrial:#F2AA88;
+--loot-raider:#D7DDE2;
+}
+[data-theme="light"]{--map-paper:#F2EEE7;--map-ink:#242A2E;--map-secondary:#424C51;--map-muted:#515C62;--map-accent:#8B451C;--map-line:#66747C;--map-grid:#29323426;
+--loot-arc:#8B451C;
+--loot-electrical:#695700;
+--loot-mechanical:#275C87;
+--loot-nature:#316A3D;
+--loot-residential:#8F3F61;
+--loot-medical:#12685F;
+--loot-commercial:#81541F;
+--loot-old-world:#635C40;
+--loot-technological:#60409A;
+--loot-security:#315D70;
+--loot-exodus:#873C8E;
+--loot-industrial:#8E4628;
+--loot-raider:#4D5965;
+}
+/* Map pins always retain an opaque dark capsule. Theme colors are for legends, not raw screenshot pixels. */
+.map-pin{--loot-arc:#F4AD82;--loot-electrical:#E6D16F;--loot-mechanical:#9CBFE0;--loot-nature:#94CBA0;--loot-residential:#E9B2C9;--loot-medical:#78D2C6;--loot-commercial:#ECC396;--loot-old-world:#C4BEAB;--loot-technological:#BAABF2;--loot-security:#ACCAD5;--loot-exodus:#E9A4F0;--loot-industrial:#F2AA88;--loot-raider:#D7DDE2;}

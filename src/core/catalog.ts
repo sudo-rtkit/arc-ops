@@ -1,12 +1,13 @@
 /* Přístup ke katalogu předmětů (src/core/data/catalog.ts, generuje scripts/gen-catalog.mjs z dat MetaForge):
    dekódování otisků, hledání podle názvu a přibližné přiřazení názvu přečteného z tooltipu. */
-import { CATALOG, CATALOG_TYPES, type CatalogCategory } from './data/catalog';
+import { CATALOG, CATALOG_AREAS, CATALOG_TYPES, type CatalogCategory } from './data/catalog';
 import type { CatalogFp, FpKind } from './vision/match';
 import { FP_LEN } from './vision/fingerprint';
 import type { Rarity } from './vision/rarity';
 import type { ItemCategory } from './types';
 
-export interface CatalogItem { id: string; name: string; category: CatalogCategory; type: string; rarity?: Rarity; fp?: number[] }
+/* areas (0.14.0) = typy míst z loot_area MetaForge; chybí = neznámé */
+export interface CatalogItem { id: string; name: string; category: CatalogCategory; type: string; rarity?: Rarity; fp?: number[]; areas?: string[] }
 
 function decode(b64: string): number[] | undefined {
   const bin = atob(b64);
@@ -20,7 +21,7 @@ let items: CatalogItem[] | null = null;
 let byName: Map<string, CatalogItem> | null = null;
 export function catalogItems(): CatalogItem[] {
   if (!items) {
-    items = CATALOG.map(r => ({ id: r.id, name: r.name, category: r.category, type: CATALOG_TYPES[r.t] ?? '', ...(r.rarity ? { rarity: r.rarity } : {}), ...(r.f ? { fp: decode(r.f) } : {}) }));
+    items = CATALOG.map(r => ({ id: r.id, name: r.name, category: r.category, type: CATALOG_TYPES[r.t] ?? '', ...(r.rarity ? { rarity: r.rarity } : {}), ...(r.f ? { fp: decode(r.f) } : {}), ...(r.a?.length ? { areas: r.a.map(i => CATALOG_AREAS[i]).filter(Boolean) } : {}) }));
     byName = new Map(items.map(x => [x.name.toLowerCase(), x]));
   }
   return items;

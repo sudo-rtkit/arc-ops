@@ -1,5 +1,13 @@
 # Příprava na raid (návrh, schváleno 12. 11. 2026)
 
+Stav 0.14.0 (12. 11. 2026): **implementováno** v rozsahu „Před raidem: plán“, „Během raidu: overlay“ a „Interaktivní mapa“.
+Kód: `src/core/raidPrep.ts`, `src/core/lootAreas.ts`, `src/modules/RaidPrep.tsx`, `src/modules/MapViewer.tsx`,
+`src/ops/OverlayRaid.tsx`, `src/storage/mapImages.ts`; testy `tests/core/raid-prep.test.ts` a `tests/e2e/raid-prep.spec.ts`.
+Odchylky a rozhodnutí: snímky map jsou v IndexedDB webview (ne ve stavu ani v localStorage), do zálohy jen na volbu
+v Nastavení; „použít poslední snímek zkratkou“ není, protože snímek zkratkou zůstává jen v paměti a hned se zahodí
+(bezpečnostní pravidlo); seznam k hledání obsahuje u úkolu i předměty nalezené během úkolu; shluky bodů a vysouvací
+legenda nejsou (legenda se v užším okně přeskládá nad mapu). Vyhodnocení po raidu a historie raidů zůstávají na později.
+
 Inspirace: asistenti typu Blitz (League of Legends), kteří ve správnou chvíli ukážou, co hráč potřebuje.
 Rozdíl: ARC Raiders nemá veřejné živé rozhraní a napojení na účet zakazují podmínky hry, takže aplikace
 pracuje jen s ručními údaji a snímky. Nic se neslibuje jako plná automatika.

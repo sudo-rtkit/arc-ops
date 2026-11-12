@@ -2,7 +2,9 @@
    Neimportuje React, takže jde testovat v Node se zástupným úložištěm. */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { CloseAction, CompactSection, MainWindowPrefs, OpsPrefs } from '../core/types';
-import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Raid, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
+import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Poi, Raid, RaidGoals, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
+import { isLootArea, isPoiType, type PoiType } from '../core/lootAreas';
+import { normalizeRaidPlan } from '../core/raidPrep';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
 import { rollWeek } from '../core/week';
@@ -10,7 +12,7 @@ import { addBlock, nextPlanPoint, planSteps, isPlanKey, BUILD_PREFIX, cleanPoint
 import { applyUpgrade, reqBlock } from '../core/workshop';
 import { getStations } from '../core/gamedata';
 import { clampInt, dayKey, text, uid } from '../core/util';
-import { makeBackup } from '../core/backup';
+import { makeBackup, type BackupImage } from '../core/backup';
 import { applyDelta, lootDelta, normalizeItems } from '../core/raidItems';
 import { normalizeGoal, syncGoals } from '../core/goals';
 import { emptyPlanner, normalizePlanner } from '../core/planner';
@@ -45,6 +47,8 @@ function setOverride<T extends object>(map: Record<string, Partial<T>>, id: stri
   if (JSON.stringify(next) === JSON.stringify(cur)) return false;
   if (Object.keys(next).length) map[id] = next as Partial<T>; else delete map[id];
 }
+/* Relativní souřadnice bodu na snímku (0–1, 5 desetinných míst). */
+const rel01 = (v: number): number => Math.round(Math.min(1, Math.max(0, v)) * 1e5) / 1e5;
 const definedOnly = <T extends object>(patch: Partial<T>): Partial<T> =>
   Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<T>;
 
@@ -859,7 +863,73 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     mapEdit(mapId: string, fn: (m: MapNotes) => void) { change(s => { const m = s.maps[mapId] || (s.maps[mapId] = emptyMapNotes()); fn(m); }); },
     setMapNotes(mapId: string, notes: string) { actions.mapEdit(mapId, m => { m.notes = text(notes, 8000); }); },
     toggleVisited(mapId: string, place: string) { actions.mapEdit(mapId, m => { if (m.visited[place]) delete m.visited[place]; else m.visited[place] = true; }); },
-    addPoi(mapId: string, name: string, note: string) { const n = text(name, 120).trim(); if (n) actions.mapEdit(mapId, m => { m.pois.push({ id: uid(), name: n, note: text(note, 1000) }); }); },
+    addPoi(mapId: string, name: string, note: string) { const n = text(name, 120).trim(); if (n) actions.mapEdit(mapId, m => { m.pois.push({ id: uid(), name: n, note: text(note, 1000), type: 'note', area: '' }); }); },
+    /* 0.14.0: bod na vlastním snímku (relativní souřadnice 0–1). Vrací id nového bodu, nebo null. */
+    addMapPoint(mapId: string, p: { type: PoiType; area: string; name: string; note: string; x: number; y: number }): string | null {
+      if (!MAPS.some(m => m.id === mapId) || !isPoiType(p.type) || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+      const id = uid();
+      const ok = change(s => {
+        const m = s.maps[mapId] || (s.maps[mapId] = emptyMapNotes());
+        if (m.pois.length >= 300) return false;
+        m.pois.push({ id, name: text(p.name, 120).trim(), note: text(p.note, 1000), type: p.type, area: isLootArea(p.area) ? p.area : '', x: rel01(p.x), y: rel01(p.y) });
+      });
+      return ok ? id : null;
+    },
+    updatePoi(mapId: string, id: string, patch: Partial<Pick<Poi, 'type' | 'area' | 'name' | 'note'>>) {
+      actions.mapEdit(mapId, m => {
+        const x = m.pois.find(p => p.id === id);
+        if (!x) return;
+        if (patch.type !== undefined && isPoiType(patch.type)) x.type = patch.type;
+        if (patch.area !== undefined) x.area = isLootArea(patch.area) ? patch.area : '';
+        if (patch.name !== undefined) x.name = text(patch.name, 120).trim();
+        if (patch.note !== undefined) x.note = text(patch.note, 1000);
+      });
+    },
+    /* Přesun bodu (zápis až po puštění); bez polohy (null) se bod vrátí jen do seznamu. */
+    movePoi(mapId: string, id: string, pos: { x: number; y: number } | null) {
+      actions.mapEdit(mapId, m => {
+        const x = m.pois.find(p => p.id === id);
+        if (!x) return;
+        if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) { x.x = rel01(pos.x); x.y = rel01(pos.y); }
+        else { delete x.x; delete x.y; }
+      });
+    },
+    /* Zpět po smazání bodu: vrátí ho na původní místo v seznamu (stejné id, číslo bodu se nezmění). */
+    restorePoi(mapId: string, poi: Poi, index: number) {
+      actions.mapEdit(mapId, m => {
+        if (m.pois.some(p => p.id === poi.id) || m.pois.length >= 300) return;
+        m.pois.splice(Math.max(0, Math.min(index, m.pois.length)), 0, structuredClone(poi));
+      });
+    },
+    setMapHarmonise(mapId: string, on: boolean) { actions.mapEdit(mapId, m => { m.harmonise = on; }); },
+    /* Údaje o vlastním snímku (obrázek sám je v místním úložišti obrázků). unplace = zrušit polohu všech bodů
+       (jiný výřez snímku); body zůstanou v seznamu. Nikdy se nic tiše nepřesouvá. */
+    setMapImage(mapId: string, img: { w: number; h: number } | null, unplace = false) {
+      if (!MAPS.some(m => m.id === mapId)) return;
+      actions.mapEdit(mapId, m => {
+        m.img = img && img.w > 0 && img.h > 0 ? { w: clampInt(img.w, 1, 20000), h: clampInt(img.h, 1, 20000), at: now() } : null;
+        if (unplace) for (const p of m.pois) { delete p.x; delete p.y; }
+      });
+    },
+
+    /* ----- 0.14.0: příprava na raid ----- */
+    /* Spustí plán: uloží jen volby (cíle, mapa, loadout, trasa) a otisk seznamu; seznam se vždy přepočítá. */
+    startRaidPlan(p: { goals: RaidGoals; map: string; loadout: string; route: string; sig: string }): boolean {
+      const plan = normalizeRaidPlan({ ...p, startedAt: now(), found: [] });
+      if (!plan) return false;
+      return change(s => { s.raidPlan = plan; });
+    },
+    endRaidPlan() { change(s => { if (!s.raidPlan) return false; s.raidPlan = null; }); },
+    /* Zaškrtnutí „mám“ z overlaye: jen orientační, inventář se nemění. */
+    setRaidFound(mat: string, on: boolean) {
+      const name = text(mat, 80).trim();
+      if (!name) return;
+      change(s => {
+        const p = s.raidPlan;
+        if (!p || p.found.includes(name) === on) return false;
+        p.found = on ? [...p.found, name].slice(0, 300) : p.found.filter(x => x !== name);
+      });
+    },
     deletePoi(mapId: string, id: string) { actions.mapEdit(mapId, m => { m.pois = m.pois.filter(p => p.id !== id); }); },
     addMapTodo(mapId: string, t: string) { const v = text(t, 300).trim(); if (v) actions.mapEdit(mapId, m => { m.todo.push({ id: uid(), text: v, done: false }); }); },
     toggleMapTodo(mapId: string, id: string) { actions.mapEdit(mapId, m => { const x = m.todo.find(t => t.id === id); if (x) x.done = !x.done; }); },
@@ -1091,9 +1161,10 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       if (ok) notify(t('notice.allReset'));
       return ok;
     },
-    async exportBackup(fileName: string): Promise<boolean> {
+    /* mapImages (0.14.0): snímky map jen na výslovnou volbu hráče */
+    async exportBackup(fileName: string, mapImages: BackupImage[] = []): Promise<boolean> {
       try {
-        const ok = await storage.exportBackup(fileName, makeBackup(st(), new Date(now())));
+        const ok = await storage.exportBackup(fileName, makeBackup(st(), new Date(now()), mapImages));
         if (ok) notify(t('notice.backupSaved'));
         return ok;
       } catch (e) { notify(t('notice.backupFailed', { err: errText(e) }), 'danger'); return false; }

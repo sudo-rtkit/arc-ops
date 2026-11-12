@@ -54,12 +54,13 @@ describe('bezpečnost rozpoznávání', () => {
     for (const m of AT_HIDEOUT) for (const k of Object.keys(m)) expect(['id', 'name', 'maxLevel', 'levels']).toContain(k);
     for (const p of AT_PROJECTS) for (const k of Object.keys(p)) expect(['id', 'name', 'start', 'end', 'phases']).toContain(k);
   });
-  it('katalog obsahuje jen id, název, kategorii, vzácnost a otisk (žádné obrázky, popisy ani URL)', async () => {
+  it('katalog obsahuje jen id, název, kategorii, vzácnost, otisk a typ místa (žádné obrázky, popisy ani URL)', async () => {
     const txt = readFileSync(join(root, 'src', 'core', 'data', 'catalog.ts'), 'utf8').replace(/f: '[A-Za-z0-9+/=]*'/g, ''); /* otisky v base64 mohou náhodou obsahovat písmena */
     expect(/https?:\/\/|\.png|\.webp|description|icon/i.test(txt)).toBe(false);
     const { CATALOG } = await import('../src/core/data/catalog');
     expect(CATALOG.length).toBeGreaterThan(500);
-    for (const row of CATALOG) for (const k of Object.keys(row)) expect(['id', 'name', 'category', 't', 'rarity', 'f']).toContain(k);
+    /* 0.14.0: a = typy míst (loot_area) jako indexy do CATALOG_AREAS */
+    for (const row of CATALOG) for (const k of Object.keys(row)) expect(['id', 'name', 'category', 't', 'rarity', 'f', 'a']).toContain(k);
   });
   it('snímky se neukládají: stav ani úložiště neznají obrazová data', () => {
     for (const f of ['src/core/types.ts', 'src/core/visionState.ts', 'src/core/visionImport.ts', 'src/store/app.ts']) {

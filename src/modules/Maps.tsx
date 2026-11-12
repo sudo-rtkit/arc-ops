@@ -8,6 +8,9 @@ import { conditions, gameTexts, mapBest, mapPlacesText, placeLabel } from '../co
 import { emptyMapNotes, LIMITS } from '../core/state';
 import { MAP_COUNT } from './shared';
 import { useT } from '../i18n/react';
+import MapViewer from './MapViewer';
+import { MAPS } from '../core/data/maps';
+import { poiTypeLabel } from '../ui/MapView';
 
 /* Oficiální rozpis podmínek map (událostí) od Embarku; ověřeno 11. 11. 2026. Otevře se jen na kliknutí (ExtLink). */
 const EVENTS_URL = 'https://arcraiders.com/map-conditions';
@@ -69,7 +72,7 @@ function MapDetail({ m, onClose }: { m: MapStatus; onClose: () => void }) {
       <div>
         <h3>{t('maps.pois')}</h3>
         {notes.pois.map(p => (
-          <div key={p.id} className="list-row"><MapPin size={16} aria-hidden="true" className="accent" /><span className="grow">{p.name}{p.note && <small>{p.note}</small>}</span><IconBtn label={t('maps.deletePoi', { name: p.name })} icon={Trash2} ghost onClick={() => actions.deletePoi(id, p.id)} /></div>
+          <div key={p.id} className="list-row"><MapPin size={16} aria-hidden="true" className="accent" /><span className="grow">{p.name || poiTypeLabel(t, p.type)}{p.note && <small>{p.note}</small>}</span><IconBtn label={t('maps.deletePoi', { name: p.name || poiTypeLabel(t, p.type) })} icon={Trash2} ghost onClick={() => actions.deletePoi(id, p.id)} /></div>
         ))}
         <form className="row" onSubmit={e => { e.preventDefault(); actions.addPoi(id, poi.name, poi.note); setPoi({ name: '', note: '' }); }}>
           <input className="input" style={{ flex: 1, minWidth: 160 }} aria-label={t('maps.poiName')} placeholder={t('maps.poiName')} value={poi.name} onChange={e => setPoi({ ...poi, name: e.target.value })} />
@@ -91,8 +94,10 @@ function MapDetail({ m, onClose }: { m: MapStatus; onClose: () => void }) {
   );
 }
 
-export default function Maps() {
+export default function Maps({ sub = '' }: { sub?: string }) {
   const s = useAppState();
+  /* 0.14.0: #maps/<id> otevře mapu v prohlížeči snímku; jinak mapa aktivního plánu, nebo první mapa */
+  const viewId = MAPS.some(m => m.id === sub) ? sub : s.raidPlan?.map ?? MAPS[0].id;
   const d = useDerived();
   const t = useT();
   const [open, setOpen] = useState<string | null>(null);
@@ -101,7 +106,8 @@ export default function Maps() {
   const texts = gameTexts(t.lang);
   return (
     <div className="page">
-      <PageHead title="Maps" sub={t('maps.sub')} />
+      <PageHead title="Maps" sub={t('maps.sub')} actions={<div className="mv-head-meta"><span>{t('mapv.headMeta1')}</span><span>{t('mapv.headMeta2')}</span></div>} />
+      <MapViewer mapId={viewId} />
       <Panel title={t('maps.unlocking')} actions={<><span className="mono meta">{t('maps.openCount', { n: openCount, total: MAP_COUNT })}</span><Stepper label={t('common.rounds')} hideLabel={false} value={s.profile.rounds} min={0} max={LIMITS.rounds[1]} onChange={n => actions.setProfile('rounds', n)} /></>}>
         <p className="meta">{texts.mapsHint}</p>
         <UnlockAxis />

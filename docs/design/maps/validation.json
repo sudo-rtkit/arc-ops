@@ -1,0 +1,476 @@
+{
+  "generated": "2026-11-12T18:30:38.466Z",
+  "exports": [
+    {
+      "file": "viewer.png",
+      "width": 1280,
+      "height": 800,
+      "scale": 1
+    },
+    {
+      "file": "viewer-add.png",
+      "width": 1280,
+      "height": 800,
+      "scale": 1
+    },
+    {
+      "file": "empty.png",
+      "width": 1280,
+      "height": 800,
+      "scale": 1
+    },
+    {
+      "file": "raid.png",
+      "width": 1100,
+      "height": 760,
+      "scale": 1
+    },
+    {
+      "file": "raid-empty.png",
+      "width": 1100,
+      "height": 760,
+      "scale": 1
+    },
+    {
+      "file": "terrain-before.png",
+      "width": 600,
+      "height": 450,
+      "scale": 1
+    },
+    {
+      "file": "terrain-after.png",
+      "width": 600,
+      "height": 450,
+      "scale": 1
+    },
+    {
+      "file": "raid-context.png",
+      "width": 1920,
+      "height": 1080,
+      "scale": 1
+    }
+  ],
+  "retina": [
+    "form@2x.png",
+    "detail@2x.png"
+  ],
+  "sprites": {
+    "sizes": [
+      16,
+      20,
+      24
+    ],
+    "scales": [
+      1,
+      2
+    ],
+    "pointTypes": 11,
+    "lootAreas": 13
+  },
+  "fonts": [
+    {
+      "family": "Chakra",
+      "loaded": true
+    },
+    {
+      "family": "Inter",
+      "loaded": true
+    },
+    {
+      "family": "Jet",
+      "loaded": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "contrast": [
+    {
+      "label": "Primary",
+      "foreground": "#F2EEE7",
+      "background": "#1D2225",
+      "ratio": 13.89,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Secondary",
+      "foreground": "#C8C7C2",
+      "background": "#1D2225",
+      "ratio": 9.49,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Muted",
+      "foreground": "#A2A8AA",
+      "background": "#1D2225",
+      "ratio": 6.67,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Accent button",
+      "foreground": "#241810",
+      "background": "#F4AD82",
+      "ratio": 9.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Light primary",
+      "foreground": "#242A2E",
+      "background": "#F2EEE7",
+      "ratio": 12.56,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Light secondary",
+      "foreground": "#424C51",
+      "background": "#F2EEE7",
+      "ratio": 7.62,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Light muted",
+      "foreground": "#515C62",
+      "background": "#F2EEE7",
+      "ratio": 5.94,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "ARC dark legend",
+      "foreground": "#F4AD82",
+      "background": "#1D2225",
+      "ratio": 8.52,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "ARC light legend",
+      "foreground": "#8B451C",
+      "background": "#F2EEE7",
+      "ratio": 6.12,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "ARC fixed pin capsule",
+      "foreground": "#F4AD82",
+      "background": "#171D20",
+      "ratio": 9.04,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Electrical dark legend",
+      "foreground": "#E6D16F",
+      "background": "#1D2225",
+      "ratio": 10.49,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Electrical light legend",
+      "foreground": "#695700",
+      "background": "#F2EEE7",
+      "ratio": 6.13,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Electrical fixed pin capsule",
+      "foreground": "#E6D16F",
+      "background": "#171D20",
+      "ratio": 11.12,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Mechanical dark legend",
+      "foreground": "#9CBFE0",
+      "background": "#1D2225",
+      "ratio": 8.37,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Mechanical light legend",
+      "foreground": "#275C87",
+      "background": "#F2EEE7",
+      "ratio": 6.12,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Mechanical fixed pin capsule",
+      "foreground": "#9CBFE0",
+      "background": "#171D20",
+      "ratio": 8.87,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Nature dark legend",
+      "foreground": "#94CBA0",
+      "background": "#1D2225",
+      "ratio": 8.65,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Nature light legend",
+      "foreground": "#316A3D",
+      "background": "#F2EEE7",
+      "ratio": 5.57,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Nature fixed pin capsule",
+      "foreground": "#94CBA0",
+      "background": "#171D20",
+      "ratio": 9.17,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Residential dark legend",
+      "foreground": "#E9B2C9",
+      "background": "#1D2225",
+      "ratio": 8.93,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Residential light legend",
+      "foreground": "#8F3F61",
+      "background": "#F2EEE7",
+      "ratio": 5.95,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Residential fixed pin capsule",
+      "foreground": "#E9B2C9",
+      "background": "#171D20",
+      "ratio": 9.47,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Medical dark legend",
+      "foreground": "#78D2C6",
+      "background": "#1D2225",
+      "ratio": 9.05,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Medical light legend",
+      "foreground": "#12685F",
+      "background": "#F2EEE7",
+      "ratio": 5.73,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Medical fixed pin capsule",
+      "foreground": "#78D2C6",
+      "background": "#171D20",
+      "ratio": 9.6,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Commercial dark legend",
+      "foreground": "#ECC396",
+      "background": "#1D2225",
+      "ratio": 9.8,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Commercial light legend",
+      "foreground": "#81541F",
+      "background": "#F2EEE7",
+      "ratio": 5.64,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Commercial fixed pin capsule",
+      "foreground": "#ECC396",
+      "background": "#171D20",
+      "ratio": 10.39,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Old World dark legend",
+      "foreground": "#C4BEAB",
+      "background": "#1D2225",
+      "ratio": 8.64,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Old World light legend",
+      "foreground": "#635C40",
+      "background": "#F2EEE7",
+      "ratio": 5.79,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Old World fixed pin capsule",
+      "foreground": "#C4BEAB",
+      "background": "#171D20",
+      "ratio": 9.16,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Technological dark legend",
+      "foreground": "#BAABF2",
+      "background": "#1D2225",
+      "ratio": 7.8,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Technological light legend",
+      "foreground": "#60409A",
+      "background": "#F2EEE7",
+      "ratio": 6.73,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Technological fixed pin capsule",
+      "foreground": "#BAABF2",
+      "background": "#171D20",
+      "ratio": 8.27,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Security dark legend",
+      "foreground": "#ACCAD5",
+      "background": "#1D2225",
+      "ratio": 9.3,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Security light legend",
+      "foreground": "#315D70",
+      "background": "#F2EEE7",
+      "ratio": 6.2,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Security fixed pin capsule",
+      "foreground": "#ACCAD5",
+      "background": "#171D20",
+      "ratio": 9.86,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Exodus dark legend",
+      "foreground": "#E9A4F0",
+      "background": "#1D2225",
+      "ratio": 8.44,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Exodus light legend",
+      "foreground": "#873C8E",
+      "background": "#F2EEE7",
+      "ratio": 5.92,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Exodus fixed pin capsule",
+      "foreground": "#E9A4F0",
+      "background": "#171D20",
+      "ratio": 8.95,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Industrial dark legend",
+      "foreground": "#F2AA88",
+      "background": "#1D2225",
+      "ratio": 8.32,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Industrial light legend",
+      "foreground": "#8E4628",
+      "background": "#F2EEE7",
+      "ratio": 5.94,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Industrial fixed pin capsule",
+      "foreground": "#F2AA88",
+      "background": "#171D20",
+      "ratio": 8.82,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "label": "Raider dark legend",
+      "foreground": "#D7DDE2",
+      "background": "#1D2225",
+      "ratio": 11.72,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Raider light legend",
+      "foreground": "#4D5965",
+      "background": "#F2EEE7",
+      "ratio": 6.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "label": "Raider fixed pin capsule",
+      "foreground": "#D7DDE2",
+      "background": "#171D20",
+      "ratio": 12.43,
+      "minimum": 3,
+      "pass": true
+    }
+  ],
+  "checks": [
+    "fixed viewport dimensions and no document overflow",
+    "zoom/reset",
+    "harmonisation toggle",
+    "grid toggle",
+    "area filter",
+    "open/cancel/save point demo",
+    "raid Found checkbox",
+    "lookup recycle state"
+  ],
+  "review": {
+    "status": "design handoff",
+    "terrain": "original seeded procedural SVG, no map references used",
+    "limitations": [
+      "No native focus or real screenshot validation",
+      "Color alone is not distinguishable: unique glyph/code/text required",
+      "UI demo does not implement import, persisted CRUD, point drag or external navigation",
+      "Current repository has seven maps, all represented"
+    ]
+  }
+}

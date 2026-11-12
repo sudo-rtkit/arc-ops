@@ -1,0 +1,169 @@
+{
+  "pointTypes": [
+    {
+      "id": "crate",
+      "cs": "Kontejner",
+      "en": "Container",
+      "index": 0
+    },
+    {
+      "id": "weapon",
+      "cs": "Zbraňová bedna",
+      "en": "Weapon crate",
+      "index": 1
+    },
+    {
+      "id": "extraction",
+      "cs": "Extrakce",
+      "en": "Extraction",
+      "index": 2
+    },
+    {
+      "id": "hatch",
+      "cs": "Raider Hatch",
+      "en": "Raider Hatch",
+      "index": 3
+    },
+    {
+      "id": "key",
+      "cs": "Zamčené dveře",
+      "en": "Locked door",
+      "index": 4
+    },
+    {
+      "id": "quest",
+      "cs": "Cíl úkolu",
+      "en": "Quest objective",
+      "index": 5
+    },
+    {
+      "id": "arc",
+      "cs": "Nebezpečí ARC",
+      "en": "ARC danger",
+      "index": 6
+    },
+    {
+      "id": "pvp",
+      "cs": "PvP hotspot",
+      "en": "PvP hotspot",
+      "index": 7
+    },
+    {
+      "id": "room",
+      "cs": "Loot místnost",
+      "en": "Loot room",
+      "index": 8
+    },
+    {
+      "id": "note",
+      "cs": "Poznámka",
+      "en": "Note",
+      "index": 9
+    },
+    {
+      "id": "player",
+      "cs": "Moje značka",
+      "en": "Player marker",
+      "index": 10
+    }
+  ],
+  "lootAreas": [
+    {
+      "id": "ARC",
+      "code": "A",
+      "dark": "#F4AD82",
+      "light": "#8B451C",
+      "index": 0
+    },
+    {
+      "id": "Electrical",
+      "code": "E",
+      "dark": "#E6D16F",
+      "light": "#695700",
+      "index": 1
+    },
+    {
+      "id": "Mechanical",
+      "code": "M",
+      "dark": "#9CBFE0",
+      "light": "#275C87",
+      "index": 2
+    },
+    {
+      "id": "Nature",
+      "code": "N",
+      "dark": "#94CBA0",
+      "light": "#316A3D",
+      "index": 3
+    },
+    {
+      "id": "Residential",
+      "code": "R",
+      "dark": "#E9B2C9",
+      "light": "#8F3F61",
+      "index": 4
+    },
+    {
+      "id": "Medical",
+      "code": "+",
+      "dark": "#78D2C6",
+      "light": "#12685F",
+      "index": 5
+    },
+    {
+      "id": "Commercial",
+      "code": "C",
+      "dark": "#ECC396",
+      "light": "#81541F",
+      "index": 6
+    },
+    {
+      "id": "Old World",
+      "code": "O",
+      "dark": "#C4BEAB",
+      "light": "#635C40",
+      "index": 7
+    },
+    {
+      "id": "Technological",
+      "code": "T",
+      "dark": "#BAABF2",
+      "light": "#60409A",
+      "index": 8
+    },
+    {
+      "id": "Security",
+      "code": "S",
+      "dark": "#ACCAD5",
+      "light": "#315D70",
+      "index": 9
+    },
+    {
+      "id": "Exodus",
+      "code": "X",
+      "dark": "#E9A4F0",
+      "light": "#873C8E",
+      "index": 10
+    },
+    {
+      "id": "Industrial",
+      "code": "I",
+      "dark": "#F2AA88",
+      "light": "#8E4628",
+      "index": 11
+    },
+    {
+      "id": "Raider",
+      "code": "/",
+      "dark": "#D7DDE2",
+      "light": "#4D5965",
+      "index": 12
+    }
+  ],
+  "layout": "one horizontal row, no gutters; cell = requested size; transparent background; pale ink; 2x files keep CSS cell size",
+  "sizes": [
+    16,
+    20,
+    24
+  ]
+}

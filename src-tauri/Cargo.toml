@@ -1,6 +1,6 @@
 [package]
 name = "arc-companion"
-version = "0.13.1"
+version = "0.14.0"
 description = "ARC Raiders Companion – osobní operační centrum hráče. Neoficiální, offline."
 edition = "2021"
 publish = false

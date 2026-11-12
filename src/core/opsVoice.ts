@@ -60,6 +60,8 @@ const GESTURE: Partial<Record<LineKey, Partial<Record<OpsPersonality, OpsAnim>> 
   'hint.minigame': { cheeky: 'laugh' },
   'game.hackStart': { all: 'thinking', cheeky: 'laugh' },
   'game.hackNode': { all: 'success' },
+  'raid.start': { all: 'success', cheeky: 'laugh' },
+  'raid.startEmpty': { all: 'talk', cheeky: 'shrug' },
 };
 export function lineGesture(key: LineKey, mode: OpsPersonality): OpsAnim | null {
   const g = GESTURE[key];

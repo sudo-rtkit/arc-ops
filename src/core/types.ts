@@ -160,8 +160,24 @@ export interface ChecklistsState {
   checked: Record<string, true>; routeChecks: Record<string, true>;
 }
 
-export interface Poi { id: string; name: string; note: string }
-export interface MapNotes { notes: string; visited: Record<string, true>; pois: Poi[]; todo: StepItem[] }
+/* Vlastní bod mapy. 0.14.0 (schéma 13): typ bodu, typ místa ('' = neznámé) a poloha v relativních souřadnicích
+   vlastního snímku (0–1, x / šířka, y / výška). Bod bez polohy (starší bod jen s názvem) je jen v seznamu. */
+export interface Poi { id: string; name: string; note: string; type: import('./lootAreas').PoiType; area: string; x?: number; y?: number }
+/* Vlastní snímek mapy: obrázek je jen v místním úložišti obrázků (src/storage/mapImages.ts), ve stavu jen rozměry
+   a čas vložení (overlay podle něj pozná výměnu). */
+export interface MapImageMeta { w: number; h: number; at: number }
+export interface MapNotes {
+  notes: string; visited: Record<string, true>; pois: Poi[]; todo: StepItem[];
+  /* 0.14.0: barevné sladění snímku (jen při zobrazení, originál se nemění) a údaje o vlastním snímku */
+  harmonise: boolean; img: MapImageMeta | null;
+}
+
+/* ----- 0.14.0 (schéma 13): příprava na raid ----- */
+/* Cíle plánu: úkoly (id ARC Tracker), další úroveň stanic (id stanice), další fáze projektů (id projektu:fáze), peníze. */
+export interface RaidGoals { quests: string[]; stations: string[]; projects: string[]; money: boolean }
+/* Aktivní plán. Uložené jsou jen volby; seznam se vždy přepočítá z aktuálního stavu. sig = otisk seznamu při
+   spuštění (změna = plán se přepočítal). found = zaškrtnutí „mám“ z overlaye (jen orientační, inventář nemění). */
+export interface RaidPlan { goals: RaidGoals; map: string; loadout: string; route: string; startedAt: number; sig: string; found: string[] }
 
 export interface WeaponNote { tier: string; note: string }
 
@@ -295,7 +311,7 @@ export interface SavedHack {
 export interface GameRounds { tetris: SavedTetris | null; quiz: SavedQuiz | null; hack: SavedHack | null }
 
 export interface AppState {
-  schema: 12;
+  schema: 13;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -336,6 +352,8 @@ export interface AppState {
   games: GamesState;
   /* 0.13.0 (schéma 12): rozehraná a naposledy dohraná kola miniher; ve starším stavu chybí a začnou prázdná */
   gameRounds: GameRounds;
+  /* 0.14.0 (schéma 13): aktivní plán raidu; ve starším stavu chybí a začne prázdný (null) */
+  raidPlan: RaidPlan | null;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

@@ -213,8 +213,8 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   it('starší stav (schéma 7) se načte beze ztráty a dostane výchozí hodnoty', () => {
     const s7 = { schema: 7, profile: { level: 33, coins: 1200 }, inventory: { 'Metal Parts': 5 }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' }, unlocked: ['antenna-1', 'antenna-2'] }, mainWindow: { mode: 'compact' } };
     const s = normalize(s7, NOW);
-    expect(SCHEMA).toBe(12);
-    expect(s.schema).toBe(12);
+    expect(SCHEMA).toBe(13);
+    expect(s.schema).toBe(13);
     expect(s.profile).toMatchObject({ level: 33, coins: 1200 });
     expect(s.inventory).toEqual({ 'Metal Parts': 5 });
     expect(s.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' } });

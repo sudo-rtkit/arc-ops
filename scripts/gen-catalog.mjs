@@ -7,7 +7,9 @@
 // - Ikony stáhne jen do cache a spočítá z nich otisk STEJNOU funkcí, jakou používá aplikace
 //   (src/core/vision/fingerprint.ts, načtená přes Vite). Ikona se nejdřív vloží do políčka jako ve hře
 //   (tmavý podklad, ikona 74/96 políčka, střed ve výšce 36/96 – změřeno na snímcích s tooltipem).
-// - Zapíše src/core/data/catalog.ts jen s { id, name, category, rarity, fp } – žádné obrázky ani popisy.
+// - Zapíše src/core/data/catalog.ts jen s { id, name, category, rarity, fp, typ místa } – žádné obrázky ani popisy.
+//   0.14.0: typ místa (pole loot_area MetaForge, např. „Electrical, Technological“) jako indexy do CATALOG_AREAS.
+//   Předmět bez loot_area ho nemá a aplikace ukáže „neznámé“; nic se nedomýšlí.
 //   Otisk je kvůli velikosti uložen jako base64 bajtů (dekóduje src/core/catalog.ts).
 // - Názvy materiálů aplikace, které v katalogu nejsou, zapíše do docs/superpowers/plans/catalog-mismatch.md.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -76,6 +78,8 @@ function iconFp(png) {
 
 /* Zbraně jsou v katalogu po tierech („Anvil I“ … „Anvil IV“) se stejnou ikonou; tier se čte z políčka. */
 const baseName = (x) => (x.item_type === 'Weapon' ? x.name.replace(/\s+(I|II|III|IV)$/, '') : x.name);
+/* Typy míst z loot_area (text oddělený čárkami), bez opakování, v pořadí zdroje. */
+const lootAreas = (x) => [...new Set(String(x.loot_area ?? '').split(',').map(a => a.trim()).filter(Boolean))];
 
 const out = new Map();
 let icons = 0, iconFail = 0;
@@ -83,7 +87,7 @@ for (const x of items) {
   if (SKIP_TYPES.has(x.item_type) || x.rarity === 'Amplified') continue;
   const name = baseName(x).trim();
   if (!name || out.has(name.toLowerCase())) continue;
-  const e = { id: String(x.id), name, category: CATEGORY[x.item_type] || 'other', type: x.item_type, rarity: RARITY[x.rarity] };
+  const e = { id: String(x.id), name, category: CATEGORY[x.item_type] || 'other', type: x.item_type, rarity: RARITY[x.rarity], areas: lootAreas(x) };
   if (x.icon && !NO_FP.has(x.item_type)) {
     const file = `${CACHE}/icons/${String(x.id).replace(/[^\w.-]/g, '_')}.png`;
     try {
@@ -108,17 +112,23 @@ if (!icons) console.warn('POZOR: žádná ikona nešla načíst – katalog obsa
 const str = s => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const b64 = fp => Buffer.from(Uint8Array.from(fp.map(v => Math.max(0, Math.min(255, Math.round(v)))))).toString('base64');
 const types = [...new Set(list.map(e => e.type))].sort();
+const areas = [...new Set(list.flatMap(e => e.areas))].sort();
+const withAreas = list.filter(e => e.areas.length).length;
+console.log(`typ místa (loot_area): ${withAreas} předmětů, ${areas.length} typů`);
 writeFileSync('src/core/data/catalog.ts', `/* Katalog předmětů ARC Raiders. Zdroj: MetaForge (odkaz v Settings → Zdroje dat), neoficiální, ne od Embarku.
    Vygenerováno scripts/gen-catalog.mjs ${new Date().toISOString().slice(0, 10)} (${list.length} předmětů, ${icons} s otiskem ikony).
-   Obsahuje jen identifikátor, anglický název, kategorii, vzácnost a otisk ikony (čísla, ne obrázek).
-   f = otisk jako base64 bajtů (FP_LEN čísel 0–255), t = index typu v CATALOG_TYPES. */
+   Obsahuje jen identifikátor, anglický název, kategorii, vzácnost, otisk ikony (čísla, ne obrázek) a typ místa.
+   f = otisk jako base64 bajtů (FP_LEN čísel 0–255), t = index typu v CATALOG_TYPES,
+   a = typy míst (loot_area MetaForge, ${withAreas} předmětů) jako indexy v CATALOG_AREAS; bez a = neznámé. */
 export type CatalogCategory = 'material' | 'weapon' | 'shield' | 'augment' | 'ammo' | 'quickUse' | 'key' | 'other';
 export type CatalogRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-export interface CatalogRow { id: string; name: string; category: CatalogCategory; t: number; rarity?: CatalogRarity; f?: string }
+export interface CatalogRow { id: string; name: string; category: CatalogCategory; t: number; rarity?: CatalogRarity; f?: string; a?: number[] }
 /* Názvy typů z MetaForge (velkými písmeny je ukazuje štítek tooltipu ve hře). */
 export const CATALOG_TYPES: string[] = [${types.map(str).join(', ')}];
+/* Typy míst z pole loot_area MetaForge (stabilní anglické katalogové hodnoty). */
+export const CATALOG_AREAS: string[] = [${areas.map(str).join(', ')}];
 export const CATALOG: CatalogRow[] = [
-${list.map(e => `  { id: ${str(e.id)}, name: ${str(e.name)}, category: '${e.category}', t: ${types.indexOf(e.type)}${e.rarity ? `, rarity: '${e.rarity}'` : ''}${e.fp ? `, f: '${b64(e.fp)}'` : ''} },`).join('\n')}
+${list.map(e => `  { id: ${str(e.id)}, name: ${str(e.name)}, category: '${e.category}', t: ${types.indexOf(e.type)}${e.rarity ? `, rarity: '${e.rarity}'` : ''}${e.fp ? `, f: '${b64(e.fp)}'` : ''}${e.areas.length ? `, a: [${e.areas.map(x => areas.indexOf(x)).join(', ')}]` : ''} },`).join('\n')}
 ];
 `);
 

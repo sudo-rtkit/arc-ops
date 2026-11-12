@@ -4,7 +4,9 @@ import { actions, app, useApp, useAppState } from '../store';
 import { RESET_MODULES, resetImpact, resetName, type ResetModule } from '../store/app';
 import { Badge, Btn, Confirm, ConfirmButton, Dialog, Empty, ExtLink, FieldError, PageHead, Panel, Select } from '../ui/components';
 import { fmtBytes, fmtDateTime } from '../ui/format';
-import { backupErrorText, backupFileName, parseBackup, type ParsedBackup } from '../core/backup';
+import { backupErrorText, backupFileName, parseBackup, type BackupImage, type ParsedBackup } from '../core/backup';
+import { allMapImages, putMapImage } from '../storage/mapImages';
+import { backupCopy } from '../ui/mapImport';
 import type { SnapshotInfo } from '../storage/adapter';
 import type { AppState } from '../core/types';
 import { DOC_URL } from '../core/data/checklists';
@@ -70,11 +72,18 @@ function ImportDialog({ onClose, initialText }: { onClose: () => void; initialTe
         footer={<><Btn onClick={() => setSt({ stage: 'input', error: null })}>{t('import.back')}</Btn><Btn variant="primary" disabled={busy} onClick={async () => {
           setBusy(true);
           const ok = await actions.importState(p.state, st.raw, p.kind);
+          /* 0.14.0: snímky map ze zálohy (jen když je záloha obsahuje) se uloží do tohoto zařízení */
+          if (ok && p.mapImages?.length) {
+            let n = 0;
+            for (const im of p.mapImages) { try { await putMapImage({ ...im, at: Date.now() }); n++; } catch { /* další snímek */ } }
+            if (n) app.notify(t('backup.imagesRestored', { count: n }));
+          }
           setBusy(false);
           if (ok) setSt({ stage: 'done', parsed: p });
         }}>{t('import.confirm')}</Btn></>}>
         <p>{t('import.detected')} <b>{p.kind === 'diary' ? t('import.kindDiary') : t('import.kindApp')}</b>{p.exportedAt ? ', ' + t('import.exportedAt', { at: fmtDateTime(Date.parse(p.exportedAt)) }) : ''}.</p>
         <p className="secondary-text">{t('import.replaces')}</p>
+        {p.mapImages?.length ? <p className="meta" data-testid="import-images">{t('backup.imagesFound', { count: p.mapImages.length })}</p> : null}
         <div className="table-wrap"><table className="table">
           <thead><tr><th>{t('import.area')}</th><th>{t('import.now')}</th><th>{t('import.after')}</th></tr></thead>
           <tbody>{next.map(([k, v], i) => <tr key={k}><td>{k}</td><td className="muted">{cur[i][1]}</td><td><b>{v}</b></td></tr>)}</tbody>
@@ -198,6 +207,17 @@ export default function Settings({ sub }: { sub: string }) {
   const [importing, setImporting] = useState(sub === 'import');
   const [copied, setCopied] = useState(false);
   useEffect(() => { app.storage.dataDir().then(setDir, () => setDir('—')); }, []);
+  /* 0.14.0: snímky map do zálohy jen na výslovnou volbu (výchozí vypnuto, volba se neukládá). Velké snímky se do zálohy
+     zmenší; když jsou dohromady pořád větší, než import zálohy přijme, záloha se uloží bez nich. */
+  const [withImages, setWithImages] = useState(false);
+  const exportWithImages = async () => {
+    let images: BackupImage[] = [];
+    if (withImages) {
+      for (const r of await allMapImages()) images.push({ mapId: r.mapId, dataUrl: await backupCopy(r.dataUrl), w: r.w, h: r.h });
+      if (images.reduce((a, x) => a + x.dataUrl.length, 0) > 16_000_000) { images = []; app.notify(t('backup.imagesTooBig'), 'warning'); }
+    }
+    await actions.exportBackup(backupFileName(new Date(), t.lang), images);
+  };
   /* 0.11.0: odkaz z Miniher (#settings/wardrobe) otevře šatník */
   useEffect(() => { if (sub === 'wardrobe') document.getElementById('wardrobe')?.scrollIntoView({ block: 'start' }); }, [sub]);
   return (
@@ -236,10 +256,12 @@ export default function Settings({ sub }: { sub: string }) {
       <Panel title={t('settings.exportImport')}>
         <p className="secondary-text">{t('settings.exportHint')}</p>
         <div className="row">
-          <Btn variant="primary" icon={Download} onClick={() => void actions.exportBackup(backupFileName(new Date(), t.lang))}>{t('settings.export')}</Btn>
+          <Btn variant="primary" icon={Download} onClick={() => void exportWithImages()}>{t('settings.export')}</Btn>
           <Btn icon={Upload} onClick={() => setImporting(true)}>{t('settings.import')}</Btn>
           <Btn icon={Upload} onClick={() => setImporting(true)}>{t('settings.importDiary')}</Btn>
         </div>
+        <label className="toggle"><input type="checkbox" checked={withImages} onChange={e => setWithImages(e.target.checked)} data-testid="backup-images" />{t('backup.images')}</label>
+        <p className="meta">{t('backup.imagesHint')}</p>
       </Panel>
       <Snapshots />
       <Panel title={t('settings.links')}>

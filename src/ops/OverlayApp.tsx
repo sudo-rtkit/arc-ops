@@ -31,6 +31,9 @@ import { LIMITS } from '../core/state';
 import { itemKey } from '../core/types';
 import { ProgressReview } from '../ui/ProgressReview';
 import { OvInventory, OvProfile, OvSkills, OvWorkshop } from './OverlayModules';
+import { OvRaid } from './OverlayRaid';
+import { raidList } from '../core/raidPrep';
+import { dayKey } from '../core/util';
 import type { ProgressApply, ProgressSummary } from '../core/progressImport';
 
 const bus = createBus('overlay');
@@ -46,8 +49,9 @@ const sound = createSoundPlayer(() => ({
 if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) (window as unknown as { __opsSound?: unknown }).__opsSound = sound;
 
 /* 0.10.1: i hlavní moduly (profil, inventář, dílna, skill tree) jako kompaktní přehledy s rychlými úpravami */
-type Tab = 'overview' | 'profile' | 'inventory' | 'workshop' | 'quests' | 'skills' | 'shop' | 'scan';
-const TABS: Tab[] = ['overview', 'quests', 'profile', 'inventory', 'workshop', 'skills', 'shop', 'scan'];
+/* 0.14.0: záložka Raid (aktivní plán z Přípravy na raid) na konci, pořadí ostatních se nemění */
+type Tab = 'overview' | 'profile' | 'inventory' | 'workshop' | 'quests' | 'skills' | 'shop' | 'scan' | 'raid';
+const TABS: Tab[] = ['overview', 'quests', 'profile', 'inventory', 'workshop', 'skills', 'shop', 'scan', 'raid'];
 const RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
 const rarityOf = (name: string): string => { const r = catalogByName(name)?.rarity; return r && (RARITY as readonly string[]).includes(r) ? r : 'unknown'; };
 const abbr = (name: string): string => name.split(/[\s-]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
@@ -538,7 +542,7 @@ export default function OverlayApp() {
   const [view, setView] = useState<OverlayView | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [opacity, setOpacity] = useState(90);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, profile: null, inventory: null, workshop: null, quests: null, skills: null, shop: null, scan: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, profile: null, inventory: null, workshop: null, quests: null, skills: null, shop: null, scan: null, raid: null });
   const batchRef = useRef<BatchView | null>(null);
   const gotState = useRef(false);
   const ops = useRef<OpsHandle>(null);
@@ -598,7 +602,8 @@ export default function OverlayApp() {
   if (!view) return <div className="ov" style={glass}><p className="ov-loading" role="status">{t('ops.ov.loading')}</p></div>;
   const s = view.state;
   const d = { quests: QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length };
-  const counts: Record<Tab, number | null> = { overview: null, profile: null, inventory: null, workshop: null, skills: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) + (view.batch.progress ? 1 : 0) || null };
+  const counts: Record<Tab, number | null> = { overview: null, profile: null, inventory: null, workshop: null, skills: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) + (view.batch.progress ? 1 : 0) || null,
+    raid: s.raidPlan ? raidList(s, s.raidPlan.goals, t.lang, dayKey(Date.now())).length : null };
   const onTabKey = (e: ReactKeyboardEvent, i: number) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
     e.preventDefault();
@@ -634,6 +639,7 @@ export default function OverlayApp() {
         {tab === 'quests' && <Quests />}
         {tab === 'shop' && <Shop />}
         {tab === 'scan' && <Scan batch={view.batch} hotkey={view.hotkey} go={setTab} />}
+        {tab === 'raid' && <OvRaid bus={bus} />}
       </main>
       <footer className="ov-footer">
         <span>{t('ops.ov.footer')}</span>

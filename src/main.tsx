@@ -18,6 +18,7 @@ import './ui/tokens.css';
 import './ui/base.css';
 import './ui/components.css';
 import './ui/modules.css';
+import './ui/maps.css';
 import App from './App';
 import { app } from './store';
 

@@ -44,7 +44,7 @@ Do native/window tests with the game closed. Never focus or send input to the ga
 | `tests/` | Core, recognition, safety, language and browser checks |
 | `reference/` | Original diary reference, read only |
 
-Keep core independent. Modules read state and call actions, rather than writing storage or duplicating calculations. Browser `localStorage` is for development/testing; desktop storage uses native files. Normalisation migrates older state and rejects unsupported newer backup schemas. Use the implemented schema in `src/core/state.ts` as authority rather than historical examples in specifications.
+Keep core independent. Modules read state and call actions, rather than writing storage or duplicating calculations. Browser `localStorage` is for development/testing; desktop storage uses native files. Map screenshots (0.14.0) live in the webview's IndexedDB (`src/storage/mapImages.ts`), not in the state file. Normalisation migrates older state and rejects unsupported newer backup schemas. Use the implemented schema in `src/core/state.ts` as authority rather than historical examples in specifications.
 
 ## Text and translations
 
@@ -59,7 +59,7 @@ Keep core independent. Modules read state and call actions, rather than writing 
 
 ## Reference data and recognition
 
-`scripts/gen-catalog.mjs` generates catalogue/weapon statistics from MetaForge. `scripts/gen-arctracker.mjs` generates quest/project/item reference data from public ARC Tracker endpoints. Both support cached offline generation (`--offline`); cache directories are ignored. Data generation is a developer action, not background user-account synchronisation. Do not redistribute game artwork or screenshots.
+`scripts/gen-catalog.mjs` generates catalogue/weapon statistics from MetaForge, including each item's loot areas (`loot_area`, since 0.14.0). `scripts/gen-arctracker.mjs` generates quest/project/item reference data from public ARC Tracker endpoints. Both support cached offline generation (`--offline`); cache directories are ignored. Data generation is a developer action, not background user-account synchronisation. Do not redistribute game artwork or screenshots.
 
 Recognition lives in `src/core/vision/`; reviewed changes in `visionImport.ts` / `progressImport.ts` are applied only after confirmation and a state snapshot. Unknown values must remain unknown. Game UI text must be English for supported recognition.
 
@@ -73,4 +73,4 @@ Never use the owner's native data directory for demos, captures or tests. Use fr
 
 ## Design and release documentation
 
-The [specifications](docs/superpowers/specs/) describe intent; [plans](docs/superpowers/plans/) hold implementation details. Some specifications are historical, so verify behaviour against current code and tests before making user-facing claims. The [changelog](CHANGELOG.md) records changes from 0.4.0 to 0.13.1. The [original Czech README](docs/history/README-0.13.1.cs.md) retains the detailed technical release notes.
+The [specifications](docs/superpowers/specs/) describe intent; [plans](docs/superpowers/plans/) hold implementation details. Some specifications are historical, so verify behaviour against current code and tests before making user-facing claims. The [changelog](CHANGELOG.md) records changes from 0.4.0 to 0.14.0. The [original Czech README](docs/history/README-0.13.1.cs.md) retains the detailed technical release notes.

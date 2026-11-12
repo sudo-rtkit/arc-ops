@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.13.1](https://img.shields.io/badge/version-0.13.1-F4AD82?style=flat-square)
+![Version 0.14.0](https://img.shields.io/badge/version-0.14.0-F4AD82?style=flat-square)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
 ![Czech and English](https://img.shields.io/badge/languages-CS%20%2F%20EN-C6AFF1?style=flat-square)
@@ -39,9 +39,11 @@ All views below use **demo data** from the browser build. The desktop app provid
 
 ### Meet Bedňák, callsign Ops
 
-An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping and capture review. Buddy features start **off** and can be enabled in Settings.
+An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. Buddy features start **off** and can be enabled in Settings.
 
 [![Demo field console with Ops and local profile data](docs/assets/github/overlay.png)](docs/assets/github/overlay@2x.png)
+
+**Raid prep and your own map.** Pick goals (quests, the next station level, a project or money), get one list of what is still missing with the loot area from the item catalogue, a recommended map with its reasons, and the plan in the console's Raid tab with keep/sell/recycle lookups. The interactive map uses a screenshot of the in-game map that you add yourself; no game maps are bundled. Your points and plan highlights sit on top.
 
 Also included: stash cleanup advice, item recycling references, blueprints, weapon comparison, a personal tier list, raid journal, statistics, checklists and local JSON backup/restore. Data references may lag game updates; you can adjust supported data inside the app.
 
@@ -57,7 +59,7 @@ For an upgrade, use the newer installer over the existing installation; local da
 ## Your data stays with you
 
 - Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them.
-- Screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Learned numeric icon fingerprints and confirmed values may be stored locally.
+- Screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - Recognition proposes changes; you review and confirm them. Unreadable fields stay unknown. State snapshots and JSON export/restore help you recover from mistakes.
 - Stash advice never sells, recycles or deletes anything in the game.
