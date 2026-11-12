@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.14.0](https://img.shields.io/badge/version-0.14.0-F4AD82?style=flat-square)
+![Version 0.15.0](https://img.shields.io/badge/version-0.15.0-F4AD82?style=flat-square)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
 ![Czech and English](https://img.shields.io/badge/languages-CS%20%2F%20EN-C6AFF1?style=flat-square)
@@ -43,7 +43,7 @@ An optional, draggable desktop buddy with level-based outfits, paints, animation
 
 [![Demo field console with Ops and local profile data](docs/assets/github/overlay.png)](docs/assets/github/overlay@2x.png)
 
-**Raid prep and your own map.** Pick goals (quests, the next station level, a project or money), get one list of what is still missing with the loot area from the item catalogue, a recommended map with its reasons, and the plan in the console's Raid tab with keep/sell/recycle lookups. The interactive map uses a screenshot of the in-game map that you add yourself; no game maps are bundled. Your points and plan highlights sit on top.
+**Raid prep and your own map.** Pick goals (quests, the next station level, a project or money), get one list of what is still missing with the loot area from the item catalogue, a recommended map with its reasons, and the plan in the console's Raid tab with keep/sell/recycle lookups. The interactive map uses a screenshot of the in-game map that you add yourself; no game maps are bundled. Your points and plan highlights sit on top. After the raid, the plan is compared with what you found (from a confirmed FINDINGS capture or your stock change), shows what is still missing and which upgrades are ready, suggests the next raid and can be saved to the raid journal; statistics then show which maps help with your goals.
 
 Also included: stash cleanup advice, item recycling references, blueprints, weapon comparison, a personal tier list, raid journal, statistics, checklists and local JSON backup/restore. Data references may lag game updates; you can adjust supported data inside the app.
 

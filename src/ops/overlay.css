@@ -224,3 +224,14 @@ button, input { font: inherit; color: inherit; }
 .ovr-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding-top: 22px; }
 .ovr-empty h2 { margin: 0; font: 600 28px/1.25 var(--font-head); }
 .ovr-empty p { margin: 0; color: var(--text-secondary); }
+
+/* 0.15.0: vyhodnocení plánu ve výsledku revize FINDINGS */
+.ovr-eval { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; border-left: 3px solid var(--accent); }
+.ovr-eval[data-kind="upgrade"], .ovr-eval[data-kind="all"] { border-left-color: #91CFAB; }
+.ovr-eval h3 { margin: 0; font: 600 20px var(--font-head); }
+.ovr-eval p { margin: 0; }
+.ovr-eval .ovr-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid #465158; border-radius: 4px; background: var(--bg-panel); }
+.ovr-eval .ovr-row.found { opacity: .75; }
+.ovr-eval .ovr-row.found b { text-decoration: none; }
+.ovr-eval .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ovr-done { margin: 0; padding-left: 18px; color: #91CFAB; }

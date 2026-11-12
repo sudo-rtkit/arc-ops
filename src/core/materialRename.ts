@@ -40,6 +40,15 @@ function renameKeys<T>(obj: Record<string, T>, r: Renames, merge: (old: T, cur: 
   }
 }
 
+function mergeMats<T extends { mat: string }>(list: T[], join: (a: T, b: T) => T): T[] {
+  const out: T[] = [];
+  for (const x of list) {
+    const i = out.findIndex(y => y.mat.toLowerCase() === x.mat.toLowerCase());
+    if (i < 0) out.push(x); else out[i] = join(out[i], x);
+  }
+  return out;
+}
+
 export function migrateMaterialNames(s: AppState, r: Renames = MATERIAL_RENAMES): AppState {
   /* Zásoba: měl-li hráč oba názvy (ruční počet pod starým, snímek pod herním), platí vyšší počet. Součet by týž
      stack započítal dvakrát, a vyšší počet se neztratí. */
@@ -59,7 +68,10 @@ export function migrateMaterialNames(s: AppState, r: Renames = MATERIAL_RENAMES)
     x.lost = renameQty(x.lost, r);
     x.lootApplied = renameQty(x.lootApplied, r);
     if (x.lootScan) x.lootScan = { ...x.lootScan, items: renameQty(x.lootScan.items, r) };
+    /* 0.15.0: předměty plánu v záznamu (názvy jsou v záznamu jedinečné, po přejmenování se sloučí) */
+    if (x.plan) x.plan = { ...x.plan, items: mergeMats(x.plan.items.map(i => (r[i.mat] ? { ...i, mat: r[i.mat] } : i)), (a, b) => ({ ...a, need: a.need + b.need, found: a.found + b.found })) };
   }
+  if (s.raidPlan?.snap) s.raidPlan.snap = mergeMats(s.raidPlan.snap.map(i => (r[i.mat] ? { ...i, mat: r[i.mat] } : i)), (a, b) => ({ ...a, have: Math.max(a.have, b.have), missing: Math.max(a.missing, b.missing) }));
   s.vision.learned = s.vision.learned.map(l => (l.kind === 'material' && r[l.itemKey] ? { ...l, itemKey: r[l.itemKey] } : l));
   renameKeys(s.advice.keep, r);
   /* tier list: starý název dostane herní název; je-li herní název už zařazený, starý se vynechá */

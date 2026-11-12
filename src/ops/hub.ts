@@ -18,6 +18,8 @@ import { normalizeProgressApply, proposalChanges, proposeProgress, type Progress
 import { analyzeLoot, analyzeShots, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { lootSignature, raidWithSig, type RaidLootInput } from '../core/lootImport';
 import { normalizeItems } from '../core/raidItems';
+import { evalLine, evaluateRaid } from '../core/raidEval';
+import { dayKey } from '../core/util';
 import type { ProfileField, RaidLootResult } from '../store/app';
 import { SKILL } from '../core/data/skills';
 import { matchContext } from '../core/catalog';
@@ -307,7 +309,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     else {
       status('carry');
       res = await app.actions.importRaidLoot(input, shot.sig);
-      if (res.ok) { if (batch.loot?.id === shotId) clearLoot(); status('success', line('loot.written', { count: res.items.length })); }
+      if (res.ok) {
+        if (batch.loot?.id === shotId) clearLoot();
+        /* 0.15.0: při aktivním plánu shrne Ops vyhodnocení plánu (jen čtení), jinak potvrdí zápis */
+        const s = st(), plan = s.raidPlan, raidId = res.raidId, raid = s.raids.find(r => r.id === raidId);
+        status('success', plan && raid ? evalLine(evaluateRaid(s, plan, raid, s.settings.lang, dayKey(now()))) : line('loot.written', { count: res.items.length }));
+      }
       else status('error', null);
     }
     bus.send('overlay', 'lootImported', { result: res });
@@ -401,6 +408,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     offs.push(bus.on('raidFound', p => {
       const o = p as { mat?: unknown; on?: unknown } | null;
       if (o && typeof o.mat === 'string' && typeof o.on === 'boolean') app.actions.setRaidFound(o.mat, o.on);
+    }));
+    /* 0.15.0: „Uložit do deníku“ z vyhodnocení v overlayi: aktivní plán k záznamu raidu (inventář se nemění) */
+    offs.push(bus.on('raidPlanSave', p => {
+      const id = (p as { raidId?: unknown } | null)?.raidId;
+      if (typeof id === 'string' && id.length <= 24 && st().raids.some(r => r.id === id)) app.actions.attachRaidPlan(id);
     }));
     /* 0.10.1: rychlé úpravy z modulů overlaye; jen známé operace a hodnoty, provede je stejná akce store */
     offs.push(bus.on('edit', p => applyEdit(p)));

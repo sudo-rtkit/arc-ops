@@ -20,7 +20,7 @@ import { emptyOpsPrefs, normalizeOpsPrefs } from './opsPrefs';
 import { emptyGames, normalizeGames } from './minigames';
 import { emptyRounds, normalizeRounds } from './gameRounds';
 import { migrateMaterialNames } from './materialRename';
-import { normalizeRaidPlan } from './raidPrep';
+import { normalizePlanRecord, normalizeRaidPlan } from './raidPrep';
 import { isLootArea, isPoiType } from './lootAreas';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
@@ -30,7 +30,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 13 as const;
+export const SCHEMA = 14 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -130,6 +130,8 @@ export function normalizeRaid(x: Record<string, unknown>): Raid {
     goals: [...new Set(arr(x.goals).map(g => text(g, 24)).filter(Boolean))].slice(0, 50),
     lootApplied: normalizeItems(x.lootApplied),
     ...normalizeLootScan(x.lootScan),
+    /* schéma 14 (0.15.0): plán raidu v záznamu; ve starších záznamech chybí a záznam zůstává platný */
+    ...normalizePlanRecord(x.plan),
   };
 }
 
@@ -454,6 +456,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.gameRounds = normalizeRounds(r.gameRounds);
   /* schéma 13 (0.14.0): aktivní plán raidu; ve starším stavu chybí a začne prázdný. Body map viz normalizePois. */
   out.raidPlan = normalizeRaidPlan(r.raidPlan);
+  /* schéma 14 (0.15.0): snímek zásoby plánu (raidPlan.snap, starší plán ho nemá = null) a plán v záznamech raidů
+     (raids[].plan, volitelný); obojí se doplní v normalizeRaidPlan a normalizeRaid */
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */

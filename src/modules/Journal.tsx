@@ -39,6 +39,7 @@ function RaidDetail({ r }: { r: Raid }) {
         <dt>{t('journal.goalsDone')}</dt><dd className="wrap">{goals.length ? goals.join(', ') : <span className="muted">{t('journal.none')}</span>}</dd>
         {r.notes && <><dt>{t('common.note')}</dt><dd className="wrap">{r.notes}</dd></>}
       </dl>
+      {r.plan && <PlanDetail r={r} />}
       <div className="row">
         {(st === 'pending' || st === 'changed') && (
           <Btn size="sm" variant="primary" icon={ArrowDownToLine} onClick={() => {
@@ -52,6 +53,29 @@ function RaidDetail({ r }: { r: Raid }) {
       </div>
       {st !== 'none' && <p className="meta">{t('journal.moveHint', { revert: t('journal.revert') })}</p>}
     </div>
+  );
+}
+
+/* 0.15.0: plán uložený se záznamem (cíle, mapa, loadout, nalezené z plánu, hotové požadavky, hodnota). */
+function PlanDetail({ r }: { r: Raid }) {
+  const d = useDerived();
+  const t = useT();
+  const p = r.plan!;
+  const found = p.items.reduce((a, i) => a + i.found, 0), need = p.items.reduce((a, i) => a + i.need, 0);
+  const goals = [...p.goals, ...(p.money ? [t('raid.goal.money')] : [])];
+  return (
+    <section className="raid-plan" data-testid="journal-plan" aria-label={t('journal.plan')}>
+      <h4>{t('journal.plan')}</h4>
+      <dl className="dl">
+        <dt>{t('journal.planGoals')}</dt><dd className="wrap">{goals.length ? goals.join(', ') : <span className="muted">{t('journal.none')}</span>}</dd>
+        <dt>{t('journal.planMap')}</dt><dd>{p.map ? mapName(p.map) : '\u2014'}{' \u00b7 '}{p.loadout ? d.loadoutName(p.loadout) : t('journal.noLoadout')}</dd>
+        <dt>{t('journal.planFound')}</dt><dd className="wrap" data-testid="journal-plan-found">{p.items.length
+          ? <>{t('raid.eval.sum', { found, need })}: {p.items.map(i => `${i.mat} ${fmt(i.found)}/${fmt(i.need)}`).join(', ')}</>
+          : <span className="muted">{t('raid.eval.empty')}</span>}</dd>
+        {p.done.length > 0 && <><dt>{t('journal.planDone')}</dt><dd className="wrap success">{p.done.join(', ')}</dd></>}
+        {p.value !== null && <><dt>{t('journal.planValue')}</dt><dd className="mono amber">{fmt(p.value)}</dd></>}
+      </dl>
+    </section>
   );
 }
 
@@ -69,7 +93,7 @@ export default function Journal() {
   const [revert, setRevert] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [limit, setLimit] = useState(100);
-  const text = (r: Raid) => [r.notes, d.routeName(r.route), mapName(r.map), itemsText(r.gear), itemsText(r.loot), itemsText(r.lost), r.loadout ? d.loadoutName(r.loadout) : ''].join(' ').toLowerCase();
+  const text = (r: Raid) => [r.notes, ...(r.plan?.goals ?? []), d.routeName(r.route), mapName(r.map), itemsText(r.gear), itemsText(r.loot), itemsText(r.lost), r.loadout ? d.loadoutName(r.loadout) : ''].join(' ').toLowerCase();
   const rows = filterRaids(s.raids, { type: type as RaidType | '', map })
     .filter(r => (!result || (result === 'ok' ? r.ok : !r.ok)) && (!loadout || (loadout === '-' ? !r.loadout : r.loadout === loadout)) && (!q || text(r).includes(q.toLowerCase())))
     .sort((a, b) => b.ts - a.ts);
@@ -114,8 +138,9 @@ export default function Journal() {
                           {r.loot.length > 0 && <>{t('journal.lootLbl', { list: itemsText(r.loot) })}<br /></>}
                           {r.lost.length > 0 && <span className="danger">{t('journal.lostLbl', { list: itemsText(r.lost) })}<br /></span>}
                           {r.goals.length > 0 && <>{t('journal.goalsLbl', { n: r.goals.length })}<br /></>}
+                          {r.plan && <Badge tone="accent">{t('journal.planBadge', { found: r.plan.items.reduce((a, i) => a + i.found, 0), need: r.plan.items.reduce((a, i) => a + i.need, 0) })}</Badge>}
                           <LootStatus r={r} />
-                          {!r.loot.length && !r.lost.length && !r.goals.length && r.notes}
+                          {!r.loot.length && !r.lost.length && !r.goals.length && !r.plan && r.notes}
                         </td>
                         <td className="actions-cell"><span className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
                           <IconBtn label={t('journal.editRaid', { date: fmtDate(r.ts) })} icon={Pencil} onClick={() => open({ editId: r.id })} />

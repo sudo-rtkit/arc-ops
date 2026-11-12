@@ -78,3 +78,25 @@ export const RAID_TYPE_IDS: RaidType[] = ['money', 'quest', 'trials', 'arc', 'pv
 /* Typy s názvem v aktuálním jazyce. */
 export const raidTypes = (): [RaidType, string][] => RAID_TYPE_IDS.map(k => [k, t(`raidType.${k}`)]);
 export const raidTypeName = (k: string): string => t(`raidType.${(RAID_TYPE_IDS as string[]).includes(k) ? k as RaidType : 'other'}`);
+
+/* ----- 0.15.0: které mapy pomáhají s cíli (raidy s uloženým plánem) -----
+   Počítá se jen z raidů s plánem v deníku a jen u map, kde nějaký je. Malý vzorek se označí (little) a do
+   bodování map v přípravě se historie započítá až od PLAN_MIN_SAMPLE raidů. Úspěch = z plánu se našlo vše,
+   nebo raid dokončil aspoň jeden požadavek (např. materiál na další úroveň stanice). */
+export const PLAN_MIN_SAMPLE = 3;
+export interface MapPlanStats { map: string; n: number; found: number; avg: number; ok: number; rate: number; little: boolean }
+export const planSuccess = (p: NonNullable<Raid['plan']>): boolean =>
+  p.done.length > 0 || (p.items.length > 0 && p.items.every(i => i.found >= i.need));
+export function planMapStats(raids: Pick<Raid, 'map' | 'plan'>[]): MapPlanStats[] {
+  const by: Record<string, MapPlanStats> = {};
+  for (const r of raids) {
+    if (!r.plan) continue;
+    const b = (by[r.map] ||= { map: r.map, n: 0, found: 0, avg: 0, ok: 0, rate: 0, little: true });
+    b.n++;
+    b.found += r.plan.items.reduce((a, i) => a + Math.min(i.need, i.found), 0);
+    if (planSuccess(r.plan)) b.ok++;
+  }
+  return Object.values(by)
+    .map(b => ({ ...b, avg: Math.round(b.found / b.n * 10) / 10, rate: b.ok / b.n, little: b.n < PLAN_MIN_SAMPLE }))
+    .sort((a, b) => Number(a.little) - Number(b.little) || b.avg - a.avg || b.n - a.n);
+}

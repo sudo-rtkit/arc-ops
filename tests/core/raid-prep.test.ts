@@ -162,8 +162,8 @@ describe('schéma 13: migrace, záloha a obnova', () => {
       maps: { dam: { notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě' }], todo: [] } },
     };
     const s = normalize(old, NOW);
-    expect(SCHEMA).toBe(13);
-    expect(s.schema).toBe(13);
+    expect(SCHEMA).toBe(14);
+    expect(s.schema).toBe(14);
     expect(s.raidPlan).toBeNull();
     expect(s.inventory).toEqual({ Wires: 4 });
     expect(s.maps.dam).toEqual({ notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě', type: 'note', area: '' }], todo: [], harmonise: true, img: null });
@@ -178,11 +178,11 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     expect(s.maps.dam.img).toEqual({ w: 1920, h: 1080, at: 5 });
     expect(s.raidPlan).toBeNull();
     expect(normalizeRaidPlan({ map: 'dam', goals: { quests: ['a', 'a', 3], money: true }, found: ['Wires', 'Wires'], sig: 'bad' }))
-      .toEqual({ goals: { quests: ['a'], stations: [], projects: [], money: true }, map: 'dam', loadout: '', route: '', startedAt: 0, sig: '', found: ['Wires'] });
+      .toEqual({ goals: { quests: ['a'], stations: [], projects: [], money: true }, map: 'dam', loadout: '', route: '', startedAt: 0, sig: '', found: ['Wires'], snap: null, open: [] });
   });
-  it('záloha nese plán a body; snímky map jen volitelně a jen platné; schéma 14 je novější', () => {
+  it('záloha nese plán a body; snímky map jen volitelně a jen platné; schéma 15 je novější', () => {
     const s = defaultState(NOW);
-    s.raidPlan = { goals: goals({ quests: ['ss10y'] }), map: 'buried', loadout: '', route: '', startedAt: NOW, sig: 'r0000abcd', found: ['Wires'] };
+    s.raidPlan = { goals: goals({ quests: ['ss10y'] }), map: 'buried', loadout: '', route: '', startedAt: NOW, sig: 'r0000abcd', found: ['Wires'], snap: [{ mat: 'Wires', have: 2, missing: 3 }], open: ['quest:ss10y'] };
     s.maps.buried = { notes: '', visited: {}, todo: [], harmonise: false, img: { w: 10, h: 5, at: NOW }, pois: [{ id: 'p', name: '', note: '', type: 'quest', area: '', x: 0.1, y: 0.2 }] };
     const plain = JSON.parse(makeBackup(s));
     expect(plain.mapImages).toBeUndefined();
@@ -195,7 +195,7 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     const withImg = parseBackup(makeBackup(s, new Date(NOW), [img]), NOW);
     expect('error' in withImg ? null : withImg.mapImages).toEqual([img]);
     expect(backupImages([img, { ...img, mapId: 'mars' }, { ...img, mapId: 'dam', dataUrl: 'javascript:alert(1)' }, { ...img, mapId: 'stella', w: 0 }])).toEqual([img]);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 14, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 15, state: {} }), NOW)).toHaveProperty('error');
   });
 });
 

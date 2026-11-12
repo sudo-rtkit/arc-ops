@@ -14,6 +14,7 @@ import { dayKey } from '../core/util';
 import { MAPS } from '../core/data/maps';
 import { emptyMapNotes } from '../core/state';
 import { findName, highlightPois, lookupAdvice, lookupNames, neededAreas, questsOnMap, raidList } from '../core/raidPrep';
+import { evaluateRaid, nextRaid, savedRaid } from '../core/raidEval';
 import { AreaBadge, AreaBadges, MapBackdrop, PoiIcon, areaColor, frameOf, pinLabel, poiNumber, useMapImage } from '../ui/MapView';
 
 const MINI = { w: 420, h: 310 };
@@ -34,6 +35,46 @@ function MiniMap({ mapId, highlights }: { mapId: string; highlights: ReturnType<
         </span>
       ))}
     </div>
+  );
+}
+
+/* 0.15.0: vyhodnocení plánu ve výsledku revize FINDINGS (po potvrzeném zápisu lootu při aktivním plánu).
+   Jen čte stav; „Uložit do deníku“ jde do hlavního okna jako akce raidPlanSave (plán k záznamu raidu). */
+export function OvRaidEval({ bus, raidId }: { bus: Bus; raidId: string }) {
+  const t = useT();
+  const s = useAppState();
+  const plan = s.raidPlan;
+  const today = dayKey(Date.now());
+  const raid = s.raids.find(r => r.id === raidId) ?? null;
+  const ev = useMemo(() => (plan && raid ? evaluateRaid(s, plan, raid, t.lang, today) : null), [s, plan, raid, t.lang, today]);
+  const next = useMemo(() => (plan && ev ? nextRaid(s, plan, ev, t.lang, today) : null), [s, plan, ev, t.lang, today]);
+  const [sent, setSent] = useState(false);
+  if (!plan || !raid || !ev) return null;
+  const saved = savedRaid(s, plan)?.id === raid.id;
+  const missing = ev.rows.filter(r => r.missing > 0);
+  return (
+    <section className="ov-card ovr-eval" data-testid="ov-raid-eval" data-kind={ev.kind}>
+      <span className="ov-stencil">{t('ops.ov.e.kicker')}</span>
+      <h3>{t('raid.eval.sum', { found: ev.found, need: ev.need })}</h3>
+      {ev.done.length > 0 && <ul className="ovr-done">{ev.done.map(d => <li key={d.key}>{t(`raid.eval.done.${d.kind}` as Key, { name: d.name })}</li>)}</ul>}
+      {ev.rows.length > 0 && (
+        <ul className="ovr-list">{ev.rows.map(r => (
+          <li key={r.mat} className={cx('ovr-row', r.missing === 0 && 'found')} data-mat={r.mat}>
+            <span className="grow"><b>{r.mat}</b></span><strong>{fmt(r.found)}/{fmt(r.need)}</strong>
+          </li>
+        ))}</ul>
+      )}
+      <p className="ov-muted">{missing.length ? t('ops.ov.e.missing', { list: missing.slice(0, 5).map(r => `${fmt(r.missing)}× ${r.mat}`).join(', ') }) : t('raid.eval.nothingMissing')}</p>
+      {next && next.best && (next.rows.length > 0 || next.goals.money) && (
+        <p className="ov-muted" data-testid="ov-raid-next">{t('ops.ov.e.next', { map: next.best.name, count: next.units })}</p>
+      )}
+      <div className="row">
+        <button type="button" className="ov-btn primary" disabled={sent && !saved} onClick={() => { setSent(true); bus.send('main', 'raidPlanSave', { raidId: raid.id }); }} data-testid="ov-raid-save">
+          {saved ? t('raid.eval.saveAgain') : t('raid.eval.save')}</button>
+        <button type="button" className="ov-btn" onClick={() => bus.send('main', 'open', { route: 'raid' })}>{t('ops.ov.r.open')}</button>
+      </div>
+      {saved && <p className="ov-muted" role="status" data-testid="ov-raid-saved">{t('ops.ov.e.saved')}</p>}
+    </section>
   );
 }
 

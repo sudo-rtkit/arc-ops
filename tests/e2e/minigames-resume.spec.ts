@@ -115,7 +115,7 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(page.getByTestId('games-finish')).toHaveCount(0);
     await page.waitForTimeout(300);
     const st = await stateOf(page);
-    expect(st.schema).toBe(13);
+    expect(st.schema).toBe(14);
     expect(st.games.tetris).toEqual({ played: 1, best: value, bestPct: Math.floor(value * 100 / g.score) });
     expect(st.inventory).toEqual({ 'Metal Parts': 5 });
 

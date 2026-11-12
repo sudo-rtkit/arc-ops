@@ -5,6 +5,7 @@ import type { CloseAction, CompactSection, MainWindowPrefs, OpsPrefs } from '../
 import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Poi, Raid, RaidGoals, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
 import { isLootArea, isPoiType, type PoiType } from '../core/lootAreas';
 import { normalizeRaidPlan } from '../core/raidPrep';
+import { evaluateRaid, planRecord, planSnapshot } from '../core/raidEval';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
 import { rollWeek } from '../core/week';
@@ -191,6 +192,18 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     set({ state: r.state });
     if (r.archived) notify(t('notice.weekArchived'), 'info');
     scheduleSave();
+    return true;
+  }
+
+  /* Plán a vyhodnocení do záznamu raidu (jen při aktivním plánu). Při uložení k jinému záznamu se plán
+     ze starého záznamu téhož plánu přesune, takže jeden plán je v deníku jen jednou. */
+  function attachPlan(s: AppState, r: Raid): boolean {
+    const plan = s.raidPlan;
+    if (!plan) return false;
+    const lang = s.settings.lang, today = dayKey(now());
+    const ev = evaluateRaid(s, plan, r, lang, today);
+    for (const x of s.raids) if (x !== r && x.plan?.at === plan.startedAt) delete x.plan;
+    r.plan = planRecord(s, plan, ev, lang, today);
     return true;
   }
 
@@ -482,18 +495,34 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
 
     /* raidy: zápis přidá kolo, mince profilu ani zásoba se nemění. Úprava nemění kola ani zásobu.
        Loot se do Inventory převádí jen výslovně, a to jen rozdíl proti už převedenému. */
-    addRaid(input: Partial<Raid>, opts: { applyLoot?: boolean } = {}): string {
+    /* 0.15.0: withPlan = k záznamu se uloží aktivní plán a jeho vyhodnocení (po případném převodu lootu, takže
+       nalezené se spočítá z přírůstku zásoby i z lootu záznamu, nikdy dvakrát). Plán zůstává aktivní. */
+    addRaid(input: Partial<Raid>, opts: { applyLoot?: boolean; withPlan?: boolean } = {}): string {
       const id = uid();
       change(s => {
         const r = normalizeRaid({ ...input, id, ts: input.ts || now(), lootApplied: [] });
+        delete r.plan;
         if (!r.ok) r.coins = 0;
         r.goals = r.goals.filter(g => s.goals.some(x => x.id === g));
         s.raids.push(r);
         s.profile.rounds = Math.min(LIMITS.rounds[1], s.profile.rounds + 1);
         linkRaidGoals(s, r, []);
         if (opts.applyLoot) applyLootIn(s, r);
+        if (opts.withPlan) attachPlan(s, r);
       });
       return id;
+    },
+    /* 0.15.0: „Uložit do deníku“ z vyhodnocení: k existujícímu záznamu raidu (např. ze snímku FINDINGS) se uloží
+       aktivní plán a vyhodnocení s lootem tohoto záznamu. Inventář se nemění. Opakované uložení záznam přepíše. */
+    attachRaidPlan(raidId: string): boolean {
+      return change(s => {
+        const r = s.raids.find(x => x.id === raidId);
+        if (!r || !attachPlan(s, r)) return false;
+      });
+    },
+    /* Zrušit plán u záznamu (záznam sám zůstane). */
+    detachRaidPlan(raidId: string) {
+      change(s => { const r = s.raids.find(x => x.id === raidId); if (!r?.plan) return false; delete r.plan; });
     },
     updateRaid(id: string, patch: Partial<Raid>, opts: { applyLoot?: boolean } = {}) {
       change(s => {
@@ -914,10 +943,11 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
 
     /* ----- 0.14.0: příprava na raid ----- */
     /* Spustí plán: uloží jen volby (cíle, mapa, loadout, trasa) a otisk seznamu; seznam se vždy přepočítá. */
+    /* 0.15.0: při spuštění se uloží snímek zásoby předmětů ze seznamu (pro vyhodnocení po raidu). */
     startRaidPlan(p: { goals: RaidGoals; map: string; loadout: string; route: string; sig: string }): boolean {
-      const plan = normalizeRaidPlan({ ...p, startedAt: now(), found: [] });
+      const plan = normalizeRaidPlan({ ...p, startedAt: now(), found: [], snap: [], open: [] });
       if (!plan) return false;
-      return change(s => { s.raidPlan = plan; });
+      return change(s => { Object.assign(plan, planSnapshot(s, plan.goals, s.settings.lang, dayKey(now()))); s.raidPlan = plan; });
     },
     endRaidPlan() { change(s => { if (!s.raidPlan) return false; s.raidPlan = null; }); },
     /* Zaškrtnutí „mám“ z overlaye: jen orientační, inventář se nemění. */

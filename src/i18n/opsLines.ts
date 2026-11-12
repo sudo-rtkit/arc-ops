@@ -278,6 +278,63 @@ const cs = {
     friendly: ['Jedem na {map:raw}! Nic nechybí, tak hlavně vydělávej.', 'Plán je venku: {map:raw}. Seznam je prázdný, užij si raid.'],
     cheeky: ['{map:raw} a prázdný seznam. Turistika, nebo money run?', 'Nic nechybí. Tak aspoň přines něco hezkého z {map:raw}.'],
   },
+  /* ----- 0.15.0: vyhodnocení po raidu (jen po akci hráče v aplikaci nebo overlayi) ----- */
+  'raid.eval.all': {
+    plain: [
+      { one: 'Z plánu nalezeno vše: {count} kus.', few: 'Z plánu nalezeno vše: {count} kusy.', other: 'Z plánu nalezeno vše: {count} kusů.' },
+      'Seznam plánu je kompletní.',
+    ],
+    friendly: [
+      'Všechno ze seznamu máš! Tohle byl povedený raid.',
+      { one: 'Paráda, {count} kus a seznam je hotový.', few: 'Paráda, {count} kusy a seznam je hotový.', other: 'Paráda, {count} kusů a seznam je hotový.' },
+    ],
+    cheeky: [
+      'Celý seznam. Kdo jsi a co jsi udělal s mým raiderem?',
+      'Všechno nalezeno. Přiznávám, jsem trochu dojatý.',
+    ],
+  },
+  'raid.eval.partial': {
+    plain: [
+      'Z plánu nalezeno {count} z {need} ks, chybí {missing}.',
+      'Nalezeno {count}/{need} ks. Zbytek je v seznamu na další raid.',
+    ],
+    friendly: [
+      'Dobrý kus práce: {count} z {need} ks. Zbytek dáme příště.',
+      { one: 'Máme {count} kus z plánu. Chybí ještě {missing}, to zvládneme.', few: 'Máme {count} kusy z plánu. Chybí ještě {missing}, to zvládneme.', other: 'Máme {count} kusů z plánu. Chybí ještě {missing}, to zvládneme.' },
+    ],
+    cheeky: [
+      '{count} z {need}. Polovičatá práce, ale aspoň nějaká.',
+      'Chybí {missing} ks. Nevadí, příště ti je ukážu prstem.',
+    ],
+  },
+  'raid.eval.none': {
+    plain: [
+      'Z plánu se nic nenašlo. Seznam zůstává stejný.',
+      { one: 'Nalezeno 0 ks z plánu. Stále chybí {count} kus.', few: 'Nalezeno 0 ks z plánu. Stále chybí {count} kusy.', other: 'Nalezeno 0 ks z plánu. Stále chybí {count} kusů.' },
+    ],
+    friendly: [
+      'Tentokrát nic ze seznamu. Nevadí, další raid bude lepší.',
+      'Ze seznamu nic, ale hlavně že jsi zpátky. Zkusíme to znova.',
+    ],
+    cheeky: [
+      'Nic ze seznamu. Byl to výlet, nebo raid?',
+      'Nula. Seznam se tě asi bojí.',
+    ],
+  },
+  'raid.eval.upgrade': {
+    plain: [
+      'Hotovo: {name:raw}. Materiál je připravený.',
+      'Požadavky jsou splněné: {name:raw}.',
+    ],
+    friendly: [
+      'Paráda! {name:raw}: všechno připravené, můžeš to jít dokončit.',
+      'Máme to! {name:raw} má všechny materiály.',
+    ],
+    cheeky: [
+      '{name:raw} je připravené. Konečně, už jsem chtěl nosit vlastní kabel.',
+      'Hotovo: {name:raw}. Tak šup do dílny, než to rozprodáš.',
+    ],
+  },
   'game.win': {
     plain: ['Kolo vyhrané.', 'Dobrý výsledek.'],
     friendly: ['Paráda, tohle kolo je tvoje!', 'Výborně! Takhle se balí batoh.'],
@@ -577,6 +634,63 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['Plan saved. Map {map:raw}, nothing missing.', 'Target: {map:raw}. The list is empty.'],
     friendly: ['Off to {map:raw}! Nothing missing, so go make some money.', 'Plan is out: {map:raw}. Empty list, enjoy the raid.'],
     cheeky: ['{map:raw} with an empty list. Sightseeing or money run?', 'Nothing missing. Bring me something shiny from {map:raw}.'],
+  },
+  /* ----- 0.15.0: post-raid evaluation (only after a player action in the app or the overlay) ----- */
+  'raid.eval.all': {
+    plain: [
+      { one: 'Everything from the plan found: {count} unit.', other: 'Everything from the plan found: {count} units.' },
+      'The plan list is complete.',
+    ],
+    friendly: [
+      'You got everything on the list! That was a good raid.',
+      { one: 'Great, {count} unit and the list is done.', other: 'Great, {count} units and the list is done.' },
+    ],
+    cheeky: [
+      'The whole list. Who are you and what did you do with my raider?',
+      'Everything found. I admit I am a little moved.',
+    ],
+  },
+  'raid.eval.partial': {
+    plain: [
+      'Found {count} of {need} units from the plan, {missing} missing.',
+      'Found {count}/{need} units. The rest stays on the list for the next raid.',
+    ],
+    friendly: [
+      'Good work: {count} of {need} units. We will get the rest next time.',
+      { one: 'We have {count} unit from the plan. {missing} still missing, we can do it.', other: 'We have {count} units from the plan. {missing} still missing, we can do it.' },
+    ],
+    cheeky: [
+      '{count} of {need}. Half a job, but a job.',
+      '{missing} units missing. Fine, next time I will point at them.',
+    ],
+  },
+  'raid.eval.none': {
+    plain: [
+      'Nothing from the plan was found. The list stays the same.',
+      { one: 'Found 0 units from the plan. {count} unit still missing.', other: 'Found 0 units from the plan. {count} units still missing.' },
+    ],
+    friendly: [
+      'Nothing from the list this time. No worries, the next raid will be better.',
+      'Nothing from the list, but you made it back. Let us try again.',
+    ],
+    cheeky: [
+      'Nothing from the list. Was that a trip or a raid?',
+      'Zero. The list must be scared of you.',
+    ],
+  },
+  'raid.eval.upgrade': {
+    plain: [
+      'Done: {name:raw}. The materials are ready.',
+      'Requirements met: {name:raw}.',
+    ],
+    friendly: [
+      'Great! {name:raw}: everything ready, go finish it.',
+      'We did it! {name:raw} has all its materials.',
+    ],
+    cheeky: [
+      '{name:raw} is ready. Finally, I was about to carry the cables myself.',
+      'Done: {name:raw}. Off to the workshop before you sell it all.',
+    ],
   },
   'game.win': {
     plain: ['Round won.', 'Good result.'],

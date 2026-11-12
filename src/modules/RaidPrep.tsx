@@ -5,15 +5,17 @@
    Uložené jsou jen volby; seznam se vždy přepočítá z aktuálního stavu. Ops při spuštění řekne hlášku jen tady
    v okně aplikace (hráč právě klikl), nad hrou nic nevyskakuje. */
 import { useMemo, useRef, useState } from 'react';
-import { Map as MapIcon, Play, RotateCcw, Square, Target } from 'lucide-react';
-import { actions, navigate, useAppState, useDerived } from '../store';
+import { BookOpen, ClipboardCheck, Map as MapIcon, Play, RotateCcw, Square, Target } from 'lucide-react';
+import { actions, app, navigate, useAppState, useDerived } from '../store';
+import { useUi } from '../store/ui';
 import { Badge, Btn, Check, Empty, PageHead, Panel, Select, cx } from '../ui/components';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import { fmt, fmtDateTime } from '../ui/format';
 import { dayKey } from '../core/util';
 import { MAPS } from '../core/data/maps';
-import type { RaidGoals } from '../core/types';
+import type { RaidGoals, RaidPlan } from '../core/types';
+import { evalLine, evaluateRaid, nextRaid, planRaid, savedRaid } from '../core/raidEval';
 import {
   defaultGoals, emptyGoals, goalOptions, hasGoals, listSig, raidList, recommendedMap, scoreMaps, validGoals, type MapScore,
 } from '../core/raidPrep';
@@ -39,6 +41,93 @@ function OpsSays({ said }: { said: { line: LineRef | null; n: number } }) {
 }
 
 const reasonText = (t: ReturnType<typeof useT>, r: MapScore['reasons'][number]) => t(r.key as Key, r.params);
+
+/* 5 · Po raidu (0.15.0): vyhodnocení aktivního plánu. Ze snímku FINDINGS (loot záznamu raidu od spuštění plánu)
+   se ukáže samo, jinak po „Vyhodnotit raid“ podle změny zásoby od spuštění. Jen čte; inventář se nemění.
+   Uložení do deníku: k záznamu raidu od spuštění plánu, jinak přes stávající zápis raidu (plán se uloží s ním). */
+function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: LineRef) => void; onNext: (n: ReturnType<typeof nextRaid>) => void }) {
+  const t = useT();
+  const s = useAppState();
+  const today = dayKey(Date.now());
+  const openForm = useUi(x => x.openRaidForm);
+  const [on, setOn] = useState(false);
+  const raid = planRaid(s, plan);
+  const captured = raid && raid.loot.length ? raid : null;
+  const show = !!captured || (on && !!plan.snap);
+  const ev = useMemo(() => (show ? evaluateRaid(s, plan, captured, t.lang, today) : null), [show, s, plan, captured, t.lang, today]);
+  const next = useMemo(() => (ev ? nextRaid(s, plan, ev, t.lang, today) : null), [ev, s, plan, t.lang, today]);
+  const saved = savedRaid(s, plan);
+  const mapName = (id: string) => MAPS.find(m => m.id === id)?.name ?? id;
+  const run = () => {
+    setOn(true);
+    if (!plan.snap && !captured) return;
+    onSay(evalLine(evaluateRaid(s, plan, captured, t.lang, today)));
+  };
+  const save = () => {
+    if (raid) {
+      if (actions.attachRaidPlan(raid.id)) app.notify(t('raid.eval.savedToast'), 'success');
+      return;
+    }
+    openForm({ preset: { map: plan.map, route: plan.route || undefined, loadout: plan.loadout || undefined, type: plan.goals.quests.length ? 'quest' : plan.goals.money ? 'money' : 'other' } });
+  };
+  const doneText = (d: NonNullable<typeof ev>['done'][number]) => t(`raid.eval.done.${d.kind}` as Key, { name: d.name });
+  return (
+    <Panel title={t('raid.step.eval')} actions={<Btn size="sm" icon={ClipboardCheck} onClick={run} data-testid="raid-eval">{t('raid.eval.run')}</Btn>}>
+      <div className="rp-eval" data-testid="raid-eval-panel">
+        {!ev ? (
+          on && !plan.snap ? <p className="meta" data-testid="raid-eval-legacy">{t('raid.eval.legacy')}</p> : <p className="meta">{t('raid.eval.intro')}</p>
+        ) : (
+          <>
+            <p className="meta" data-testid="raid-eval-source">{captured ? t('raid.eval.fromRaid', { at: fmtDateTime(Math.max(captured.ts, captured.lootScan?.at ?? 0)) }) : t('raid.eval.fromStock', { at: fmtDateTime(plan.startedAt) })}</p>
+            <div className="rp-eval-sum" data-testid="raid-eval-sum" data-kind={ev.kind}>
+              <b>{t('raid.eval.sum', { found: ev.found, need: ev.need })}</b>
+              {ev.value !== null && <span className="meta">{t('raid.eval.value', { value: ev.value })}</span>}
+            </div>
+            {ev.done.length > 0 && (
+              <div className="rp-eval-done" data-testid="raid-eval-done" role="status">
+                <span className="mv-eyebrow">{t('raid.eval.done')}</span>
+                <ul>{ev.done.map(d => <li key={d.key}>{doneText(d)}</li>)}</ul>
+              </div>
+            )}
+            {ev.rows.length === 0 ? <p className="muted">{t('raid.eval.empty')}</p> : (
+              <div className="table-wrap">
+                <table className="table rp-table" data-testid="raid-eval-list">
+                  <thead><tr><th>{t('raid.list.item')}</th><th className="num">{t('raid.eval.col.found')}</th><th className="num">{t('raid.eval.col.missing')}</th><th>{t('raid.list.area')}</th></tr></thead>
+                  <tbody>{ev.rows.map(r => (
+                    <tr key={r.mat} data-mat={r.mat} className={r.missing === 0 ? 'rp-done' : undefined}>
+                      <td><b>{r.mat}</b></td>
+                      <td className="num mono">{fmt(r.found)} / {fmt(r.need)}</td>
+                      <td className="num mono">{r.missing ? fmt(r.missing) + '×' : '✓'}</td>
+                      <td><AreaBadges areas={r.areas} /></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+            {next && (
+              <div className="rp-next" data-testid="raid-next">
+                <span className="mv-eyebrow">{t('raid.eval.next')}</span>
+                {next.rows.length === 0 && !next.goals.money ? <p>{t('raid.eval.nextEmpty')}</p> : (
+                  <>
+                    {next.best && <p><b>{next.best.name}</b> <span className="meta">{next.best.reasons.map(r => reasonText(t, r)).join(' · ')}</span></p>}
+                    <p className="meta">{t('raid.eval.nextList', { count: next.units, items: next.rows.length })}</p>
+                    <Btn size="sm" icon={Play} onClick={() => onNext(next)} data-testid="raid-next-start">{t('raid.eval.nextStart')}</Btn>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="row rp-eval-save">
+              <Btn variant="primary" icon={BookOpen} onClick={save} data-testid="raid-eval-save">{saved ? t('raid.eval.saveAgain') : t('raid.eval.save')}</Btn>
+              {saved ? <span className="meta" data-testid="raid-eval-saved">{t('raid.eval.saved', { at: fmtDateTime(saved.ts), map: mapName(saved.map) })}</span>
+                : <span className="meta">{raid ? t('raid.eval.saveTo', { at: fmtDateTime(raid.ts), map: mapName(raid.map) }) : t('raid.eval.saveForm')}</span>}
+            </div>
+            <p className="meta">{t('raid.eval.note')}</p>
+          </>
+        )}
+      </div>
+    </Panel>
+  );
+}
 
 export default function RaidPrep() {
   const t = useT();
@@ -71,6 +160,15 @@ export default function RaidPrep() {
     if (!ok) return;
     const name = MAPS.find(m => m.id === mapId)?.name ?? mapId;
     setSaid(x => ({ line: line(rows.length ? 'raid.start' : 'raid.startEmpty', { map: name, count: units }), n: x.n + 1 }));
+    mainSound.play('done');
+  };
+  /* Další raid z vyhodnocení: stejné cíle, doporučená mapa nad zásobou po raidu, stejný loadout. */
+  const nextPlan = (n: ReturnType<typeof nextRaid>) => {
+    if (!plan || !n.best) return;
+    const now = raidList(s, n.goals, t.lang, today);
+    if (!actions.startRaidPlan({ goals: n.goals, map: n.best.id, loadout: plan.loadout, route: n.best.route?.id ?? '', sig: listSig(now) })) return;
+    setGoals(n.goals); setMapPick(n.best.id);
+    setSaid(x => ({ line: line(now.length ? 'raid.start' : 'raid.startEmpty', { map: n.best!.name, count: now.reduce((a, r) => a + r.missing, 0) }), n: x.n + 1 }));
     mainSound.play('done');
   };
   const quests = showAllQuests ? opts.quests : opts.quests.filter(q => q.pinned || q.started || g.quests.includes(q.id)).concat(
@@ -179,6 +277,7 @@ export default function RaidPrep() {
           <p className="meta">{t('raid.start.note', { map: mapName(mapId), loadout: loadout ? d.loadoutName(loadout) : t('raid.loadout.none') })}</p>
         </Panel>
       </div>
+      {plan && <RaidEvalPanel key={plan.startedAt} plan={plan} onSay={l => setSaid(x => ({ line: l, n: x.n + 1 }))} onNext={nextPlan} />}
     </div>
   );
 }

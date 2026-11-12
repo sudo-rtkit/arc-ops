@@ -62,6 +62,10 @@ const GESTURE: Partial<Record<LineKey, Partial<Record<OpsPersonality, OpsAnim>> 
   'game.hackNode': { all: 'success' },
   'raid.start': { all: 'success', cheeky: 'laugh' },
   'raid.startEmpty': { all: 'talk', cheeky: 'shrug' },
+  'raid.eval.all': { all: 'success', cheeky: 'laugh' },
+  'raid.eval.partial': { all: 'talk' },
+  'raid.eval.none': { all: 'shrug' },
+  'raid.eval.upgrade': { all: 'success' },
 };
 export function lineGesture(key: LineKey, mode: OpsPersonality): OpsAnim | null {
   const g = GESTURE[key];

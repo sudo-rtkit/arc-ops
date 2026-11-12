@@ -4,6 +4,18 @@ Condensed from the existing Czech README. Versions below describe shipped behavi
 
 The [original Czech technical release notes](docs/history/README-0.13.1.cs.md) are preserved in full, including the intermediate 0.12.1 buddy fix later extended by 0.13.1. Release notes describe implemented versions; they do not imply an installer has been uploaded to GitHub Releases.
 
+## 0.15.0 — Post-raid evaluation and plan history
+
+- **After the raid (Raid prep, step 5).** With an active plan, the app compares what you found with the plan: found versus needed per item, what is still missing, and newly completed requirements (e.g. “Gear Bench 2: all materials ready”, “Quest: delivery items complete”). It appears on its own once a FINDINGS capture has been confirmed into a raid entry, and in the overlay's capture result right after confirming. Without a capture, **Evaluate raid** uses the stock change since the plan started.
+- Starting a plan now snapshots the stock of the listed items and which goals were still missing something. Found = the higher of the stock increase and the loot recorded for the raid (never the sum), so loot moved to Inventory is not counted twice. The evaluation only reads: inventory still changes only through the existing confirmed capture or raid-log flows.
+- **Next raid:** the same goals recalculated over the stock after the raid, with the same raid prep list and map recommendation (with reasons); one click starts the next plan with a fresh snapshot.
+- Ops sums the result up in your chosen personality (CS/EN, two variants each per personality): everything found, partial, nothing found, and upgrade ready. In the overlay it uses the existing status line after you confirm the loot; nothing pops up over the game.
+- **Raid history in the Raid Journal (no separate log).** “Save to journal” attaches the plan to the raid entry from the capture, or to the raid logged since the plan started; otherwise it opens the usual raid log with the plan attached. Logging a raid while a plan is active offers “Save the active plan with this entry” (on by default). The entry stores the goals, chosen map, loadout, found-from-plan counts, completed requirements and an estimated value of the found plan items (catalogue sell value, when known). A plan is stored with one entry only. Journal entries with a plan show a “Plan found/needed” badge and a **Plan** detail; older entries remain valid.
+- **Statistics: “Which maps help with your goals”** per map with data: planned raids, average plan units found per raid and how often the plan was fulfilled (everything found, or a requirement completed). Fewer than 3 planned raids on a map are labelled “little data”.
+- Raid prep's map score uses this history as one more readable reason (“on average 3 plan units per raid (5 planned raids)”, +1 when the average is at least one unit), only from 3 planned raids on that map.
+- Schema 14: `raidPlan.snap` / `raidPlan.open` and the optional `raids[].plan`. Older states and backups load without loss; a plan started in 0.14.0 has no snapshot, so a capture-based evaluation reconstructs the stock before the raid from the loot already moved to Inventory, and the manual evaluation asks you to restart the plan. Newer schema 15 is rejected. Material renames also cover plan items.
+- Not included: an evaluation for STASH captures (the stock-based evaluation covers them), and assigning loot areas to maps.
+
 ## 0.14.0 — Raid prep and your own interactive map
 
 - New **Raid prep** module (Raids group): pick goals (quests, the next level of a station, the next phase of a running project, or making money). The default selection is the pinned and in-progress quests plus the next upgrade from the compact window.

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { ChartNoAxesCombined } from 'lucide-react';
 import { useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
-import { Btn, Empty, PageHead, Panel, Progress, Select } from '../ui/components';
+import { Badge, Btn, Empty, PageHead, Panel, Progress, Select } from '../ui/components';
 import { HBars, LineChart, ResultChart } from '../ui/charts';
 import { DASH, fmt, fmtDate, fmtDay, fmtDayShort, pct } from '../ui/format';
-import { raidTypes, bestWorst, dailySeries, filterRaids, groupStats, raidTypeName, runStats } from '../core/runs';
+import { raidTypes, bestWorst, dailySeries, filterRaids, groupStats, planMapStats, PLAN_MIN_SAMPLE, raidTypeName, runStats } from '../core/runs';
 import type { RaidType } from '../core/types';
 import { mapName } from './shared';
 import { isDone, goalKindName } from '../core/goals';
@@ -41,6 +41,7 @@ export default function Statistics() {
   const byType = groupStats(raids, r => r.type);
   const bestMap = byMap.filter(g => g.min > 0)[0];
   const series = dailySeries(raids);
+  const byPlan = planMapStats(raids);
   const periodLabel = t(PERIODS.find(p => p.value === period)!.label);
   const coinsUnit = t('profile.unit.coins');
   return (
@@ -110,6 +111,25 @@ export default function Statistics() {
             <Panel title={t('stats.mapsPh')}><HBars unit="/ h" rows={byMap.map(g => ({ key: g.key, label: mapName(g.key), value: g.perHour, note: t('money.barNoteRaids', { count: g.n, rate: pct(g.rate), coins: g.coins }) }))} /></Panel>
             <Panel title={t('stats.routesPh')}>{byRoute.length ? <HBars unit="/ h" rows={byRoute.map(g => ({ key: g.key, label: routeName(g.key), value: g.perHour, note: t('stats.raidNote', { count: g.n, rate: pct(g.rate) }) }))} /> : <p className="muted">{t('stats.noRoute')}</p>}</Panel>
           </div>
+          <Panel title={t('stats.planMaps')} flush>
+            <div data-testid="stats-plan-maps">
+              {byPlan.length ? (
+                <div className="table-wrap"><table className="table">
+                  <thead><tr><th>{t('common.map')}</th><th className="num">{t('stats.planMaps.raids')}</th><th className="num">{t('stats.planMaps.avg')}</th><th className="num">{t('stats.planMaps.rate')}</th><th><span className="sr-only">{t('stats.planMaps.sample')}</span></th></tr></thead>
+                  <tbody>{byPlan.map(g => (
+                    <tr key={g.map} data-map={g.map}>
+                      <td>{mapName(g.map)}</td>
+                      <td className="num">{g.n}</td>
+                      <td className="num">{fmt(g.avg)}</td>
+                      <td className="num">{pct(g.rate)}</td>
+                      <td>{g.little ? <Badge tone="amber">{t('stats.planMaps.little')}</Badge> : <span className="meta">{t('stats.planMaps.enough', { count: g.n })}</span>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              ) : <p className="muted panel-pad">{t('stats.planMaps.empty')}</p>}
+              <p className="meta panel-pad">{t('stats.planMaps.hint', { n: PLAN_MIN_SAMPLE })}</p>
+            </div>
+          </Panel>
           <Panel title={t('stats.types')} flush>
             <div className="table-wrap"><table className="table">
               <thead><tr><th>{t('journal.type')}</th><th className="num">{t('nav.group.raids')}</th><th className="num">{t('chart.extract')}</th><th className="num">{t('chart.earnings')}</th><th className="num">{t('money.avgCol')}</th><th className="num">{t('money.perHourCol')}</th></tr></thead>

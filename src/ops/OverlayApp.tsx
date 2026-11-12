@@ -31,7 +31,7 @@ import { LIMITS } from '../core/state';
 import { itemKey } from '../core/types';
 import { ProgressReview } from '../ui/ProgressReview';
 import { OvInventory, OvProfile, OvSkills, OvWorkshop } from './OverlayModules';
-import { OvRaid } from './OverlayRaid';
+import { OvRaid, OvRaidEval } from './OverlayRaid';
 import { raidList } from '../core/raidPrep';
 import { dayKey } from '../core/util';
 import type { ProgressApply, ProgressSummary } from '../core/progressImport';
@@ -525,6 +525,7 @@ function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (ta
         </div>
       )}
       {done && !loot && <div className="ov-banner ok" role="status" data-testid="ov-loot-done">{lootDoneText(t, done)}</div>}
+      {done && !loot && <OvRaidEval bus={bus} raidId={done.raidId} />}
       {pDone && !prog && <div className="ov-banner ok" role="status" data-testid="ov-progress-done">{t('progress.done', { count: pDone.fields })}</div>}
       {pFail && prog && <div className="ov-banner danger" role="alert">{t('progress.failed')}</div>}
       {show === 'progress' && prog ? (

@@ -8,6 +8,8 @@ v Nastavení; „použít poslední snímek zkratkou“ není, protože snímek 
 (bezpečnostní pravidlo); seznam k hledání obsahuje u úkolu i předměty nalezené během úkolu; shluky bodů a vysouvací
 legenda nejsou (legenda se v užším okně přeskládá nad mapu). Vyhodnocení po raidu a historie raidů zůstávají na později.
 
+Stav 0.15.0 (12. 11. 2026): **implementováno** i „Po raidu“ a „Historie raidů“ z části Později (viz níže).
+
 Inspirace: asistenti typu Blitz (League of Legends), kteří ve správnou chvíli ukážou, co hráč potřebuje.
 Rozdíl: ARC Raiders nemá veřejné živé rozhraní a napojení na účet zakazují podmínky hry, takže aplikace
 pracuje jen s ručními údaji a snímky. Nic se neslibuje jako plná automatika.
@@ -81,6 +83,43 @@ Vyhodnocení po raidu a historie raidů jsou další krok (níže).
 
 ## Později (není v 0.14.0)
 
-- **Po raidu:** porovnání snímku FINDINGS s plánem, co chybí, další doporučený raid, shrnutí od Opse.
-- **Historie raidů:** plán a výsledek, statistika, které mapy pomáhají s cíli.
-- Přiřazení typů míst k mapám, pokud se najde veřejný a legálně použitelný zdroj.
+- ~~**Po raidu:** porovnání snímku FINDINGS s plánem, co chybí, další doporučený raid, shrnutí od Opse.~~
+  **Implementováno v 0.15.0.**
+- ~~**Historie raidů:** plán a výsledek, statistika, které mapy pomáhají s cíli.~~ **Implementováno v 0.15.0.**
+- Přiřazení typů míst k mapám, pokud se najde veřejný a legálně použitelný zdroj. (Stále otevřené.)
+
+### Stav 0.15.0: vyhodnocení po raidu a historie raidů
+
+Kód: `src/core/raidEval.ts` (vyhodnocení, další raid, záznam plánu), `planMapStats` v `src/core/runs.ts`,
+krok „5 · Po raidu“ v `src/modules/RaidPrep.tsx`, `OvRaidEval` v `src/ops/OverlayRaid.tsx` (výsledek revize FINDINGS),
+detail „Plán“ v `src/modules/Journal.tsx`, sekce ve `src/modules/Statistics.tsx`, volba v `src/ui/RaidForm.tsx`;
+testy `tests/core/raid-eval.test.ts` a `tests/e2e/raid-eval.spec.ts`.
+
+- **Snímek zásoby při spuštění plánu** (schéma 14, `raidPlan.snap` a `raidPlan.open`): zásoba a chybějící počet
+  každého předmětu ze seznamu a cíle, kterým něco chybělo. Plán ze 0.14.0 snímek nemá (`null`).
+- **Vyhodnocení jen čte.** Nalezeno = vyšší z čísel přírůstek zásoby od spuštění a loot zapsaný u raidu (snímek
+  FINDINGS nebo ruční loot), nikdy součet, takže loot převedený do Inventory se nezapočítá dvakrát. Potřeba = co při
+  spuštění chybělo. Nově hotové požadavky se počítají stejným seznamem jako příprava, cíl po cíli (stanice „Gear
+  Bench 2: všechny materiály připravené“, úkol „předměty k odevzdání kompletní“, projekt). Úkol, který hráč mezitím
+  odškrtl jako splněný, se za hotový požadavek nevydává. Inventář dál mění jen stávající potvrzené zápisy.
+- **Kde se ukáže:** v Přípravě na raid samo, když je od spuštění plánu záznam raidu s lootem (snímek FINDINGS);
+  jinak tlačítkem „Vyhodnotit raid“ podle změny zásoby (bez snímku zásoby u starého plánu jen výzva plán spustit
+  znovu; u snímku FINDINGS se zásoba před raidem odvodí z lootu převedeného do Inventory). V overlayi ve výsledku
+  revize lootu hned po potvrzeném zápisu.
+- **Další raid:** stejné platné cíle nad zásobou po raidu, stejné `raidList` a `scoreMaps` s důvody; jedním
+  klikem nový plán s novým snímkem.
+- **Ops:** hlášky `raid.eval.all | partial | none | upgrade` (CS/EN, 3 povahy × 2 varianty). „upgrade“ má přednost,
+  když raid dokončil stanici nebo projekt; hotový úkol spadá pod „vše nalezeno“. V hlavním okně po kliknutí,
+  v overlayi jako stavová hláška po potvrzení lootu (stávající pravidlo: při hře v popředí žádné bubliny ani zvuky).
+- **Historie v Raid Journalu, žádný paralelní deník:** volitelné `raids[].plan` (čas spuštění plánu, názvy cílů,
+  peníze, mapa, loadout, předměty `need/found`, hotové požadavky, odhad hodnoty nalezeného z katalogu nebo `null`).
+  „Uložit do deníku“ připojí plán k záznamu raidu od spuštění plánu, jinak otevře stávající zápis raidu s volbou
+  „Uložit se záznamem aktivní plán“ (výchozí zapnuto; volba je u každého nového zápisu během aktivního plánu).
+  Jeden plán je v deníku jen u jednoho záznamu. Úprava záznamu plán zachová. Starší záznamy zůstávají platné.
+- **Statistika „Které mapy ti pomáhají s cíli“:** jen raidy s plánem a jen mapy s daty; počet raidů s plánem,
+  průměr nalezených kusů z plánu na raid a podíl splněných plánů (vše nalezeno nebo dokončený požadavek). Méně než
+  3 raidy = štítek „málo dat“.
+- **Bodování map:** historie jako další čitelný důvod („v průměru 3 ks z plánu na raid (5 raidů s plánem)“), +1 bod
+  při průměru aspoň 1 kus, a to až od 3 raidů s plánem na mapě.
+- Odchylky: vyhodnocení ve výsledku snímku STASH není (pokryje ho vyhodnocení podle zásoby); „úspěch“ plánu je
+  definovaný výše, nesouvisí s extrakcí.

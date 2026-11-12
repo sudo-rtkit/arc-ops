@@ -5,7 +5,7 @@
    - výchozí cíle = připnuté a rozpracované úkoly a další vylepšení z kompaktního okna (activeQuests, nextUpgrade);
    - nechat / prodat / recyklovat = rada Úklidu (advise) nad potřebami aplikace a požadavky plánu.
    Typ místa (loot_area) je jen z katalogu; kde chybí, je neznámé. Typy míst se k mapám nepřiřazují. */
-import type { AppState, GameMap, Lang, PlannerState, Poi, RaidGoals, RaidPlan, Route } from './types';
+import type { AppState, GameMap, Lang, PlannerState, Poi, RaidGoals, RaidPlan, RaidPlanItem, RaidPlanRecord, RaidPlanSnap, Route } from './types';
 import { activeQuests, nextUpgrade, stockOf } from './compact';
 import { planNeeds, stationTargets, type ReqKind } from './planner';
 import { nextNeeds, readiness } from './workshop';
@@ -17,6 +17,7 @@ import { catalogItems } from './catalog';
 import { phases } from './phases';
 import { MAPS } from './data/maps';
 import { clampInt, isObj, text } from './util';
+import { PLAN_MIN_SAMPLE, planMapStats } from './runs';
 import { t, type Key, type Params } from '../i18n';
 
 export const emptyGoals = (): RaidGoals => ({ quests: [], stations: [], projects: [], money: false });
@@ -132,12 +133,14 @@ export function phaseRange(phase: string): [number, number] | null {
 }
 
 /* Bodování map: otevřené úkoly z výběru s danou mapou (3 body za úkol), u cíle „peníze“ nejlepší trasa na mapě
-   (3 body ve fázi hráče, jinak 1) a fáze hráče proti obtížnosti mapy (±1). Zamčená mapa se nedoporučuje.
+   (3 body ve fázi hráče, jinak 1), 0.15.0: historie plánů na mapě (+1 při průměru aspoň 1 nalezeného kusu z plánu,
+   jen od PLAN_MIN_SAMPLE raidů s plánem) a fáze hráče proti obtížnosti mapy (±1). Zamčená mapa se nedoporučuje.
    Každé skóre má čitelné důvody. Seřazeno od nejlepší. */
 export function scoreMaps(s: AppState, goals: RaidGoals, lang: Lang, maps: GameMap[] = MAPS): MapScore[] {
   const phase = phases({ profile: s.profile, stations: s.stations, skills: s.skills }).current;
   const routes = goals.money ? getRoutes(s.gameData, lang) : [];
   const quests = goals.quests.map(questById).filter((q): q is NonNullable<typeof q> => !!q && questStatus(q, s.quests.done) === 'active');
+  const history = planMapStats(s.raids);
   const list = maps.map((m, order) => {
     const reasons: MapReason[] = [];
     let score = 0;
@@ -160,6 +163,12 @@ export function scoreMaps(s: AppState, goals: RaidGoals, lang: Lang, maps: GameM
         score += best;
         reasons.push({ key: best === 3 ? 'raid.reason.route' : 'raid.reason.routeOther', params: { name: route.name } });
       }
+    }
+    /* 0.15.0: historie plánů z deníku, jen s dostatečným vzorkem (jinak by malý vzorek vypadal jako závěr) */
+    const h = history.find(x => x.map === m.id);
+    if (h && h.n >= PLAN_MIN_SAMPLE) {
+      if (h.avg >= 1) score += 1;
+      reasons.push({ key: 'raid.reason.history', params: { avg: h.avg, count: h.n } });
     }
     if (m.diff <= phase + 2) { score += 1; reasons.push({ key: 'raid.reason.fit', params: { n: m.diff } }); }
     else { score -= 1; reasons.push({ key: 'raid.reason.hard', params: { n: m.diff } }); }
@@ -233,7 +242,44 @@ export function normalizeRaidPlan(raw: unknown): RaidPlan | null {
     goals: normalizeGoals(raw.goals), map, loadout: text(raw.loadout, 24), route: text(raw.route, 40),
     startedAt: clampInt(raw.startedAt || 0, 0, 9e15), sig: typeof raw.sig === 'string' && /^r[0-9a-f]{8}$/.test(raw.sig) ? raw.sig : '',
     found: Array.isArray(raw.found) ? [...new Set(raw.found.filter((x): x is string => typeof x === 'string' && !!x.trim()).map(x => text(x, 80)))].slice(0, 300) : [],
+    /* schéma 14 (0.15.0): starší plán snímek zásoby nemá (null) */
+    snap: Array.isArray(raw.snap) ? normalizeSnap(raw.snap) : null,
+    open: Array.isArray(raw.open) ? [...new Set(raw.open.filter((x): x is string => typeof x === 'string' && GOAL_KEY_RE.test(x)))].slice(0, 300) : [],
   };
+}
+/* Klíč cíle plánu: station:id, quest:id nebo project:id. */
+export const GOAL_KEY_RE = /^(station|quest|project):[^\s].{0,79}$/;
+const qty = (v: unknown) => clampInt(v || 0, 0, 999999);
+function normalizeSnap(raw: unknown[]): RaidPlanSnap[] {
+  const seen = new Set<string>();
+  const out: RaidPlanSnap[] = [];
+  for (const x of raw.filter(isObj).slice(0, 300)) {
+    const mat = text(x.mat, 80).trim();
+    if (!mat || seen.has(mat.toLowerCase())) continue;
+    seen.add(mat.toLowerCase());
+    out.push({ mat, have: qty(x.have), missing: qty(x.missing) });
+  }
+  return out;
+}
+/* Plán v záznamu raidu (schéma 14). Chybí nebo je vadný = záznam bez plánu (nic jiného se nemění). */
+export function normalizePlanRecord(raw: unknown): { plan?: RaidPlanRecord } {
+  if (!isObj(raw)) return {};
+  const strs = (v: unknown, max: number, len: number) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x.trim()).map(x => text(x, len)).slice(0, max) : []);
+  const seen = new Set<string>();
+  const items: RaidPlanItem[] = [];
+  for (const x of (Array.isArray(raw.items) ? raw.items : []).filter(isObj).slice(0, 300)) {
+    const mat = text(x.mat, 80).trim();
+    if (!mat || seen.has(mat.toLowerCase())) continue;
+    seen.add(mat.toLowerCase());
+    const need = qty(x.need);
+    items.push({ mat, need, found: Math.min(need, qty(x.found)) });
+  }
+  const value = typeof raw.value === 'number' && Number.isFinite(raw.value) ? clampInt(raw.value, 0, 1e10) : null;
+  return { plan: {
+    at: clampInt(raw.at || 0, 0, 9e15), goals: strs(raw.goals, 50, 120), money: raw.money === true,
+    map: MAPS.some(m => m.id === raw.map) ? String(raw.map) : '', loadout: text(raw.loadout, 24),
+    items, done: strs(raw.done, 50, 120), value,
+  } };
 }
 
 /* ----- zvýraznění bodů na mapě -----

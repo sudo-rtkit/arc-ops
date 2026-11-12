@@ -46,6 +46,8 @@ Do native/window tests with the game closed. Never focus or send input to the ga
 
 Keep core independent. Modules read state and call actions, rather than writing storage or duplicating calculations. Browser `localStorage` is for development/testing; desktop storage uses native files. Map screenshots (0.14.0) live in the webview's IndexedDB (`src/storage/mapImages.ts`), not in the state file. Normalisation migrates older state and rejects unsupported newer backup schemas. Use the implemented schema in `src/core/state.ts` as authority rather than historical examples in specifications.
 
+Post-raid evaluation (0.15.0) lives in `src/core/raidEval.ts` and reuses raid prep (`raidList`, `scoreMaps`, `validGoals`) goal by goal; it never writes. The store only attaches its result to a raid entry (`addRaid(..., { withPlan })`, `attachRaidPlan`). Plan history statistics are `planMapStats` in `src/core/runs.ts`; the overlay saves through the hub action `raidPlanSave`.
+
 ## Text and translations
 
 **Every new UI string must be present in both languages.** `tests/i18n/guard.test.ts` prevents hard-coded UI text in modules, shell and UI.
@@ -73,4 +75,4 @@ Never use the owner's native data directory for demos, captures or tests. Use fr
 
 ## Design and release documentation
 
-The [specifications](docs/superpowers/specs/) describe intent; [plans](docs/superpowers/plans/) hold implementation details. Some specifications are historical, so verify behaviour against current code and tests before making user-facing claims. The [changelog](CHANGELOG.md) records changes from 0.4.0 to 0.14.0. The [original Czech README](docs/history/README-0.13.1.cs.md) retains the detailed technical release notes.
+The [specifications](docs/superpowers/specs/) describe intent; [plans](docs/superpowers/plans/) hold implementation details. Some specifications are historical, so verify behaviour against current code and tests before making user-facing claims. The [changelog](CHANGELOG.md) records changes from 0.4.0 to 0.15.0. The [original Czech README](docs/history/README-0.13.1.cs.md) retains the detailed technical release notes.

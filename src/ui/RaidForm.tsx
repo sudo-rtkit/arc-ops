@@ -11,6 +11,8 @@ import { raidTypes } from '../core/runs';
 import { loadoutGear } from '../core/loadouts';
 import { lootDelta, lootState } from '../core/raidItems';
 import { isDone, sortGoals } from '../core/goals';
+import { evaluateRaid } from '../core/raidEval';
+import { dayKey } from '../core/util';
 import { fmt, fromLocalInput, toLocalInput } from './format';
 import type { ItemQty, RaidType } from '../core/types';
 import { useT } from '../i18n/react';
@@ -47,6 +49,10 @@ function RaidForm() {
   const [lost, setLost] = useState<ItemQty[]>(editing?.lost || []);
   const [goals, setGoals] = useState<string[]>(editing?.goals || []);
   const [applyLoot, setApplyLoot] = useState(false);
+  /* 0.15.0: nový záznam během aktivního plánu: plán a jeho vyhodnocení se uloží se záznamem (výchozí zapnuto) */
+  const plan = !editing ? state.raidPlan : null;
+  const [withPlan, setWithPlan] = useState(true);
+  const planEval = plan ? evaluateRaid(state, plan, { id: '', loot, lootApplied: [] }, t.lang, dayKey(Date.now())) : null;
   /* Chyba validace nese klíč slovníku, takže se po změně jazyka přeloží i otevřená hláška. */
   const [err, setErr] = useState<{ field: 'coins' | 'min'; key: Key } | null>(null);
   const [sent, setSent] = useState(false);
@@ -76,7 +82,7 @@ function RaidForm() {
     setSent(true);
     const data = { map, type, route, ok, coins: ok ? Math.round(c) : 0, min: Math.round(m * 2) / 2, notes, ts: fromLocalInput(when), loadout, gear, loot, lost, goals };
     if (editing) actions.updateRaid(editing.id, data, { applyLoot });
-    else { actions.addRaid(data, { applyLoot }); useUi.getState().timerReset(); }
+    else { actions.addRaid(data, { applyLoot, withPlan: !!plan && withPlan }); useUi.getState().timerReset(); }
     close();
   };
 
@@ -160,6 +166,12 @@ function RaidForm() {
                 note={isDone(g) && g.doneRaid !== editing?.id ? t('raid.doneElsewhere') : undefined}>{g.title}</Check>
             ))}
           </fieldset>
+        )}
+        {plan && planEval && (
+          <div data-testid="raid-form-plan">
+            <Check checked={withPlan} onChange={setWithPlan}
+              note={t('raid.form.planNote', { map: MAPS.find(m => m.id === plan.map)?.name ?? plan.map, found: planEval.found, need: planEval.need })}>{t('raid.form.plan')}</Check>
+          </div>
         )}
         <div className="field">
           <label className="field-label" htmlFor="raid-notes">{t('common.note')}</label>

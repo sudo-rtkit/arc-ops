@@ -119,6 +119,18 @@ export interface Raid {
   /* 0.8.1: loot zapsaný ze snímku FINDINGS (podpis snímku proti opakovanému zápisu a položky, které přidal).
      Nový snímek téhož raidu tyto položky v lootu nahradí, nepřičte se k nim. */
   lootScan?: LootScan;
+  /* 0.15.0 (schéma 14): plán raidu uložený se záznamem (cíle, mapa, loadout, nalezené z plánu, hodnota).
+     Volitelné: starší záznamy plán nemají a zůstávají platné. */
+  plan?: RaidPlanRecord;
+}
+/* Předmět plánu v záznamu raidu: kolik chybělo při spuštění plánu a kolik se z toho našlo (nejvýš need). */
+export interface RaidPlanItem { mat: string; need: number; found: number }
+/* Plán v záznamu raidu. at = čas spuštění plánu (pozná se podle něj, že vyhodnocení už je v deníku);
+   goals = čitelné názvy cílů v době uložení (cíle později zmizí, záznam zůstane čitelný); done = požadavky,
+   které raid dokončil (např. „Gear Bench 2“); value = odhad hodnoty nalezených předmětů z plánu (null = neznámá). */
+export interface RaidPlanRecord {
+  at: number; goals: string[]; money: boolean; map: string; loadout: string;
+  items: RaidPlanItem[]; done: string[]; value: number | null;
 }
 export interface LootScan { sig: string; at: number; items: ItemQty[] }
 
@@ -177,7 +189,14 @@ export interface MapNotes {
 export interface RaidGoals { quests: string[]; stations: string[]; projects: string[]; money: boolean }
 /* Aktivní plán. Uložené jsou jen volby; seznam se vždy přepočítá z aktuálního stavu. sig = otisk seznamu při
    spuštění (změna = plán se přepočítal). found = zaškrtnutí „mám“ z overlaye (jen orientační, inventář nemění). */
-export interface RaidPlan { goals: RaidGoals; map: string; loadout: string; route: string; startedAt: number; sig: string; found: string[] }
+export interface RaidPlan {
+  goals: RaidGoals; map: string; loadout: string; route: string; startedAt: number; sig: string; found: string[];
+  /* 0.15.0 (schéma 14): zásoba předmětů ze seznamu při spuštění (have) a kolik chybělo (missing); z nich se
+     počítá vyhodnocení po raidu (rozdíl zásoby). null = plán spuštěný ve starší verzi (bez snímku zásoby).
+     open = cíle, kterým při spuštění něco chybělo (klíče station:id, quest:id, project:id). */
+  snap: RaidPlanSnap[] | null; open: string[];
+}
+export interface RaidPlanSnap { mat: string; have: number; missing: number }
 
 export interface WeaponNote { tier: string; note: string }
 
@@ -311,7 +330,7 @@ export interface SavedHack {
 export interface GameRounds { tetris: SavedTetris | null; quiz: SavedQuiz | null; hack: SavedHack | null }
 
 export interface AppState {
-  schema: 13;
+  schema: 14;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
