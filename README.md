@@ -263,3 +263,33 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Stav **schéma 11** (`games.hack`: dohraná kola, nejlepší procento normy, kola na normu); stav a zálohy schématu 10
   i starší se načtou beze ztrát, hack začne od nuly. Testy: `tests/core/minigames.test.ts`, `tests/vision/station-materials.test.ts`
   (umělé obrazovky), `tests/vision/own-return.test.ts` (vlastní snímky, jen lokálně), E2E `tests/e2e/minigames.spec.ts` (oba jazyky).
+
+## Rozehraná kola miniher (0.13.0)
+
+- **Pokračování v rozehraném kole** u všech tří miniher (Stash Tetris, recyklační kvíz, Opsův hack). Kolo se ukládá
+  po každém tahu do stavu aplikace (`gameRounds`, schéma 12): v Tetrisu batoh s polohou a otočením každého předmětu
+  a předmět v ruce, v kvízu aktuální otázka, zvolená odpověď a počet správných, v hacku aktuální uzel, otočení jeho
+  dlaždic a tahy za celé kolo. Po odchodu z kola nebo restartu aplikace karta hry v rozcestníku ukáže
+  „Rozehrané kolo č. … · průběh“ a tlačítka **Pokračovat** a **Nové kolo**. Pouhé otevření kola nic nerozehraje.
+- **Nové kolo** při rozehraném kole se nejdřív zeptá (Zahodit a začít nové / Zrušit, Esc zruší a fokus se vrátí);
+  zahodí jen kolo vybrané hry, rekordy, série a nátěry zůstanou. Adresa s jiným číslem kola (`#games/hack-777`) se při
+  rozehraném kole zeptá: pokračovat v rozehraném, nebo ho zahodit a hrát kolo z adresy. Čísla kol v adrese dál fungují.
+- **Odměny jen jednou.** Dohrání kola zapíše odměny (kola, rekordy, nátěry) a značku „dohráno“ v jedné změně stavu,
+  stejně tak odpověď v kvízu a série. Návrat do dohraného kola (i po restartu) jen ukáže výsledek s poznámkou, že se
+  odměny znovu nepřipíšou; už zodpovězená otázka sérii nezvýší. Výsledek nabízí **Hrát toto kolo znovu** (zahodí jen
+  záznam kola) a **Nové kolo**.
+- **Kontrola uloženého kola.** Normalizace hlídá tvar a meze (číslo kola, nejvýš 32 předmětů, souřadnice, 64 dlaždic,
+  otočení 0–3, odpověď a–d, správných nejvýš tolik, kolik je zodpovězených otázek, jazyk). Při obnovení se kolo ověří
+  proti skutečně vygenerovanému kolu: otisk kola (FNV-1a z předmětů, otázek, dlaždic), umístění bez překryvu a přesahu,
+  platná odpověď, poslední uzel hacku vyřešený jen u dohraného kola. Vadné nebo nekompatibilní kolo (např. po změně
+  dat předmětů) se zahodí jen pro tu hru s hláškou; ostatní data zůstanou.
+- **Záloha a migrace.** Stav i zálohy schématu 11 a starší se načtou beze ztrát s prázdnými koly; záloha schématu 12
+  nese rozehraná kola; schéma 13 je odmítnuté jako novější verze. Při importu zálohy má přednost kolo tohoto počítače
+  (staré rozehrané kolo ze zálohy tak nejde dohrát podruhé); záloha doplní jen hry bez uloženého kola. Reset modulu
+  „Minihry a nátěry“ smaže i kola.
+- Omezení: kvíz obnovený po změně jazyka UI zůstane v jazyce, ve kterém kolo začalo (jinak by se názvy úkolů
+  v odpovědích neshodovaly). Kolo se ukládá s běžným zpožděným zápisem stavu, takže tvrdé ukončení procesu těsně po
+  tahu může poslední tah ztratit. Ve hře se ověřovat nedá (minihry jsou jen mimo raid).
+- Testy: `tests/core/game-rounds.test.ts` (normalizace a meze, obnovení, idempotence, restart nad stejným úložištěm,
+  zahození jedné hry, migrace 11 → 12, záloha a import), E2E `tests/e2e/minigames-resume.spec.ts` (odchod a načtení
+  stránky znovu u všech tří her v obou jazycích, nové kolo s potvrzením, jiné kolo v adrese, vadné uložené kolo).

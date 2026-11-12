@@ -30,7 +30,7 @@ afterEach(() => setLang('cs'));
 describe('stav: pole settings.lang', () => {
   /* Pole lang schéma nezvedlo (0.3.0); schéma 3 přišlo s milníkem 3a (items, vision), 4 s úkoly (3b), 5 s radami, blueprinty, tier listem a projekty (milník 4). */
   it('schéma zvedly až milníky 3a, 3b a 4, ne pole lang', () => {
-    expect(SCHEMA).toBe(11);
+    expect(SCHEMA).toBe(12);
   });
 
   it('starší stav (milník 1 a 2) se načte beze ztrát a chybějící jazyk dostane výchozí hodnotu', () => {

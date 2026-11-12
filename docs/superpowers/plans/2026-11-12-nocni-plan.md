@@ -90,3 +90,19 @@ Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a ins
 - Validation: type check, production build, 637 unit tests (4 skipped), 16 Rust tests; subsequently added visibility regression test passed (15 tests in its suite).
 - NSIS installer built successfully in src-tauri/target/release/bundle/nsis/.
 - Still needs an in-game minimize/restore check. Occlusion by another window does not count as hiding.
+
+## 0.13.0: rozehraná kola miniher
+
+- Postaveno na 0.12.1 (oprava viditelnosti buddyho přes bus.ts zachována). Všechny tři minihry ukládají rozehrané kolo
+  po každém tahu (schéma 12, `gameRounds`) a pokračují v něm po odchodu i restartu aplikace: Tetris batoh s otočením
+  a předmět v ruce, kvíz otázka, zvolená odpověď a skóre, hack uzel, otočení dlaždic a tahy. Rozcestník nabízí
+  Pokračovat / Nové kolo (s potvrzením, zahodí jen tu hru); jiné číslo kola v adrese se zeptá. Dohrání i odpověď
+  připíšou odměny v jedné změně se značkou kola, takže návrat do dohraného kola ani zodpovězené otázky nic
+  nezapočítá podruhé. Vadné nebo nekompatibilní kolo (otisk kola, meze, pravidla hry) se zahodí jen pro tu hru.
+  Import zálohy: přednost má kolo tohoto počítače. Stav a zálohy schématu 11 a starší se načtou s prázdnými koly.
+- Ověřeno: typová kontrola, produkční build, 651 unit testů (4 přeskočené), 103 E2E (nově `minigames-resume.spec.ts`,
+  8 testů), 16 Rust testů. Instalátor: `src-tauri/target/release/bundle/nsis/ARC Raiders Companion_0.13.0_x64-setup.exe`.
+- Omezení: obnovený kvíz zůstává v jazyce, ve kterém začal; tvrdé ukončení procesu těsně po tahu může ztratit poslední
+  tah (zpožděný zápis stavu).
+- **Vyzkoušet ručně:** v nainstalované aplikaci rozehrát každou hru, zavřít aplikaci (i přes tray), znovu spustit
+  a pokračovat; upgrade z 0.12.1 se skutečnými daty (rekordy a nátěry zůstanou).

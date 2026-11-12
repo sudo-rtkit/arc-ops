@@ -18,6 +18,7 @@ import { emptyBuddy, normalizeBuddy } from './ops';
 import { emptyMainWindow, normalizeMainWindow } from './mainWindow';
 import { emptyOpsPrefs, normalizeOpsPrefs } from './opsPrefs';
 import { emptyGames, normalizeGames } from './minigames';
+import { emptyRounds, normalizeRounds } from './gameRounds';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -26,7 +27,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 11 as const;
+export const SCHEMA = 12 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -85,6 +86,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     mainWindow: emptyMainWindow(),
     opsPrefs: emptyOpsPrefs(),
     games: emptyGames(),
+    gameRounds: emptyRounds(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -417,6 +419,9 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   /* schéma 10 (0.11.0): minihry a nátěry; ve starším stavu chybí, začnou od nuly s původním vzhledem Opse.
      schéma 11 (0.12.0): Opsův hack (games.hack); ve starším stavu chybí a začne od nuly, ostatní minihry beze změny */
   out.games = normalizeGames(r.games);
+  /* schéma 12 (0.13.0): rozehraná kola miniher; ve starším stavu chybí a začnou prázdná. Vadné kolo jedné hry se
+     zahodí samo, ostatní data (i rekordy a nátěry) zůstanou. */
+  out.gameRounds = normalizeRounds(r.gameRounds);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   return out;

@@ -25,6 +25,8 @@ import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
 import { applyGameResult, applyQuizAnswer, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
+import { answerQuiz, discardRound, finishRound, mergeRounds, saveRound, type GameId } from '../core/gameRounds';
+import type { GameRounds, SavedQuiz } from '../core/types';
 import { DEFAULT_PAINT } from '../core/paints';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
@@ -982,6 +984,26 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       change(s => { out = applyQuizAnswer(s.games, !!correct); });
       return out as { streak: number; unlocked: string[] } | null;
     },
+    /* 0.13.0: rozehrané kolo minihry se ukládá průběžně (po každém tahu); dohrané kolo stejného čísla se nepřepíše */
+    saveRound<G extends GameId>(game: G, data: NonNullable<GameRounds[G]>): boolean {
+      return change(s => { if (!saveRound(s.gameRounds, game, data)) return false; });
+    },
+    /* zahodí jen uložené kolo jedné hry; rekordy, série a nátěry zůstanou */
+    discardRound(game: GameId): boolean {
+      return change(s => { if (!discardRound(s.gameRounds, game)) return false; });
+    },
+    /* dohrání kola: odměny a značka „dohráno“ v jedné změně; stejné kolo podruhé vrátí null a nic nepřipíše */
+    finishRound<G extends GameId>(result: GameResult & { game: G }, data: NonNullable<GameRounds[G]>): GameOutcome | null {
+      let out: GameOutcome | null = null;
+      change(s => { out = finishRound(s.games, s.gameRounds, result, data); if (!out) return false; });
+      return out as GameOutcome | null;
+    },
+    /* odpověď v kvízu: série a uložené kolo v jedné změně; už zodpovězená otázka vrátí null */
+    answerQuiz(data: SavedQuiz, correct: boolean): { streak: number; unlocked: string[] } | null {
+      let out: { streak: number; unlocked: string[] } | null = null;
+      change(s => { out = answerQuiz(s.games, s.gameRounds, data, !!correct); if (!out) return false; });
+      return out as { streak: number; unlocked: string[] } | null;
+    },
     /* vybraný nátěr Opse: původní, nebo odemčený */
     setPaint(id: string) {
       change(s => {
@@ -1026,6 +1048,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       const next: AppState = { ...nextIn, buddy: { ...nextIn.buddy, enabled: cur.enabled, hotkey: cur.hotkey, autoOpen: cur.autoOpen, positions: cur.positions, monitor: cur.monitor, unlocked: [...new Set([...cur.unlocked, ...nextIn.buddy.unlocked])] } };
       /* 0.11.0: odemčené nátěry se sjednotí a rekordy miniher se importem nesníží */
       next.games = mergeGames(st().games, nextIn.games);
+      /* 0.13.0: rozehrané kolo tohoto počítače má přednost; záloha doplní jen hry bez uloženého kola */
+      next.gameRounds = mergeRounds(st().gameRounds, nextIn.gameRounds);
       const ok = await replaceState(next, 'import', kind === 'diary' ? 'pred importem deniku' : 'pred importem', raw);
       if (ok) notify(t(kind === 'diary' ? 'notice.importedDiary' : 'notice.importedBackup'));
       return ok;
@@ -1052,7 +1076,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'goals': s.goals = []; for (const r of s.raids) r.goals = []; break;
         case 'planner': s.planner = emptyPlanner(); break;
         case 'loadouts': s.loadouts = []; for (const r of s.raids) r.loadout = ''; break;
-        case 'games': s.games = d.games; break;
+        case 'games': s.games = d.games; s.gameRounds = d.gameRounds; break;
         case 'routes': Object.assign(s.gameData, { routes: {}, routesCustom: [], routesHidden: {}, sell: {}, sellCustom: [], sellHidden: {} }); break;
       }
       const ok = await replaceState(s, 'reset', 'pred resetem ' + mod);

@@ -270,8 +270,32 @@ export interface GamesState {
   paint: string;
 }
 
+/* 0.13.0 (schéma 12): rozehraná kola miniher. Každá hra má nejvýš jedno uložené kolo: 'active' = rozehrané (jde
+   pokračovat), 'done' = dohrané (výsledek se už jen zobrazí, odměny se znovu nepřipíšou). sig = otisk vygenerovaného
+   kola; když se data aplikace změní a kolo by vyšlo jinak, uložené kolo se zahodí. */
+export type RoundStatus = 'active' | 'done';
+export interface SavedTetris {
+  seed: number; status: RoundStatus; sig: string;
+  placements: { id: string; x: number; y: number; rot: boolean }[];
+  /* předmět v ruce (vybraný ze stolu nebo vyndaný z batohu) a jeho otočení */
+  held: { id: string; rot: boolean } | null;
+}
+export interface SavedQuiz {
+  seed: number; status: RoundStatus; sig: string;
+  /* jazyk, ve kterém kolo vzniklo (otázky na úkoly mají přeložené názvy) */
+  lang: Lang;
+  /* aktuální otázka (od 0), zvolená odpověď na ni (null = ještě neodpovězeno) a počet správných včetně ní */
+  index: number; picked: string | null; correct: number;
+}
+export interface SavedHack {
+  seed: number; status: RoundStatus; sig: string;
+  /* aktuální uzel (od 0), otočení jeho dlaždic (0–3) a tahy za celé kolo */
+  node: number; rot: number[]; moves: number;
+}
+export interface GameRounds { tetris: SavedTetris | null; quiz: SavedQuiz | null; hack: SavedHack | null }
+
 export interface AppState {
-  schema: 11;
+  schema: 12;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -310,6 +334,8 @@ export interface AppState {
   opsPrefs: OpsPrefs;
   /* 0.11.0 (schéma 10): minihry a nátěry Opse; jsou v záloze */
   games: GamesState;
+  /* 0.13.0 (schéma 12): rozehraná a naposledy dohraná kola miniher; ve starším stavu chybí a začnou prázdná */
+  gameRounds: GameRounds;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

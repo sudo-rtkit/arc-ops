@@ -3,15 +3,20 @@
    (nátěry Opse v šatníku); výsledek nikdy nemění herní data. Kolo je dané číslem v adrese (#games/tetris-123456),
    takže jde zopakovat (#games/hack-123456). Ovládání myší i klávesnicí (šipky, Enter, R = otočit, Delete = vyndat,
    Esc = pustit; v hacku Enter/mezerník = otočit po směru, Q = proti směru, pravé tlačítko myši = proti směru).
-   Kvíz od 0.12.0 ukládá sérii po každé odpovědi, takže odchod uprostřed kola ji zachová. */
+   Kvíz od 0.12.0 ukládá sérii po každé odpovědi, takže odchod uprostřed kola ji zachová.
+   0.13.0: rozehrané kolo každé hry se ukládá po každém tahu (gameRounds) a po odchodu nebo restartu aplikace v něm
+   jde pokračovat. Dohrané kolo se při návratu jen zobrazí, odměny se znovu nepřipíšou. Nové kolo při rozehraném
+   kole se nejdřív zeptá; zahodí jen to kolo, rekordy a nátěry zůstanou. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
-import { ArrowLeft, ArrowRight, Brain, Check, Cpu, Package, Palette, RotateCw, Shuffle, Trash2, Trophy, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Brain, Check, Cpu, Package, Palette, Play, RotateCcw, RotateCw, Shuffle, Trash2, Trophy, X } from 'lucide-react';
 import { actions, navigate, useAppState } from '../store';
 import { Badge, Btn, PageHead, Panel, cx } from '../ui/components';
 import { useT } from '../i18n/react';
-import { formatInt, type Key } from '../i18n';
+import { formatInt, type Key, type Lang } from '../i18n';
 import { QUIZ_LEN, hackPct, newSeed, tetrisPct, validSeed, type GameOutcome } from '../core/minigames';
 import { HACK_NODES, dirsOf, isSolved, kindOf, leaks, makeHack, maskAt, powered, type HackNode } from '../core/opsHack';
+import { hackSig, quizSig, restoreHack, restoreQuiz, restoreTetris, roundSummary, tetrisSig } from '../core/gameRounds';
+import type { GameRounds, SavedHack, SavedQuiz, SavedTetris } from '../core/types';
 import { canPlace, density, dims, greedy, makeRound, occupancy, place, removeItem, scoreOf, tipsFor, type LootItem, type Placement, type TetrisRound, type Tip } from '../core/stashTetris';
 import { makeQuiz } from '../core/recycleQuiz';
 import { ITEMS_DATE } from '../core/itemdb';
@@ -26,6 +31,8 @@ import { PaintSwatch, paintName, ruleText } from '../ui/paints';
 
 type Game = 'tetris' | 'quiz' | 'hack';
 type OnResult = (out: GameOutcome | null, value: string) => void;
+/* uložené kolo této hry a tohoto čísla (stav při otevření kola) a znovuspuštění stejného kola od začátku */
+interface RoundProps<S> { saved: S | null; replay: () => void }
 /* Ops řekne hlášku (a v aktivním okně případně pípne) */
 type Say = (l: LineRef, snd?: SoundId | null, sparkle?: boolean) => void;
 
@@ -51,6 +58,49 @@ function OpsCorner({ said, ops }: { said: { line: LineRef | null; n: number }; o
 }
 
 /* ----- rozcestník ----- */
+/* text rozehraného kola (rozcestník a dotaz při jiném kole) */
+function summaryText(t: ReturnType<typeof useT>, rounds: GameRounds, game: Game): string {
+  const sm = roundSummary(rounds, game);
+  if (!sm) return '';
+  if (game === 'tetris') return t('games.saved.tetris', { count: sm.params.count });
+  if (game === 'quiz') return t('games.saved.quiz', sm.params);
+  return t('games.saved.hack', { ...sm.params, total: HACK_NODES });
+}
+
+/* Hrát, nebo (při rozehraném kole) Pokračovat / Nové kolo s potvrzením. Zahodí jen kolo této hry. */
+function PlayRow({ game, icon }: { game: Game; icon: typeof Package }) {
+  const t = useT();
+  const rounds = useAppState().gameRounds;
+  const sm = roundSummary(rounds, game);
+  const [ask, setAsk] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const newRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (ask) cancelRef.current?.focus(); }, [ask]);
+  if (!sm) return <div className="row"><Btn variant="primary" icon={icon} onClick={() => startGame(game)} data-testid={`games-play-${game}`}>{t('games.play')}</Btn></div>;
+  const close = () => { setAsk(false); setTimeout(() => newRef.current?.focus(), 0); };
+  return (
+    <div className="mg-saved" data-testid={`games-saved-${game}`} data-seed={sm.seed}>
+      <p className="meta"><b>{t('games.saved.title', { seed: String(sm.seed) })}</b> · <span data-testid={`games-saved-${game}-progress`}>{summaryText(t, rounds, game)}</span></p>
+      {!ask ? (
+        <div className="row">
+          <Btn variant="primary" icon={Play} onClick={() => navigate('games', `${game}-${sm.seed}`)} data-testid={`games-continue-${game}`}>{t('games.continue')}</Btn>
+          <button ref={newRef} type="button" className="btn" onClick={() => setAsk(true)} aria-expanded={false} data-testid={`games-new-${game}`}>
+            <Shuffle size={18} strokeWidth={1.75} aria-hidden="true" />{t('games.newRound')}</button>
+        </div>
+      ) : (
+        <div className="mg-confirm" role="group" aria-label={t('games.discard.ask', { seed: String(sm.seed) })} data-testid={`games-confirm-${game}`}
+          onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); close(); } }}>
+          <p className="amber">{t('games.discard.ask', { seed: String(sm.seed) })}</p>
+          <div className="row">
+            <Btn variant="danger" icon={Trash2} onClick={() => { actions.discardRound(game); startGame(game); }} data-testid={`games-discard-${game}`}>{t('games.discard.yes')}</Btn>
+            <button ref={cancelRef} type="button" className="btn" onClick={close} data-testid={`games-cancel-${game}`}>{t('common.cancel')}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Hub() {
   const t = useT();
   const g = useAppState().games;
@@ -64,7 +114,7 @@ function Hub() {
             <div><dt>{t('games.bestPct')}</dt><dd className="mono">{t('games.pct', { pct: g.tetris.bestPct })}</dd></div>
             <div><dt>{t('games.played')}</dt><dd className="mono">{formatInt(t.lang, g.tetris.played)}</dd></div>
           </dl>
-          <div className="row"><Btn variant="primary" icon={Package} onClick={() => startGame('tetris')} data-testid="games-play-tetris">{t('games.play')}</Btn></div>
+          <PlayRow game="tetris" icon={Package} />
         </Panel>
         <Panel title={t('games.quiz.name')} className="mg-card" actions={<Brain size={18} aria-hidden="true" className="accent" />}>
           <p className="secondary-text">{t('games.quiz.desc')}</p>
@@ -73,7 +123,7 @@ function Hub() {
             <div><dt>{t('games.bestStreak')}</dt><dd className="mono">{formatInt(t.lang, g.quiz.bestStreak)}</dd></div>
             <div><dt>{t('games.played')}</dt><dd className="mono">{formatInt(t.lang, g.quiz.played)}</dd></div>
           </dl>
-          <div className="row"><Btn variant="primary" icon={Brain} onClick={() => startGame('quiz')} data-testid="games-play-quiz">{t('games.play')}</Btn></div>
+          <PlayRow game="quiz" icon={Brain} />
         </Panel>
         <Panel title={t('games.hack.name')} className="mg-card" actions={<Cpu size={18} aria-hidden="true" className="accent" />}>
           <p className="secondary-text">{t('games.hack.desc')}</p>
@@ -82,7 +132,7 @@ function Hub() {
             <div><dt>{t('games.h.perfect')}</dt><dd className="mono">{formatInt(t.lang, g.hack.perfect)}</dd></div>
             <div><dt>{t('games.played')}</dt><dd className="mono">{formatInt(t.lang, g.hack.played)}</dd></div>
           </dl>
-          <div className="row"><Btn variant="primary" icon={Cpu} onClick={() => startGame('hack')} data-testid="games-play-hack">{t('games.play')}</Btn></div>
+          <PlayRow game="hack" icon={Cpu} />
         </Panel>
       </div>
       <Panel title={t('games.paints')} actions={<a className="btn sm" href="#settings/wardrobe"><Palette size={16} aria-hidden="true" />{t('games.toWardrobe')}</a>}>
@@ -159,20 +209,47 @@ function Bag({ round, placements, label, testId, interactive }: {
 
 interface TetrisDone { score: number; greedy: number; pct: number; tips: Tip[]; greedyPlacements: Placement[] }
 
-function Tetris({ seed, react }: { seed: number; react: OnResult }) {
+const tetrisDone = (round: TetrisRound, placements: Placement[]): TetrisDone => {
+  const g = greedy(round), score = scoreOf(round, placements);
+  return { score, greedy: g.score, pct: tetrisPct(score, g.score), tips: tipsFor(round, placements), greedyPlacements: g.placements };
+};
+
+/* Hláška o obnoveném kole: pokračování, dohrané kolo (bez nových odměn), nebo zahozené vadné kolo. */
+function ResumeNote({ kind }: { kind: 'resumed' | 'doneBefore' | 'invalid' | null }) {
+  const t = useT();
+  if (!kind) return null;
+  return <p className={cx('mg-resume', kind === 'invalid' && 'amber')} role="status" data-testid="games-resume" data-kind={kind}>{t(`games.resume.${kind}` as Key)}</p>;
+}
+/* Vadné nebo nekompatibilní uložené kolo se zahodí (jen pro tuto hru) a hra začne od začátku. */
+function useDiscardInvalid(game: Game, invalid: boolean) {
+  useEffect(() => { if (invalid) actions.discardRound(game); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+function Tetris({ seed, react, saved, replay }: { seed: number; react: OnResult } & RoundProps<SavedTetris>) {
   const t = useT();
   const round = useMemo(() => makeRound(seed), [seed]);
-  const [placements, setPlacements] = useState<Placement[]>([]);
-  const [selId, setSelId] = useState<string | null>(null);
-  const [rot, setRot] = useState(false);
+  const sig = useMemo(() => tetrisSig(round), [round]);
+  const [init] = useState(() => { const p = restoreTetris(saved, round); return { p, invalid: !!saved && !p }; });
+  useDiscardInvalid('tetris', init.invalid);
+  const [placements, setPlacements] = useState<Placement[]>(() => init.p?.placements ?? []);
+  const [selId, setSelId] = useState<string | null>(() => (init.p && !init.p.done ? init.p.held?.id ?? null : null));
+  const [rot, setRot] = useState(() => (init.p && !init.p.done ? init.p.held?.rot ?? false : false));
   const [cursor, setCursor] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
   const [gridFocus, setGridFocus] = useState(false);
   const [live, setLive] = useState('');
-  const [done, setDone] = useState<TetrisDone | null>(null);
+  const [done, setDone] = useState<TetrisDone | null>(() => (init.p?.done ? tetrisDone(round, init.p.placements) : null));
   const [showOps, setShowOps] = useState(false);
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const resultRef = useRef<HTMLHeadingElement>(null);
+  /* průběžné uložení po každém tahu hráče (ne při otevření kola: pouhé otevření nic nerozehraje) */
+  const touched = useRef(false);
+  const act = () => { touched.current = true; };
+  useEffect(() => {
+    if (!touched.current || done) return;
+    actions.saveRound('tetris', { seed, status: 'active', sig, placements, held: selId ? { id: selId, rot } : null });
+  }, [placements, selId, rot, done, seed, sig]);
+  const note = init.invalid ? 'invalid' : init.p?.done ? 'doneBefore' : init.p ? 'resumed' : null;
 
   const sel = selId ? round.items.find(i => i.id === selId) ?? null : null;
   const inBag = new Set(placements.map(p => p.id));
@@ -182,11 +259,13 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
 
   const rotate = () => {
     if (!sel || done) return;
+    act();
     setRot(r => !r);
     setLive(t('games.t.rotated', { name: sel.name }));
   };
   const select = (it: LootItem) => {
     if (done) return;
+    act();
     if (selId === it.id) { setSelId(null); setLive(t('games.t.released')); return; }
     if (inBag.has(it.id)) {
       const p = placements.find(x => x.id === it.id)!;
@@ -198,6 +277,7 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
   };
   const onCell = (i: number) => {
     if (done) return;
+    act();
     setCursor(i);
     const x = i % round.cols, y = Math.floor(i / round.cols);
     if (sel) {
@@ -217,6 +297,7 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
   const removeAt = (i: number) => {
     const id = occupancy(round, placements)[i];
     if (!id || done) return;
+    act();
     setPlacements(removeItem(placements, id));
     setLive(t('games.t.removed', { name: round.items.find(x => x.id === id)!.name }));
   };
@@ -234,20 +315,20 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
   const onRootKey = (e: ReactKeyboardEvent) => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); rotate(); }
-    else if (e.key === 'Escape' && sel) { e.preventDefault(); setSelId(null); setRot(false); setLive(t('games.t.released')); }
+    else if (e.key === 'Escape' && sel) { e.preventDefault(); act(); setSelId(null); setRot(false); setLive(t('games.t.released')); }
   };
   const finish = () => {
     if (done) return;
-    const g = greedy(round);
-    const pct = tetrisPct(score, g.score);
-    const d: TetrisDone = { score, greedy: g.score, pct, tips: tipsFor(round, placements), greedyPlacements: g.placements };
-    setDone(d); setSelId(null);
-    react(actions.finishGame({ game: 'tetris', score, greedy: g.score }), formatInt(t.lang, score));
+    const d = tetrisDone(round, placements);
+    setDone(d); setSelId(null); setRot(false);
+    /* odměny a značka „dohráno“ v jedné změně: návrat do kola je nepřipíše znovu */
+    react(actions.finishRound({ game: 'tetris', score: d.score, greedy: d.greedy }, { seed, status: 'done', sig, placements, held: null }), formatInt(t.lang, d.score));
     setTimeout(() => resultRef.current?.focus(), 0);
   };
 
   return (
     <div className="mg-tetris" onKeyDown={onRootKey} data-testid="games-tetris" data-seed={seed}>
+      <ResumeNote kind={note} />
       <p className="meta" role="note" data-testid="games-shapes-note">{t('games.t.shapes')}</p>
       <div className="mg-board">
         <Panel title={t('games.t.bag', { cols: round.cols, rows: round.rows })} className="mg-bag-panel"
@@ -262,11 +343,12 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
           {!done && (
             <div className="row">
               <Btn icon={RotateCw} onClick={rotate} disabled={!sel} data-testid="games-rotate">{t('games.t.rotate')}</Btn>
-              <Btn variant="ghost" icon={Trash2} onClick={() => { setPlacements([]); setSelId(null); setLive(t('games.t.cleared')); }} disabled={!placements.length}>{t('games.t.clear')}</Btn>
+              <Btn variant="ghost" icon={Trash2} onClick={() => { act(); setPlacements([]); setSelId(null); setLive(t('games.t.cleared')); }} disabled={!placements.length}>{t('games.t.clear')}</Btn>
               <Btn variant="primary" icon={Check} onClick={finish} data-testid="games-finish">{t('games.t.finish')}</Btn>
             </div>
           )}
           {!done && <p className="meta">{t('games.t.help')}</p>}
+          {!done && <p className="meta" data-testid="games-autosave">{t('games.autosave')}</p>}
         </Panel>
         <Panel title={t('games.t.loot')} className="mg-loot-panel">
           <p className="meta" data-testid="games-selected">{sel ? t('games.t.selected', { name: sel.name, size: sizeText(sel, rot) }) : t('games.t.none')}</p>
@@ -294,6 +376,7 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
           <ul className="mg-tips" data-testid="games-tips">{done.tips.map((tip, i) => <li key={i}>{t(tip.key, tip.params)}</li>)}</ul>
           <div className="row">
             <Btn onClick={() => setShowOps(v => !v)} aria-expanded={showOps}>{t(showOps ? 'games.t.hideOps' : 'games.t.showOps')}</Btn>
+            <Btn icon={RotateCcw} onClick={replay} data-testid="games-replay">{t('games.replay')}</Btn>
             <Btn variant="primary" icon={Shuffle} onClick={() => startGame('tetris')} data-testid="games-next-round">{t('games.newRound')}</Btn>
           </div>
           {showOps && <Bag round={round} placements={done.greedyPlacements} label={t('games.t.opsBag')} testId="games-ops-bag" />}
@@ -305,15 +388,26 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
 const sizeText = (it: LootItem, rot: boolean) => { const [w, h] = dims(it, rot); return `${w}×${h}`; };
 
 /* ----- recyklační kvíz ----- */
-function Quiz({ seed, react, say }: { seed: number; react: OnResult; say: Say }) {
+function Quiz({ seed, react, say, saved, replay }: { seed: number; react: OnResult; say: Say } & RoundProps<SavedQuiz>) {
   const t = useT();
   /* série je v uloženém stavu (ukládá se po každé odpovědi, ne až na konci kola) */
   const streak = useAppState().games.quiz.streak;
-  const round = useMemo(() => makeQuiz(seed, t.lang), [seed, t.lang]);
-  const [i, setI] = useState(0);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [correct, setCorrect] = useState(0);
-  const [done, setDone] = useState(false);
+  /* jazyk kola: po první odpovědi (nebo z uloženého kola) pevný, aby obnovené otázky i odpovědi seděly */
+  const [init] = useState(() => {
+    const p = saved ? restoreQuiz(saved, makeQuiz(seed, saved.lang)) : null;
+    return { p, lang: p ? saved!.lang : null as Lang | null, invalid: !!saved && !p };
+  });
+  useDiscardInvalid('quiz', init.invalid);
+  const [lockLang, setLockLang] = useState<Lang | null>(init.lang);
+  const lang = lockLang ?? t.lang;
+  const round = useMemo(() => makeQuiz(seed, lang), [seed, lang]);
+  const sig = useMemo(() => quizSig(round), [round]);
+  const [i, setI] = useState(() => init.p?.index ?? 0);
+  const [picked, setPicked] = useState<string | null>(() => init.p?.picked ?? null);
+  const [correct, setCorrect] = useState(() => init.p?.correct ?? 0);
+  const [done, setDone] = useState(() => !!init.p?.done);
+  const note = init.invalid ? 'invalid' : init.p?.done ? 'doneBefore' : init.p ? 'resumed' : null;
+  const data = (over: Partial<SavedQuiz>): SavedQuiz => ({ seed, status: 'active', sig, lang, index: i, picked, correct, ...over });
   const nextRef = useRef<HTMLButtonElement>(null);
   const optsRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLHeadingElement>(null);
@@ -323,18 +417,24 @@ function Quiz({ seed, react, say }: { seed: number; react: OnResult; say: Say })
   const answer = (id: string) => {
     if (picked || done || !q) return;
     setPicked(id);
+    setLockLang(lang);
     const ok = id === q.answer;
-    if (ok) setCorrect(c => c + 1);
-    const res = actions.quizAnswer(ok);
+    const nextCorrect = correct + (ok ? 1 : 0);
+    setCorrect(nextCorrect);
+    /* série a uložené kolo v jedné změně; už zodpovězená otázka se nezapočítá podruhé */
+    const res = actions.answerQuiz(data({ picked: id, correct: nextCorrect }), ok);
     /* série 10 odemkne nátěr hned, ne až na konci kola */
     if (res?.unlocked.length) say(line('game.unlock', { name: res.unlocked.map(x => paintName(t, x)).join(', ') }), 'unlock', true);
     setTimeout(() => nextRef.current?.focus(), 0);
   };
   const next = () => {
     if (!picked) return;
-    if (i + 1 < total) { setI(i + 1); setPicked(null); setTimeout(() => optsRef.current?.querySelector('button')?.focus(), 0); return; }
+    if (i + 1 < total) {
+      actions.saveRound('quiz', data({ index: i + 1, picked: null }));
+      setI(i + 1); setPicked(null); setTimeout(() => optsRef.current?.querySelector('button')?.focus(), 0); return;
+    }
     setDone(true);
-    react(actions.finishGame({ game: 'quiz', correct, total }), t('games.q.of', { n: correct, total }));
+    react(actions.finishRound({ game: 'quiz', correct, total }, data({ status: 'done' })), t('games.q.of', { n: correct, total }));
     setTimeout(() => resultRef.current?.focus(), 0);
   };
   /* klávesy 1–4 odpoví kdekoli na stránce kvízu (mimo pole formuláře); jen v tomto okně, nic globálního */
@@ -354,17 +454,24 @@ function Quiz({ seed, react, say }: { seed: number; react: OnResult; say: Say })
 
   if (done) {
     return (
-      <Panel title={t('games.q.result')} className="mg-result">
-        <h3 ref={resultRef} tabIndex={-1} data-testid="games-result">{t('games.q.score', { n: correct, total })}</h3>
-        <p className="meta" data-testid="games-streak">{t('games.q.streakNow', { count: streak })}</p>
-        <div className="row"><Btn variant="primary" icon={Shuffle} onClick={() => startGame('quiz')} data-testid="games-next-round">{t('games.newRound')}</Btn></div>
-      </Panel>
+      <>
+        <ResumeNote kind={note} />
+        <Panel title={t('games.q.result')} className="mg-result">
+          <h3 ref={resultRef} tabIndex={-1} data-testid="games-result">{t('games.q.score', { n: correct, total })}</h3>
+          <p className="meta" data-testid="games-streak">{t('games.q.streakNow', { count: streak })}</p>
+          <div className="row">
+            <Btn icon={RotateCcw} onClick={replay} data-testid="games-replay">{t('games.replay')}</Btn>
+            <Btn variant="primary" icon={Shuffle} onClick={() => startGame('quiz')} data-testid="games-next-round">{t('games.newRound')}</Btn>
+          </div>
+        </Panel>
+      </>
     );
   }
   if (!q) return null;
   const ok = picked === q.answer;
   return (
     <div className="mg-quiz" data-testid="games-quiz" data-seed={seed}>
+      <ResumeNote kind={note} />
       <Panel title={t('games.q.progress', { n: i + 1, total })} actions={<span className="mono" data-testid="games-quiz-score">{t('games.q.of', { n: correct, total })} · {t('games.q.streak', { count: streak })}</span>}>
         <p className="mg-question" data-testid="games-question" data-kind={q.kind}>{t(q.prompt.key, q.prompt.params)}</p>
         <div ref={optsRef} className={cx('mg-options', q.options.length === 2 && 'two')} role="group" aria-label={t('games.q.options')}>
@@ -393,6 +500,7 @@ function Quiz({ seed, react, say }: { seed: number; react: OnResult; say: Say })
         </div>
         <p className="meta">{t('games.q.help', { date: ITEMS_DATE })}</p>
         <p className="meta" data-testid="games-streak-note">{t('games.q.streakSaved')}</p>
+        <p className="meta" data-testid="games-autosave">{t('games.autosave')}</p>
       </Panel>
     </div>
   );
@@ -414,16 +522,21 @@ function HackTile({ mask, kind, on }: { mask: number; kind: string; on: boolean 
   );
 }
 
-function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say }) {
+function Hack({ seed, react, say, saved, replay }: { seed: number; react: OnResult; say: Say } & RoundProps<SavedHack>) {
   const t = useT();
   const round = useMemo(() => makeHack(seed), [seed]);
-  const [k, setK] = useState(0);
+  const sig = useMemo(() => hackSig(round), [round]);
+  const [init] = useState(() => { const p = restoreHack(saved, round, isSolved); return { p, invalid: !!saved && !p }; });
+  useDiscardInvalid('hack', init.invalid);
+  const [k, setK] = useState(() => init.p?.node ?? 0);
   /* otočení každé dlaždice jako počet čtvrtotáček (bez modula, kvůli plynulé animaci) */
-  const [turns, setTurns] = useState<number[]>(() => [...round.nodes[0].start]);
-  const [moves, setMoves] = useState(0);
+  const [turns, setTurns] = useState<number[]>(() => (init.p ? [...init.p.rot] : [...round.nodes[0].start]));
+  const [moves, setMoves] = useState(() => init.p?.moves ?? 0);
   const [cursor, setCursor] = useState(0);
   const [live, setLive] = useState('');
-  const [finished, setFinished] = useState(false);
+  const [finished, setFinished] = useState(() => !!init.p?.done);
+  const note = init.invalid ? 'invalid' : init.p?.done ? 'doneBefore' : init.p ? 'resumed' : null;
+  const data = (node: number, r: number[], m: number, status: 'active' | 'done' = 'active'): SavedHack => ({ seed, status, sig, node, rot: r, moves: m });
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const nextRef = useRef<HTMLButtonElement>(null);
   const resultRef = useRef<HTMLHeadingElement>(null);
@@ -435,7 +548,8 @@ function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say })
   const par = round.nodes.reduce((sum, n) => sum + n.par, 0);
   const parSoFar = round.nodes.slice(0, k + 1).reduce((sum, n) => sum + n.par, 0);
 
-  useEffect(() => { say(line('game.hackStart')); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /* Ops ohlásí terminál jen u nového kola (u obnoveného nebo dohraného mlčí) */
+  useEffect(() => { if (!init.p) say(line('game.hackStart')); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tileLabel = (i: number, r: number[], power: Set<number>) => {
     const kind = kindOf(node, i);
@@ -449,18 +563,22 @@ function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say })
     const total = moves + 1;
     setTurns(nt); setMoves(total); setCursor(i);
     setLive(tileLabel(i, nr, powered(node, nr)));
-    if (!isSolved(node, nr)) return;
-    if (k + 1 < HACK_NODES) {
+    const last = k + 1 >= HACK_NODES, solvedNow = isSolved(node, nr);
+    /* průběžné uložení po každém otočení; poslední uzel ukládá až dohrání spolu s odměnami */
+    if (!(last && solvedNow)) actions.saveRound('hack', data(k, nr, total));
+    if (!solvedNow) return;
+    if (!last) {
       say(line('game.hackNode'), 'beep');
       setTimeout(() => nextRef.current?.focus(), 0);
       return;
     }
     setFinished(true);
-    react(actions.finishGame({ game: 'hack', moves: total, par }), t('games.pct', { pct: hackPct(total, par) }));
+    react(actions.finishRound({ game: 'hack', moves: total, par }, data(k, nr, total, 'done')), t('games.pct', { pct: hackPct(total, par) }));
     setTimeout(() => resultRef.current?.focus(), 0);
   };
   const nextNode = () => {
     if (!solved || k + 1 >= HACK_NODES) return;
+    actions.saveRound('hack', data(k + 1, [...round.nodes[k + 1].start], moves));
     setK(k + 1); setTurns([...round.nodes[k + 1].start]); setCursor(0);
     setTimeout(() => refs.current[0]?.focus(), 0);
   };
@@ -480,6 +598,7 @@ function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say })
   const pct = hackPct(moves, par);
   return (
     <div className="mg-hack" data-testid="games-hack" data-seed={seed}>
+      <ResumeNote kind={note} />
       <Panel title={t('games.h.node', { n: k + 1, total: HACK_NODES, cols: node.cols, rows: node.rows })} className="mg-hack-panel"
         actions={<span className="mono" data-testid="games-hack-moves">{t('games.h.moves', { moves, par: parSoFar })}</span>}>
         <p className="meta">{t('games.h.goal')}</p>
@@ -513,6 +632,7 @@ function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say })
           </div>
         )}
         {!finished && <p className="meta">{t('games.h.help')}</p>}
+        {!finished && <p className="meta" data-testid="games-autosave">{t('games.autosave')}</p>}
       </Panel>
       {finished && (
         <Panel title={t('games.h.result')} className="mg-result">
@@ -522,11 +642,46 @@ function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say })
             {moves <= par ? <li>{t('games.h.tipPar')}</li> : <li>{t('games.h.tipOver', { count: moves - par })}</li>}
             <li>{t('games.h.tipOutputs')}</li>
           </ul>
-          <div className="row"><Btn variant="primary" icon={Shuffle} onClick={() => startGame('hack')} data-testid="games-next-round">{t('games.newRound')}</Btn></div>
+          <div className="row">
+            <Btn icon={RotateCcw} onClick={replay} data-testid="games-replay">{t('games.replay')}</Btn>
+            <Btn variant="primary" icon={Shuffle} onClick={() => startGame('hack')} data-testid="games-next-round">{t('games.newRound')}</Btn>
+          </div>
         </Panel>
       )}
     </div>
   );
+}
+
+/* ----- otevření kola: obnovení uloženého, nebo dotaz, když je rozehrané jiné kolo téže hry ----- */
+function GameHost({ game, seed, react, say, restart }: { game: Game; seed: number; react: OnResult; say: Say; restart: () => void }) {
+  const t = useT();
+  const rounds = useAppState().gameRounds;
+  /* stav uloženého kola při otevření (během hry se ukládá dál, ale kolo se z něj znovu nestaví) */
+  const [saved] = useState(() => rounds[game]);
+  const headRef = useRef<HTMLHeadingElement>(null);
+  const other = saved && saved.seed !== seed && saved.status === 'active' ? saved : null;
+  useEffect(() => { if (other) headRef.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const replay = () => { actions.discardRound(game); restart(); };
+  if (other) {
+    return (
+      <Panel title={t('games.conflict.title')} className="mg-result">
+        <div data-testid="games-conflict" data-seed={other.seed}>
+          <h3 ref={headRef} tabIndex={-1}>{t('games.saved.title', { seed: String(other.seed) })} · {summaryText(t, rounds, game)}</h3>
+          <p className="secondary-text">{t('games.conflict.text', { saved: String(other.seed), seed: String(seed) })}</p>
+          <div className="row">
+            <Btn variant="primary" icon={Play} onClick={() => navigate('games', `${game}-${other.seed}`)} data-testid="games-conflict-continue">
+              {t('games.conflict.continue', { seed: String(other.seed) })}</Btn>
+            <Btn variant="danger" icon={Trash2} onClick={replay} data-testid="games-conflict-discard">
+              {t('games.conflict.discard', { seed: String(seed) })}</Btn>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+  const own = saved && saved.seed === seed ? saved : null;
+  if (game === 'tetris') return <Tetris seed={seed} react={react} saved={own as SavedTetris | null} replay={replay} />;
+  if (game === 'quiz') return <Quiz seed={seed} react={react} say={say} saved={own as SavedQuiz | null} replay={replay} />;
+  return <Hack seed={seed} react={react} say={say} saved={own as SavedHack | null} replay={replay} />;
 }
 
 /* ----- modul ----- */
@@ -535,6 +690,8 @@ export default function Minigames({ sub }: { sub: string }) {
   const { game, seed } = parseSub(sub);
   const ops = useRef<OpsHandle | null>(null);
   const [said, setSaid] = useState<{ line: LineRef | null; n: number }>({ line: null, n: 0 });
+  /* znovuspuštění stejného kola (Hrát znovu, zahození jiného rozehraného kola) */
+  const [epoch, setEpoch] = useState(0);
   /* hra bez platného čísla kola dostane nové číslo */
   useEffect(() => { if (game && seed === null) startGame(game); }, [game, seed]);
 
@@ -564,9 +721,7 @@ export default function Minigames({ sub }: { sub: string }) {
         <p className="mg-note" role="note">{t('games.offRaid')}</p>
       </div>
       {!game && <Hub />}
-      {game === 'tetris' && seed && <Tetris key={seed} seed={seed} react={react} />}
-      {game === 'quiz' && seed && <Quiz key={seed} seed={seed} react={react} say={say} />}
-      {game === 'hack' && seed && <Hack key={seed} seed={seed} react={react} say={say} />}
+      {game && seed && <GameHost key={`${game}-${seed}-${epoch}`} game={game} seed={seed} react={react} say={say} restart={() => setEpoch(e => e + 1)} />}
     </div>
   );
 }

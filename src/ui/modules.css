@@ -512,3 +512,9 @@ button.mg-cell:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .mg-hack-svg.on .out { fill: var(--amber); stroke: var(--accent); }
 @media (max-width: 720px) { .mg-hack-grid { --tile: 48px; } }
 @media (prefers-reduced-motion: reduce) { .mg-hack-turn { transition: none; } }
+/* 0.13.0: rozehrané kolo v rozcestníku, potvrzení nového kola a hláška o obnovení */
+.mg-saved { display: grid; gap: var(--space-2); }
+.mg-saved .meta b { color: var(--text-primary); }
+.mg-confirm { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-control); border-left: var(--line-strong) solid var(--warning); background: var(--warning-bg); }
+.mg-confirm p { margin: 0; }
+.mg-resume { margin: 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
