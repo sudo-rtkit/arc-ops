@@ -2,7 +2,7 @@
    dostupných úkolů jdou do nákupního seznamu a Planneru (počítá jádro, viz core/quests.ts). Záložka Projekty je
    jen přehled fází projektů sezóny. Texty úkolů jsou ve zdroji anglicky. */
 import { Fragment, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
 import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
 import { PROJECTS, QUESTS, locText, questById, questName, questStatus, type QuestStatus } from '../core/quests';
@@ -35,6 +35,7 @@ function QuestList() {
   const [show, setShow] = useState<Show>('all');
   const [open, setOpen] = useState<string | null>(null);
   const done = s.quests.done;
+  const pinned = s.quests.pinned;
   const traders = useMemo(() => [...new Set(QUESTS.map(x => x.trader))].sort(), []);
   const lang = t.lang;
   const rows = QUESTS.filter(x => {
@@ -77,12 +78,16 @@ function QuestList() {
                     <td>
                       <b className="wrap">{name}</b> <Badge tone={TONE[st]}>{t(`quests.status.${st}` as Key)}</Badge>
                       {x.research && <> <Badge>{t('quests.research')}</Badge></>}
+                      {st !== 'done' && pinned.includes(x.id) && <> <Badge tone="accent">{t('quests.pinnedBadge')}</Badge></>}
                       <br /><span className="meta">{[...x.maps.map(mapName), x.xp ? t('quests.xp', { xp: x.xp }) : ''].filter(Boolean).join(' · ')}</span>
                     </td>
                     <td>{x.trader}</td>
                     <td className="wrap meta">{x.deliver.length ? qtyText(x.deliver) : '—'}</td>
                     <td className="wrap meta">{x.rewards.length ? qtyText(x.rewards) : '—'}</td>
-                    <td className="actions-cell"><IconBtn ghost label={t(isOpen ? 'quests.detailHide' : 'quests.detailShow', { name })} icon={isOpen ? ChevronDown : ChevronRight} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : x.id)} /></td>
+                    <td className="actions-cell"><div className="row" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
+                      {st !== 'done' && <IconBtn ghost label={t(pinned.includes(x.id) ? 'quests.unpin' : 'quests.pin', { name })} icon={pinned.includes(x.id) ? PinOff : Pin} aria-pressed={pinned.includes(x.id)} data-testid="quest-pin" onClick={() => actions.questPin(x.id, !pinned.includes(x.id))} />}
+                      <IconBtn ghost label={t(isOpen ? 'quests.detailHide' : 'quests.detailShow', { name })} icon={isOpen ? ChevronDown : ChevronRight} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : x.id)} />
+                    </div></td>
                   </tr>
                   {isOpen && (
                     <tr className="detail-row"><td colSpan={6}>

@@ -1,6 +1,7 @@
 /* Jeden store pro celou aplikaci: drží stav, mění ho přes akce a ukládá ho přes rozhraní úložiště.
    Neimportuje React, takže jde testovat v Node se zástupným úložištěm. */
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { CloseAction, CompactSection, MainWindowPrefs } from '../core/types';
 import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Raid, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
@@ -19,7 +20,8 @@ import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, type RaidLootRefusal } from '../core/lootImport';
-import { projectById, setQuestDone } from '../core/quests';
+import { PIN_MAX, projectById, questById, setQuestDone } from '../core/quests';
+import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
@@ -240,6 +242,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     if (!(await snapshot(kind, label))) return false;
     if (raw !== undefined) { try { await storage.saveImportRaw(raw); } catch { /* původní text je jen pojistka */ } }
     const n = normalize(next, now(), st().settings.lang);
+    /* 0.9.0: okno (režim, připnutí, poloha, křížek) patří tomuto počítači; import, obnova ani reset ho nemění */
+    n.mainWindow = structuredClone(st().mainWindow);
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
@@ -592,6 +596,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
       return n;
     },
+    /* 0.9.0: připnutý úkol jde v kompaktu první; nejvýš PIN_MAX, nejstarší připnutí odpadne */
+    questPin(id: string, pin: boolean) {
+      change(s => {
+        const cur = s.quests.pinned;
+        if (!questById(id) || cur.includes(id) === pin) return false;
+        s.quests.pinned = pin ? [...cur, id].slice(-PIN_MAX) : cur.filter(x => x !== id);
+      });
+    },
     /* milník 4: rada „vždy nechat“, naučené blueprinty, vlastní tier list, hotové fáze projektů */
     adviceKeep(key: string, keep: boolean) {
       const k = text(key, 130).trim();
@@ -893,6 +905,24 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         if (patch.opacity !== undefined) b.opacity = clampInt(patch.opacity, OPACITY_MIN, OPACITY_MAX);
         if (patch.autoOpen !== undefined) b.autoOpen = patch.autoOpen === true;
         if (JSON.stringify(b) === before) return false;
+      });
+    },
+    /* 0.9.0: hlavní okno (režim, připnutí, geometrie, křížek, obsah kompaktu); pravidla v core/mainWindow.ts */
+    setMainWindow(next: MainWindowPrefs) {
+      change(s => {
+        const n = normalizeMainWindow(next);
+        if (JSON.stringify(n) === JSON.stringify(s.mainWindow)) return false;
+        s.mainWindow = n;
+      });
+    },
+    setCloseAction(a: CloseAction) { change(s => { if (!CLOSE_ACTIONS.includes(a) || s.mainWindow.close === a) return false; s.mainWindow.close = a; }); },
+    setCompactQuests(n: number) {
+      change(s => { const v = clampInt(n, QUESTS_MIN, QUESTS_MAX); if (s.mainWindow.quests === v) return false; s.mainWindow.quests = v; });
+    },
+    setCompactCollapsed(section: CompactSection, collapsed: boolean) {
+      change(s => {
+        if (!COMPACT_SECTIONS.includes(section) || !!s.mainWindow.collapsed[section] === collapsed) return false;
+        if (collapsed) s.mainWindow.collapsed[section] = true; else delete s.mainWindow.collapsed[section];
       });
     },
     /* šatník: 'auto' = podle levelu, null = bez dílu, jinak díl ze sbírky */

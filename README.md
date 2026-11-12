@@ -113,3 +113,23 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
   `tests/vision/own-return.test.ts` (jen lokálně s vlastními snímky), E2E `tests/e2e/loot-findings.spec.ts`.
 - Navazující práce (zatím jen evidované snímky v `own/return-and-progression/`, žádný import): profil, skill tree,
   úkoly a dílna ze snímku.
+
+## Kompaktní režim hlavního okna (0.9.0)
+
+- **Kompakt** (návrh `docs/design/compact/`): hlavní okno se přepne do malého okna 420 × 720 (šířka 380–480, výška 520–900;
+  pod 620 px nízká varianta). Level a XP, mince, stav Opse, aktivní úkoly (nejdřív připnuté, pak rozpracované; 1–5, výchozí 3),
+  nákupní seznam pro další vylepšení (mám / potřebuji, rarita barvou i slovem), další vylepšení (zvolený cíl z Planneru,
+  jinak nejbližší dosažitelný) a pevná oblast hlášení. Akce **Snímek** (stávající cesta buddyho: revize v overlayi a potvrzení
+  zápisu; bez zapnutého buddyho nebo zkratky jen nápověda), **Zápis raidu** a **Úklid stashe** rozbalí plnou aplikaci na místo.
+  Nový hráč vidí jedinou výzvu „Nastavit profil“. Úkoly jde připnout v modulu Quests.
+- Přepnutí tlačítkem v liště (zpět „Kompaktní režim“ v horní liště plné aplikace), z nabídky oznamovací oblasti nebo místní
+  zkratkou **Ctrl+Shift+M** (žádná globální zkratka). Každý režim si pamatuje polohu a velikost; okno mimo pracovní plochu
+  se vrátí na monitor. **Vždy navrchu** (Ctrl+Shift+P) jen v kompaktu, výchozí vypnuto; plný režim ho nativně vypne,
+  návrat obnoví poslední volbu. Kompaktní okno se nezobrazí na snímcích (nezakryje inventář).
+- **Křížek**: poprvé dialog „Skrýt do oznamovací oblasti“ / „Ukončit aplikaci“ se „Zapamatovat volbu“; zapamatovaná volba
+  pak platí potichu, změna v Nastavení → Okno aplikace. **Ikona v oznamovací oblasti** (podle motivu hlavního panelu):
+  Otevřít, Kompaktní režim, Buddy Ops (jen se zapnutým buddym), Ukončit; levé kliknutí obnoví okno v posledním režimu,
+  druhé spuštění aplikace ho obnoví i ze skrytí. Start při běžící hře zůstává na pozadí i v kompaktu; změny dat okno neaktivují.
+- Stav: **schéma 7** (`mainWindow`, `quests.pinned`); starší stav a zálohy se načtou s výchozími hodnotami. Záloha nese i okno,
+  ale import, obnova snímku ani reset **nemění nastavení okna tohoto počítače**. Rust: `src-tauri/src/mainwin.rs`.
+- Testy: `tests/core/compact-mode.test.ts`, E2E `tests/e2e/compact.spec.ts` (nativní okno nahrazené zástupcem), Rust `mainwin::tests`.

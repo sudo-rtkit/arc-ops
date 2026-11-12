@@ -10,6 +10,7 @@ import { OPACITY_MAX, OPACITY_MIN, OPS, OPS_SLOTS, collection, formForLevel, par
 import { OpsCanvas } from '../ops/OpsCanvas';
 import { hub } from '../ops/mainHub';
 import { hotkeyFrom, hotkeyLabel } from '../ops/hotkey';
+import { MODE_KEY, PIN_KEY } from '../core/mainWindow';
 
 function HotkeyField() {
   const t = useT();
@@ -39,6 +40,7 @@ function HotkeyField() {
         {hotkey && <Btn size="sm" variant="ghost" icon={X} onClick={() => void hub.setHotkey('').then(() => setError(null))}>{t('ops.hotkeyClear')}</Btn>}
       </div>
       {error ? <p className="danger-text" role="alert">{t(error)}</p> : <p className="meta">{t('ops.hotkeyHint')}</p>}
+      {(hotkey === MODE_KEY || hotkey === PIN_KEY) && <p className="amber" role="note">{t('ops.hotkeyShadow', { key: hotkeyLabel(hotkey) })}</p>}
     </div>
   );
 }

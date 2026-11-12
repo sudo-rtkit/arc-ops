@@ -1,0 +1,67 @@
+{
+  "exports": [
+    {
+      "file": "compact-cs.png",
+      "width": 420,
+      "height": 720,
+      "overflow": false,
+      "horizontal": false,
+      "fonts": [
+        true,
+        true,
+        true
+      ],
+      "footer": 719,
+      "scrollHeight": 484,
+      "clientHeight": 484
+    },
+    {
+      "file": "compact-en.png",
+      "width": 420,
+      "height": 720,
+      "overflow": false,
+      "horizontal": false,
+      "fonts": [
+        true,
+        true,
+        true
+      ],
+      "footer": 719,
+      "scrollHeight": 484,
+      "clientHeight": 484
+    },
+    {
+      "file": "compact-empty.png",
+      "width": 420,
+      "height": 720,
+      "overflow": false,
+      "horizontal": false,
+      "fonts": [
+        true,
+        true,
+        true
+      ],
+      "footer": 719,
+      "scrollHeight": 557,
+      "clientHeight": 557
+    },
+    {
+      "file": "compact-short.png",
+      "width": 420,
+      "height": 520,
+      "overflow": false,
+      "horizontal": false,
+      "fonts": [
+        true,
+        true,
+        true
+      ],
+      "footer": 519,
+      "scrollHeight": 314,
+      "clientHeight": 314
+    }
+  ],
+  "checks": "pin, disclosures, expand/collapse preserving sections, keyboard, capture toast, dismiss toast, raid, stash, setup, locale, short, close, restore, minimise, 8 state combinations",
+  "errors": [],
+  "network": []
+}

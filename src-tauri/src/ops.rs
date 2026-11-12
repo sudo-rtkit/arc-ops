@@ -458,12 +458,13 @@ mod win {
         ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
         SRCCOPY,
     };
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
-        WDA_EXCLUDEFROMCAPTURE,
+        WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
     };
 
     /// Ukáže okno minimalizované bez aktivace (nevezme fokus oknu v popředí).
@@ -532,9 +533,26 @@ mod win {
 
     /// Vlastní okno se nezobrazí na snímcích obrazovky (ani na našem), takže Ops ani overlay nezakryjí inventář.
     pub fn exclude_from_capture(hwnd: *mut c_void) {
+        set_capture_affinity(hwnd, true);
+    }
+
+    /// Zapne nebo vypne vynechání okna ze snímků (kompaktní hlavní okno, 0.9.0).
+    pub fn set_capture_affinity(hwnd: *mut c_void, exclude: bool) {
         unsafe {
-            SetWindowDisplayAffinity(hwnd as HWND, WDA_EXCLUDEFROMCAPTURE);
+            SetWindowDisplayAffinity(hwnd as HWND, if exclude { WDA_EXCLUDEFROMCAPTURE } else { WDA_NONE });
         }
+    }
+
+    /// Světlý hlavní panel Windows? (HKCU …\Themes\Personalize, hodnota SystemUsesLightTheme; jen čtení.)
+    pub fn taskbar_light() -> bool {
+        let key: Vec<u16> = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize".encode_utf16().chain([0]).collect();
+        let name: Vec<u16> = "SystemUsesLightTheme\0".encode_utf16().collect();
+        let mut value: u32 = 0;
+        let mut size = size_of::<u32>() as u32;
+        let rc = unsafe {
+            RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_DWORD, null_mut(), &mut value as *mut u32 as *mut c_void, &mut size)
+        };
+        rc == 0 && value == 1
     }
 
     pub fn foreground() -> isize {
@@ -585,6 +603,34 @@ fn exclude_from_capture<R: Runtime>(w: &WebviewWindow<R>) {
     if let Ok(h) = w.hwnd() {
         let raw = h.0 as isize;
         let _ = w.run_on_main_thread(move || win::exclude_from_capture(raw as *mut std::ffi::c_void));
+    }
+}
+
+/// Kompaktní hlavní okno se nezobrazí na snímcích (0.9.0): připnuté nad hrou by jinak zakrylo inventář na snímku
+/// ze zkratky i z tlačítka Snímek. V plném režimu je okno na snímcích normálně vidět.
+pub fn set_capture_excluded<R: Runtime>(w: &WebviewWindow<R>, exclude: bool) {
+    #[cfg(windows)]
+    {
+        if let Ok(h) = w.hwnd() {
+            let raw = h.0 as isize;
+            let _ = w.run_on_main_thread(move || win::set_capture_affinity(raw as *mut std::ffi::c_void, exclude));
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (w, exclude);
+    }
+}
+
+/// Je hlavní panel Windows ve světlém motivu? (Volba ikony v oznamovací oblasti; mimo Windows ne.)
+pub fn taskbar_light() -> bool {
+    #[cfg(windows)]
+    {
+        win::taskbar_light()
+    }
+    #[cfg(not(windows))]
+    {
+        false
     }
 }
 

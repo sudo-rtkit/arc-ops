@@ -11,6 +11,8 @@ interface UiStore {
   timer: { start: number; acc: number; running: boolean };
   timerToggle: () => void;
   timerReset: () => void;
+  /* 0.9.0: dialog při zavření okna křížkem (skrýt do oznamovací oblasti / ukončit) */
+  closeAsk: boolean;
 }
 
 export const useUi = create<UiStore>((set, get) => ({
@@ -23,6 +25,7 @@ export const useUi = create<UiStore>((set, get) => ({
     set({ timer: t.running ? { start: 0, acc: t.acc + Date.now() - t.start, running: false } : { start: Date.now(), acc: t.acc, running: true } });
   },
   timerReset: () => set({ timer: { start: 0, acc: 0, running: false } }),
+  closeAsk: false,
 }));
 
 export const elapsed = (t: UiStore['timer'], now = Date.now()): number => t.acc + (t.running ? now - t.start : 0);

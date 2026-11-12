@@ -184,7 +184,8 @@ export interface GameDataEdits {
 }
 
 /* ----- úkoly (milník 3b): id úkolu → čas zaškrtnutí ----- */
-export interface QuestsState { done: Record<string, number> }
+/* pinned (0.9.0): připnuté úkoly v pořadí připnutí, nejvýš 5; v kompaktním režimu jdou první */
+export interface QuestsState { done: Record<string, number>; pinned: string[] }
 
 /* ----- milník 4: rady k předmětům, blueprinty, vlastní tier list, fáze projektů ----- */
 export const TIER_IDS = ['S', 'A', 'B', 'C', 'D'] as const;
@@ -217,9 +218,30 @@ export interface BuddyState {
   monitor: string;
 }
 
-/* Schéma 6: 5 → 6 doplnilo buddy. Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
+/* ----- 0.9.0: hlavní okno (plný a kompaktní režim), patří jen tomuto počítači ----- */
+export type WindowMode = 'full' | 'compact';
+/* Křížek: zeptat se, skrýt do oznamovací oblasti, nebo ukončit aplikaci. */
+export type CloseAction = 'ask' | 'tray' | 'quit';
+/* Poloha a velikost okna ve fyzických pixelech (vnější poloha, vnitřní velikost). */
+export interface WinRect { x: number; y: number; w: number; h: number }
+export type CompactSection = 'quests' | 'shop' | 'upgrade';
+export interface MainWindowPrefs {
+  mode: WindowMode;
+  /* připnutí „vždy navrchu“ platí jen v kompaktu; tady je poslední volba kompaktu */
+  pin: boolean;
+  full: WinRect | null;
+  fullMax: boolean;
+  compact: WinRect | null;
+  close: CloseAction;
+  /* počet aktivních úkolů v kompaktu (1–5) */
+  quests: number;
+  /* sbalené sekce kompaktu */
+  collapsed: Partial<Record<CompactSection, true>>;
+}
+
+/* Schéma 7: 6 → 7 doplnilo mainWindow a quests.pinned. Schéma 6: 5 → 6 doplnilo buddy. Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
 export interface AppState {
-  schema: 6;
+  schema: 7;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -252,6 +274,8 @@ export interface AppState {
   projects: Record<string, number>;
   /* milník 5 */
   buddy: BuddyState;
+  /* 0.9.0: hlavní okno; import zálohy ani obnova je nemění (nastavení tohoto počítače) */
+  mainWindow: MainWindowPrefs;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

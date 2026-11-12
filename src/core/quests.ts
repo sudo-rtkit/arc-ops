@@ -54,6 +54,13 @@ export function normalizeQuestDone(raw: unknown): Record<string, number> {
   return out;
 }
 
+/* Připnuté úkoly (0.9.0): id v pořadí připnutí, bez opakování, nejvýš 5. */
+export const PIN_MAX = 5;
+export function normalizePinned(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 80))].slice(0, PIN_MAX);
+}
+
 export interface QuestNeed { id: string; label: string; mats: Recipe }
 /* Potřeby dostupných úkolů: předměty, které hráč donese ze zásoby (předměty objevené až během úkolu se nepočítají). */
 export function questNeeds(done: Record<string, number>, lang: Lang): QuestNeed[] {

@@ -1,7 +1,9 @@
 //! Rust backend: jen soubory ve složce dat, snímky, souborové dialogy a otevření odkazu nebo složky.
 //! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů, žádná síť.
 //! Buddy, overlay, zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
+//! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
+mod mainwin;
 mod ops;
 mod storage;
 
@@ -152,21 +154,27 @@ fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Druhé spuštění jen přepne na běžící okno, aby si dvě okna nepřepisovala data.
+        // Druhé spuštění jen přepne na běžící okno (i skryté v oznamovací oblasti), aby si dvě okna nepřepisovala data.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.unminimize();
-                let _ = w.show();
-                let _ = w.set_focus();
-            }
+            mainwin::show_main(app);
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(ops::plugin())
         .manage(ops::OpsState::default())
-        /* Zavření hlavního okna ukončí celou aplikaci včetně buddyho a overlaye (jinak by zůstaly bez stavu). */
+        /* Zničení hlavního okna ukončí celou aplikaci včetně buddyho a overlaye (jinak by zůstaly bez stavu). */
         .on_window_event(|w, e| {
             ops::on_window_event(w, e);
+            /* křížek na hlavním okně: rozhodne frontend (zeptat se, skrýt do oznamovací oblasti, ukončit) */
+            if let tauri::WindowEvent::CloseRequested { api, .. } = e {
+                mainwin::on_close_requested(w, api);
+            }
+            if w.label() == "main" && matches!(e, tauri::WindowEvent::Focused(true)) {
+                mainwin::on_focused(w.app_handle());
+            }
+            if w.label() == "main" && matches!(e, tauri::WindowEvent::ThemeChanged(_)) {
+                mainwin::refresh_tray_icon(w.app_handle());
+            }
             if w.label() == "main" && matches!(e, tauri::WindowEvent::Destroyed) {
                 ops::shutdown(w.app_handle());
                 w.app_handle().exit(0);
@@ -175,6 +183,9 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir().map_err(|e| format!("Složka dat není dostupná: {e}"))?;
             std::fs::create_dir_all(&dir)?;
+            /* režim a geometrie okna z minula (jen čtení state.json), aby okno nebliklo v jiné velikosti */
+            let boot = mainwin::boot_prefs(&dir);
+            app.manage(mainwin::MainWin::new(boot.mode));
             app.manage(AppStorage(Mutex::new(Storage::new(dir))));
             /* Hlavní okno vzniká až tady (v tauri.conf.json má "create": false). Když běží ARC Raiders, okno se
                nesmí aktivovat ani překrýt hru (hra v exkluzivní celé obrazovce by se mohla minimalizovat nebo
@@ -193,10 +204,14 @@ pub fn run() {
             if game_running {
                 builder = builder.focused(false).visible(false);
             }
+            builder = mainwin::prepare(builder, &boot);
             let main = builder.build()?;
+            mainwin::finish(&main, &boot, game_running);
             if game_running {
                 ops::show_in_background(&main);
+                app.state::<mainwin::MainWin>().background_start();
             }
+            mainwin::create_tray(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -223,7 +238,17 @@ pub fn run() {
             ops::overlay_toggle,
             ops::main_focus,
             ops::capture_now,
-            ops::capture_take
+            ops::capture_take,
+            mainwin::main_mode,
+            mainwin::main_pin,
+            mainwin::main_geometry,
+            mainwin::main_drag,
+            mainwin::main_minimize,
+            mainwin::main_hide,
+            mainwin::main_show,
+            mainwin::main_ready,
+            mainwin::app_quit,
+            mainwin::tray_sync
         ])
         .run(tauri::generate_context!())
         .expect("chyba při spuštění aplikace");

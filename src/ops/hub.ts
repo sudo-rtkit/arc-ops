@@ -60,6 +60,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let overlayKnown = false;
   let pushTimer: ReturnType<typeof setTimeout> | null = null;
   let gameRunning = false;
+  /* 0.9.0: buddy skrytý z nabídky oznamovací oblasti (jen pro tuto relaci; zkratka a snímek běží dál) */
+  let buddyHidden = false;
+  const visListeners = new Set<() => void>();
+  /* 0.9.0: snímek z tlačítka v kompaktním okně: po přečtení otevřít revizi v overlayi, nezdar ohlásit v okně */
+  let appCaptureAt = 0;
+  const APP_CAPTURE_MS = 15_000;
   const offs: (() => void)[] = [];
 
   /* Nativní volání jdou za sebou, aby se zapnutí a vypnutí nepředběhla. */
@@ -97,11 +103,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
         run(async () => {
           await native.enable(true);
           if (hotkey) await native.setHotkey(hotkey).catch(() => app.notify(t('ops.hotkey.lost'), 'warning'));
-          if (auto) await native.watch(true); else await native.buddyOpen();
+          if (auto) await native.watch(true); else if (!buddyHidden) await native.buddyOpen();
         });
       } else {
         batch = emptyBatch();
         overlayKnown = false;
+        setHidden(false);
         run(() => native.enable(false));
       }
       return;
@@ -111,10 +118,39 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const auto = b.autoOpen;
       run(async () => {
         await native.watch(auto);
-        if (!auto) await native.buddyOpen();
+        if (!auto) { if (!buddyHidden) await native.buddyOpen(); }
         else if (!gameRunning) await native.buddyClose();
       });
     }
+  }
+
+  /* ----- viditelnost buddyho z oznamovací oblasti (0.9.0) ----- */
+  function setHidden(v: boolean) { if (buddyHidden === v) return; buddyHidden = v; visListeners.forEach(f => f()); }
+  /* Zobrazí nebo skryje postavičku buddyho; přepínač v Nastavení, zkratka ani snímek se nemění. */
+  function setBuddyVisible(visible: boolean) {
+    const b = st().buddy;
+    if (!b.enabled) return;
+    setHidden(!visible);
+    run(() => (!visible ? native.buddyClose() : !b.autoOpen || gameRunning ? native.buddyOpen() : Promise.resolve()));
+  }
+  const onVisibility = (f: () => void) => { visListeners.add(f); return () => { visListeners.delete(f); }; };
+
+  /* ----- snímek z tlačítka v okně aplikace (0.9.0) ----- */
+  /* Stejná cesta jako zkratka (Rust snímá monitor okna v popředí; kompaktní okno je ze snímku vynechané).
+     Vrací false, když buddy není zapnutý nebo snímání není k dispozici. */
+  async function captureFromApp(): Promise<boolean> {
+    if (!st().buddy.enabled || !native.available) return false;
+    appCaptureAt = now();
+    try { await run(() => native.captureNow()); return true; }
+    catch { appCaptureAt = 0; return false; }
+  }
+  /* Výsledek snímku z okna: přečtený snímek otevře revizi v overlayi, prázdný nebo neúspěšný se ohlásí v okně. */
+  function afterAppCapture(result: 'empty' | 'read' | 'loot' | 'failed', reason: '' | 'noInventory' | 'otherScreen' = '') {
+    if (!appCaptureAt || now() - appCaptureAt > APP_CAPTURE_MS) { appCaptureAt = 0; return; }
+    appCaptureAt = 0;
+    if (result === 'read' || result === 'loot') { void run(() => native.overlayOpen('scan')); return; }
+    if (result === 'failed') app.notify(t('ops.msg.failed'), 'danger');
+    else app.notify(t(reason === 'otherScreen' ? 'ops.msg.otherScreen' : 'ops.msg.nothing'), 'warning');
   }
 
   /* ----- zkratka (volá ji Nastavení): uloží se jen ta, kterou systém přijal ----- */
@@ -169,10 +205,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   async function takeCapture(p: { id: number; width: number; height: number }) {
     let buf: ArrayBuffer | null = null;
-    try { buf = await native.captureTake(p.id); } catch { status('alert', msg('ops.msg.failed')); return; }
+    try { buf = await native.captureTake(p.id); } catch { status('alert', msg('ops.msg.failed')); afterAppCapture('failed'); return; }
     let data: Uint8Array | null = new Uint8Array(buf);
     buf = null;
-    try { handleCapture({ width: p.width, height: p.height, data }); }
+    try { const r = handleCapture({ width: p.width, height: p.height, data }); afterAppCapture(r, batch.rejected); }
     finally { data = null; }
   }
 
@@ -253,11 +289,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     /* události z Rustu */
     offs.push(bus.on('capture-start', () => status('scanning')));
     offs.push(bus.on('capture-ready', p => { const c = p as { id: number; width: number; height: number }; if (c && Number.isFinite(c.id)) void takeCapture(c); }));
-    offs.push(bus.on('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('alert', msg('ops.msg.failed')); pushOverlay(true); }));
+    offs.push(bus.on('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('alert', msg('ops.msg.failed')); pushOverlay(true); afterAppCapture('failed'); }));
     offs.push(bus.on('game', p => {
       gameRunning = p === true;
       const b = st().buddy;
-      if (!b.enabled || !b.autoOpen) return;
+      if (!b.enabled || !b.autoOpen || buddyHidden) return;
       run(() => (gameRunning ? native.buddyOpen() : native.buddyClose()));
     }));
 
@@ -269,6 +305,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   function stop() { offs.splice(0).forEach(f => f()); if (pushTimer) clearTimeout(pushTimer); }
 
-  return { start, stop, setHotkey, handleCapture, importShots, importLoot, batch: () => batch, idle: () => queue };
+  return {
+    start, stop, setHotkey, handleCapture, importShots, importLoot, batch: () => batch, idle: () => queue,
+    captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility,
+  };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

@@ -63,6 +63,26 @@ Uživatel zvolil **kompaktní režim** místo „Opse jako hlavní aplikace“: 
 a rychlými akcemi (snímek, zápis raidu, úklid stashe); jedním kliknutím zpět na celou aplikaci. Buddy zůstává
 volitelný doplněk nad hrou. Návrh kreslí Sol v `docs/design/compact/`, implementace Opus.
 
+### Rozhodnutí a stav (0.9.0, implementováno 12. 11. 2026)
+
+- **Režim hlavního okna**, ne další okno: stejné okno a stejná data, přepínání plný ↔ kompakt (420 × 720, nízká varianta
+  do 420 × 520, mírná změna velikosti 380–480 × 520–900). Každý režim si pamatuje velikost a polohu (fyzické px);
+  okno mimo pracovní plochu se vrátí na monitor. Obsah podle makety: level + XP, mince, stav Opse, aktivní úkoly
+  (připnuté / rozpracované první, nejvýš 5, výchozí 3; postup = předměty k odevzdání, protože postup cílů aplikace nesleduje),
+  nákupní seznam pro další vylepšení (nejvýš 5 chybějících; když mu nic nechybí, nejvíc chybějící ze všech cílů),
+  další vylepšení, oblast hlášení a akce Snímek / Zápis raidu / Úklid stashe. Prázdný stav s jedinou výzvou „Nastavit profil“.
+- **Snímek** používá stávající cestu buddyho (Rust snímek → revize v overlayi → potvrzení); bez zapnutého „Buddy a zkratka“
+  nebo bez zkratky je tlačítko neaktivní s nápovědou. Kompaktní okno je vynechané ze snímků, aby připnuté nezakrylo inventář.
+- **Vždy navrchu** jen v kompaktu, výchozí vypnuto; plný režim ho nativně vypne, návrat do kompaktu obnoví poslední volbu.
+- **Křížek**: poprvé dialog „Skrýt do oznamovací oblasti“ / „Ukončit aplikaci“ se „Zapamatovat volbu“; bez zapamatování
+  se ptá pokaždé, změna kdykoli v Nastavení → Okno aplikace. **Ikona v oznamovací oblasti** (tray-dark / tray-light podle
+  motivu hlavního panelu, 16 nebo 32 px podle měřítka; zatím ikona aplikace, nový vzhled Opse ji může nahradit):
+  Otevřít, Kompaktní režim, Buddy Ops (jen se zapnutým buddym; skrytí platí do konce relace), Ukončit; levé kliknutí
+  obnoví poslední režim. Druhé spuštění obnoví okno i z oznamovací oblasti.
+- **Fokus hry**: start při běžící hře zůstává minimalizovaný bez aktivace i v kompaktu; přestavba okna ani změna dat
+  okno neaktivují. Místní zkratky Ctrl+Shift+M (režim) a Ctrl+Shift+P (připnutí), žádné nové globální zkratky.
+- Stav schéma 7 (`mainWindow`, `quests.pinned`); import zálohy, obnova ani reset nemění nastavení okna tohoto počítače.
+
 ## Při příštím projití s Claudem
 
 - Upřesnit rozsah buildu, průběh dialogů a návaznost na připravované rozpoznávání profilu a dalších obrazovek.

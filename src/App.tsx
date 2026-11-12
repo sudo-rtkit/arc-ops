@@ -24,6 +24,11 @@ import Checklist from './modules/Checklist';
 import Statistics from './modules/Statistics';
 import Settings from './modules/Settings';
 import { useT } from './i18n/react';
+import Compact from './shell/Compact';
+import { CloseDialog } from './shell/CloseDialog';
+import { windowCtl } from './shell/windowCtl';
+import { windowShortcut } from './core/mainWindow';
+import { app as appStore } from './store';
 
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, quests: Quests, maps: Maps,
@@ -40,7 +45,31 @@ function useWidth() {
   return w;
 }
 
+/* Místní zkratky okna (0.9.0, žádné globální): Ctrl+Shift+M změní režim, Ctrl+Shift+P připne kompakt. */
+function useWindowShortcuts() {
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !appStore.store.getState().ready) return;
+      const k = windowShortcut(e, appStore.store.getState().state.buddy.hotkey);
+      if (!k) return;
+      e.preventDefault();
+      void (k === 'mode' ? windowCtl.toggleMode() : windowCtl.togglePin());
+    };
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  }, []);
+}
+
 export default function App() {
+  const ready = useApp(s => s.ready);
+  const compactMode = useApp(s => s.ready && s.state.mainWindow.mode === 'compact');
+  useWindowShortcuts();
+  if (compactMode) return <><Compact /><CloseDialog /></>;
+  if (!ready && window.innerWidth <= 480) return <div className="cw" role="status" aria-busy="true" />;
+  return <FullApp />;
+}
+
+function FullApp() {
   const ready = useApp(s => s.ready);
   const route = useRoute();
   const width = useWidth();
@@ -70,6 +99,7 @@ export default function App() {
       </div>
       {ready && <RaidFormHost />}
       <Toasts />
+      <CloseDialog />
     </div>
   );
 }

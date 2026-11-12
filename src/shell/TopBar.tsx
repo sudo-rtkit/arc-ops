@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { CircleAlert, CircleCheck, Loader } from 'lucide-react';
+import { CircleAlert, CircleCheck, Loader, Minimize2 } from 'lucide-react';
 import { actions, navigate, useApp, useAppState, useDerived } from '../store';
 import { NumberField, Ring, cx } from '../ui/components';
+import { MODE_KEY, shortcutFree } from '../core/mainWindow';
+import { hotkeyLabel } from '../ops/hotkey';
+import { windowCtl } from './windowCtl';
 import { fmt } from '../ui/format';
 import { profileLimit } from '../store/app';
 import { useT } from '../i18n/react';
@@ -40,6 +43,23 @@ function QuickProfile({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* 0.9.0: pojmenované tlačítko zpět do kompaktního okna; fokus po návratu z kompaktu (jen když okno fokus má) */
+function CompactButton() {
+  const t = useT();
+  const hotkey = useAppState().buddy.hotkey;
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (windowCtl.justSwitched() && document.hasFocus() && (document.activeElement === document.body || !document.activeElement)) ref.current?.focus({ preventScroll: true });
+  }, []);
+  const key = shortcutFree(MODE_KEY, hotkey) ? hotkeyLabel(MODE_KEY) : '';
+  return (
+    <button type="button" ref={ref} className="btn sm ghost tb-compact" data-testid="to-compact" title={key ? t('top.compactTip', { key }) : undefined}
+      aria-keyshortcuts={key ? 'Control+Shift+M' : undefined} onClick={() => void windowCtl.setMode('compact')}>
+      <Minimize2 size={18} strokeWidth={1.75} aria-hidden="true" />{t('top.compact')}
+    </button>
+  );
+}
+
 export function TopBar() {
   const s = useAppState();
   const d = useDerived();
@@ -75,6 +95,7 @@ export function TopBar() {
       </div>
       <div className="tb-spacer" />
       <SaveState />
+      <CompactButton />
     </header>
   );
 }

@@ -20,21 +20,20 @@ import './ui/components.css';
 import './ui/modules.css';
 import App from './App';
 import { app } from './store';
-import { isTauri } from './storage/tauri';
 
 import { hub } from './ops/mainHub';
+import { startWindowCtl } from './shell/windowCtl';
+import './ui/compact.css';
 
 void app.init();
 /* milník 5: buddy, overlay a zkratka (bez zapnutí v Nastavení nic nedělá) */
 hub.start();
+/* 0.9.0: režim okna, křížek a oznamovací oblast. Zavření křížkem řeší windowCtl (uloží stav, pak skryje nebo
+   ukončí); bez připraveného frontendu Rust okno zavře jako dřív. */
+startWindowCtl();
 
 /* Před zavřením okna dopsat rozpracované uložení. */
 window.addEventListener('beforeunload', () => { void app.flush(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void app.flush(); });
-if (isTauri()) {
-  void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-    void getCurrentWindow().onCloseRequested(async () => { await app.flush(); });
-  });
-}
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);

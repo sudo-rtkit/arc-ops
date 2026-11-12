@@ -123,22 +123,22 @@ describe('potřeby úkolů v nákupním seznamu a Planneru', () => {
 describe('schéma 4: úkoly ve stavu a v záloze', () => {
   const S3 = { schema: 3, inventory: { 'Metal Parts': 4 }, planner: { stations: {}, items: [], includeGoals: false }, items: {}, vision: { learned: [] }, settings: { autoSnapshot: true, lang: 'cs' } };
   it('migrace 3 → 4 doplní quests a planner.includeQuests a nic neztratí', () => {
-    expect(SCHEMA).toBe(6);
+    expect(SCHEMA).toBe(7);
     const s = normalize(S3, NOW);
-    expect(s.schema).toBe(6);
-    expect(s.quests).toEqual({ done: {} });
+    expect(s.schema).toBe(7);
+    expect(s.quests).toEqual({ done: {}, pinned: [] });
     expect(s.planner).toEqual({ stations: {}, items: [], includeGoals: false, includeQuests: true });
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
   });
   it('záloha schématu 3 se načte; záloha obsahuje úkoly a vrátí je beze změny', () => {
     const p3 = parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 3, exportedAt: 'x', state: S3 }), NOW);
-    expect('error' in p3 ? p3.error : p3.state.quests).toEqual({ done: {} });
+    expect('error' in p3 ? p3.error : p3.state.quests).toEqual({ done: {}, pinned: [] });
     const s = defaultState(NOW);
     s.quests.done = { [SNAP]: NOW };
     s.planner.includeQuests = false;
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(6);
-    expect(file.state.quests).toEqual({ done: { [SNAP]: NOW } });
+    expect(file.schema).toBe(7);
+    expect(file.state.quests).toEqual({ done: { [SNAP]: NOW }, pinned: [] });
     const p = parseBackup(makeBackup(s), NOW);
     expect('error' in p ? p.error : p.state).toEqual(s);
   });
@@ -161,6 +161,6 @@ describe('store: úkoly', () => {
     app.actions.setPlannerIncludeQuests(false);
     expect(st().planner.includeQuests).toBe(false);
     await app.actions.resetModule('quests');
-    expect(st().quests).toEqual({ done: {} });
+    expect(st().quests).toEqual({ done: {}, pinned: [] });
   });
 });

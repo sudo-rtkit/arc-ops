@@ -1,0 +1,138 @@
+/* Kompaktní režim hlavního okna (0.9.0), podle docs/design/compact/ (compact.html, README.md).
+   Barvy jen z tokenů tématu „Teplý grafit“; rarity jako v overlayi. Standard 420 × 720, nízká varianta
+   pod 620 px výšky okna (.cw--short, návrh 520 px). */
+.cw {
+  --cw-pad: 20px;
+  --rarity-common: #BEB7AF; --rarity-uncommon: #20B850; --rarity-rare: #00A8F0; --rarity-epic: #C83098; --rarity-legendary: #F8C000; --rarity-unknown: #596267;
+  height: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-app); border: var(--line-thin) solid var(--border-subtle); color: var(--text-primary);
+  font: 13px/1.45 var(--font-ui);
+}
+.cw h2 { font-family: var(--font-head); font-weight: var(--weight-semibold); margin: 0; }
+.cw .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cw .accent { color: var(--accent); }
+.cw .muted { color: var(--text-muted); }
+.cw-row { display: flex; align-items: center; gap: var(--space-2); }
+.cw-spread { justify-content: space-between; }
+.cw-meta { font-size: 11px; color: var(--text-muted); }
+.cw-icon {
+  width: 32px; height: 32px; padding: 0; display: grid; place-items: center; background: transparent; color: var(--text-primary);
+  border: var(--line-thin) solid transparent; border-radius: var(--radius-control); cursor: pointer;
+}
+.cw-icon:hover { background: var(--bg-hover); border-color: var(--border-subtle); }
+.cw-icon[aria-pressed='true'] { background: var(--bg-selected); color: var(--accent); border-color: var(--accent-border); }
+
+/* lišta: volná plocha = tažení okna */
+.cw-titlebar {
+  height: 43px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 9px 0 var(--cw-pad);
+  border-bottom: var(--line-thin) solid var(--border-subtle); user-select: none; cursor: default;
+}
+.cw-brand { font: var(--weight-semibold) 14px var(--font-head); letter-spacing: .05em; display: flex; align-items: center; gap: var(--space-2); }
+.cw-logo { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.cw-controls { display: flex; }
+
+/* profil */
+.cw-profile { padding: 14px var(--cw-pad) 13px; background: var(--bg-panel); flex: none; }
+.cw-level { font: var(--weight-semibold) 24px/1 var(--font-head); display: flex; align-items: baseline; }
+.cw-level small { font: 12px var(--font-ui); color: var(--text-muted); margin-right: 7px; }
+.cw-ops { font-size: 12px; color: var(--text-secondary); margin-left: auto; margin-right: 9px; display: flex; align-items: center; }
+.cw-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); display: inline-block; margin-right: 5px; }
+.ops-ready .cw-dot { background: var(--success); }
+.cw-coins { font-size: 16px; color: var(--amber); display: flex; align-items: center; gap: 6px; }
+.cw-coin { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cw-xp { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
+.cw-xp .cw-track { flex: 1; }
+.cw-xp .cw-meta { white-space: nowrap; }
+.cw-track { height: 3px; background: var(--bg-raised); overflow: hidden; border-radius: 3px; }
+.cw-track i { display: block; background: var(--accent); height: 100%; }
+
+/* střed: posouvá se jen on */
+.cw-content { min-height: 0; flex: 1; overflow: auto; padding: 7px var(--cw-pad) 0; scrollbar-width: thin; scrollbar-color: var(--border-subtle) transparent; }
+.cw-section { border-bottom: var(--line-thin) solid var(--border-subtle); padding: 0 0 10px; margin-bottom: 4px; }
+.cw-section summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; height: 33px; border-radius: var(--radius-control); }
+.cw-section summary::-webkit-details-marker { display: none; }
+.cw-section summary h2 { font-size: 16px; display: inline; }
+.cw-tag { font-size: 11px; color: var(--text-muted); margin-left: 8px; }
+.cw-chevron { color: var(--text-muted); transition: transform var(--t-fast); }
+.cw-section:not([open]) .cw-chevron { transform: rotate(-90deg); }
+.cw-list { list-style: none; margin: 0; padding: 0; }
+.cw-quest { padding: 3px 0 6px; }
+.cw-quest + .cw-quest { padding-top: 5px; }
+.cw-quest-title { font-size: 13px; font-weight: var(--weight-medium); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.cw-pinned { color: var(--accent); flex: none; }
+.cw-quest .mono { font-size: 12px; flex: none; }
+.cw-quest .cw-track { height: 2px; margin-top: 6px; }
+.cw-table-head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 11px; color: var(--text-muted); padding: 0 0 3px; }
+.cw-mat { height: 38px; display: flex; align-items: center; gap: 10px; border-bottom: var(--line-thin) solid #363e4366; }
+.cw-mat:last-child { border: 0; }
+.cw-rarity { height: 22px; width: 3px; background: var(--rarity-unknown); border-radius: 1px; flex: none; }
+.cw-rarity.r-common { background: var(--rarity-common); }
+.cw-rarity.r-uncommon { background: var(--rarity-uncommon); }
+.cw-rarity.r-rare { background: var(--rarity-rare); }
+.cw-rarity.r-epic { background: var(--rarity-epic); }
+.cw-rarity.r-legendary { background: var(--rarity-legendary); }
+.cw-item { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-item small { display: block; font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.cw-qty { font-size: 12px; flex: none; }
+.cw-qty em { font-style: normal; color: var(--text-muted); }
+.cw-upgrade { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: 2px; }
+.cw-upgrade strong { font-weight: var(--weight-medium); }
+.cw-badge { font-size: 11px; color: var(--accent); background: var(--bg-selected); padding: 3px 6px; border-radius: 3px; white-space: nowrap; }
+.cw-badge.ok { color: var(--success); background: var(--success-bg); }
+.cw-missing { font-size: 11px; color: var(--text-secondary); line-height: 1.8; margin-top: 5px; }
+.cw-missing b { font-family: var(--font-mono); color: var(--accent); font-weight: var(--weight-regular); }
+.cw-block { margin-top: 4px; }
+.cw-empty-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 32px; }
+.cw-link { background: none; border: 0; padding: 4px 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.cw-link:hover { color: var(--accent-hover); }
+
+/* prázdný stav nového hráče: jediná výzva */
+.cw-empty { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-bottom: 20px; }
+.cw-empty-art { width: 56px; height: 56px; border: var(--line-thin) solid var(--border-subtle); border-radius: 12px; display: grid; place-items: center; margin-bottom: 23px; color: var(--accent); background: var(--bg-panel); }
+.cw-empty h2 { font-size: 24px; line-height: 1.2; }
+.cw-empty p { color: var(--text-secondary); font-size: 13px; line-height: 1.7; max-width: 300px; margin: 12px 0 22px; }
+.cw-empty .btn { gap: var(--space-2); }
+.cw-empty .cw-meta { margin-top: 12px; }
+
+/* spodní část: pevná oblast hlášení nad akcemi (zavření hlášení nemění geometrii) */
+.cw-footer { padding: 7px var(--cw-pad) 10px; flex: none; background: var(--bg-app); }
+.cw-toast { min-height: 25px; display: flex; align-items: center; gap: 7px; font-size: 12px; margin-bottom: 5px; color: var(--text-muted); }
+.cw-toast .grow { flex: 1; min-width: 0; }
+.cw-toast.tone-success { color: var(--success); }
+.cw-toast.tone-warning { color: var(--amber); }
+.cw-toast.tone-danger { color: var(--danger); }
+.cw-toast.tone-info { color: var(--info); }
+.cw-toast.is-empty { visibility: hidden; }
+.cw-toast-x { width: 24px; height: 24px; margin-left: auto; color: var(--text-muted); }
+.cw-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cw-actions .btn { min-height: 35px; justify-content: center; gap: 7px; }
+.cw-actions .btn.is-off { opacity: .55; cursor: default; }
+.cw-actions .btn.is-off:hover { background: var(--accent); }
+.cw-actions .cw-stash { grid-column: 1 / -1; min-height: 25px; height: auto; font-size: 12px; }
+.cw-key { font: 10px var(--font-mono); opacity: .7; margin-left: 4px; }
+.cw.cw--fresh .cw-footer { padding-top: 0; }
+.cw.cw--fresh .cw-toast { margin: 0; }
+
+/* nízká varianta (okno pod 620 px): bez pruhů úkolů a druhého řádku rarity, upgrade jen jako název a počet */
+.cw.cw--short .cw-titlebar { height: 36px; }
+.cw.cw--short .cw-profile { padding-top: 8px; padding-bottom: 8px; }
+.cw.cw--short .cw-xp { margin-top: 8px; }
+.cw.cw--short .cw-content { padding-top: 0; }
+.cw.cw--short .cw-section summary { height: 30px; }
+.cw.cw--short .cw-section { margin-bottom: 2px; padding-bottom: 5px; }
+.cw.cw--short .cw-quest, .cw.cw--short .cw-quest + .cw-quest { padding: 2px 0; }
+.cw.cw--short .cw-quest .cw-track { display: none; }
+.cw.cw--short .cw-quest-title { font-size: 12px; }
+.cw.cw--short .cw-mat { height: 30px; }
+.cw.cw--short .cw-item small { display: none; }
+.cw.cw--short .cw-missing, .cw.cw--short .cw-block { display: none; }
+.cw.cw--short .cw-footer { padding-top: 5px; padding-bottom: 9px; }
+.cw.cw--short .cw-toast { min-height: 22px; margin-bottom: 4px; }
+.cw.cw--short .cw-actions { gap: 5px; }
+.cw.cw--short .cw-actions .btn { min-height: 32px; height: 32px; }
+.cw.cw--short .cw-actions .cw-stash { min-height: 24px; height: 24px; }
+
+/* plná aplikace: tlačítko zpět do kompaktu v horní liště */
+.tb-compact { flex: none; }
+
+@media (prefers-reduced-motion: reduce) { .cw-chevron { transition: none; } }
