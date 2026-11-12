@@ -233,6 +233,7 @@ pub fn run() {
             ops::ops_watch,
             ops::buddy_open,
             ops::buddy_close,
+            ops::buddy_reveal,
             ops::overlay_open,
             ops::overlay_close,
             ops::overlay_toggle,

@@ -17,7 +17,7 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::plugin::TauriPlugin;
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -29,6 +29,10 @@ const MAIN: &str = "main";
 const CAPTURE_TTL: Duration = Duration::from_secs(15);
 /* Jak často se při zapnutém „otevřít s hrou“ prochází seznam procesů. */
 const WATCH_EVERY: Duration = Duration::from_secs(1);
+/* Krok téže hlídací smyčky: okno v popředí (0.13.1). Seznam procesů se dál čte jen jednou za WATCH_EVERY. */
+const WATCH_TICK: Duration = Duration::from_millis(150);
+/* Buddy se schová, až je v popředí cizí okno aspoň takhle dlouho (alt-tab, krátce žádné okno nebo plocha). */
+const HIDE_AFTER: Duration = Duration::from_millis(400);
 /* Největší snímek (8K × 8K). */
 const MAX_SIDE: i32 = 8192;
 
@@ -225,6 +229,22 @@ pub async fn buddy_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>
     Ok(())
 }
 
+/// Buddy se ukáže sám, až si spočítá velikost a polohu (0.13.1): bez aktivace, takže nevezme fokus hře ani
+/// hlavnímu oknu. Smí ho volat jen okno buddyho.
+#[tauri::command]
+pub async fn buddy_reveal<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    if window.label() != BUDDY {
+        return Err("Jen buddy".into());
+    }
+    #[cfg(windows)]
+    {
+        if win::reveal_no_activate(&window) {
+            return Ok(());
+        }
+    }
+    window.show().map_err(|e| e.to_string())
+}
+
 /* Overlay uprostřed monitoru, na kterém je buddy (jinak hlavního monitoru). */
 fn overlay_window<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, String> {
     if let Some(w) = app.get_webview_window(OVERLAY) {
@@ -412,7 +432,7 @@ pub fn show_in_background<R: Runtime>(w: &WebviewWindow<R>) {
     {
         if let Ok(h) = w.hwnd() {
             let raw = h.0 as isize;
-            let _ = w.run_on_main_thread(move || win::show_min_no_activate(raw));
+            let _ = w.run_on_main_thread(move || win::show_no_activate(raw, true));
             return;
         }
     }
@@ -428,27 +448,109 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
         return Ok(());
     }
     std::thread::spawn(move || {
+        let own = std::process::id();
         let mut last: Option<bool> = None;
-        let mut last_visible: Option<bool> = None;
+        let mut pids: Vec<u32> = Vec::new();
+        let mut scanned: Option<Instant> = None;
+        let mut gate = BuddyGate::default();
         loop {
             let st = app.state::<OpsState>();
             if st.watch_gen.load(Ordering::SeqCst) != gen || !st.enabled.load(Ordering::SeqCst) {
                 break;
             }
-            let running = any_game(&process_names());
-            if last != Some(running) {
-                last = Some(running);
-                let _ = app.emit_to(MAIN, "ops:game", running);
+            let now = Instant::now();
+            if scanned.map_or(true, |t| now.duration_since(t) >= WATCH_EVERY) {
+                scanned = Some(now);
+                let running = any_game(&process_names());
+                if last != Some(running) {
+                    last = Some(running);
+                    let _ = app.emit_to(MAIN, "ops:game", running);
+                }
+                pids = if running { game_pids() } else { Vec::new() };
             }
-            let visible = game_window_visible();
-            if last_visible != Some(visible) {
-                last_visible = Some(visible);
+            /* 0.13.1: buddy jen nad hrou nebo nad vlastním oknem; okno hry musí být vidět (ne minimalizované) */
+            let shown = !pids.is_empty() && game_window_shown(&pids);
+            let fg = classify_foreground(foreground_pid(), own, &pids);
+            if let Some(visible) = gate.update(shown, fg, now) {
                 let _ = app.emit_to(MAIN, "ops:game-visible", visible);
             }
-            std::thread::sleep(WATCH_EVERY);
+            std::thread::sleep(WATCH_TICK);
         }
     });
     Ok(())
+}
+
+/* ----- viditelnost buddyho podle okna v popředí (0.13.1) ----- */
+
+/// Komu patří okno v popředí.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Foreground {
+    /// proces hry
+    Game,
+    /// tato aplikace: buddy, overlay, hlavní nebo kompaktní okno, nabídka v oznamovací oblasti
+    Own,
+    /// jiný program, plocha nebo hlavní panel
+    Other,
+    /// žádné okno v popředí (krátce během přepínání oken)
+    None,
+}
+
+/// Zařadí okno v popředí podle id procesu, kterému patří.
+pub fn classify_foreground(fg_pid: Option<u32>, own_pid: u32, game_pids: &[u32]) -> Foreground {
+    match fg_pid {
+        None | Some(0) => Foreground::None,
+        Some(p) if p == own_pid => Foreground::Own,
+        Some(p) if game_pids.contains(&p) => Foreground::Game,
+        Some(_) => Foreground::Other,
+    }
+}
+
+/// Rozhoduje, jestli má být automatický buddy vidět. Ukáže se hned, schová se až po HIDE_AFTER bez přerušení,
+/// aby při alt-tabu neblikal. Žádné okno v popředí nic nemění. Vrací novou hodnotu, jen když se změnila
+/// (první volání ji vrátí vždy).
+#[derive(Default)]
+pub struct BuddyGate {
+    shown: Option<bool>,
+    hide_since: Option<Instant>,
+}
+
+impl BuddyGate {
+    pub fn update(&mut self, game_window: bool, fg: Foreground, now: Instant) -> Option<bool> {
+        let want = match fg {
+            _ if !game_window => false,
+            Foreground::Game | Foreground::Own => true,
+            Foreground::Other => false,
+            /* krátce žádné okno: nic neměnit (rozběhnuté schovávání ani nezrušit, ani nedokončit) */
+            Foreground::None if self.shown.is_some() => return None,
+            Foreground::None => false,
+        };
+        match self.shown {
+            None => {
+                self.shown = Some(want);
+                self.hide_since = None;
+                Some(want)
+            }
+            Some(cur) if cur == want => {
+                self.hide_since = None;
+                None
+            }
+            Some(_) if want => {
+                self.shown = Some(true);
+                self.hide_since = None;
+                Some(true)
+            }
+            Some(_) => {
+                let since = *self.hide_since.get_or_insert(now);
+                if now.saturating_duration_since(since) >= HIDE_AFTER {
+                    self.shown = Some(false);
+                    self.hide_since = None;
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 /* ----- Windows ----- */
@@ -470,13 +572,13 @@ mod win {
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
-        WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
+        SW_SHOWNOACTIVATE, WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
     };
 
-    /// Ukáže okno minimalizované bez aktivace (nevezme fokus oknu v popředí).
-    pub fn show_min_no_activate(hwnd: isize) {
+    /// Ukáže okno bez aktivace (nevezme fokus oknu v popředí): minimalizované, nebo v dosavadní velikosti a poloze.
+    pub fn show_no_activate(hwnd: isize, minimized: bool) {
         unsafe {
-            ShowWindow(hwnd as HWND, SW_SHOWMINNOACTIVE);
+            ShowWindow(hwnd as HWND, if minimized { SW_SHOWMINNOACTIVE } else { SW_SHOWNOACTIVATE });
         }
     }
 
@@ -578,26 +680,56 @@ mod win {
         }
     }
 
-    /// Názvy spustitelných souborů běžících procesů. Procesy se neotevírají.
-    pub fn game_window_visible() -> bool {
-        unsafe extern "system" fn collect(hwnd: HWND, data: isize) -> i32 {
+    /// Id procesu, kterému patří okno v popředí (jen čtení; nic se neaktivuje).
+    pub fn foreground_pid() -> Option<u32> {
+        unsafe {
+            let h = GetForegroundWindow();
+            if h.is_null() {
+                return None;
+            }
+            let mut pid = 0;
+            GetWindowThreadProcessId(h, &mut pid);
+            if pid == 0 { None } else { Some(pid) }
+        }
+    }
+
+    /// Má některý z procesů hry viditelné okno, které není minimalizované?
+    pub fn game_window_shown(pids: &[u32]) -> bool {
+        struct Find<'a> {
+            pids: &'a [u32],
+            found: bool,
+        }
+        unsafe extern "system" fn check(hwnd: HWND, data: isize) -> i32 {
+            let f = &mut *(data as *mut Find);
             if IsWindowVisible(hwnd) != 0 && IsIconic(hwnd) == 0 {
                 let mut pid = 0;
                 GetWindowThreadProcessId(hwnd, &mut pid);
-                (*(data as *mut Vec<u32>)).push(pid);
+                if f.pids.contains(&pid) {
+                    f.found = true;
+                    return 0;
+                }
             }
             1
         }
-        let mut pids: Vec<u32> = Vec::new();
-        unsafe { EnumWindows(Some(collect), &mut pids as *mut _ as isize); }
-        process_names_filtered(Some(&pids)).iter().any(|n| super::is_game_exe(n))
+        let mut f = Find { pids, found: false };
+        unsafe {
+            EnumWindows(Some(check), &mut f as *mut Find as isize);
+        }
+        f.found
     }
 
+    /// Id běžících procesů hry (podle názvu spustitelného souboru).
+    pub fn game_pids() -> Vec<u32> {
+        processes().into_iter().filter(|(_, n)| super::is_game_exe(n)).map(|(pid, _)| pid).collect()
+    }
+
+    /// Názvy spustitelných souborů běžících procesů. Procesy se neotevírají.
     pub fn process_names() -> Vec<String> {
-        process_names_filtered(None)
+        processes().into_iter().map(|(_, n)| n).collect()
     }
 
-    fn process_names_filtered(pids: Option<&[u32]>) -> Vec<String> {
+    /// Id a názvy běžících procesů z Toolhelp snapshotu. Procesy se neotevírají.
+    fn processes() -> Vec<(u32, String)> {
         let mut out = vec![];
         unsafe {
             let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -609,19 +741,30 @@ mod win {
             let mut ok = Process32FirstW(snap, &mut e) != 0;
             while ok {
                 let len = e.szExeFile.iter().position(|&c| c == 0).unwrap_or(e.szExeFile.len());
-                if pids.map_or(true, |ids| ids.contains(&e.th32ProcessID)) {
-                    out.push(String::from_utf16_lossy(&e.szExeFile[..len]));
-                }
+                out.push((e.th32ProcessID, String::from_utf16_lossy(&e.szExeFile[..len])));
                 ok = Process32NextW(snap, &mut e) != 0;
             }
             CloseHandle(snap);
         }
         out
     }
+
+    /// Buddy se poprvé ukáže bez aktivace. Tauri si pak okno označí za viditelné; SW_SHOW na už viditelném
+    /// okně nic nedělá, takže se nic neaktivuje.
+    pub fn reveal_no_activate<R: tauri::Runtime>(w: &tauri::WebviewWindow<R>) -> bool {
+        let Ok(h) = w.hwnd() else { return false };
+        let raw = h.0 as isize;
+        let w2 = w.clone();
+        w.run_on_main_thread(move || {
+            show_no_activate(raw, false);
+            let _ = w2.show();
+        })
+        .is_ok()
+    }
 }
 
 #[cfg(windows)]
-use win::{capture_foreground_monitor, foreground, game_window_visible, process_names, restore_focus};
+use win::{capture_foreground_monitor, foreground, foreground_pid, game_pids, game_window_shown, process_names, restore_focus};
 
 /* SetWindowDisplayAffinity musí volat vlákno, které okno vlastní (hlavní vlákno). */
 #[cfg(windows)]
@@ -673,7 +816,17 @@ fn foreground() -> isize {
 #[cfg(not(windows))]
 fn restore_focus(_prev: isize) {}
 #[cfg(not(windows))]
-fn game_window_visible() -> bool { false }
+fn foreground_pid() -> Option<u32> {
+    None
+}
+#[cfg(not(windows))]
+fn game_window_shown(_pids: &[u32]) -> bool {
+    false
+}
+#[cfg(not(windows))]
+fn game_pids() -> Vec<u32> {
+    vec![]
+}
 #[cfg(not(windows))]
 fn process_names() -> Vec<String> {
     vec![]
@@ -709,6 +862,95 @@ mod tests {
         assert!(any_game(&names(&["explorer.exe", "PioneerGame-Win64-Shipping.exe"])));
         assert!(!any_game(&names(&["explorer.exe", "arc-companion.exe"])));
         assert!(!any_game(&[]));
+    }
+
+    #[test]
+    fn popredi_podle_procesu() {
+        let game = [4321, 4322];
+        assert_eq!(classify_foreground(Some(4322), 100, &game), Foreground::Game);
+        assert_eq!(classify_foreground(Some(100), 100, &game), Foreground::Own);
+        assert_eq!(classify_foreground(Some(777), 100, &game), Foreground::Other);
+        assert_eq!(classify_foreground(None, 100, &game), Foreground::None);
+        assert_eq!(classify_foreground(Some(0), 100, &game), Foreground::None);
+        /* hra neběží: vlastní okno je pořád vlastní, ostatní cizí */
+        assert_eq!(classify_foreground(Some(100), 100, &[]), Foreground::Own);
+        assert_eq!(classify_foreground(Some(4321), 100, &[]), Foreground::Other);
+    }
+
+    fn ms(t0: Instant, n: u64) -> Instant {
+        t0 + Duration::from_millis(n)
+    }
+
+    #[test]
+    fn buddy_nad_hrou_a_vlastnim_oknem_jinak_schovany() {
+        let t0 = Instant::now();
+        let mut g = BuddyGate::default();
+        /* první hodnota přijde hned */
+        assert_eq!(g.update(true, Foreground::Game, t0), Some(true));
+        assert_eq!(g.update(true, Foreground::Game, ms(t0, 150)), None);
+        /* vlastní okno (klik na buddyho, overlay, hlavní okno) ho neschová */
+        assert_eq!(g.update(true, Foreground::Own, ms(t0, 300)), None);
+        assert_eq!(g.update(true, Foreground::Own, ms(t0, 5_000)), None);
+        /* cizí okno: schová se až po HIDE_AFTER */
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 6_000)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 6_150)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 6_399)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 6_400)), Some(false));
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 7_000)), None);
+        /* hra zpět v popředí: ukáže se hned */
+        assert_eq!(g.update(true, Foreground::Game, ms(t0, 7_150)), Some(true));
+        /* první hodnota bez hry je schovaný */
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(true, Foreground::Other, t0), Some(false));
+        assert_eq!(g.update(true, Foreground::Own, ms(t0, 150)), Some(true));
+    }
+
+    #[test]
+    fn buddy_pri_alt_tabu_neblika() {
+        let t0 = Instant::now();
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(true, Foreground::Game, t0), Some(true));
+        /* krátce přepínač oken, plocha nebo žádné okno, pak zase hra: nic se nezmění */
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 150)), None);
+        assert_eq!(g.update(true, Foreground::None, ms(t0, 300)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 450)), None);
+        assert_eq!(g.update(true, Foreground::Game, ms(t0, 500)), None);
+        /* návrat do hry odpočet zrušil: nové cizí okno čeká zase celou dobu */
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 600)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 900)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 1_000)), Some(false));
+    }
+
+    #[test]
+    fn buddy_bez_okna_v_popredi_nic_nemeni() {
+        let t0 = Instant::now();
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(true, Foreground::Game, t0), Some(true));
+        /* dlouho žádné okno (zamčená obrazovka, UAC): buddy zůstane */
+        assert_eq!(g.update(true, Foreground::None, ms(t0, 10_000)), None);
+        /* žádné okno nezruší ani nedokončí rozběhnuté schovávání */
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 20_000)), None);
+        assert_eq!(g.update(true, Foreground::None, ms(t0, 20_500)), None);
+        assert_eq!(g.update(true, Foreground::Other, ms(t0, 20_600)), Some(false));
+        /* schovaný zůstane schovaný */
+        assert_eq!(g.update(true, Foreground::None, ms(t0, 21_000)), None);
+        /* první hodnota bez okna v popředí: schovaný */
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(true, Foreground::None, t0), Some(false));
+    }
+
+    #[test]
+    fn buddy_se_schova_kdyz_hra_neni_videt() {
+        let t0 = Instant::now();
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(true, Foreground::Game, t0), Some(true));
+        /* hra minimalizovaná nebo ukončená: ani vlastní okno v popředí ho neudrží (0.12.1) */
+        assert_eq!(g.update(false, Foreground::Own, ms(t0, 150)), None);
+        assert_eq!(g.update(false, Foreground::Own, ms(t0, 550)), Some(false));
+        assert_eq!(g.update(false, Foreground::Game, ms(t0, 700)), None);
+        assert_eq!(g.update(true, Foreground::Game, ms(t0, 850)), Some(true));
+        let mut g = BuddyGate::default();
+        assert_eq!(g.update(false, Foreground::Game, t0), Some(false));
     }
 
     #[cfg(windows)]

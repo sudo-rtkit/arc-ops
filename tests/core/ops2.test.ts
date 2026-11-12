@@ -248,7 +248,7 @@ describe('hub 0.10.0: odchod před zavřením a stav pro okna', () => {
     const calls: string[] = [];
     const rec = (name: string) => async () => { calls.push(name); };
     return {
-      calls, available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'),
+      calls, available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
       captureNow: rec('captureNow'), captureTake: async () => new ArrayBuffer(0),
     };

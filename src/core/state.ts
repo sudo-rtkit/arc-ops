@@ -19,6 +19,7 @@ import { emptyMainWindow, normalizeMainWindow } from './mainWindow';
 import { emptyOpsPrefs, normalizeOpsPrefs } from './opsPrefs';
 import { emptyGames, normalizeGames } from './minigames';
 import { emptyRounds, normalizeRounds } from './gameRounds';
+import { migrateMaterialNames } from './materialRename';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -424,5 +425,6 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.gameRounds = normalizeRounds(r.gameRounds);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
-  return out;
+  /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */
+  return migrateMaterialNames(out);
 }

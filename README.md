@@ -293,3 +293,44 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Testy: `tests/core/game-rounds.test.ts` (normalizace a meze, obnovení, idempotence, restart nad stejným úložištěm,
   zahození jedné hry, migrace 11 → 12, záloha a import), E2E `tests/e2e/minigames-resume.spec.ts` (odchod a načtení
   stránky znovu u všech tří her v obou jazycích, nové kolo s potvrzením, jiné kolo v adrese, vadné uložené kolo).
+
+## Buddy jen nad hrou, opravené názvy a počítání předmětů z požadavků (0.13.1)
+
+- **Automatický buddy se schová i za zakrytou hrou.** Dosud se v režimu „otevřít s hrou“ řídil jen tím, jestli je okno
+  hry vidět (0.12.1: schová se při minimalizaci). Po alt-tabu do prohlížeče ale zůstal nahoře nad prohlížečem. Teď je
+  vidět, jen když je v popředí okno procesu hry, nebo okno této aplikace (buddy, overlay, hlavní i kompaktní okno,
+  nabídka v oznamovací oblasti), takže klik na buddyho ani otevření overlaye ho neschová. Jinak se schová a vrátí se,
+  jakmile je hra zase v popředí. Okno hry přitom musí být vidět a nesmí být minimalizované (pravidlo z 0.12.1 platí dál).
+- **Bez blikání.** Buddy se ukáže hned, ale schová se, až je cizí okno v popředí aspoň 400 ms bez přerušení. Krátký
+  přepínač oken, plocha nebo chvíle bez okna v popředí (během přepínání) ho tak neschovají. Žádné okno v popředí
+  nemění nic, ani rozběhnuté schovávání.
+- **Jedna smyčka, nic se neaktivuje.** Rozhoduje stávající hlídací smyčka v `src-tauri/src/ops.rs` (`ops_watch`, běží jen
+  se zapnutým „otevřít s hrou“). Krok je teď 150 ms (okno v popředí přes `GetForegroundWindow` a
+  `GetWindowThreadProcessId`), seznam procesů se dál čte jen jednou za sekundu. Hlavní okno dostává stejnou událost
+  `ops:game-visible` jako dosud, takže ruční zobrazení a skrytí z oznamovací oblasti a z Nastavení funguje beze změny.
+  Okno buddyho se teď poprvé ukazuje příkazem `buddy_reveal` (`SW_SHOWNOACTIVATE`) místo `win.show()` z JS. To by okno
+  aktivovalo a vzalo by fokus hlavnímu oknu, kdyby se buddy ukázal právě nad ním. Schování okno zavře jako dosud;
+  děje se jen tehdy, když je v popředí cizí okno.
+- **Cable Stripper.** Materiál z deníku „Cable Strippers“ se ve hře (i v katalogu MetaForge a datech ARC Tracker)
+  jmenuje „Cable Stripper“. Data aplikace vedou herní název (recept Outpost 2). Uložený stav i obnovená záloha se při
+  načtení převedou (`src/core/materialRename.ts`): Zásoba, vlastní kategorie a zdroj materiálu, upravené recepty, cíle,
+  Planner, loot raidů, naučené otisky, rady a tier list. Kdo měl oba názvy (ruční počet a snímek), dostane vyšší počet.
+  Schéma stavu se nemění.
+- **Každý předmět z požadavků jde spočítat.** 39 předmětů z požadavků úkolů a projektů, které Zásoba nevedla (Battery,
+  Wires, Geiger Counter, Rusted Bolts, Glitched ARC …, Queen Reactor …), je teď materiálem aplikace s kategorií
+  (`src/core/data/materials.ts`). Jde je zadat v Zásobě a rozpoznat ze snímku, takže s nimi počítá nákupní seznam,
+  Planner i postup úkolů. Dva zbývající předměty jsou vybavení: klíč Emperor Gateway Conduit a Remote Raider Flare
+  (předmět k použití). Evidují se ve Vybavení a nákupní seznam, Planner i přehled úkolů a projektů je teď započítají
+  (`stockOf` v `src/core/compact.ts`; postup úkolů je počítal už dřív).
+- **Kontrola dat** (`docs/superpowers/plans/catalog-mismatch.md`, přegenerováno offline z cache skriptů): neshody názvů
+  materiálů 0 ze 110, předměty z požadavků mimo materiály aplikace jen 2 (obě vybavení). Stash (12 úrovní jen za Coins,
+  bez materiálu) a Workbench (bez úrovní) mezi stanicemi aplikace chybí záměrně, protože nákupní seznam neovlivní.
+  Outpost je v ARC Tracker projekt Sheltered Retreat, ne modul hideoutu. Úroveň 1 sedí s 2. fází projektu, úrovně 2–4
+  pocházejí z deníku a beze zdroje se nemění.
+- Omezení: rozhodování o popředí jde ověřit jen unit testy a ručně ve hře (E2E běží v prohlížeči bez oken). Hra
+  v exkluzivní celé obrazovce se při alt-tabu sama minimalizuje, takže platí obě pravidla. Když se popředí přepne
+  na cizí okno, zatímco je otevřený overlay, zavře se s buddym i overlay, jako u minimalizace v 0.12.1.
+- Testy: `cargo test` (`popredi_podle_procesu`, `buddy_nad_hrou_a_vlastnim_oknem_jinak_schovany`,
+  `buddy_pri_alt_tabu_neblika`, `buddy_bez_okna_v_popredi_nic_nemeni`, `buddy_se_schova_kdyz_hra_neni_videt`),
+  `tests/core/buddy-foreground.test.ts`, `tests/core/material-rename.test.ts`, `tests/core/requirement-items.test.ts`.
+  Regrese viditelnosti buddyho z 0.12.1 (`tests/core/milestone5.test.ts`) zůstává beze změny.

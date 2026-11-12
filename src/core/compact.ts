@@ -22,6 +22,15 @@ export const rarityOf = (name: string): RarityWord => {
 /* Kolik kusů předmětu hráč má (materiál v Inventory, ostatní předměty v items). */
 export const haveOf = (s: Pick<AppState, 'inventory' | 'items'>, name: string): number => s.inventory[name] || s.items[name]?.count || 0;
 
+/* Celá zásoba podle názvu, jak ji čte haveOf (0.13.1): materiály ze Zásoby, k tomu předměty z Vybavení bez tieru
+   (klíč nebo předmět k použití z požadavku úkolu). Materiál ze Zásoby má přednost. */
+export function stockOf(s: Pick<AppState, 'inventory' | 'items'>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const it of Object.values(s.items)) if (!it.tier && it.count > 0) out[it.key] = it.count;
+  for (const [m, n] of Object.entries(s.inventory)) if (n > 0) out[m] = n;
+  return out;
+}
+
 /* by = podle čeho je postup: zaškrtnuté cíle (0.10.2, mají přednost, když nějaký je), jinak předměty k odevzdání */
 export interface CompactQuest { id: string; name: string; have: number; need: number; by: 'objectives' | 'items'; pinned: boolean; objectives: number; trader: string }
 

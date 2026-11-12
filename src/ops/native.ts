@@ -10,6 +10,8 @@ export interface Native {
   watch(on: boolean): Promise<void>;
   buddyOpen(): Promise<void>;
   buddyClose(): Promise<void>;
+  /* 0.13.1: okno buddyho se poprvé ukáže bez aktivace (volá ho jen buddy); nevezme fokus hře ani hlavnímu oknu */
+  buddyReveal(): Promise<void>;
   overlayOpen(tab?: string): Promise<void>;
   overlayClose(): Promise<void>;
   overlayToggle(): Promise<void>;
@@ -30,6 +32,7 @@ const tauriNative: Native = {
   watch: on => call('ops_watch', { on }),
   buddyOpen: () => call('buddy_open'),
   buddyClose: () => call('buddy_close'),
+  buddyReveal: () => call('buddy_reveal'),
   overlayOpen: tab => call('overlay_open', { tab: tab ?? null }),
   overlayClose: () => call('overlay_close'),
   overlayToggle: () => call('overlay_toggle'),
@@ -41,7 +44,7 @@ const tauriNative: Native = {
 const none = async () => undefined;
 export const browserNative: Native = {
   available: false,
-  enable: none, setHotkey: none, watch: none, buddyOpen: none, buddyClose: none,
+  enable: none, setHotkey: none, watch: none, buddyOpen: none, buddyClose: none, buddyReveal: none,
   overlayOpen: none, overlayClose: none, overlayToggle: none, mainFocus: none, captureNow: none,
   captureTake: async () => { throw new Error('capture:unsupported'); },
 };

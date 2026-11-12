@@ -348,7 +348,7 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
     const rec = (name: string) => async (x?: unknown) => { calls.push(x === undefined ? name : `${name}:${x}`); };
     return {
       calls, available: true,
-      enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'),
+      enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
       captureNow: rec('captureNow'), captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
     };

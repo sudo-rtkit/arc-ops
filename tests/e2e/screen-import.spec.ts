@@ -64,10 +64,9 @@ test.describe('Ze snímku (čeština)', () => {
     await expect(mag.getByRole('combobox', { name: TARGET })).toHaveValue('Magnetic Accelerator');
     await expect(mag.locator('td').nth(4)).toContainText('+8');
 
-    /* katalog: předmět do Vybavení (Ion Sputter) a materiál, který aplikace nevede (nový vlastní) */
+    /* katalog: Ion Sputter je od 0.13.1 materiál aplikace (předmět z požadavku úkolu), jde do Zásoby, ne do Vybavení */
     await expect(row(page, '1,3')).toContainText('katalog');
-    await expect(row(page, '1,3').getByRole('combobox', { name: TARGET })).toHaveValue('\u0000item');
-    await expect(row(page, '1,3').getByLabel('Název předmětu')).toHaveValue('Ion Sputter');
+    await expect(row(page, '1,3').getByRole('combobox', { name: TARGET })).toHaveValue('Ion Sputter');
 
     /* ×19 → nový vlastní materiál s vlastním názvem */
     const big = row(page, '4,0');
@@ -77,9 +76,10 @@ test.describe('Ze snímku (čeština)', () => {
     await big.getByLabel('Název nového materiálu').fill('Testovací díl');
     await page.getByRole('button', { name: 'Zapsat' }).click();
 
-    await expect(page.getByTestId('scan-done')).toContainText(/Zapsáno: 12 materiálů, mince 51\s060/);
-    await expect(page.getByTestId('scan-done')).toContainText('1 předmět ve Vybavení');
-    await expect(page.getByTestId('scan-done')).toContainText('4 nové vlastní materiály');
+    await expect(page.getByTestId('scan-done')).toContainText(/Zapsáno: 13 materiálů, mince 51\s060/);
+    await expect(page.getByTestId('scan-done')).not.toContainText('Vybavení');
+    /* 0.13.1: dva materiály z katalogu jsou nově materiály aplikace (předměty z požadavků), vlastní zůstanou dva */
+    await expect(page.getByTestId('scan-done')).toContainText('2 nové vlastní materiály');
     await expect(page.locator('.scan-table')).toHaveCount(0);
 
     const st = await stateOf(page);
@@ -87,7 +87,8 @@ test.describe('Ze snímku (čeština)', () => {
     expect(st.inventory['Magnetic Accelerator']).toBe(8);
     expect(st.inventory['Testovací díl']).toBe(19);
     expect(st.gameData.materialsCustom.map((m: { name: string }) => m.name)).toContain('Testovací díl');
-    expect(st.items['Ion Sputter']).toEqual({ key: 'Ion Sputter', name: 'Ion Sputter', category: 'other', count: 3 });
+    expect(st.inventory['Ion Sputter']).toBe(3);
+    expect(st.items['Ion Sputter']).toBeUndefined();
     expect(st.profile.coins).toBe(51060);
     expect(st.vision.learned).toHaveLength(13);
     expect(JSON.stringify(st)).not.toMatch(/data:image|base64/);
@@ -166,8 +167,8 @@ test.describe('From screenshot (English)', () => {
     const cz = await page.evaluate(re => [...document.querySelectorAll('main *')].filter(e => e.children.length === 0 && new RegExp(re).test(e.textContent || '')).map(e => e.textContent), CZ.source);
     expect(cz).toEqual([]);
     await page.getByRole('button', { name: 'Write' }).click();
-    await expect(page.getByTestId('scan-done')).toContainText('Written: 12 materials, coins 51,060');
-    await expect(page.getByTestId('scan-done')).toContainText('1 item in Equipment');
+    await expect(page.getByTestId('scan-done')).toContainText('Written: 13 materials, coins 51,060');
+    await expect(page.getByTestId('scan-done')).not.toContainText('Equipment');
 
     const st = await stateOf(page);
     expect(st.inventory['Magnetic Accelerator']).toBe(8);

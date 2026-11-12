@@ -107,8 +107,8 @@ describe('zápis do Vybavení', () => {
     expect(sum.zeroed).toBe(2);
   });
   it('materiál z katalogu, který aplikace nevede, se nabídne jako nový vlastní materiál', () => {
-    const g = { ...analyzeShots([read(AMMO)], [], CTX).groups[0], match: { status: 'known' as const, itemKey: 'Battery', kind: 'material' as const, score: 0.98, source: 'catalog' as const } };
-    expect(defaultTarget(g, MATS)).toEqual({ kind: 'newMaterial', name: 'Battery' });
+    const g = { ...analyzeShots([read(AMMO)], [], CTX).groups[0], match: { status: 'known' as const, itemKey: 'Duct Tape', kind: 'material' as const, score: 0.98, source: 'catalog' as const } };
+    expect(defaultTarget(g, MATS)).toEqual({ kind: 'newMaterial', name: 'Duct Tape' });
   });
   it('záloha obsahuje evidenci vybavení', () => {
     const s = defaultState(NOW);

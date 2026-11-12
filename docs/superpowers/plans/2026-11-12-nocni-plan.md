@@ -106,3 +106,16 @@ Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a ins
   tah (zpožděný zápis stavu).
 - **Vyzkoušet ručně:** v nainstalované aplikaci rozehrát každou hru, zavřít aplikaci (i přes tray), znovu spustit
   a pokračovat; upgrade z 0.12.1 se skutečnými daty (rekordy a nátěry zůstanou).
+
+## 0.13.1: buddy jen nad hrou, Cable Stripper, předměty z požadavků
+
+- Automatický buddy je vidět, jen když je v popředí hra (viditelná, ne minimalizovaná) nebo okno aplikace. Jinak se
+  po 400 ms schová. Stejná hlídací smyčka, krok 150 ms, seznam procesů dál jednou za sekundu. První zobrazení
+  buddyho jde bez aktivace (`buddy_reveal`, `SW_SHOWNOACTIVATE`).
+- „Cable Strippers“ → „Cable Stripper“ s migrací uloženého stavu (`src/core/materialRename.ts`). 39 předmětů
+  z požadavků je teď materiálem aplikace. Dva předměty z Vybavení (klíč a Remote Raider Flare) nákupní seznam
+  a Planner započítají. `catalog-mismatch.md` přegenerováno offline.
+- Ověřeno: typová kontrola, produkční build, 661 unit testů (4 přeskočené), 103 E2E, 21 Rust testů.
+  Instalátor: `src-tauri/target/release/bundle/nsis/ARC Raiders Companion_0.13.1_x64-setup.exe`.
+- **Vyzkoušet ručně ve hře:** alt-tab do prohlížeče (buddy zmizí asi po 0,4 s a vrátí se s hrou), klik na buddyho
+  a otevření overlaye (zůstane), hlavní okno v popředí nad hrou (zůstane a nevezme mu fokus), minimalizace hry.

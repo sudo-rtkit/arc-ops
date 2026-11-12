@@ -186,7 +186,14 @@ const fmt = r => r.map(([n, q]) => `${q}× ${n}`).sort().join(', ') || '—';
 const diffs = [];
 for (const m of H) {
   const st = STATIONS.find(s => s.id === MAP[m.id]);
-  if (!st) { diffs.push(`| ${m.name.en ?? m.name} (\`${m.id}\`) | — | modul v aplikaci není (${m.maxLevel ? `${m.maxLevel} úrovní` : 'bez úrovní'}) |`); continue; }
+  if (!st) {
+    /* 0.13.1: modul bez materiálu (Stash = rozšíření za Coins, Workbench bez úrovní) nákupní seznam nijak neovlivní */
+    const noMats = m.levels.every(l => !l.req.length);
+    const coinsOnly = noMats && m.levels.some(l => l.coins);
+    const what = m.maxLevel ? `${m.maxLevel} úrovní${coinsOnly ? ', jen za Coins, bez materiálu' : noMats ? ', bez materiálu' : ''}` : 'bez úrovní';
+    diffs.push(`| ${m.name.en ?? m.name} (\`${m.id}\`) | — | modul v aplikaci není (${what}) |`);
+    continue;
+  }
   if (st.max !== m.maxLevel) diffs.push(`| ${st.name} | max. úroveň | aplikace ${st.max}, ARC Tracker ${m.maxLevel} |`);
   for (const l of m.levels) {
     const a = fmt(st.levels[l.level] || []), b = fmt(l.req);
@@ -209,6 +216,12 @@ const catalog = new Set(CATALOG.map(c => c.name.toLowerCase()));
 const used = new Set([...Q.flatMap(q => q.deliver), ...H.flatMap(m => m.levels.flatMap(l => l.req)), ...P.flatMap(p => p.phases.flatMap(ph => ph.req))].map(([n]) => n));
 const notInCatalog = [...used].filter(n => !catalog.has(n.toLowerCase())).sort();
 const notInApp = [...used].filter(n => !mats.has(n.toLowerCase())).sort();
+/* 0.13.1: vybavení (klíč, předmět k použití, zbraň …) se eviduje ve Vybavení; nákupní seznam, Planner i postup ho počítají
+   (src/core/compact.ts, stockOf). Ostatní předměty mimo materiály aplikace je potřeba zařadit v src/core/data/materials.ts. */
+const EQUIPMENT = new Set(['weapon', 'shield', 'augment', 'ammo', 'quickUse', 'key']);
+const catOf = new Map(CATALOG.map(c => [c.name.toLowerCase(), c.category]));
+const asEquipment = notInApp.filter(n => EQUIPMENT.has(catOf.get(n.toLowerCase())));
+const untracked = notInApp.filter(n => !asEquipment.includes(n));
 
 const section = `## ARC Tracker
 
@@ -227,13 +240,21 @@ ${notInCatalog.map(n => `- ${n}`).join('\n') || '- žádné'}
 
 ### Předměty z požadavků úkolů a projektů, které nejsou mezi materiály aplikace (${notInApp.length})
 
-Do nákupního seznamu a Planneru jdou pod svým herním názvem (jako materiál, i když ho Zásoba zatím nevede).
+Od 0.13.1 je každý materiál a loot z požadavků materiálem aplikace (\`src/core/data/materials.ts\`, hlídá
+\`tests/core/requirement-items.test.ts\`), takže ho jde spočítat v Zásobě a nákupní seznam, Planner i postup s ním
+počítají. Vybavení (klíč, předmět k použití) se eviduje ve Vybavení a počítá se stejně.
 
-${notInApp.map(n => `- ${n}`).join('\n') || '- žádné'}
+Vybavení, evidence ve Vybavení (${asEquipment.length}):
+
+${asEquipment.map(n => `- ${n} (${catOf.get(n.toLowerCase())})`).join('\n') || '- žádné'}
+
+Bez evidence, ke kontrole (${untracked.length}):
+
+${untracked.map(n => `- ${n}`).join('\n') || '- žádné'}
 ${unknownMaps.size ? `\n### Mapy bez id v aplikaci (${unknownMaps.size})\n\n${[...unknownMaps].map(n => `- \`${n}\``).join('\n')}\n` : ''}${unknownIds.size ? `\n### Id předmětů bez názvu v /api/items (${unknownIds.size})\n\n${[...unknownIds].sort().map(n => `- \`${n}\``).join('\n')}\n` : ''}`;
 
 const DOC = 'docs/superpowers/plans/catalog-mismatch.md';
 const prev = existsSync(DOC) ? readFileSync(DOC, 'utf8') : '# Katalog × data aplikace\n';
 const head = prev.split(/\n## ARC Tracker\n/)[0].trimEnd();
 writeFileSync(DOC, `${head}\n\n${section}`);
-console.log(`rozdíly workshopu: ${diffs.length}, mimo katalog: ${notInCatalog.length}, mimo materiály aplikace: ${notInApp.length}, neznámá id: ${unknownIds.size}`);
+console.log(`rozdíly workshopu: ${diffs.length}, mimo katalog: ${notInCatalog.length}, mimo materiály aplikace: ${notInApp.length} (vybavení ${asEquipment.length}, bez evidence ${untracked.length}), neznámá id: ${unknownIds.size}`);

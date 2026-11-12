@@ -190,7 +190,8 @@ export default function BuddyApp() {
       await a.win.setPosition(new a.PhysicalPosition(L.win.x, L.win.y));
       const dpr = window.devicePixelRatio || 1;
       setOpsAt({ x: L.ops.x / dpr, y: L.ops.y / dpr, below: L.below, right: L.right });
-      if (!shown.current) { shown.current = true; await a.win.show(); }
+      /* bez aktivace (0.13.1); win.show() by oknu vzalo fokus */
+      if (!shown.current) { shown.current = true; await native.buddyReveal().catch(() => a.win.show()); }
     })();
     return () => { dead = true; };
   }, [view, scale, bubble]);

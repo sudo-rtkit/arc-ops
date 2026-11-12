@@ -18,8 +18,26 @@ export const MATERIAL_CATEGORY: Record<string, string> = Object.fromEntries([
     'Cracked Bioscanner', 'Rusted Shut Medical Kit', 'Toaster', 'Motor', 'Damaged Heat Sink', 'Fried Motherboard',
     'Synthesized Fuel', 'Laboratory Reagents', 'Dog Collar', 'Cat Bed', 'Very Comfortable Pillow', 'Battered Paperback',
     'Calculator', 'Differential Microphone', 'Thermal Shaker']),
-  ...group('Stavební materiál', ['Planks', 'Sheet Metal', 'Steel Cable', 'Cable Strippers', 'Epoxy Bucket', 'Hand Drill',
+  ...group('Stavební materiál', ['Planks', 'Sheet Metal', 'Steel Cable', 'Cable Stripper', 'Epoxy Bucket', 'Hand Drill',
     'Laser Level', 'Insulation Roll', 'Mini Pump']),
   ...group('Jídlo a rostliny', ['Lemon', 'Apricot', 'Prickly Pear', 'Olives', 'Mushroom']),
   ...group('Výzkum', ['Raider Logbook', 'Exodus Technical Handbook', 'ARC Data Module']),
+  /* 0.13.1: předměty z požadavků úkolů, workshopu a projektů (ARC Tracker), které deník neměl. Jako materiál je jde
+     počítat v Zásobě, takže s nimi počítá i nákupní seznam, Planner a postup úkolů. Klíče a předměty k použití
+     (Emperor Gateway Conduit, Remote Raider Flare) se evidují ve Vybavení. Hlídá tests/core/requirement-items.test.ts. */
+  ...group('ARC díly', ['ARC Conductive Coupler', 'ARC Performance Steel', 'ARC Synthetic Resin', 'ARC Thermo Lining',
+    'Advanced ARC Powercell', 'Comet Igniter', 'Firefly Burner', 'Glitched ARC Circuitry', 'Glitched ARC Light Ring',
+    'Glitched ARC Phased Array', 'Glitched ARC Power Converter', 'Glitched ARC Transmitter', 'Matriarch Reactor',
+    'Queen Reactor', 'Shredder Gyro', 'Spotter Relay']),
+  ...group('Komponenty', ['Battery', 'Wires', 'Power Rod', 'Exodus Modules', 'Syringe']),
+  ...group('Předměty z lootu', ['Bicycle Pump', 'Dead Flowers', 'Deflated Football', 'Equatorial Sundial', 'Expired Respirator',
+    'Fancy Plate', 'Flow Controller', 'Geiger Counter', 'Ion Sputter', 'Magnetron', 'Mask Fragment', 'Portable TV',
+    'Railway Lantern', 'Rock Salt', 'Rotary Encoder', 'Rusted Bolts']),
+  ...group('Jídlo a rostliny', ['Great Mullein', 'Fertilizer']),
 ]);
+
+/* 0.13.1: materiály, které aplikace vedla pod jiným názvem než hra (převzato z deníku). Uložený stav se při načtení
+   převede na herní název (src/core/state.ts, migrateMaterialNames), takže počty v Zásobě zůstanou. */
+export const MATERIAL_RENAMES: Readonly<Record<string, string>> = {
+  'Cable Strippers': 'Cable Stripper',
+};

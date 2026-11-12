@@ -159,6 +159,6 @@ předmět, který MetaForge nevede). Rozpoznávání je u nich jen přes naučen
 
 | Materiál v aplikaci | Podobné názvy v katalogu |
 |---|---|
-${missing.map(n => `| ${n} | ${near(n).join(', ') || '—'} |`).join('\n')}
+${missing.map(n => `| ${n} | ${near(n).join(', ') || '—'} |`).join('\n') || '| — | žádné |'}
 ${atSection !== null ? `\n## ARC Tracker\n${atSection}` : ''}`);
 console.log(`neshody názvů materiálů: ${missing.length} (docs/superpowers/plans/catalog-mismatch.md)`);

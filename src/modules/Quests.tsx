@@ -7,6 +7,7 @@ import { actions, app, navigate, useAppState } from '../store';
 import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
 import { PROJECTS, QUESTS, locText, objectiveProgress, questById, questName, questStatus, type QuestStatus } from '../core/quests';
 import type { Qty } from '../core/data/arctracker';
+import { stockOf } from '../core/compact';
 import { mapName } from './shared';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
@@ -30,6 +31,8 @@ function Items({ list, inventory }: { list: Qty[]; inventory?: Record<string, nu
 function QuestList() {
   const s = useAppState();
   const t = useT();
+  /* 0.13.1: zásoba i s Vybavením (klíč nebo předmět k použití) */
+  const stock = useMemo(() => stockOf(s), [s]);
   const [q, setQ] = useState('');
   const [trader, setTrader] = useState('');
   const [show, setShow] = useState<Show>('all');
@@ -103,7 +106,7 @@ function QuestList() {
                               <span className={cx(on && 'muted')}>{txt}</span></label></li>;
                           })}</ol>
                           <p className="meta">{t('quests.objHint')}</p></div>
-                        <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={s.inventory} /></div>
+                        <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={stock} /></div>
                         {x.questItems.length > 0 && <div><h4>{t('quests.questItems')}</h4><Items list={x.questItems} /></div>}
                         <div><h4>{t('quests.rewards')}</h4><Items list={x.rewards} />{x.xp > 0 && <span className="meta">{t('quests.xp', { xp: x.xp })}</span>}</div>
                         {x.prev.length > 0 && <div><h4>{t('quests.prev')}</h4><ul className="quest-items">{x.prev.map(p => { const pq = questById(p); return <li key={p}>{pq ? questName(pq, lang) : p}{pq && done[p] ? ' ✓' : ''}</li>; })}</ul></div>}
@@ -123,6 +126,7 @@ function QuestList() {
 function Projects() {
   const s = useAppState();
   const t = useT();
+  const stock = useMemo(() => stockOf(s), [s]);
   return (
     <Panel title={t('projects.title')}>
       <p className="meta">{t('projects.hint')} {t('projects.nextHint')}</p>
@@ -136,7 +140,7 @@ function Projects() {
             {p.phases.map(ph => (
               <div key={ph.phase} className={cx('project-phase', ph.phase <= (s.projects[p.id] || 0) && 'done')}>
                 <b>{t('projects.phase', { n: ph.phase, name: locText(ph.name, t.lang) })}</b>
-                {ph.req.length > 0 && <div><span className="meta">{t('projects.req')}</span><Items list={ph.req} inventory={s.inventory} /></div>}
+                {ph.req.length > 0 && <div><span className="meta">{t('projects.req')}</span><Items list={ph.req} inventory={stock} /></div>}
                 {ph.tasks.length > 0 && <div><span className="meta">{t('projects.tasks')}</span><ul className="quest-items">{ph.tasks.map((x, i) => <li key={i}>{locText(x, t.lang)}</li>)}</ul></div>}
                 {ph.rewards.length > 0 && <div><span className="meta">{t('projects.rewards')}:</span> <span className="meta">{qtyText(ph.rewards)}</span></div>}
               </div>

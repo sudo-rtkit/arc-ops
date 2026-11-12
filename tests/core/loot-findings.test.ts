@@ -41,7 +41,7 @@ function storage() {
 function fakeNative(): Native {
   const none = async () => undefined;
   return {
-    available: true, enable: none, setHotkey: none, watch: none, buddyOpen: none, buddyClose: none,
+    available: true, enable: none, setHotkey: none, watch: none, buddyOpen: none, buddyClose: none, buddyReveal: none,
     overlayOpen: none, overlayClose: none, overlayToggle: none, mainFocus: none, captureNow: none, captureTake: async () => new ArrayBuffer(0),
   };
 }

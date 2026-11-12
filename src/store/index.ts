@@ -17,6 +17,7 @@ import { mapStatus } from '../core/maps';
 import { runStats } from '../core/runs';
 import { budget, totalPoints, planSteps, planName, nextPlanPoint } from '../core/skills';
 import { adviseAll } from '../core/advice';
+import { stockOf } from '../core/compact';
 import { navigatorLang, setLang, t } from '../i18n';
 
 /* Jazyk prvního spuštění (a stavu bez uložené volby) podle navigator.language; pak platí volba v Settings. */
@@ -39,7 +40,9 @@ export function derive(s: AppState) {
   const needs = nextNeeds(view, stations).map(n => ({ ...n, ready: readiness(s.inventory, n.mats) }));
   /* předměty pro dostupné úkoly jdou do nákupního seznamu i Planneru jako potřeby stanic */
   const questNeedList = questNeeds(s.quests.done, s.settings.lang);
-  const shop = shopping(view, stations, sources, questNeedList.map(q => ({ label: t('quests.use', { name: q.label }), mats: q.mats })));
+  /* 0.13.1: nákupní seznam a Planner počítají i s Vybavením (klíč nebo předmět k použití z požadavku úkolu) */
+  const haveView = { ...view, inventory: stockOf(s) };
+  const shop = shopping(haveView, stations, sources, questNeedList.map(q => ({ label: t('quests.use', { name: q.label }), mats: q.mats })));
   const steps = planSteps(s.skills.activePlan, s.skills.builds);
   const weapons = getWeapons(s.gameData);
   const allRoutes = routeLookup(s.gameData);
@@ -56,7 +59,7 @@ export function derive(s: AppState) {
     routeName: (id: string): string => (id ? routeNames[id] || id : DASH),
     loadoutName: (id: string): string => (id ? loadoutNames[id] || t('common.deletedLoadout') : DASH),
     sell: getSell(s.gameData),
-    plan: planNeeds(view, s.planner, s.goals, stations, sources, questNeedList),
+    plan: planNeeds(haveView, s.planner, s.goals, stations, sources, questNeedList),
     quests: questProgress(s.quests.done),
     targets: stationTargets(view, s.planner, s.goals, stations),
     recs: recommend(s, Date.now()),
