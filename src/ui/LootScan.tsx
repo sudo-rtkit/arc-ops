@@ -1,7 +1,9 @@
 /* Zápis raidu → „Loot ze snímku“: hráč vloží snímek obrazovky po raidu (FINDINGS) nebo INVENTORY. Přečte se
    BACKPACK a QUICK USE, od nalezeného se odečte výbava zadaná pro raid a zbytek se předvyplní do lootu formuláře
    ke kontrole. Nic se nezapisuje: loot se uloží až s raidem a do Inventory se převádí tlačítkem jako dřív.
-   Snímek zůstává jen v paměti, po zavření se zahodí. */
+   Snímek zůstává jen v paměti, po zavření se zahodí.
+   0.8.1: názvy zbraní nesou tier (Anvil I), bez zadané výbavy upozornění na ruční kontrolu, jiná obrazovka než
+   FINDINGS / INVENTORY se ohlásí a jeden snímek jde předvyplnit jen jednou (bez dvojího přičtení). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CircleAlert, ImagePlus, Info, Upload, X } from 'lucide-react';
 import { useAppState, useDerived } from '../store';
@@ -9,6 +11,8 @@ import { Btn, IconBtn, Stepper, cx } from './components';
 import { decodeImage, imagesFrom, type DecodeError } from './imageFile';
 import { itemsText } from './ItemList';
 import { readScreenshot, type ScreenRead } from '../core/vision/read';
+import { screenKind, type ScreenKind } from '../core/opsCapture';
+import { itemKey } from '../core/types';
 import { analyzeLoot, lootMinusGear, mergeLoot, type ImportGroup } from '../core/visionImport';
 import { catalogItems, matchContext } from '../core/catalog';
 import { ITEM_MAX } from '../core/raidItems';
@@ -17,7 +21,7 @@ import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 
 const ERR_KEY: Record<DecodeError, Key> = { notImage: 'scan.err.notImage', tooBig: 'scan.err.tooBig', decode: 'scan.err.decode' };
-interface Shot { bitmap: ImageBitmap; read: ScreenRead }
+interface Shot { bitmap: ImageBitmap; read: ScreenRead; kind: ScreenKind }
 type Result = { added: number; minus: ItemQty[]; unnamed: number } | null;
 
 function Thumb({ shot, g }: { shot: Shot; g: ImportGroup }) {
@@ -45,6 +49,8 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [off, setOff] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<Result>(null);
+  /* snímek už byl jednou předvyplněn: další klik by loot přičetl podruhé */
+  const [applied, setApplied] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +65,7 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
   }, [shot]);
   const suggestions = useMemo(() => [...new Set([...materials, ...catalogItems().map(x => x.name)])], [materials]);
 
-  const drop = useCallback(() => { setShot(prev => { prev?.bitmap.close(); return null; }); setNames({}); setCounts({}); setOff({}); setResult(null); setError(null); }, []);
+  const drop = useCallback(() => { setShot(prev => { prev?.bitmap.close(); return null; }); setNames({}); setCounts({}); setOff({}); setResult(null); setError(null); setApplied(false); }, []);
   const add = useCallback(async (files: File[]) => {
     const f = files[0];
     if (!f) return;
@@ -67,7 +73,7 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
     const r = await decodeImage(f);
     if (typeof r === 'string') { setError(ERR_KEY[r]); setBusy(false); return; }
     await new Promise(res => setTimeout(res, 0));
-    setShot({ bitmap: r.bitmap, read: readScreenshot(r.img, { panels: ['backpack', 'quickUse'] }) });
+    setShot({ bitmap: r.bitmap, read: readScreenshot(r.img, { panels: ['backpack', 'quickUse'] }), kind: screenKind(r.img) });
     setBusy(false);
   }, [drop]);
 
@@ -89,10 +95,11 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
 
   const groups = analysis?.groups ?? [];
   const where = (g: ImportGroup) => g.cells.map(c => `${c.panel === 'quickUse' ? 'Q' : 'B'}${c.row + 1}/${c.col + 1}`).join(', ');
-  const nameOf = (g: ImportGroup) => names[g.id] ?? (g.match.status !== 'unknown' && g.match.itemKey ? g.match.itemKey : '');
+  const nameOf = (g: ImportGroup) => names[g.id] ?? (g.match.status !== 'unknown' && g.match.itemKey ? itemKey(g.match.itemKey, g.tier ?? undefined) : '');
   const countOf = (g: ImportGroup) => counts[g.id] ?? g.count ?? 1;
 
   const apply = () => {
+    if (applied) return;
     const chosen = groups.filter(g => !off[g.id]);
     const named = chosen.filter(g => nameOf(g).trim());
     const found = named.map(g => ({ name: nameOf(g).trim(), qty: Math.max(0, Math.min(ITEM_MAX, countOf(g))) })).filter(x => x.qty > 0);
@@ -102,6 +109,7 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
     const minus = [...before].flatMap(([k, q]) => { const r = q - (after.get(k) || 0); return r > 0 ? [{ name: found.find(f => f.name.toLowerCase() === k)!.name, qty: r }] : []; });
     onLoot(mergeLoot(loot, left));
     setResult({ added: left.length, minus, unnamed: chosen.length - named.length });
+    setApplied(true);
   };
 
   if (!open) return <div><Btn size="sm" icon={ImagePlus} onClick={() => setOpen(true)}>{t('lootscan.open')}</Btn></div>;
@@ -126,6 +134,8 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
       {error && <p className="danger-text" role="alert">{t(error)}</p>}
       {a && a.noBackpack && <p className="danger-text" role="alert"><CircleAlert size={16} aria-hidden="true" /> {t('lootscan.noBackpack')}</p>}
       {a && !a.noBackpack && <p className="meta" data-testid="loot-scan-found">{t('lootscan.found', { bp: slots(a.backpack), qu: slots(a.quickUse) })}</p>}
+      {a && !a.noBackpack && shot && shot.kind === 'backpack' && <p className="banner amber" role="status" data-testid="loot-scan-other"><CircleAlert size={16} aria-hidden="true" /> <span className="banner-text">{t('lootscan.notFindings')}</span></p>}
+      {a && !a.noBackpack && !a.empty && !gear.length && <p className="banner amber" role="status" data-testid="loot-scan-nogear"><CircleAlert size={16} aria-hidden="true" /> <span className="banner-text">{t('lootscan.noGear')}</span></p>}
       {a && a.empty && <p className="banner info" role="status" data-testid="loot-scan-empty"><Info size={16} aria-hidden="true" /> <span className="banner-text">{t('lootscan.empty')}</span></p>}
       {shot && groups.length > 0 && (
         <>
@@ -146,8 +156,8 @@ export function LootScan({ gear, loot, onLoot }: { gear: ItemQty[]; loot: ItemQt
             <datalist id="loot-scan-names">{suggestions.map(n => <option key={n} value={n} />)}</datalist>
           </div>
           <div className="row">
-            <Btn size="sm" variant="primary" onClick={apply}>{t('lootscan.apply')}</Btn>
-            <span className="meta">{t('lootscan.applyHint')}</span>
+            <Btn size="sm" variant="primary" onClick={apply} disabled={applied}>{t('lootscan.apply')}</Btn>
+            <span className="meta">{applied ? t('lootscan.alreadyApplied') : t('lootscan.applyHint')}</span>
           </div>
         </>
       )}

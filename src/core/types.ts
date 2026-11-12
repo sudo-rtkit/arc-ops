@@ -116,7 +116,11 @@ export interface Raid {
   loadout: string; gear: ItemQty[]; loot: ItemQty[]; lost: ItemQty[]; goals: string[];
   /* Co z lootu už bylo převedeno do Inventory. Převod přičte jen rozdíl, takže se nic nezapočítá dvakrát. */
   lootApplied: ItemQty[];
+  /* 0.8.1: loot zapsaný ze snímku FINDINGS (podpis snímku proti opakovanému zápisu a položky, které přidal).
+     Nový snímek téhož raidu tyto položky v lootu nahradí, nepřičte se k nim. */
+  lootScan?: LootScan;
 }
+export interface LootScan { sig: string; at: number; items: ItemQty[] }
 
 /* ----- cíle ----- */
 export type GoalLink =

@@ -49,6 +49,55 @@ describe('bezpečnost milníku 5', () => {
     expect(read('src-tauri/src/lib.rs')).toMatch(/mod ops;/);
   });
 
+  it('seznam procesů se čte jen v ops.rs: v hlídací smyčce a jednou při startu (0.8.0), lib.rs jen zavolá ops::game_running_now', () => {
+    for (const word of ['process_names', 'ShowWindow', 'SW_SHOW', 'is_game_exe']) {
+      expect(RS.map(rel).filter(f => read(f).includes(word) && f !== OPS_RS), word).toEqual([]);
+    }
+    const ops = read(OPS_RS);
+    const code = ops.slice(0, ops.indexOf('#[cfg(test)]'));
+    /* volání process_names(): jen any_game ve smyčce ops_watch a v game_running_now (definice ve win modulu a zástupce se nepočítají) */
+    const calls = [...code.matchAll(/any_game\(&process_names\(\)\)/g)].length;
+    expect(calls).toBe(2);
+    expect(code.match(/process_names\(\)/g)!.length).toBe(2 + 2); /* 2 volání + 2 definice (Windows a ostatní) */
+    const startFn = code.slice(code.indexOf('pub fn game_running_now'), code.indexOf('}', code.indexOf('pub fn game_running_now')));
+    expect(startFn).not.toMatch(/loop|while|thread::spawn|sleep/);
+    /* jen minimalizované zobrazení bez aktivace; žádné SetForegroundWindow kvůli startu */
+    expect(ops).toContain('SW_SHOWMINNOACTIVE');
+    expect(code.match(/ShowWindow\(/g)!.length).toBe(1);
+
+    const lib = read('src-tauri/src/lib.rs');
+    expect(lib.match(/ops::game_running_now\(\)/g)!.length).toBe(1);
+    const setup = lib.slice(lib.indexOf('.setup(|app|'), lib.indexOf('.invoke_handler('));
+    expect(setup).toContain('ops::game_running_now()');
+    expect(setup).toMatch(/if game_running \{\s*builder = builder\.focused\(false\)\.visible\(false\);/);
+    expect(setup).toContain('ops::show_in_background(&main)');
+    expect(lib).not.toMatch(/\bloop\b|\bwhile\b|thread::spawn|windows_sys/);
+    /* hlavní okno se vytváří v setup (create: false), aby šlo vytvořit bez fokusu */
+    const conf = JSON.parse(read('src-tauri/tauri.conf.json'));
+    expect(conf.app.windows.find((w: { label: string }) => w.label === 'main').create).toBe(false);
+    /* frontend se jen zeptá, jak se aplikace spustila */
+    expect(TS.filter(f => readFileSync(f, 'utf8').includes("'launch_info'")).map(rel)).toEqual(['src/ops/native.ts']);
+  });
+
+  it('instalátor po dokončení aplikaci sám nespustí (volba je ve výchozím stavu vypnutá) a radí zavřít hru', () => {
+    const conf = JSON.parse(read('src-tauri/tauri.conf.json'));
+    const nsis = conf.bundle.windows.nsis;
+    expect(nsis.installerHooks).toBe('nsis/hooks.nsh');
+    expect(nsis.customLanguageFiles).toEqual({ Czech: 'nsis/Czech.nsh', English: 'nsis/English.nsh' });
+    const hooks = read('src-tauri/nsis/hooks.nsh');
+    expect(hooks).toMatch(/^!define MUI_FINISHPAGE_RUN_NOTCHECKED$/m);
+    expect(hooks).toMatch(/^!define MUI_FINISHPAGE_TEXT "\$\(gameHint\)"$/m);
+    expect(/[^\x00-\x7f]/.test(hooks)).toBe(false);
+    /* hook nic nespouští a nesahá na procesy */
+    expect(hooks).not.toMatch(/^\s*(Exec|nsis_tauri_utils|!macro|Function)/m);
+    for (const [f, lang] of [['Czech.nsh', 'LANG_CZECH'], ['English.nsh', 'LANG_ENGLISH']]) {
+      const txt = read('src-tauri/nsis/' + f);
+      expect(txt.charCodeAt(0), f + ' bez BOM').not.toBe(0xfeff);
+      expect(txt).toMatch(new RegExp(`^LangString gameHint \\$\\{${lang}\\} ".*(borderless|bez okraje).*"$`, 'm'));
+      expect(txt.includes('{{'), f).toBe(false);
+    }
+  });
+
   it('frontend obrazovku nesnímá ani nemá přístup ke zkratkám; snímek přijde jen z Rustu do paměti', () => {
     for (const word of ['getDisplayMedia', 'getUserMedia', 'globalShortcut', 'global-shortcut', 'desktopCapturer', 'plugin:global']) {
       expect(TS.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);

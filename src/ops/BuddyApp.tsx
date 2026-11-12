@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { OpsCanvas, pixelFactor, type OpsHandle } from './OpsCanvas';
 import { createBus } from './bus';
+import { startHello } from './handshake';
 import { createNative } from './native';
 import { buddyWindow, clampTo, defaultSpot, monitorKey, type Rect } from './layout';
 import type { BuddyStatus, BuddyView } from './hub';
@@ -44,6 +45,10 @@ export default function BuddyApp() {
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activity = useRef(Date.now());
+  const gotView = useRef(false);
+  /* jazyk pro hlášky v posluchači; posluchače se kvůli změně jazyka nemusí registrovat znovu */
+  const lang = useRef(t.lang);
+  lang.current = t.lang;
 
   const wake = useCallback(() => {
     activity.current = Date.now();
@@ -58,7 +63,7 @@ export default function BuddyApp() {
   /* zprávy z hlavního okna */
   useEffect(() => {
     const offs = [
-      bus.on('view', v => { const bv = v as BuddyView; setLang(bv.lang); setView(bv); }),
+      bus.on('view', v => { const bv = v as BuddyView; gotView.current = true; setLang(bv.lang); setView(bv); }),
       bus.on('status', p => {
         const s = p as BuddyStatus;
         wake();
@@ -69,20 +74,21 @@ export default function BuddyApp() {
         const e = p as LevelEvent;
         wake();
         if (e.kind === 'transform') {
-          ops.current?.transform(e.transform, () => say(tm(msg('ops.msg.form', { level: e.level, name: formForLevel(e.level).name[t.lang] }))));
+          ops.current?.transform(e.transform, () => say(tm(msg('ops.msg.form', { level: e.level, name: formForLevel(e.level).name[lang.current] }))));
         } else {
           ops.current?.sparkle();
-          const text = e.parts.length === 1 ? tm(msg('ops.msg.level', { level: e.level, name: partName(e.parts[0], t.lang) })) : tm(msg('ops.msg.levelMany', { level: e.level, count: e.parts.length }));
+          const text = e.parts.length === 1 ? tm(msg('ops.msg.level', { level: e.level, name: partName(e.parts[0], lang.current) })) : tm(msg('ops.msg.levelMany', { level: e.level, count: e.parts.length }));
           say(text);
         }
       }),
     ];
-    bus.send('main', 'hello', { from: 'buddy' });
+    /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první view (0.8.0) */
+    const stopHello = startHello(bus, 'buddy', () => gotView.current);
     const sleep = setInterval(() => {
       if (Date.now() - activity.current > SLEEP_MS && ops.current?.anim() === 'idle') ops.current.play('sleeping');
     }, 30_000);
-    return () => { offs.forEach(f => f()); clearInterval(sleep); };
-  }, [say, wake, t.lang]);
+    return () => { stopHello(); offs.forEach(f => f()); clearInterval(sleep); };
+  }, [say, wake]);
 
   /* velikost a poloha okna (fyzické pixely) */
   const scale = view?.scale ?? 1;

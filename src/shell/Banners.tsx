@@ -6,6 +6,7 @@ import { fmtDateTime } from '../ui/format';
 import { backupFileName } from '../core/backup';
 import { useT, type TFn } from '../i18n/react';
 import type { LoadInfo } from '../store/app';
+import { launchInfo } from '../ops/native';
 
 /* Hlášení úložiště se zobrazí v jazyce UI podle zdroje dat (text z úložiště je jen česká pojistka). */
 const loadWarning = (t: TFn, load: LoadInfo): string =>
@@ -17,9 +18,19 @@ export function Banners() {
   const updatedAt = useApp(s => s.state.meta.updatedAt);
   const [hideLoad, setHideLoad] = useState(false);
   const [details, setDetails] = useState(false);
+  /* 0.8.0: start při běžící hře – okno se otevřelo minimalizované bez fokusu; nenápadné upozornění do zavření */
+  const [bgStart, setBgStart] = useState(false);
+  useEffect(() => { let live = true; void launchInfo().then(i => { if (live) setBgStart(i.gameRunning); }); return () => { live = false; }; }, []);
   const t = useT();
   return (
     <>
+      {bgStart && (
+        <div className="banner info" role="status" data-testid="bg-start">
+          <Info size={18} aria-hidden="true" />
+          <span className="banner-text">{t('banner.bgStart')}</span>
+          <IconBtn label={t('banner.hide')} icon={X} ghost onClick={() => setBgStart(false)} />
+        </div>
+      )}
       {save === 'error' && (
         <div className="banner danger" role="alert">
           <CircleAlert size={18} aria-hidden="true" />

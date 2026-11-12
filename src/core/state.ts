@@ -2,7 +2,7 @@
    normalize doplní chybějící pole a ořízne hodnoty, takže se načte
    i neúplná nebo starší záloha. Meze odpovídají původnímu deníku. */
 import type {
-  AppState, ArcUnit, ChecklistTemplate, GameDataEdits, MapNotes, Poi, ProfileLogEntry, Raid, RaidType, Recipe,
+  AppState, ArcUnit, ChecklistTemplate, GameDataEdits, LootScan, MapNotes, Poi, ProfileLogEntry, Raid, RaidType, Recipe,
   Route, SavedBuild, SellItem, StepItem, TrialsWeek, Weapon, WeaponNote,
 } from './types';
 import { normalizeItems } from './raidItems';
@@ -117,7 +117,15 @@ export function normalizeRaid(x: Record<string, unknown>): Raid {
     lost: normalizeItems(x.lost),
     goals: [...new Set(arr(x.goals).map(g => text(g, 24)).filter(Boolean))].slice(0, 50),
     lootApplied: normalizeItems(x.lootApplied),
+    ...normalizeLootScan(x.lootScan),
   };
+}
+
+/* Podpis snímku FINDINGS: jen krátký text z písmen a číslic (viz core/lootImport.ts). */
+export const LOOT_SIG_RE = /^L[0-9a-f]{16}$/;
+function normalizeLootScan(raw: unknown): { lootScan?: LootScan } {
+  if (!isObj(raw) || typeof raw.sig !== 'string' || !LOOT_SIG_RE.test(raw.sig)) return {};
+  return { lootScan: { sig: raw.sig, at: clampInt(raw.at || 0, 0, 9e15), items: normalizeItems(raw.items) } };
 }
 
 function normalizeSteps(raw: unknown, lang: Lang): StepItem[] {

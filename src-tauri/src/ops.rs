@@ -10,6 +10,9 @@
 //! - Snímek leží jen v paměti, hlavní okno si ho jednou vyzvedne (`capture_take`) a tím se tady smaže;
 //!   nevyzvednutý snímek se po 15 s zahodí. Na disk se nikdy nezapisuje.
 //! - Rozpoznání spuštěné hry jen podle názvů v seznamu procesů (Toolhelp snapshot), bez otevírání procesů.
+//!   Kromě hlídání („otevřít s hrou“) se seznam čte ještě jednou při startu aplikace (`game_running_now`, 0.8.0),
+//!   nezávisle na přepínači buddyho: když hra běží, hlavní okno se ukáže minimalizované bez aktivace
+//!   (`show_in_background`), aby hře nevzalo fokus.
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -391,6 +394,31 @@ pub fn is_game_exe(name: &str) -> bool {
     n.starts_with("pioneergame") && n.ends_with(".exe")
 }
 
+/// Je mezi názvy procesů hra?
+pub fn any_game(names: &[String]) -> bool {
+    names.iter().any(|n| is_game_exe(n))
+}
+
+/// Jednorázová kontrola při startu aplikace (volá ji jen `setup` v lib.rs, žádná smyčka): běží ARC Raiders?
+/// Jen názvy procesů, žádné otevírání procesů.
+pub fn game_running_now() -> bool {
+    any_game(&process_names())
+}
+
+/// Ukáže skryté okno minimalizované a bez aktivace (Windows `SW_SHOWMINNOACTIVE`): nic nepřekryje hru v celé
+/// obrazovce a nevezme jí fokus. Okno je na hlavním panelu, hráč ho otevře, až bude chtít.
+pub fn show_in_background<R: Runtime>(w: &WebviewWindow<R>) {
+    #[cfg(windows)]
+    {
+        if let Ok(h) = w.hwnd() {
+            let raw = h.0 as isize;
+            let _ = w.run_on_main_thread(move || win::show_min_no_activate(raw));
+            return;
+        }
+    }
+    let _ = w.show();
+}
+
 #[tauri::command]
 pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, on: bool) -> Result<(), String> {
     main_only(&window)?;
@@ -406,7 +434,7 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
             if st.watch_gen.load(Ordering::SeqCst) != gen || !st.enabled.load(Ordering::SeqCst) {
                 break;
             }
-            let running = process_names().iter().any(|n| is_game_exe(n));
+            let running = any_game(&process_names());
             if last != Some(running) {
                 last = Some(running);
                 let _ = app.emit_to(MAIN, "ops:game", running);
@@ -434,8 +462,16 @@ mod win {
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, WDA_EXCLUDEFROMCAPTURE,
+        GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
+        WDA_EXCLUDEFROMCAPTURE,
     };
+
+    /// Ukáže okno minimalizované bez aktivace (nevezme fokus oknu v popředí).
+    pub fn show_min_no_activate(hwnd: isize) {
+        unsafe {
+            ShowWindow(hwnd as HWND, SW_SHOWMINNOACTIVE);
+        }
+    }
 
     /// Kopie celého monitoru, na kterém je okno v popředí (GDI BitBlt z plochy). Vrací šířku, výšku a RGBA.
     pub fn capture_foreground_monitor() -> Result<(u32, u32, Vec<u8>), String> {
@@ -591,6 +627,14 @@ mod tests {
         assert!(is_game_exe("PioneerGame-Win64-Shipping.exe"));
         assert!(!is_game_exe("arc-companion.exe"));
         assert!(!is_game_exe("PioneerGame.dll"));
+    }
+
+    #[test]
+    fn hra_v_seznamu_procesu() {
+        let names = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(any_game(&names(&["explorer.exe", "PioneerGame-Win64-Shipping.exe"])));
+        assert!(!any_game(&names(&["explorer.exe", "arc-companion.exe"])));
+        assert!(!any_game(&[]));
     }
 
     #[cfg(windows)]

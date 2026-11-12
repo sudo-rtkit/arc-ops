@@ -18,6 +18,7 @@ import { STATIONS } from '../core/data/stations';
 import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, type RaidLootRefusal } from '../core/lootImport';
 import { projectById, setQuestDone } from '../core/quests';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
@@ -77,6 +78,8 @@ const PROFILE_LIMITS: Record<ProfileField, readonly [number, number]> = {
 export const profileLimit = (f: ProfileField) => PROFILE_LIMITS[f];
 
 export type App = ReturnType<typeof createApp>;
+/* Výsledek zápisu lootu ze snímku FINDINGS (0.8.1). */
+export type RaidLootResult = ({ ok: true } & RaidLootDone) | { ok: false; reason: RaidLootRefusal | 'notReady' | 'busy' | 'snapshot' };
 
 export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   const now = opts.now || Date.now;
@@ -249,6 +252,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   }
 
   const st = () => get().state;
+  let lootBusy = false;
   const stationsOf = (s: AppState) => getStations(s.gameData);
 
   /* Cíle splněné raidem: množinově podle id. Cíl odebraný z raidu se otevře jen tehdy, když ho splnil právě tento raid. */
@@ -424,6 +428,28 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       change(s => { sum = applyVisionImport(s, input, now()); });
       await doSave();
       return sum;
+    },
+    /* Loot ze snímku FINDINGS do raidu (0.8.1): kontrola (opakovaný snímek, výbava, nahrazení), snímek stavu,
+       teprve potom zápis. Když se snímek stavu nepodaří, nic se nezapíše. Mince se nemění. */
+    async importRaidLoot(input: RaidLootInput, sig: string): Promise<RaidLootResult> {
+      if (!get().ready) return { ok: false, reason: 'notReady' };
+      if (lootBusy) return { ok: false, reason: 'busy' };
+      const first = checkRaidLoot(st(), input, sig);
+      if (first) return { ok: false, reason: first };
+      lootBusy = true;
+      try {
+        await doSave();
+        if (!(await snapshot('import', 'pred importem lootu ze snimku'))) return { ok: false, reason: 'snapshot' };
+        let done: RaidLootDone | null = null, late: RaidLootRefusal | null = null;
+        const id = uid();
+        change(s => {
+          late = checkRaidLoot(s, input, sig);
+          if (late) return false;
+          done = applyRaidLoot(s, input, sig, now(), id);
+        });
+        await doSave();
+        return done ? { ok: true, ...(done as RaidLootDone) } : { ok: false, reason: late ?? 'notReady' };
+      } finally { lootBusy = false; }
     },
     clearLearned() { change(s => { if (!s.vision.learned.length) return false; s.vision.learned = []; }); },
 

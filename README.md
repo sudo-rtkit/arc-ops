@@ -3,6 +3,11 @@
 Neoficiální offline desktopová aplikace pro hráče ARC Raiders (Tauri 2, React 19, TypeScript, Vite, pnpm).
 UI je česky (výchozí) a anglicky; jazyk se přepíná v Settings & Backup.
 
+**Instalace:** instaluj se zavřenou hrou, nebo s hrou v režimu okna bez okraje (borderless). Okno aplikace nad hrou
+v exkluzivní celé obrazovce jí může vzít fokus. Od 0.8.0 instalátor aplikaci po dokončení sám nespouští (volba
+„Spustit“ je vypnutá) a když při startu aplikace běží ARC Raiders (`PioneerGame*.exe`), otevře se okno minimalizované
+bez fokusu s upozorněním v aplikaci.
+
 ## Vývoj
 
 - `pnpm dev` (prohlížeč, localStorage), `pnpm tauri dev` (desktop)
@@ -91,3 +96,20 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Pravidla stromu hlídá `tests/core/build-catalog.test.ts`; odkazy na zdroje jen na kliknutí (`tests/safety-m6.test.ts`).
   Stav: schéma 6 beze změny.
 - Spec: `docs/superpowers/specs/2026-11-11-skill-buildy-design.md`, plán: `docs/superpowers/plans/2026-11-11-buildy.md`.
+
+## Loot po raidu přes buddyho (0.8.1)
+
+- **Snímek na zkratku rozliší obrazovku** (`src/core/opsCapture.ts`): INVENTORY se STASH → dávka stashe (čte se jen STASH,
+  zapíšou se jen viditelné počty); **FINDINGS po raidu** (bez STASH, krémové tlačítko CONTINUE vpravo dole) → samostatný
+  loot (jen BACKPACK a QUICK USE); cokoli jiného (profil, skill tree, úkoly, dílna, příprava loadoutu) se zahodí bez čtení.
+  Dávka stashe a loot se nikdy nemíchají.
+- **Overlay → Ze snímku → Loot po raidu**: revize řádků (název, počet), volba raidu (nejnovější čerstvý, nebo nový záznam).
+  Od nalezeného se odečte **výbava raidu** (zadaná u raidu, jinak položky jeho loadoutu); bez známé výbavy je zápis
+  možný jen po **ručním potvrzení kontroly**. EQUIPMENT se nečte; **hodnota loadoutu se nikdy nepřičte do mincí ani výdělku**.
+- Zápis jen po potvrzení a **se snímkem stavu**; loot jde do raidu (`raid.loot`, volitelně i do Inventory přes stávající
+  převod rozdílu). **Stejný snímek se zapíše jen jednou** (podpis `raid.lootScan.sig`); nový snímek téhož raidu
+  předchozí loot ze snímku nahradí (s výslovným souhlasem), nepřičte se. Schéma 6 beze změny (`lootScan` je volitelné pole).
+- Testy: `tests/core/loot-findings.test.ts` (veřejné, umělá obrazovka `tests/vision/findings.ts`),
+  `tests/vision/own-return.test.ts` (jen lokálně s vlastními snímky), E2E `tests/e2e/loot-findings.spec.ts`.
+- Navazující práce (zatím jen evidované snímky v `own/return-and-progression/`, žádný import): profil, skill tree,
+  úkoly a dílna ze snímku.

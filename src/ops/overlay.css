@@ -144,6 +144,13 @@ button, input { font: inherit; color: inherit; }
 .ov-review-foot p { margin: 0 0 4px; font-size: 12.5px; }
 .ov-write { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 320px; text-align: right; }
 .ov-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; margin-top: 6px; }
+/* loot po raidu (0.8.1) */
+.ov-input { height: 30px; padding: 0 8px; background: var(--bg-app); color: var(--text-primary); border: 1px solid var(--border-control); border-radius: 2px; font-size: 13px; }
+.ov-name { width: 220px; max-width: 100%; }
+.ov-loot-raid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px; }
+.ov-field { display: flex; flex-direction: column; gap: 4px; font: 500 10.5px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+.ov-field select { min-width: 240px; text-transform: none; letter-spacing: 0; font: 400 13px/1.2 var(--font-ui); }
+.ov-review .ov-banner { margin: 8px 0; }
 
 .ov-footer { display: flex; align-items: center; gap: 24px; padding: 0 26px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-secondary); }
 .ov-footer kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px; border: 1px solid var(--border-control); background: var(--bg-raised); color: var(--text-primary); }

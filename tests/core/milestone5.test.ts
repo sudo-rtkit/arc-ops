@@ -235,7 +235,7 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     const statuses: unknown[] = [];
     buddy.on('status', s => statuses.push(s));
     const w = 640, h = 360, blank = new Uint8Array(w * h * 4).fill(30);
-    expect(readCapture({ width: w, height: h, data: blank })).toEqual({ kind: 'empty' });
+    expect(readCapture({ width: w, height: h, data: blank })).toEqual({ kind: 'empty', reason: 'noInventory' });
     expect(hub.handleCapture({ width: w, height: h, data: blank })).toBe('empty');
     await app.flush();
     expect(app.store.getState().state).toBe(before);

@@ -1,23 +1,26 @@
 /* Overlay „Polní konzole“ (milník 5, návrh docs/design/overlay): teplý taktický HUD nad hrou. Ukazuje jen data
-   aplikace: přehled, dostupné úkoly, nákupy a výsledek snímku ke schválení. Stav je kopie z hlavního okna
+   aplikace: přehled, dostupné úkoly, nákupy a výsledek snímku ke schválení (0.8.1: stash a loot po raidu odděleně). Stav je kopie z hlavního okna
    (store tohoto okna se nikdy nespustí, takže nic neukládá); zápisy jdou do hlavního okna jako akce. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 import { app, useAppState, useDerived } from '../store';
 import { createBus } from './bus';
+import { startHello } from './handshake';
 import { createNative } from './native';
-import type { BatchView, OverlayView } from './hub';
+import type { BatchView, LootShot, OverlayView } from './hub';
 import { OpsCanvas } from './OpsCanvas';
 import { hotkeyLabel } from './hotkey';
 import { useT, type TFn } from '../i18n/react';
 import type { Key } from '../i18n';
-import { fmt, fmtTime } from '../ui/format';
+import { fmt, fmtDateTime, fmtTime } from '../ui/format';
 import { cx } from '../ui/components';
 import { formForLevel, resolveOutfit } from '../core/ops';
 import { QUESTS, locText, questName, questStatus } from '../core/quests';
-import { catalogByName, matchContext } from '../core/catalog';
+import { catalogByName, catalogItems, matchContext } from '../core/catalog';
 import { cleanupRows, cleanupSummary } from '../core/advice';
-import { analyzeShots, defaultTarget, type ImportGroup, type Target, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { analyzeLoot, analyzeShots, defaultTarget, type ImportGroup, type Target, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { lootItems, lootRows, raidGear, raidWithSig, type RaidLootInput } from '../core/lootImport';
+import type { RaidLootResult } from '../store/app';
 import { MAPS } from '../core/data/maps';
 import { LIMITS } from '../core/state';
 import { itemKey } from '../core/types';
@@ -54,6 +57,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
   const clean = cleanupSummary(cleanupRows(d.advice.values()));
   const steps: { tag: string; tone: string; title: string; sub: string; action: () => void; label: string }[] = [];
   const open = (route: string) => () => bus.send('main', 'open', { route });
+  if (batch.loot) steps.push({ tag: t('ops.ov.tag.review'), tone: 'warn', title: t('ops.ov.l.title'), sub: t('ops.ov.l.banner'), action: () => go('scan'), label: t('ops.ov.tab.scan') });
   if (batch.shots.length) steps.push({ tag: t('ops.ov.tag.review'), tone: 'muted', title: t('ops.ov.step.scan'), sub: t('ops.ov.step.scanSub', { count: batch.shots.length }), action: () => go('scan'), label: t('ops.ov.tab.scan') });
   for (const n of d.needs.filter(x => !x.block && x.ready >= 1).slice(0, 2)) steps.push({ tag: t('ops.ov.tag.ready'), tone: 'ok', title: t('ops.ov.step.upgrade', { name: n.station.name, level: n.level }), sub: t('ops.ov.step.upgradeSub'), action: open('workshop'), label: t('ops.ov.openApp') });
   const short = d.needs.find(x => !x.block && x.ready < 1);
@@ -195,7 +199,7 @@ function doneText(t: TFn, d: VisionSummary): string {
   return parts.join(' · ');
 }
 
-function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (tab: Tab) => void }) {
+function StashReview({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (tab: Tab) => void }) {
   const t = useT();
   const s = useAppState();
   const d = useDerived();
@@ -248,14 +252,15 @@ function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (ta
     );
   }
   if (!batch.shots.length) {
-    const nothing = batch.emptyAt > 0, failed = !!batch.failed;
+    const nothing = batch.emptyAt > 0, failed = !!batch.failed, other = nothing && batch.rejected === 'otherScreen';
     return (
       <div className="ov-single">
-        <div className="ov-head row-between"><div><h2>{nothing ? t('ops.ov.c.nothing') : t('ops.ov.c.empty')}</h2></div>
+        <div className="ov-head row-between"><div><h2>{other ? t('ops.ov.c.other') : nothing ? t('ops.ov.c.nothing') : t('ops.ov.c.empty')}</h2></div>
           <button type="button" className="ov-btn primary" onClick={newShot} disabled={!native.available}>{nothing || failed ? t('ops.ov.c.retry') : t('ops.ov.c.new')}</button></div>
-        {nothing && <div className="ov-banner danger" role="alert" data-testid="ov-nothing">{t('ops.ov.c.nothingText')}</div>}
+        {nothing && <div className="ov-banner danger" role="alert" data-testid="ov-nothing">{other ? t('ops.ov.c.otherText') : t('ops.ov.c.nothingText')}</div>}
         {failed && <div className="ov-banner danger" role="alert">{t('ops.ov.c.failed')}</div>}
         <p className="ov-muted">{hotkey ? t('ops.ov.c.emptyHint', { key: hotkeyLabel(hotkey) }) : t('ops.ov.c.emptyHintNoKey')}</p>
+        <p className="ov-muted">{t('ops.ov.c.lootHint')}</p>
         {!native.available && <p className="ov-muted">{t('ops.ov.c.unsupported')}</p>}
         {nothing && <button type="button" className="ov-btn" onClick={() => go('overview')}>{t('ops.ov.c.back')}</button>}
       </div>
@@ -317,6 +322,176 @@ function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (ta
   );
 }
 
+/* ----- Loot po raidu (FINDINGS, 0.8.1) ----- */
+const where = (g: ImportGroup) => g.cells.map(c => `${c.panel === 'quickUse' ? 'Q' : 'B'}${c.row + 1}/${c.col + 1}`).join(', ');
+const RECENT_MS = 6 * 3600_000;
+
+function LootReview({ shot, writing, fail, onWrite }: { shot: LootShot; writing: boolean; fail: string; onWrite: (input: RaidLootInput) => void }) {
+  const t = useT();
+  const s = useAppState();
+  const d = useDerived();
+  const matNames = useMemo(() => d.materials.map(m => m.name), [d.materials]);
+  const analysis = useMemo(() => analyzeLoot(shot.read, s.vision.learned, matchContext(matNames, [...new Set(Object.values(s.items).map(x => x.name))])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shot.id]);
+  const suggestions = useMemo(() => [...new Set([...matNames, ...catalogItems().map(x => x.name)])], [matNames]);
+  const raids = useMemo(() => [...s.raids].sort((a, b) => b.ts - a.ts).slice(0, 10), [s.raids]);
+  /* Výchozí raid: nejnovější, když je čerstvý a ještě nemá loot ze snímku; jinak nový záznam. Volba je vždy vidět. */
+  const initialRaid = raids[0] && !raids[0].lootScan && Math.abs(shot.at - raids[0].ts) < RECENT_MS ? raids[0].id : 'new';
+  const [raidSel, setRaidSel] = useState(initialRaid);
+  const [map, setMap] = useState(raids[0]?.map ?? MAPS[0].id);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [inc, setInc] = useState<Record<string, boolean>>({});
+  const [replace, setReplace] = useState(false);
+  const [gearChecked, setGearChecked] = useState(false);
+  const [toInv, setToInv] = useState(true);
+  useEffect(() => { setRaidSel(initialRaid); setNames({}); setCounts({}); setInc({}); setReplace(false); setGearChecked(false); }, [shot.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const raid = raidSel === 'new' ? null : s.raids.find(r => r.id === raidSel) ?? null;
+  const gear = raidGear(raid, s.loadouts);
+  const dup = raidWithSig(s, shot.sig);
+  const groups = analysis.groups;
+  const defName = (g: ImportGroup) => (g.match.status !== 'unknown' && g.match.itemKey ? itemKey(g.match.itemKey, g.tier ?? undefined) : '');
+  const nameOf = (g: ImportGroup) => names[g.id] ?? defName(g);
+  const countOf = (g: ImportGroup) => counts[g.id] ?? g.count ?? 1;
+  /* Jistě rozpoznané řádky jsou vybrané; nejisté a neznámé až po kontrole hráčem. */
+  const included = (g: ImportGroup) => inc[g.id] ?? g.match.status === 'known';
+  /* Výbava se rozdělí na všechna pojmenovaná políčka (fyzicky jsou v batohu), zapíšou se jen vybrané řádky. */
+  const rows = lootRows(groups.map(g => ({ id: g.id, name: nameOf(g), qty: countOf(g) })), gear.items);
+  const items = lootItems(rows.filter((_, i) => included(groups[i])));
+  const pcs = items.reduce((a, x) => a + x.qty, 0);
+  const needReplace = !!raid?.lootScan;
+  const blocked = writing || !!dup || !items.length || (gear.source === 'none' && !gearChecked) || (needReplace && !replace);
+  const write = () => {
+    if (blocked) return;
+    onWrite({ raidId: raid ? raid.id : null, ...(raid ? {} : { map }), items, replace: needReplace && replace, toInventory: toInv, gearChecked: gear.source === 'none' && gearChecked });
+  };
+  const slots = (x: { slots: number | null; max: number | null } | null) => (x && x.slots !== null ? `${x.slots}/${x.max ?? '?'}` : '—');
+  const mapName = (id: string) => MAPS.find(m => m.id === id)?.name ?? id;
+  const gearList = gear.items.map(x => `${x.name} ×${x.qty}`).join(', ');
+
+  return (
+    <div className="ov-body-grid" data-testid="ov-loot">
+      <div className="ov-main">
+        <div className="ov-head row-between">
+          <div><h2>{t('ops.ov.l.title')}</h2><p>{t('ops.ov.l.sub', { bp: slots(analysis.backpack), qu: slots(analysis.quickUse), time: fmtTime(shot.at) })}</p></div>
+          <div className="row"><button type="button" className="ov-btn" onClick={() => bus.send('main', 'lootClear')}>{t('ops.ov.l.discard')}</button></div>
+        </div>
+        <div className="ov-banner warn">{t('ops.ov.l.banner')}</div>
+        {dup && <div className="ov-banner danger" role="alert" data-testid="ov-loot-dup">{t('ops.ov.l.dup', { when: fmtDateTime(dup.lootScan!.at) })}</div>}
+        {analysis.empty && <div className="ov-banner ok" role="status" data-testid="ov-loot-empty">{t('ops.ov.l.empty')}</div>}
+        {fail && <div className="ov-banner danger" role="alert" data-testid="ov-loot-fail">{t(`ops.ov.l.fail.${fail}` as Key)}</div>}
+        <section className="ov-card ov-review">
+          <div className="ov-loot-raid">
+            <label className="ov-field">{t('ops.ov.l.raid')}
+              <select className="ov-input" value={raidSel} onChange={e => { setRaidSel(e.target.value); setReplace(false); setGearChecked(false); }} data-testid="ov-loot-raid">
+                <option value="new">{t('ops.ov.l.newRaid')}</option>
+                {raids.map(r => <option key={r.id} value={r.id}>{t('ops.ov.l.raidOpt', { when: fmtDateTime(r.ts), map: mapName(r.map) })}{r.lootScan ? ' ✓' : ''}</option>)}
+              </select>
+            </label>
+            {!raid && (
+              <label className="ov-field">{t('ops.ov.l.map')}
+                <select className="ov-input" value={map} onChange={e => setMap(e.target.value)}>{MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+              </label>
+            )}
+          </div>
+          {!raid && <p className="ov-muted">{t('ops.ov.l.newHint')}</p>}
+          {needReplace && (
+            <div className="ov-banner warn" role="status">{t('ops.ov.l.hasScan', { when: fmtDateTime(raid!.lootScan!.at) })}
+              <label className="ov-check"><input type="checkbox" checked={replace} onChange={e => setReplace(e.target.checked)} data-testid="ov-loot-replace" />{t('ops.ov.l.replace')}</label>
+            </div>
+          )}
+          {gear.source === 'none' ? (
+            <div className="ov-banner danger" role="alert" data-testid="ov-loot-nogear">{t('ops.ov.l.noGear')}
+              <label className="ov-check"><input type="checkbox" checked={gearChecked} onChange={e => setGearChecked(e.target.checked)} data-testid="ov-loot-gearcheck" />{t('ops.ov.l.gearChecked')}</label>
+            </div>
+          ) : <p className="ov-muted" data-testid="ov-loot-gear">{t(gear.source === 'raid' ? 'ops.ov.l.gear' : 'ops.ov.l.gearLoadout', { list: gearList })}</p>}
+          {groups.length > 0 && (
+            <table className="ov-table">
+              <thead><tr><th><span className="sr-only">{t('ops.ov.l.rowAria', { where: '' })}</span></th><th>{t('ops.ov.c.col.item')}</th><th className="num">{t('ops.ov.l.col.found')}</th><th className="num">{t('ops.ov.l.col.gear')}</th><th className="num">{t('ops.ov.l.col.loot')}</th><th>{t('ops.ov.c.col.status')}</th></tr></thead>
+              <tbody>{groups.map((g, i) => {
+                const r = rows[i], on = included(g), kind = g.match.status === 'known' && g.countSure ? 'known' : g.match.status === 'unknown' ? 'unknown' : 'uncertain';
+                return (
+                  <tr key={g.id} data-group={g.id} data-kind={kind} className={cx(kind === 'uncertain' && 'unsure', !on && 'off')}>
+                    <td><input type="checkbox" checked={on} aria-label={t('ops.ov.l.rowAria', { where: where(g) })} onChange={e => setInc(p => ({ ...p, [g.id]: e.target.checked }))} /></td>
+                    <td>
+                      <input className="ov-input ov-name" list="ov-loot-names" value={nameOf(g)} maxLength={80} placeholder={t('ops.ov.l.namePh')} aria-label={t('ops.ov.l.nameAria', { where: where(g) })}
+                        onChange={e => setNames(p => ({ ...p, [g.id]: e.target.value }))} />
+                      <em className="ov-muted"> {where(g)}</em>
+                    </td>
+                    <td className="num"><input className="ov-count mono" type="number" min={0} max={LIMITS.inventory[1]} value={countOf(g)} aria-label={t('ops.ov.l.countAria', { where: where(g) })}
+                      onChange={e => { const v = Math.max(0, Math.min(LIMITS.inventory[1], Math.round(Number(e.target.value) || 0))); setCounts(p => ({ ...p, [g.id]: v })); }} /></td>
+                    <td className="num mono">{r.gear ? `−${fmt(r.gear)}` : '0'}</td>
+                    <td className="num mono" data-testid="ov-loot-qty">{on ? fmt(r.loot) : '—'}</td>
+                    <td><span className={cx('ov-tag', kind === 'known' ? 'ok' : kind === 'uncertain' ? 'warn' : 'muted')}>{kind === 'unknown' ? t('ops.ov.l.unknown') : t(`ops.ov.c.status.${kind}` as Key)}</span></td>
+                  </tr>
+                );
+              })}</tbody>
+            </table>
+          )}
+          <datalist id="ov-loot-names">{suggestions.map(n => <option key={n} value={n} />)}</datalist>
+          <footer className="ov-review-foot">
+            <div>
+              <p data-testid="ov-loot-selected">{t('ops.ov.l.summary', { count: items.length, pcs })}</p>
+              <label className="ov-check"><input type="checkbox" checked={toInv} onChange={e => setToInv(e.target.checked)} />{t('ops.ov.l.toInv')}</label>
+            </div>
+            <div className="ov-write">
+              <button type="button" className="ov-btn primary" disabled={blocked} onClick={write} data-testid="ov-loot-write">{writing ? t('ops.ov.c.writing') : t('ops.ov.l.write')}</button>
+              <p className="ov-muted">{t('ops.ov.l.writeHint')}</p>
+            </div>
+          </footer>
+        </section>
+      </div>
+      <aside className="ov-rail">
+        <section className="ov-card"><span className="ov-stencil">{t('ops.ov.c.railTitle', { n: String(groups.length).padStart(2, '0') })}</span><h3>{t('ops.ov.c.railHead')}</h3>
+          <p className="ov-quote">{t('ops.ov.c.railText')}</p></section>
+        <section className="ov-card"><span className="ov-tag muted">{t('ops.ov.c.pending')}</span><p className="ov-muted">{t('ops.ov.c.discarded')}</p></section>
+      </aside>
+    </div>
+  );
+}
+
+function lootDoneText(t: TFn, r: Extract<RaidLootResult, { ok: true }>): string {
+  const parts = [t('ops.ov.l.done', { count: r.items.length })];
+  if (r.created) parts.push(t('ops.ov.l.doneNew'));
+  if (Object.keys(r.inventory).length) parts.push(t('ops.ov.l.doneInv'));
+  return parts.join(' ');
+}
+
+/* Výsledek snímku: stash a loot po raidu jsou dvě oddělené revize (nikdy jedna tabulka). */
+function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (tab: Tab) => void }) {
+  const t = useT();
+  const [mode, setMode] = useState<'stash' | 'loot'>(batch.last ?? 'stash');
+  const [writing, setWriting] = useState(false);
+  const [fail, setFail] = useState('');
+  const [done, setDone] = useState<Extract<RaidLootResult, { ok: true }> | null>(null);
+  useEffect(() => { if (batch.last) setMode(batch.last); }, [batch.last, batch.loot?.id, batch.shots.length]);
+  useEffect(() => { setFail(''); if (batch.loot) setDone(null); }, [batch.loot?.id]);
+  useEffect(() => bus.on('lootImported', p => {
+    setWriting(false);
+    const r = (p as { result?: RaidLootResult } | null)?.result;
+    if (!r) return;
+    if (r.ok) { setDone(r); setFail(''); }
+    else setFail(['duplicate', 'replaceNeeded', 'gearUnchecked', 'noRaid', 'empty', 'snapshot'].includes(r.reason) ? r.reason : 'other');
+  }), []);
+  const hasStash = batch.shots.length > 0, loot = batch.loot;
+  const showLoot = !!loot && (mode === 'loot' || !hasStash);
+  const onWrite = (input: RaidLootInput) => { if (!loot) return; setWriting(true); setFail(''); bus.send('main', 'lootImport', { shotId: loot.id, input }); };
+  return (
+    <>
+      {hasStash && loot && (
+        <div className="ov-filter" role="group" aria-label={t('ops.ov.mode')}>
+          <button type="button" aria-pressed={!showLoot} onClick={() => setMode('stash')}>{t('ops.ov.mode.stash', { count: batch.shots.length })}</button>
+          <button type="button" aria-pressed={showLoot} onClick={() => setMode('loot')}>{t('ops.ov.mode.loot')}</button>
+        </div>
+      )}
+      {done && !loot && <div className="ov-banner ok" role="status" data-testid="ov-loot-done">{lootDoneText(t, done)}</div>}
+      {showLoot ? <LootReview shot={loot!} writing={writing} fail={fail} onWrite={onWrite} /> : <StashReview batch={batch} hotkey={hotkey} go={go} />}
+    </>
+  );
+}
+
 /* ----- okno ----- */
 export default function OverlayApp() {
   const t = useT();
@@ -325,6 +500,7 @@ export default function OverlayApp() {
   const [opacity, setOpacity] = useState(90);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, quests: null, shop: null, scan: null });
   const batchRef = useRef<BatchView | null>(null);
+  const gotState = useRef(false);
 
   useEffect(() => {
     const offs = [
@@ -332,6 +508,7 @@ export default function OverlayApp() {
         const v = p as OverlayView;
         app.store.setState({ state: v.state });
         batchRef.current = v.batch;
+        gotState.current = true;
         setView(v);
       }),
       /* z Rustu při otevření: případně rovnou na výsledek snímku */
@@ -339,23 +516,25 @@ export default function OverlayApp() {
         const want = typeof p === 'string' && (TABS as string[]).includes(p) ? (p as Tab) : null;
         const b = batchRef.current;
         if (want) setTab(want);
-        else if (b && (b.shots.length || b.emptyAt)) setTab('scan');
+        else if (b && (b.shots.length || b.loot || b.emptyAt)) setTab('scan');
         setTimeout(() => document.querySelector<HTMLButtonElement>('.ov-tabs [aria-selected="true"]')?.focus(), 30);
       }),
     ];
-    bus.send('main', 'hello', { from: 'overlay' });
+    /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první stav (0.8.0) */
+    const stopHello = startHello(bus, 'overlay', () => gotState.current);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); void native.overlayClose(); } };
     window.addEventListener('keydown', onKey);
-    return () => { offs.forEach(f => f()); window.removeEventListener('keydown', onKey); };
+    return () => { stopHello(); offs.forEach(f => f()); window.removeEventListener('keydown', onKey); };
   }, []);
   useEffect(() => { if (view) setOpacity(view.state.buddy.opacity); }, [view?.state.buddy.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.shots.length) setTab('scan'); }, [view?.batch.shots.length]);
+  useEffect(() => { if (view?.batch.loot) setTab('scan'); }, [view?.batch.loot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const glass = { ['--ov-alpha' as string]: String(opacity / 100) };
   if (!view) return <div className="ov" style={glass}><p className="ov-loading" role="status">{t('ops.ov.loading')}</p></div>;
   const s = view.state;
   const d = { quests: QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length };
-  const counts: Record<Tab, number | null> = { overview: null, quests: d.quests, shop: null, scan: view.batch.shots.length || null };
+  const counts: Record<Tab, number | null> = { overview: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) || null };
   const onTabKey = (e: ReactKeyboardEvent, i: number) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
     e.preventDefault();

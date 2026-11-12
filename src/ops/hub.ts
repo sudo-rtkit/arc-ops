@@ -2,14 +2,19 @@
    a posílají sem pojmenované akce, které projdou stejnými akcemi store jako v hlavním okně.
    - Přepínač „Buddy a zkratka“ promítá do Rustu: vypnuto = žádné okno, žádná zkratka, žádné hlídání hry.
    - Snímek ze zkratky se tu přečte (readCapture) a obrazová data se hned zahodí; drží se jen ScreenRead
-     v dávce v paměti. Prázdný snímek (bez inventáře) nic nezapíše.
+     v paměti. Prázdný snímek (bez inventáře) ani jiná obrazovka nic nezapíše.
+   - 0.8.1: STASH (stránky stashe) a loot po raidu (FINDINGS) jsou oddělené: stránky jdou do dávky stashe,
+     snímek FINDINGS do samostatného místa pro loot (novější nahradí starší). Nikdy se nemíchají.
    Bez Reactu a bez DOM, takže jde testovat v Node se zástupným bus a native. */
 import type { App } from '../store/app';
 import type { AppState } from '../core/types';
 import type { ScreenRead } from '../core/vision/read';
 import type { RgbaImage } from '../core/vision/image';
 import { readCapture } from '../core/opsCapture';
-import { analyzeShots, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { analyzeLoot, analyzeShots, type VisionApply, type VisionSummary } from '../core/visionImport';
+import { lootSignature, raidWithSig, type RaidLootInput } from '../core/lootImport';
+import { normalizeItems } from '../core/raidItems';
+import type { RaidLootResult } from '../store/app';
 import { matchContext } from '../core/catalog';
 import { getMaterials } from '../core/gamedata';
 import { levelEvent, resolveOutfit, type LevelEvent, type OpsAnim } from '../core/ops';
@@ -18,7 +23,20 @@ import type { Bus } from './bus';
 import type { Native } from './native';
 
 export interface Shot { id: number; at: number; read: ScreenRead }
-export interface BatchView { shots: Shot[]; emptyAt: number; failed: string }
+/* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
+export interface LootShot extends Shot { sig: string }
+export interface BatchView {
+  /* stránky stashe */
+  shots: Shot[];
+  /* loot po raidu (odděleně od stashe) */
+  loot: LootShot | null;
+  /* poslední přečtený druh (overlay podle něj otevře revizi) */
+  last: 'stash' | 'loot' | null;
+  emptyAt: number;
+  /* proč se poslední snímek zahodil: bez inventáře, nebo jiná obrazovka s batohem (např. příprava loadoutu) */
+  rejected: '' | 'noInventory' | 'otherScreen';
+  failed: string;
+}
 export interface BuddyView {
   lang: Lang; level: number; outfit: Record<string, string | null>; scale: 1 | 2;
   positions: Record<string, { x: number; y: number }>; monitor: string; hotkey: string;
@@ -33,7 +51,8 @@ export interface HubOptions { app: App; bus: Bus; native: Native; now?: () => nu
 
 export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, navigate }: HubOptions) {
   const st = () => app.store.getState().state;
-  let batch: BatchView = { shots: [], emptyAt: 0, failed: '' };
+  const emptyBatch = (): BatchView => ({ shots: [], loot: null, last: null, emptyAt: 0, rejected: '', failed: '' });
+  let batch: BatchView = emptyBatch();
   let nextShot = 1;
   let applied: { enabled: boolean; autoOpen: boolean } = { enabled: false, autoOpen: false };
   let prevLevel: number | null = null;
@@ -81,7 +100,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
           if (auto) await native.watch(true); else await native.buddyOpen();
         });
       } else {
-        clearBatch();
+        batch = emptyBatch();
         overlayKnown = false;
         run(() => native.enable(false));
       }
@@ -112,20 +131,33 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   }
 
   /* ----- snímek ----- */
-  function clearBatch() { batch = { shots: [], emptyAt: 0, failed: '' }; }
+  /* Zahodí jen stránky stashe; loot po raidu zůstane. */
+  function clearBatch() { batch = { ...batch, shots: [], last: batch.loot ? 'loot' : null, emptyAt: 0, rejected: '', failed: '' }; }
+  function clearLoot() { batch = { ...batch, loot: null, last: batch.shots.length ? 'stash' : null }; }
+  const matchCtx = (s: AppState) => matchContext(getMaterials(s).map(m => m.name), [...new Set(Object.values(s.items).map(x => x.name))]);
 
   /* Přečte snímek a zahodí obrazová data. Nic nezapisuje do stavu ani do úložiště. */
-  function handleCapture(img: RgbaImage): 'empty' | 'read' {
+  function handleCapture(img: RgbaImage): 'empty' | 'read' | 'loot' {
     const r = readCapture(img);
     if (r.kind === 'empty') {
-      batch = { ...batch, emptyAt: now(), failed: '' };
-      status('unsure', msg('ops.msg.nothing'));
+      batch = { ...batch, emptyAt: now(), rejected: r.reason, failed: '' };
+      status('unsure', msg(r.reason === 'otherScreen' ? 'ops.msg.otherScreen' : 'ops.msg.nothing'));
       pushOverlay(true);
       return 'empty';
     }
-    const shots = [...batch.shots, { id: nextShot++, at: now(), read: r.read }].slice(-BATCH_MAX);
-    batch = { shots, emptyAt: 0, failed: '' };
     const s = st();
+    if (r.screen === 'loot') {
+      const sig = lootSignature(r.read);
+      batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
+      const a = analyzeLoot(r.read, s.vision.learned, matchCtx(s));
+      if (raidWithSig(s, sig)) status('unsure', msg('ops.msg.lootDup'));
+      else if (a.empty) status('done', msg('ops.msg.lootEmpty'));
+      else status('unsure', msg('ops.msg.loot', { count: a.groups.length }));
+      pushOverlay(true);
+      return 'loot';
+    }
+    const shots = [...batch.shots, { id: nextShot++, at: now(), read: r.read }].slice(-BATCH_MAX);
+    batch = { ...batch, shots, last: 'stash', emptyAt: 0, rejected: '', failed: '' };
     const mats = getMaterials(s).map(m => m.name);
     const a = analyzeShots(shots.map(x => x.read), s.vision.learned, matchContext(mats, [...new Set(Object.values(s.items).map(x => x.name))]));
     const check = a.groups.filter(g => g.match.status !== 'known' || !g.countSure).length;
@@ -152,6 +184,34 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     return sum;
   }
 
+  /* Loot po raidu: zapíše se jen právě zobrazený snímek FINDINGS (id), s jeho vlastním podpisem z hubu. */
+  async function importLoot(shotId: number, input: RaidLootInput): Promise<RaidLootResult> {
+    const shot = batch.loot;
+    let res: RaidLootResult;
+    if (!shot || shot.id !== shotId) res = { ok: false, reason: 'empty' };
+    else {
+      res = await app.actions.importRaidLoot(input, shot.sig);
+      if (res.ok) { if (batch.loot?.id === shotId) clearLoot(); status('done', msg('ops.msg.lootWritten', { count: res.items.length })); }
+    }
+    bus.send('overlay', 'lootImported', { result: res });
+    pushOverlay(true);
+    return res;
+  }
+  /* Vstup z okna overlaye: jen očekávané typy, položky se normalizují. */
+  function lootInput(p: unknown): { shotId: number; input: RaidLootInput } | null {
+    const o = p as { shotId?: unknown; input?: Record<string, unknown> } | null;
+    const i = o?.input;
+    if (!o || !Number.isFinite(o.shotId) || !i || typeof i !== 'object') return null;
+    if (!(i.raidId === null || typeof i.raidId === 'string') || !Array.isArray(i.items)) return null;
+    return {
+      shotId: Number(o.shotId),
+      input: {
+        raidId: i.raidId as string | null, map: typeof i.map === 'string' ? i.map : undefined, items: normalizeItems(i.items),
+        replace: i.replace === true, toInventory: i.toInventory === true, gearChecked: i.gearChecked === true,
+      },
+    };
+  }
+
   /* ----- start ----- */
   function start() {
     const onState = (s: AppState) => {
@@ -165,10 +225,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       }
       prevLevel = s.profile.level;
     };
-    let last: AppState | null = null;
-    offs.push(app.store.subscribe(x => { if (x.ready && x.state !== last) { last = x.state; onState(x.state); } }));
-    if (app.store.getState().ready) { last = st(); onState(st()); }
-
+    /* Nejdřív posluchače (hello, akce oken, události z Rustu), pak teprve stav: nativní volání, která otevírají
+       okna, čekají ve frontě na bus.ready(), takže první hello od nového okna už má kdo přijmout (0.8.0). */
     offs.push(bus.on('hello', p => {
       const from = (p as { from?: string } | null)?.from;
       if (!st().buddy.enabled) return;
@@ -182,6 +240,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }));
     offs.push(bus.on('opacity', p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); }));
     offs.push(bus.on('batchClear', () => { clearBatch(); pushOverlay(true); }));
+    offs.push(bus.on('lootImport', p => { const x = lootInput(p); if (x) void importLoot(x.shotId, x.input); }));
+    offs.push(bus.on('lootClear', () => { clearLoot(); pushOverlay(true); }));
     offs.push(bus.on('moved', p => {
       const m = p as { monitor?: unknown; x?: unknown; y?: unknown } | null;
       if (m && typeof m.monitor === 'string' && Number.isFinite(m.x) && Number.isFinite(m.y)) app.actions.setBuddyPosition(m.monitor, Number(m.x), Number(m.y));
@@ -200,10 +260,15 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       if (!b.enabled || !b.autoOpen) return;
       run(() => (gameRunning ? native.buddyOpen() : native.buddyClose()));
     }));
+
+    queue = queue.then(() => bus.ready());
+    let last: AppState | null = null;
+    offs.push(app.store.subscribe(x => { if (x.ready && x.state !== last) { last = x.state; onState(x.state); } }));
+    if (app.store.getState().ready) { last = st(); onState(st()); }
   }
 
   function stop() { offs.splice(0).forEach(f => f()); if (pushTimer) clearTimeout(pushTimer); }
 
-  return { start, stop, setHotkey, handleCapture, importShots, batch: () => batch, idle: () => queue };
+  return { start, stop, setHotkey, handleCapture, importShots, importLoot, batch: () => batch, idle: () => queue };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

@@ -8,11 +8,23 @@ mod storage;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use storage::{LoadResult, SnapshotInfo, Storage, MAX_FILE};
-use tauri::{Manager, State, WebviewWindow};
+use tauri::{Manager, State, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 struct AppStorage(Mutex<Storage>);
+
+/// Jak se aplikace spustila (0.8.0): běžela při startu hra? Pak je hlavní okno na pozadí a UI ukáže upozornění.
+#[derive(Clone, Copy, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LaunchInfo {
+    game_running: bool,
+}
+
+#[tauri::command]
+fn launch_info(info: State<'_, LaunchInfo>) -> LaunchInfo {
+    *info
+}
 
 fn with<T>(st: &State<'_, AppStorage>, f: impl FnOnce(&Storage) -> Result<T, String>) -> Result<T, String> {
     let guard = st.0.lock().map_err(|_| "Úložiště je zablokované".to_string())?;
@@ -164,6 +176,27 @@ pub fn run() {
             let dir = app.path().app_data_dir().map_err(|e| format!("Složka dat není dostupná: {e}"))?;
             std::fs::create_dir_all(&dir)?;
             app.manage(AppStorage(Mutex::new(Storage::new(dir))));
+            /* Hlavní okno vzniká až tady (v tauri.conf.json má "create": false). Když běží ARC Raiders, okno se
+               nesmí aktivovat ani překrýt hru (hra v exkluzivní celé obrazovce by se mohla minimalizovat nebo
+               spadnout): vznikne skryté a ukáže se minimalizované bez aktivace. Jednorázová kontrola názvů procesů. */
+            let game_running = ops::game_running_now();
+            app.manage(LaunchInfo { game_running });
+            let cfg = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == "main")
+                .cloned()
+                .ok_or("V konfiguraci chybí okno main")?;
+            let mut builder = WebviewWindowBuilder::from_config(app.handle(), &cfg)?;
+            if game_running {
+                builder = builder.focused(false).visible(false);
+            }
+            let main = builder.build()?;
+            if game_running {
+                ops::show_in_background(&main);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -179,6 +212,7 @@ pub fn run() {
             data_dir,
             open_data_dir,
             open_external,
+            launch_info,
             ops::ops_enable,
             ops::ops_hotkey,
             ops::ops_watch,

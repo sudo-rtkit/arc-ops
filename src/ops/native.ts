@@ -47,3 +47,10 @@ export const browserNative: Native = {
 };
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);
+
+/* Jak se aplikace spustila (0.8.0): běžela při startu hra, takže je okno na pozadí? Mimo Tauri vždy ne. */
+export interface LaunchInfo { gameRunning: boolean }
+export const launchInfo = async (): Promise<LaunchInfo> => {
+  if (!isTauri()) return { gameRunning: false };
+  try { return await call<LaunchInfo>('launch_info'); } catch { return { gameRunning: false }; }
+};

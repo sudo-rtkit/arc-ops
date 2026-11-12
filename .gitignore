@@ -13,3 +13,4 @@ tests/fixtures/vision/own/
 
 # Cache skriptu gen-catalog.mjs (stažená data MetaForge) – necommitovat
 scripts/.cache/
+src-tauri/target-*/
