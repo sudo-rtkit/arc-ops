@@ -10,7 +10,7 @@ import { normalizeGoals } from './goals';
 import { emptyPlanner, normalizePlanner } from './planner';
 import { normalizeLoadouts } from './loadouts';
 import { normalizeItemStock, normalizeVision, emptyVision } from './visionState';
-import { normalizePinned, normalizeProjects, normalizeQuestDone } from './quests';
+import { normalizePinned, normalizeProjects, normalizeQuestDone, normalizeQuestObjectives } from './quests';
 import { emptyAdvice, normalizeAdvice } from './advice';
 import { normalizeBlueprints } from './itemdb';
 import { emptyTierList, normalizeTierList } from './tierlist';
@@ -25,7 +25,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 8 as const;
+export const SCHEMA = 9 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -75,7 +75,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     loadouts: [],
     items: {},
     vision: emptyVision(),
-    quests: { done: {}, pinned: [] },
+    quests: { done: {}, pinned: [], objectives: {} },
     advice: emptyAdvice(),
     blueprints: {},
     tierList: emptyTierList(),
@@ -396,7 +396,11 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.loadouts = normalizeLoadouts(r.loadouts);
   out.items = normalizeItemStock(r.items);
   out.vision = normalizeVision(r.vision);
-  out.quests = { done: normalizeQuestDone(objOf(r.quests).done), pinned: normalizePinned(objOf(r.quests).pinned) };
+  /* schéma 9 (0.10.2): zaškrtnuté cíle úkolů; ve starším stavu chybí a začnou prázdné */
+  out.quests = {
+    done: normalizeQuestDone(objOf(r.quests).done), pinned: normalizePinned(objOf(r.quests).pinned),
+    objectives: normalizeQuestObjectives(objOf(r.quests).objectives),
+  };
   /* schéma 5 (milník 4): ve starším stavu chybí a dostanou výchozí hodnoty */
   out.advice = normalizeAdvice(r.advice);
   out.blueprints = normalizeBlueprints(r.blueprints);

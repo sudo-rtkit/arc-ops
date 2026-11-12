@@ -5,11 +5,14 @@
    - profil: level, XP, XP na další level, mince;
    - dílna: úrovně stanic (přehled i detail stanice); materiály z detailu jsou jen informace;
    - skill tree: rank skillu jen z tooltipu skillu; součty větví z přehledu jen pro kontrolu;
-   - úkol: aplikace nesleduje jednotlivé cíle, takže se cíle jen ukážou. Úkol se nikdy neoznačí jako splněný
-     (obrazovka splnění neukazuje); jisté je jen to, že úkol s nezaškrtnutým cílem splněný není. Čistá logika bez UI. */
+   - úkol (0.10.2): zaškrtnuté cíle se navrhnou k zaškrtnutí v aplikaci (jen když počet cílů sedí s daty; jistý úkol
+     předvybraný, nejistý po potvrzení). Nezaškrtnutý cíl, který je v aplikaci zaškrtnutý, se nabídne k odškrtnutí,
+     nikdy předvybraný. Úkol se nikdy neoznačí jako splněný, ani když jsou zaškrtnuté všechny cíle: obrazovka úkolu
+     splnění neukazuje (splněný úkol u obchodníka už není), takže „označit splněný“ se nenabízí vůbec. Jisté je jen to,
+     že úkol s nezaškrtnutým cílem splněný není. Čistá logika bez UI. */
 import type { AppState, BranchId } from './types';
 import type { ProgressRead, Read } from './vision/progress';
-import { QUESTS, locText, questById } from './quests';
+import { QUESTS, locText, questById, setObjective } from './quests';
 import { SKILLS } from './data/skills';
 import { STATIONS } from './data/stations';
 import { AT_HIDEOUT, type Loc } from './data/arctracker';
@@ -67,7 +70,8 @@ export interface QuestProposal {
   kind: 'quest';
   questId: string | null; conf: Conf; title: string; trader: string | null;
   /* cíle ze snímku v pořadí; text z dat, když počet sedí */
-  objectives: { text: string | null; checked: boolean | null }[];
+  /* stored = cíl je zaškrtnutý v aplikaci (jen když počet sedí, jinak false) */
+  objectives: { text: string | null; checked: boolean | null; stored: boolean }[];
   countMatch: boolean;
   /* stav v aplikaci */
   done: boolean; pinned: boolean;
@@ -155,7 +159,10 @@ export function proposeProgress(read: ProgressRead, s: AppState, lang: 'cs' | 'e
       const conf: Conf = !q ? 'unknown' : m!.dist <= 1 && confOf(read.title) !== 'unknown' ? 'high' : 'medium';
       return {
         kind: 'quest', questId: q?.id ?? null, conf, title: q ? locText(q.name, lang) : read.title.value ?? '', trader: tr?.item ?? null,
-        objectives: read.objectives.map((checked, i) => ({ text: countMatch ? locText(q!.objectives[i], lang) : null, checked })),
+        objectives: read.objectives.map((checked, i) => ({
+          text: countMatch ? locText(q!.objectives[i], lang) : null, checked,
+          stored: countMatch && (s.quests.objectives[q!.id] ?? []).includes(i),
+        })),
         countMatch, done: !!q && !!s.quests.done[q.id], pinned: !!q && s.quests.pinned.includes(q.id),
         open: read.objectives.some(x => x === false),
       };
@@ -190,7 +197,10 @@ export interface ProgressApply {
   /* úkol: zrušit chybné „splněno“ (jen když obrazovka ukazuje nesplněný cíl) a připnout */
   questUndone?: string[];
   questPin?: string[];
+  /* 0.10.2: zaškrtnutí (on) nebo odškrtnutí cíle úkolu podle indexu v datech */
+  questTicks?: QuestTick[];
 }
+export interface QuestTick { id: string; index: number; on: boolean }
 export interface ProgressSummary { fields: number }
 
 /* Kontrola a zápis vybraných hodnot. Neznámé id, hodnota mimo rozsah nebo rank nad maximum se zahodí. */
@@ -219,6 +229,10 @@ export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): Pr
     if (!questById(id) || !s.quests.done[id]) continue;
     const next = { ...s.quests.done }; delete next[id]; s.quests.done = next; fields++;
   }
+  for (const x of input.questTicks ?? []) {
+    const next = setObjective(s.quests.objectives, x.id, x.index, x.on);
+    if (next !== s.quests.objectives) { s.quests.objectives = next; fields++; }
+  }
   for (const id of input.questPin ?? []) {
     if (!questById(id) || s.quests.pinned.includes(id)) continue;
     s.quests.pinned = [...s.quests.pinned, id].slice(-pinMax); fields++;
@@ -236,7 +250,15 @@ export function defaultApply(p: ProgressProposal): ProgressApply {
     }
     case 'stations': return { stations: Object.fromEntries(p.rows.filter(r => r.conf === 'high' && r.value !== null && r.value !== r.now).map(r => [r.id, r.value!])) };
     case 'skills': return p.skill && p.skill.id && p.skill.conf === 'high' && p.skill.current.conf === 'high' && p.skill.current.value !== p.skill.now ? { skills: { [p.skill.id]: p.skill.current.value! } } : {};
-    case 'quest': return p.questId && p.conf === 'high' && p.done && p.open ? { questUndone: [p.questId] } : {};
+    case 'quest': {
+      if (!p.questId || p.conf !== 'high') return {};
+      const out: ProgressApply = {};
+      if (p.done && p.open) out.questUndone = [p.questId];
+      /* jen zaškrtnutí; odškrtnutí nikdy předem */
+      const ticks = questTickChanges(p).filter(x => x.on);
+      if (ticks.length) out.questTicks = ticks;
+      return out;
+    }
   }
 }
 
@@ -246,8 +268,20 @@ export function proposalChanges(p: ProgressProposal): number {
     case 'profile': return (['level', 'xp', 'xpNext', 'coins'] as const).filter(k => p[k].value !== null && p[k].value !== p.now[k]).length;
     case 'stations': return p.rows.filter(r => r.value !== null && r.value !== r.now).length;
     case 'skills': return p.skill?.id && p.skill.current.value !== null && p.skill.current.value !== p.skill.now ? 1 : 0;
-    case 'quest': return p.questId && ((p.done && p.open) || !p.pinned) ? 1 : 0;
+    case 'quest': return p.questId ? ((p.done && p.open) || !p.pinned ? 1 : 0) + questTickChanges(p).length : 0;
   }
+}
+
+/* Rozdíly cílů mezi snímkem a aplikací: zaškrtnuté na snímku a ne v aplikaci (on) a naopak (off). Nepřečtený cíl
+   (null) ani úkol s jiným počtem cílů nic nenabízí. */
+export function questTickChanges(p: QuestProposal): QuestTick[] {
+  if (!p.questId || !p.countMatch) return [];
+  const out: QuestTick[] = [];
+  p.objectives.forEach((o, index) => {
+    if (o.checked === true && !o.stored) out.push({ id: p.questId!, index, on: true });
+    else if (o.checked === false && o.stored) out.push({ id: p.questId!, index, on: false });
+  });
+  return out;
 }
 
 /* Vstup z jiného okna (overlay): jen očekávané tvary. */
@@ -269,5 +303,11 @@ export function normalizeProgressApply(raw: unknown): ProgressApply | null {
     profile: nums(o.profile, ['level', 'xp', 'xpNext', 'coins']),
     stations: nums(o.stations), skills: nums(o.skills),
     questUndone: ids(o.questUndone), questPin: ids(o.questPin),
+    questTicks: (Array.isArray(o.questTicks) ? o.questTicks : []).slice(0, 64).flatMap((x): QuestTick[] => {
+      if (!x || typeof x !== 'object') return [];
+      const v = x as Record<string, unknown>;
+      return typeof v.id === 'string' && v.id.length <= 80 && Number.isInteger(v.index) && typeof v.on === 'boolean'
+        ? [{ id: v.id, index: Number(v.index), on: v.on }] : [];
+    }),
   };
 }

@@ -20,7 +20,7 @@ import type { Key } from '../i18n';
 import { fmt, fmtDateTime, fmtTime } from '../ui/format';
 import { cx } from '../ui/components';
 import { formForLevel, resolveOutfit } from '../core/ops';
-import { QUESTS, locText, questName, questStatus } from '../core/quests';
+import { QUESTS, locText, objectiveProgress, questName, questStatus } from '../core/quests';
 import { catalogByName, catalogItems, matchContext } from '../core/catalog';
 import { cleanupRows, cleanupSummary } from '../core/advice';
 import { analyzeLoot, analyzeShots, defaultTarget, type ImportGroup, type Target, type VisionApply, type VisionSummary } from '../core/visionImport';
@@ -138,13 +138,15 @@ function Quests() {
         <ol className="ov-quests">{list.map((q, i) => {
           const name = questName(q, t.lang);
           const need = [...q.deliver, ...q.questItems];
+          const op = objectiveProgress(s.quests.objectives, q), ticked = s.quests.objectives?.[q.id] ?? [];
           return (
             <li key={q.id} className="ov-card ov-quest" data-quest={q.id}>
               <span className="ov-num">{String(i + 1).padStart(2, '0')}</span>
               <div className="grow">
                 <b>{name}</b>
                 <em>{t('ops.ov.q.trader', { name: q.trader })}{q.maps.length ? ' · ' + q.maps.map(mapName).join(', ') : ''}</em>
-                <ul>{q.objectives.slice(0, 2).map((o, j) => <li key={j}>{locText(o, t.lang)}</li>)}</ul>
+                {op.done > 0 && <p data-testid="ov-quest-obj"><span className="ov-stencil">{t('ops.ov.q.objProgress', op)}</span></p>}
+                <ul>{q.objectives.slice(0, 2).map((o, j) => <li key={j} data-done={String(ticked.includes(j))}>{ticked.includes(j) ? '✓ ' : ''}{locText(o, t.lang)}</li>)}</ul>
                 {q.objectives.length > 2 && <em>{t('ops.ov.q.more', { count: q.objectives.length - 2 })}</em>}
                 {need.length > 0 && <p><span className="ov-stencil">{t('ops.ov.q.deliver')}</span> {need.map(([m, n]) => `${m} ${fmt(s.inventory[m] || s.items[m]?.count || 0)}/${fmt(n)}`).join(' · ')}</p>}
                 {q.rewards.length > 0 && <p><span className="ov-stencil">{t('ops.ov.q.rewards')}</span> {q.rewards.map(([m, n]) => `${m} ×${n}`).join(' · ')}{q.xp ? ` · ${fmt(q.xp)} XP` : ''}</p>}

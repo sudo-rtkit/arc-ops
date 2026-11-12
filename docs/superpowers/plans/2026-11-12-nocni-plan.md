@@ -11,6 +11,10 @@ Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a ins
   bez nutnosti ruční odinstalace. Zachovat uživatelská data, postup a nastavení; nevytvářet druhou instalaci
   ani duplicitní zástupce. Ověřit také opětovné spuštění instalátoru stejné verze a aktualizaci, když aplikace
   běží nebo je schovaná v tray.
+  **Stav (0.10.2):** hotovo. Hook předvybere u novější verze instalaci přes stávající (bez průvodce odinstalace).
+  Ověřeno tichou instalací testovací identity (jiný název, identifikátor i vydavatel, aby se nedotkla skutečné instalace):
+  0.10.1 → 0.10.2 na místě, stejná složka, jeden zástupce, data zachována, stejná verze znovu v pořádku, proces držící exe
+  instalátor ukončil. Grafický průchod (předvolba na stránce) neověřen spuštěním, jen překladem; viz README 0.10.2.
 
 ## Verze
 

@@ -6,12 +6,13 @@ import { useAppState } from '../store';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import type { ProgressRead } from '../core/vision/progress';
-import { proposeProgress, type Conf, type ProgressApply, type ProgressProposal } from '../core/progressImport';
+import { proposeProgress, questTickChanges, type Conf, type ProgressApply, type ProgressProposal } from '../core/progressImport';
 import { fmt } from './format';
 import { cx } from './components';
 
 type Variant = 'ov' | 'app';
-interface Row { key: string; label: string; read: string; now: string; conf: Conf; same: boolean; note?: string; set: (a: ProgressApply) => void }
+/* pre: předvybraný řádek (jistý); false = jen na přání hráče (připnutí, odškrtnutí cíle) */
+interface Row { key: string; label: string; read: string; now: string; conf: Conf; same: boolean; note?: string; pre?: boolean; set: (a: ProgressApply) => void }
 
 const CLS: Record<Variant, Record<'table' | 'btn' | 'primary' | 'banner' | 'muted' | 'tag' | 'card', string>> = {
   ov: { table: 'ov-table', btn: 'ov-btn', primary: 'ov-btn primary', banner: 'ov-banner', muted: 'ov-muted', tag: 'ov-tag', card: 'ov-card ov-review' },
@@ -59,14 +60,21 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
     const q = p.questId;
     if (p.done && p.open) rows.push({ key: 'undone', label: t('progress.quest.undone'), read: t('progress.quest.notDone'), now: t('progress.quest.doneNow'), conf: p.conf, same: false,
       set: a => { a.questUndone = [q]; } });
+    /* cíle: zaškrtnutí podle snímku (jisté předvybrané), odškrtnutí nikdy předem */
+    for (const x of questTickChanges(p)) {
+      const name = p.objectives[x.index].text ?? t('progress.quest.objective', { n: x.index + 1 });
+      rows.push({ key: `tick:${x.index}`, label: t(x.on ? 'progress.quest.tick' : 'progress.quest.untick', { name }),
+        read: t(x.on ? 'progress.quest.ticked' : 'progress.quest.unticked'), now: t(x.on ? 'progress.quest.unticked' : 'progress.quest.ticked'),
+        conf: p.conf, same: false, pre: x.on, set: a => { a.questTicks = [...(a.questTicks ?? []), x]; } });
+    }
     if (!p.pinned) rows.push({ key: 'pin', label: t('progress.quest.pin'), read: t('progress.quest.pinYes'), now: t('progress.quest.pinNo'), conf: p.conf, same: false,
-      set: a => { a.questPin = [q]; } });
+      pre: false, set: a => { a.questPin = [q]; } });
   }
-  /* jistá změna je vybraná předem, nejistá až po potvrzení, připnutí jen na přání */
+  /* jistá změna je vybraná předem, nejistá až po potvrzení, připnutí a odškrtnutí jen na přání */
   const isOn = (r: Row) => {
     if (r.conf === 'unknown' || r.same) return false;
     if (r.conf === 'medium' && !ok[r.key]) return false;
-    return sel[r.key] ?? r.key !== 'pin';
+    return sel[r.key] ?? r.pre !== false;
   };
   const chosen = rows.filter(isOn);
   const write = () => {
@@ -95,6 +103,7 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
             <ul className="pr-objectives">{p.objectives.map((o, i) => (
               <li key={i} data-checked={String(o.checked)}><span aria-hidden="true">{o.checked === true ? '☑' : o.checked === false ? '☐' : '?'}</span>
                 <span>{o.text ?? t('progress.quest.objective', { n: i + 1 })}</span>
+                {o.stored && <em className={c.muted}> · {t('progress.quest.inApp')}</em>}
                 <span className="sr-only">{o.checked === true ? t('progress.quest.ticked') : o.checked === false ? t('progress.quest.unticked') : t('progress.conf.unknown')}</span></li>
             ))}</ul>
           )}

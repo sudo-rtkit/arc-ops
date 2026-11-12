@@ -21,7 +21,7 @@ import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, type RaidLootRefusal } from '../core/lootImport';
 import { applyProgress, type ProgressApply, type ProgressSummary } from '../core/progressImport';
-import { PIN_MAX, projectById, questById, setQuestDone } from '../core/quests';
+import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
@@ -610,6 +610,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         s.quests.done = next;
       });
       return n;
+    },
+    /* 0.10.2: ruční zaškrtnutí cíle úkolu (index v datech). Splnění úkolu se tím nemění. */
+    questObjective(id: string, index: number, on: boolean) {
+      change(s => {
+        const next = setObjective(s.quests.objectives, id, index, on);
+        if (next === s.quests.objectives) return false;
+        s.quests.objectives = next;
+      });
     },
     /* 0.9.0: připnutý úkol jde v kompaktu první; nejvýš PIN_MAX, nejstarší připnutí odpadne */
     questPin(id: string, pin: boolean) {

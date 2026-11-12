@@ -36,8 +36,8 @@ async function capture(page: Page, b64: string) {
 }
 
 const T = {
-  cs: { title: 'Profil', write: 'Potvrdit a zapsat 4 změny', done: 'Zapsány 4 hodnoty.', shot: 'Načíst ze snímku', quest: 'Úkol obchodníka', skill: 'Skill tree', skillWrite: 'Potvrdit a zapsat 1 změnu', skillDone: 'Zapsána 1 hodnota.', nothing: 'Není co zapsat' },
-  en: { title: 'Profile', write: 'Confirm and write 4 changes', done: '4 values written.', shot: 'Load from a screenshot', quest: 'Trader quest', skill: 'Skill tree', skillWrite: 'Confirm and write 1 change', skillDone: '1 value written.', nothing: 'Nothing to write' },
+  cs: { title: 'Profil', write: 'Potvrdit a zapsat 4 změny', done: 'Zapsány 4 hodnoty.', shot: 'Načíst ze snímku', quest: 'Úkol obchodníka', skill: 'Skill tree', skillWrite: 'Potvrdit a zapsat 1 změnu', skillDone: 'Zapsána 1 hodnota.', nothing: 'Není co zapsat', questWrite: 'Potvrdit a zapsat 3 změny', questDone: 'Zapsány 3 hodnoty.' },
+  en: { title: 'Profile', write: 'Confirm and write 4 changes', done: '4 values written.', shot: 'Load from a screenshot', quest: 'Trader quest', skill: 'Skill tree', skillWrite: 'Confirm and write 1 change', skillDone: '1 value written.', nothing: 'Nothing to write', questWrite: 'Confirm and write 3 changes', questDone: '3 values written.' },
 } as const;
 
 for (const lang of ['cs', 'en'] as const) {
@@ -71,7 +71,7 @@ for (const lang of ['cs', 'en'] as const) {
     expect(ovErrors).toEqual([]);
   });
 
-  test(`Profil → Načíst ze snímku: úkol jen informace, rank skillu z tooltipu (${lang})`, async ({ page }) => {
+  test(`Profil → Načíst ze snímku: cíle úkolu zaškrtnuté, rank skillu z tooltipu (${lang})`, async ({ page }) => {
     const errors = watchErrors(page);
     await start(page, lang);
     await page.goto('/#profile/shot');
@@ -84,8 +84,14 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(rev.getByTestId('progress-quest')).toContainText('Apollo');
     await expect(rev.locator('.pr-objectives li')).toHaveCount(4);
     await expect(rev.locator('.pr-objectives li[data-checked="false"]')).toHaveCount(1);
-    /* úkol není v aplikaci splněný: nic předvybraného, jen připnutí na přání */
-    await expect(rev.getByTestId('progress-write')).toBeDisabled();
+    /* 0.10.2: zaškrtnuté cíle (1, 2, 4) předvybrané k zaškrtnutí, připnutí jen na přání; úkol se nesplní */
+    await expect(rev.locator('tr[data-row^="tick:"]')).toHaveCount(3);
+    await expect(rev.locator('tr[data-row="pin"] input[type="checkbox"]')).not.toBeChecked();
+    await expect(rev.getByTestId('progress-write')).toHaveText(L.questWrite);
+    await rev.getByTestId('progress-write').click();
+    await expect(box.getByTestId('progress-shot-done')).toHaveText(L.questDone);
+    await expect.poll(async () => (await stateOf(page)).quests.objectives).toEqual({ shoring_up_defenses: [0, 1, 3] });
+    expect((await stateOf(page)).quests.done).toEqual({});
 
     await box.getByTestId('progress-shot-file').setInputFiles({ name: 'skill.png', mimeType: 'image/png', buffer: SKILL });
     await expect(rev.getByRole('heading', { name: L.skill })).toBeVisible();

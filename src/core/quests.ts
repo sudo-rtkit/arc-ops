@@ -54,6 +54,43 @@ export function normalizeQuestDone(raw: unknown): Record<string, number> {
   return out;
 }
 
+/* ----- cíle úkolů (0.10.2, schéma 9) -----
+   Cíl se pozná podle id úkolu a pořadí v datech (index v AtQuest.objectives). Uložené jsou jen zaškrtnuté indexy.
+   Zaškrtnutí všech cílů úkol nikdy samo neoznačí jako splněný a splnění úkolu cíle nemění. */
+const OBJ_MAX = 50;
+const cleanIdx = (xs: unknown[], max: number): number[] =>
+  [...new Set(xs.filter((x): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x < max))].sort((a, b) => a - b);
+
+/* Normalizace: u známého úkolu jen indexy jeho cílů, u neznámého (pozdější data) 0–49; prázdné se nepíšou. */
+export function normalizeQuestObjectives(raw: unknown): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 2000)) {
+    if (!k || k.length > 80 || !Array.isArray(v)) continue;
+    const q = BY_ID.get(k);
+    const list = cleanIdx(v.slice(0, OBJ_MAX * 2), q ? q.objectives.length : OBJ_MAX);
+    if (list.length) out[k] = list;
+  }
+  return out;
+}
+
+/* Zaškrtnutí jednoho cíle; neznámý úkol nebo index mimo rozsah stav nemění (vrátí tentýž objekt). */
+export function setObjective(objs: Record<string, number[]>, id: string, index: number, on: boolean): Record<string, number[]> {
+  const q = BY_ID.get(id);
+  if (!q || !Number.isInteger(index) || index < 0 || index >= q.objectives.length) return objs;
+  const cur = objs[id] ?? [];
+  if (cur.includes(index) === on) return objs;
+  const next = on ? cleanIdx([...cur, index], q.objectives.length) : cur.filter(i => i !== index);
+  const out = { ...objs };
+  if (next.length) out[id] = next; else delete out[id];
+  return out;
+}
+
+/* Postup úkolu podle cílů: zaškrtnuté z celkového počtu. */
+export function objectiveProgress(objs: Record<string, number[]> | undefined, q: AtQuest): { done: number; total: number } {
+  return { done: (objs?.[q.id] ?? []).filter(i => i < q.objectives.length).length, total: q.objectives.length };
+}
+
 /* Připnuté úkoly (0.9.0): id v pořadí připnutí, bez opakování, nejvýš 5. */
 export const PIN_MAX = 5;
 export function normalizePinned(raw: unknown): string[] {

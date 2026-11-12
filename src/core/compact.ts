@@ -1,12 +1,13 @@
 /* Výběr dat pro kompaktní režim hlavního okna (0.9.0). Čisté funkce nad stavem a odvozenými hodnotami:
-   - aktivní úkoly: připnuté (v pořadí připnutí), pak rozpracované (část předmětů k odevzdání už je v zásobě),
+   - aktivní úkoly: připnuté (v pořadí připnutí), pak rozpracované (zaškrtnutý cíl, nebo část předmětů k odevzdání
+     už je v zásobě),
      pak ostatní dostupné; hotové nikdy, nejvýš `max` (1–5);
    - další vylepšení: uživatelem zvolený cíl (Material Planner / cíle), jinak nejbližší dosažitelný upgrade;
    - nákupní seznam: chybějící materiál právě pro tento upgrade (ne součet všech cílů), nejvýš 5;
      když upgradu nic nechybí, nejvíc chybějící materiál ze všech cílů;
    - prázdný stav pro úplně nového hráče. */
 import type { AppState, Recipe, Station } from './types';
-import { QUESTS, questName, questStatus } from './quests';
+import { QUESTS, objectiveProgress, questName, questStatus } from './quests';
 import type { AtQuest } from './data/arctracker';
 import { catalogByName } from './catalog';
 import type { Lang } from '../i18n';
@@ -21,18 +22,24 @@ export const rarityOf = (name: string): RarityWord => {
 /* Kolik kusů předmětu hráč má (materiál v Inventory, ostatní předměty v items). */
 export const haveOf = (s: Pick<AppState, 'inventory' | 'items'>, name: string): number => s.inventory[name] || s.items[name]?.count || 0;
 
-export interface CompactQuest { id: string; name: string; have: number; need: number; pinned: boolean; objectives: number; trader: string }
+/* by = podle čeho je postup: zaškrtnuté cíle (0.10.2, mají přednost, když nějaký je), jinak předměty k odevzdání */
+export interface CompactQuest { id: string; name: string; have: number; need: number; by: 'objectives' | 'items'; pinned: boolean; objectives: number; trader: string }
 
-/* Postup úkolu podle předmětů k odevzdání (jiný postup aplikace nesleduje). */
+/* Postup úkolu podle předmětů k odevzdání (když hráč nezaškrtl žádný cíl). */
 function itemProgress(q: AtQuest, s: Pick<AppState, 'inventory' | 'items'>): { have: number; need: number } {
   let have = 0, need = 0;
   for (const [m, n] of [...q.deliver, ...q.questItems]) { need += n; have += Math.min(n, haveOf(s, m)); }
   return { have, need };
 }
 
+function progressOf(q: AtQuest, s: Pick<AppState, 'quests' | 'inventory' | 'items'>): { have: number; need: number; by: CompactQuest['by'] } {
+  const o = objectiveProgress(s.quests.objectives, q);
+  return o.done > 0 ? { have: o.done, need: o.total, by: 'objectives' } : { ...itemProgress(q, s), by: 'items' };
+}
+
 export function activeQuests(s: Pick<AppState, 'quests' | 'inventory' | 'items'>, lang: Lang, max: number): CompactQuest[] {
   const done = s.quests.done, pinned = s.quests.pinned ?? [];
-  const row = (q: AtQuest): CompactQuest => ({ id: q.id, name: questName(q, lang), ...itemProgress(q, s), pinned: pinned.includes(q.id), objectives: q.objectives.length, trader: q.trader });
+  const row = (q: AtQuest): CompactQuest => ({ id: q.id, name: questName(q, lang), ...progressOf(q, s), pinned: pinned.includes(q.id), objectives: q.objectives.length, trader: q.trader });
   const byId = new Map(QUESTS.map(q => [q.id, q]));
   const first = pinned.map(id => byId.get(id)).filter((q): q is AtQuest => !!q && !done[q.id]).map(row);
   const seen = new Set(first.map(q => q.id));
@@ -87,10 +94,10 @@ export function compactShopping(up: CompactUpgrade | null, shop: { mat: string; 
   };
 }
 
-/* Úplně nový hráč: nic nezadal (výchozí profil, prázdná zásoba, žádné úkoly, raidy ani stanice nad minimem). */
+/* Úplně nový hráč: nic nezadal (výchozí profil, prázdná zásoba, žádné úkoly ani cíle, raidy ani stanice nad minimem). */
 export function isFreshProfile(s: Pick<AppState, 'profile' | 'inventory' | 'items' | 'quests' | 'raids' | 'stations'>, stationMins: Record<string, number>): boolean {
   const p = s.profile;
   if (p.level > 1 || p.xp > 0 || p.coins > 0 || p.rounds > 0) return false;
-  if (Object.keys(s.inventory).length || Object.keys(s.items).length || Object.keys(s.quests.done).length || s.raids.length) return false;
+  if (Object.keys(s.inventory).length || Object.keys(s.items).length || Object.keys(s.quests.done).length || Object.keys(s.quests.objectives ?? {}).length || s.raids.length) return false;
   return Object.entries(s.stations).every(([id, lvl]) => lvl <= (stationMins[id] ?? 0));
 }

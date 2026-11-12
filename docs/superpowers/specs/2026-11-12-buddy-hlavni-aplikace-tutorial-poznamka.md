@@ -68,7 +68,7 @@ volitelný doplněk nad hrou. Návrh kreslí Sol v `docs/design/compact/`, imple
 - **Režim hlavního okna**, ne další okno: stejné okno a stejná data, přepínání plný ↔ kompakt (420 × 720, nízká varianta
   do 420 × 520, mírná změna velikosti 380–480 × 520–900). Každý režim si pamatuje velikost a polohu (fyzické px);
   okno mimo pracovní plochu se vrátí na monitor. Obsah podle makety: level + XP, mince, stav Opse, aktivní úkoly
-  (připnuté / rozpracované první, nejvýš 5, výchozí 3; postup = předměty k odevzdání, protože postup cílů aplikace nesleduje),
+  (připnuté / rozpracované první, nejvýš 5, výchozí 3; postup = předměty k odevzdání, protože postup cílů aplikace tehdy nesledovala; od 0.10.2 viz níže),
   nákupní seznam pro další vylepšení (nejvýš 5 chybějících; když mu nic nechybí, nejvíc chybějící ze všech cílů),
   další vylepšení, oblast hlášení a akce Snímek / Zápis raidu / Úklid stashe. Prázdný stav s jedinou výzvou „Nastavit profil“.
 - **Snímek** používá stávající cestu buddyho (Rust snímek → revize v overlayi → potvrzení); bez zapnutého „Buddy a zkratka“
@@ -82,6 +82,10 @@ volitelný doplněk nad hrou. Návrh kreslí Sol v `docs/design/compact/`, imple
 - **Fokus hry**: start při běžící hře zůstává minimalizovaný bez aktivace i v kompaktu; přestavba okna ani změna dat
   okno neaktivují. Místní zkratky Ctrl+Shift+M (režim) a Ctrl+Shift+P (připnutí), žádné nové globální zkratky.
 - Stav schéma 7 (`mainWindow`, `quests.pinned`); import zálohy, obnova ani reset nemění nastavení okna tohoto počítače.
+- **Změna v 0.10.2:** aplikace nově sleduje zaškrtnuté cíle úkolů (schéma 9, `quests.objectives`, ručně v Quests
+  nebo ze snímku úkolu). Postup aktivního úkolu v kompaktu je proto podle cílů (zaškrtnuté / celkem), jakmile je u úkolu
+  zaškrtnutý aspoň jeden cíl; jinak zůstává podle předmětů k odevzdání. Rozpracované úkoly jsou i ty se zaškrtnutým cílem.
+  Stejně tak záložka Úkoly v overlayi ukazuje „Cíle n/m“ a zaškrtnuté cíle. Úkol se zaškrtnutím všech cílů sám nesplní.
 
 ## Při příštím projití s Claudem
 

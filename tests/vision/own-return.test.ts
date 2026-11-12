@@ -10,7 +10,7 @@ import type { RgbaImage } from '../../src/core/vision/image';
 import type { PanelRead } from '../../src/core/vision/read';
 import { readCapture, screenKind } from '../../src/core/opsCapture';
 import { readProgress, type ProgressRead } from '../../src/core/vision/progress';
-import { applyProgress, defaultApply, proposeProgress, type ProfileProposal, type QuestProposal, type SkillsProposal, type StationsProposal } from '../../src/core/progressImport';
+import { applyProgress, defaultApply, proposeProgress, questTickChanges, type ProfileProposal, type QuestProposal, type SkillsProposal, type StationsProposal } from '../../src/core/progressImport';
 import { resize } from '../../src/core/vision/image';
 import { analyzeLoot } from '../../src/core/visionImport';
 import { applyRaidLoot, checkRaidLoot, lootItems, lootRows, lootSignature } from '../../src/core/lootImport';
@@ -203,12 +203,25 @@ describe.skipIf(!HAS)('vlastní snímky: obrazovky postupu (0.10.1)', () => {
       /* při 1366 px je název čitelný hůř (E/F): úkol se pozná, ale jen s potvrzením hráčem */
       expect([p.countMatch, p.open, p.done]).toEqual([true, true, false]);
       expect(p.conf).toEqual(w === 1366 ? expect.stringMatching(/^(high|medium)$/) : 'high');
-      /* nesplněný úkol v aplikaci: snímek nenabízí nic k zápisu (připnutí jen na přání) */
-      expect(defaultApply(p)).toEqual({});
+      /* 0.10.2: zaškrtnuté cíle se navrhnou k zaškrtnutí (shoring 1,1,0,1; battening 0,0,0 = nic); jistý úkol
+         předvybraný, nejistý (1366 px) až po potvrzení; „splněno“ se nikdy nenabízí */
+      const ticked = (exp[key].checkedObjectives as boolean[]).flatMap((c, index) => (c ? [{ id: p.questId!, index, on: true }] : []));
+      expect(questTickChanges(p)).toEqual(ticked);
+      const pre = p.conf === 'high' && ticked.length ? { questTicks: ticked } : {};
+      expect(defaultApply(p)).toEqual(pre);
+      applyProgress(s, { questTicks: ticked });
+      expect(s.quests.objectives[p.questId!] ?? []).toEqual(ticked.map(x => x.index));
+      expect(s.quests.done).toEqual({});
+      /* znovu stejný snímek: nic nového; cíl nezaškrtnutý na snímku, ale zaškrtnutý v aplikaci = odškrtnutí jen na přání */
+      expect(questTickChanges(proposeProgress(r, s) as QuestProposal)).toEqual([]);
+      s.quests.objectives[p.questId!] = [...(s.quests.objectives[p.questId!] ?? []), (exp[key].checkedObjectives as boolean[]).indexOf(false)].sort((a, b) => a - b);
+      const u = proposeProgress(r, s) as QuestProposal;
+      expect(questTickChanges(u)).toEqual([{ id: p.questId, index: (exp[key].checkedObjectives as boolean[]).indexOf(false), on: false }]);
+      expect(defaultApply(u).questTicks).toBeUndefined();
       /* omylem splněný v aplikaci: snímek s nezaškrtnutým cílem nabídne zrušení „splněno“ (předvybrané jen jisté) */
       s.quests.done[p.questId!] = 1;
       const q = proposeProgress(r, s) as QuestProposal;
-      expect(defaultApply(q)).toEqual(q.conf === 'high' ? { questUndone: [p.questId] } : {});
+      expect(defaultApply(q).questUndone).toEqual(q.conf === 'high' ? [p.questId] : undefined);
       if (q.conf !== 'high') continue;
       applyProgress(s, defaultApply(q));
       expect(s.quests.done[p.questId!]).toBeUndefined();

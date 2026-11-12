@@ -306,6 +306,10 @@
 .quest-detail h4 { margin: 0 0 var(--space-1); font-size: inherit; color: var(--text-secondary); font-weight: var(--weight-semibold); }
 .quest-items, .quest-objectives { margin: 0; padding-left: 1.2em; }
 .quest-items { list-style: none; padding-left: 0; }
+/* 0.10.2: cíle úkolu se zaškrtávají ručně */
+.quest-objectives { list-style: decimal; }
+.quest-objective { display: inline-flex; align-items: flex-start; gap: var(--space-2); cursor: pointer; }
+.quest-objective input { margin-top: 3px; flex: none; }
 .project-card h3 { margin: 0; }
 .project-phase { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); border-top: var(--line-thin) solid var(--border-subtle); }
 

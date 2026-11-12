@@ -90,15 +90,20 @@ describe('umělé obrazovky postupu', () => {
     expect(r.objectives).toEqual([true, true, false, true]);
     const p = proposeProgress(r, defaultState(), 'en') as QuestProposal;
     expect([p.questId, p.trader, p.countMatch, p.open]).toEqual(['shoring_up_defenses', 'Apollo', true, true]);
-    expect(p.objectives[2]).toEqual({ text: 'Use 1 ARC Alloy to reinforce the Raider structure on top of any Stacking Yard crane', checked: false });
+    expect(p.objectives[2]).toEqual({ text: 'Use 1 ARC Alloy to reinforce the Raider structure on top of any Stacking Yard crane', checked: false, stored: false });
+    /* 0.10.2: zaškrtnuté cíle se navrhnou k zaškrtnutí; jistý úkol předvybraný, úkol se nesplní */
+    const want = [0, 1, 3].map(index => ({ id: 'shoring_up_defenses', index, on: true }));
+    expect(defaultApply(p)).toEqual(p.conf === 'high' ? { questTicks: want } : {});
   });
   it('úkol se všemi cíli zaškrtnutými se přesto neoznačí jako splněný', () => {
     const r = readProgress(questScreen({ trader: 'APOLLO', title: 'BATTENING DOWN', checks: [true, true, true] }))!;
     const s = defaultState();
     const p = proposeProgress(r, s) as QuestProposal;
     expect([p.questId, p.open]).toEqual(['battening_down', false]);
-    expect(defaultApply(p)).toEqual({});
-    applyProgress(s, { questPin: [p.questId!] });
+    /* všechny cíle se zaškrtnou, ale „splněno“ se nenabízí vůbec */
+    expect(defaultApply(p)).toEqual({ questTicks: [0, 1, 2].map(index => ({ id: 'battening_down', index, on: true })) });
+    applyProgress(s, { ...defaultApply(p), questPin: [p.questId!] });
+    expect(s.quests.objectives).toEqual({ battening_down: [0, 1, 2] });
     expect(s.quests.done).toEqual({});
     expect(s.quests.pinned).toEqual(['battening_down']);
   });
@@ -190,6 +195,6 @@ describe('zápis jen potvrzených a platných hodnot', () => {
   it('vstup z okna overlaye: jen čísla a krátká id', () => {
     expect(normalizeProgressApply(null)).toBeNull();
     expect(normalizeProgressApply({ profile: { level: '20', coins: 5, evil: 1 }, stations: [1], skills: { a: NaN, b: 2 }, questPin: ['x', 3] }))
-      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, questUndone: [], questPin: ['x'] });
+      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, questUndone: [], questPin: ['x'], questTicks: [] });
   });
 });

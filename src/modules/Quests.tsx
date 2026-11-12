@@ -1,11 +1,11 @@
-/* Quests: úkoly obchodníků z veřejných dat ARC Tracker s ručním zaškrtnutím splněných. Předměty k donesení u
+/* Quests: úkoly obchodníků z veřejných dat ARC Tracker s ručním zaškrtnutím splněných a (0.10.2) jednotlivých cílů. Předměty k donesení u
    dostupných úkolů jdou do nákupního seznamu a Planneru (počítá jádro, viz core/quests.ts). Záložka Projekty je
    jen přehled fází projektů sezóny. Texty úkolů jsou ve zdroji anglicky. */
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
 import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
-import { PROJECTS, QUESTS, locText, questById, questName, questStatus, type QuestStatus } from '../core/quests';
+import { PROJECTS, QUESTS, locText, objectiveProgress, questById, questName, questStatus, type QuestStatus } from '../core/quests';
 import type { Qty } from '../core/data/arctracker';
 import { mapName } from './shared';
 import { useT } from '../i18n/react';
@@ -36,6 +36,7 @@ function QuestList() {
   const [open, setOpen] = useState<string | null>(null);
   const done = s.quests.done;
   const pinned = s.quests.pinned;
+  const objs = s.quests.objectives;
   const traders = useMemo(() => [...new Set(QUESTS.map(x => x.trader))].sort(), []);
   const lang = t.lang;
   const rows = QUESTS.filter(x => {
@@ -71,6 +72,7 @@ function QuestList() {
             <thead><tr><th><span className="sr-only">{t('quests.col.done')}</span></th><th>{t('quests.col.quest')}</th><th>{t('quests.trader')}</th><th>{t('quests.col.needs')}</th><th>{t('quests.col.rewards')}</th><th className="actions-cell"><span className="sr-only">{t('inv.actions')}</span></th></tr></thead>
             <tbody>{rows.map(x => {
               const st = questStatus(x, done), name = questName(x, lang), isOpen = open === x.id;
+              const op = objectiveProgress(objs, x), ticked = objs[x.id] ?? [];
               return (
                 <Fragment key={x.id}>
                   <tr data-quest={x.id} data-status={st} className={cx(st === 'done' && 'muted', isOpen && 'selected')}>
@@ -80,6 +82,7 @@ function QuestList() {
                       {x.research && <> <Badge>{t('quests.research')}</Badge></>}
                       {st !== 'done' && pinned.includes(x.id) && <> <Badge tone="accent">{t('quests.pinnedBadge')}</Badge></>}
                       <br /><span className="meta">{[...x.maps.map(mapName), x.xp ? t('quests.xp', { xp: x.xp }) : ''].filter(Boolean).join(' · ')}</span>
+                      {op.total > 0 && <> <span className={cx('meta', op.done > 0 && st !== 'done' && 'accent')} data-testid="quest-obj-progress">{t('quests.objProgress', op)}</span></>}
                     </td>
                     <td>{x.trader}</td>
                     <td className="wrap meta">{x.deliver.length ? qtyText(x.deliver) : '—'}</td>
@@ -92,7 +95,14 @@ function QuestList() {
                   {isOpen && (
                     <tr className="detail-row"><td colSpan={6}>
                       <div className="quest-detail" data-testid="quest-detail">
-                        <div><h4>{t('quests.objectives')}</h4><ol className="quest-objectives">{x.objectives.map((o, i) => <li key={i}>{locText(o, lang)}</li>)}</ol></div>
+                        <div><h4>{t('quests.objectives')} <span className="meta">{t('quests.objProgress', op)}</span></h4>
+                          <ol className="quest-objectives">{x.objectives.map((o, i) => {
+                            const txt = locText(o, lang), on = ticked.includes(i);
+                            return <li key={i} data-objective={i} data-done={String(on)}><label className="quest-objective">
+                              <input type="checkbox" checked={on} aria-label={t('quests.objAria', { text: txt })} onChange={e => actions.questObjective(x.id, i, e.target.checked)} />
+                              <span className={cx(on && 'muted')}>{txt}</span></label></li>;
+                          })}</ol>
+                          <p className="meta">{t('quests.objHint')}</p></div>
                         <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={s.inventory} /></div>
                         {x.questItems.length > 0 && <div><h4>{t('quests.questItems')}</h4><Items list={x.questItems} /></div>}
                         <div><h4>{t('quests.rewards')}</h4><Items list={x.rewards} />{x.xp > 0 && <span className="meta">{t('quests.xp', { xp: x.xp })}</span>}</div>

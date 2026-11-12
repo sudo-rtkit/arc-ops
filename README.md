@@ -184,3 +184,22 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Stav zůstává **schéma 8** (nic nového se neukládá). Testy: `tests/vision/progress.test.ts` (umělé obrazovky, bez vlastních
   snímků), `tests/vision/own-return.test.ts` (vlastní snímky, jen lokálně), `tests/core/progress-flow.test.ts`,
   E2E `tests/e2e/progress.spec.ts` a `tests/e2e/overlay-modules.spec.ts` (oba jazyky).
+
+## Postup cílů úkolů, aktualizace přes instalátor (0.10.2)
+
+- **Cíle úkolů**: v Quests má každý cíl v detailu úkolu zaškrtávací políčko; u úkolu je „Cíle n/m“. Zaškrtnutí všech cílů
+  úkol samo nesplní a splnění úkolu cíle nemění. Cíl se pozná podle id úkolu a pořadí v datech ARC Tracker.
+- **Kompakt a overlay**: postup aktivního úkolu je podle cílů, jakmile je zaškrtnutý aspoň jeden; jinak dál podle předmětů
+  k odevzdání. Záložka Úkoly v overlayi ukazuje „Cíle n/m“ a zaškrtnuté cíle (✓).
+- **Snímek úkolu obchodníka**: zaškrtnuté cíle se navrhnou k zaškrtnutí v aplikaci (jen když počet cílů sedí s daty; jistý
+  úkol předvybraný, nejistý po potvrzení, nečitelné políčko nic). Cíl na snímku nezaškrtnutý, ale v aplikaci zaškrtnutý,
+  se nabídne k odškrtnutí, nikdy předvybraný. „Označit splněný“ se nenabízí vůbec: obrazovka úkolu splnění neukazuje.
+  Před zápisem snímek stavu.
+- **Instalátor**: nová verze přes starší instalaci má předvybráno „Nainstalovat přes stávající instalaci“ (dřív Tauri
+  předvybíralo „Před instalací odinstalovat“, což spustilo průvodce odinstalace). Stejná složka, soubory se nahradí, zástupce
+  se aktualizuje, data v `%APPDATA%\cz.arcops.companion` zůstanou. Stejná verze znovu = přeinstalace na místě. Běžící
+  aplikace (i schovaná v tray) se zjistí přes Restart Manager podle cesty k exe v instalační složce; instalátor se zeptá
+  a pak ji ukončí, hry se to netýká. Hook: `src-tauri/nsis/hooks.nsh` a funkce na konci `src-tauri/nsis/English.nsh`.
+- Stav **schéma 9** (`quests.objectives`: id úkolu → zaškrtnuté indexy); starší stav a zálohy se načtou s prázdnými cíli,
+  záloha je obsahuje (herní postup). Testy: `tests/core/quest-objectives.test.ts`, `tests/vision/own-return.test.ts`
+  (vlastní snímky, jen lokálně), E2E `tests/e2e/quest-objectives.spec.ts` a `tests/e2e/progress.spec.ts` (oba jazyky).

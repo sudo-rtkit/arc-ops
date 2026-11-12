@@ -217,7 +217,7 @@ export default function Compact() {
                     <div className="cw-row cw-spread">
                       <span className="cw-quest-title" title={q.trader}>{q.pinned && <Pin size={12} className="cw-pinned" aria-label={t('compact.pinned')} />}{q.name}</span>
                       {q.need > 0
-                        ? <span className={cx('mono', q.have > 0 ? 'accent' : 'muted')} aria-label={t('compact.questAria', { name: q.name, have: q.have, need: q.need })}>{q.have}/{q.need}</span>
+                        ? <span className={cx('mono', q.have > 0 ? 'accent' : 'muted')} aria-label={t(q.by === 'objectives' ? 'compact.questObjAria' : 'compact.questAria', { name: q.name, have: q.have, need: q.need })} data-by={q.by}>{q.have}/{q.need}</span>
                         : <span className="cw-meta">{t('compact.objectives', { count: q.objectives })}</span>}
                     </div>
                     {q.need > 0 && <div className="cw-track" aria-hidden="true"><i style={{ width: (q.have / q.need) * 100 + '%' }} /></div>}

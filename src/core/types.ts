@@ -185,7 +185,8 @@ export interface GameDataEdits {
 
 /* ----- úkoly (milník 3b): id úkolu → čas zaškrtnutí ----- */
 /* pinned (0.9.0): připnuté úkoly v pořadí připnutí, nejvýš 5; v kompaktním režimu jdou první */
-export interface QuestsState { done: Record<string, number>; pinned: string[] }
+/* objectives (0.10.2, schéma 9): id úkolu → seřazené indexy zaškrtnutých cílů (pořadí cílů v datech ARC Tracker) */
+export interface QuestsState { done: Record<string, number>; pinned: string[]; objectives: Record<string, number[]> }
 
 /* ----- milník 4: rady k předmětům, blueprinty, vlastní tier list, fáze projektů ----- */
 export const TIER_IDS = ['S', 'A', 'B', 'C', 'D'] as const;
@@ -257,7 +258,7 @@ export interface OpsPrefs {
 }
 
 export interface AppState {
-  schema: 8;
+  schema: 9;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
