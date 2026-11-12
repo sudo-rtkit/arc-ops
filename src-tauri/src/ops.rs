@@ -28,7 +28,7 @@ const MAIN: &str = "main";
 /* Nevyzvednutý snímek se zahodí po této době. */
 const CAPTURE_TTL: Duration = Duration::from_secs(15);
 /* Jak často se při zapnutém „otevřít s hrou“ prochází seznam procesů. */
-const WATCH_EVERY: Duration = Duration::from_secs(10);
+const WATCH_EVERY: Duration = Duration::from_secs(1);
 /* Největší snímek (8K × 8K). */
 const MAX_SIDE: i32 = 8192;
 
@@ -429,6 +429,7 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
     }
     std::thread::spawn(move || {
         let mut last: Option<bool> = None;
+        let mut last_visible: Option<bool> = None;
         loop {
             let st = app.state::<OpsState>();
             if st.watch_gen.load(Ordering::SeqCst) != gen || !st.enabled.load(Ordering::SeqCst) {
@@ -438,6 +439,11 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
             if last != Some(running) {
                 last = Some(running);
                 let _ = app.emit_to(MAIN, "ops:game", running);
+            }
+            let visible = game_window_visible();
+            if last_visible != Some(visible) {
+                last_visible = Some(visible);
+                let _ = app.emit_to(MAIN, "ops:game-visible", visible);
             }
             std::thread::sleep(WATCH_EVERY);
         }
@@ -463,7 +469,7 @@ mod win {
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
+        EnumWindows, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
         WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
     };
 
@@ -573,7 +579,25 @@ mod win {
     }
 
     /// Názvy spustitelných souborů běžících procesů. Procesy se neotevírají.
+    pub fn game_window_visible() -> bool {
+        unsafe extern "system" fn collect(hwnd: HWND, data: isize) -> i32 {
+            if IsWindowVisible(hwnd) != 0 && IsIconic(hwnd) == 0 {
+                let mut pid = 0;
+                GetWindowThreadProcessId(hwnd, &mut pid);
+                (*(data as *mut Vec<u32>)).push(pid);
+            }
+            1
+        }
+        let mut pids: Vec<u32> = Vec::new();
+        unsafe { EnumWindows(Some(collect), &mut pids as *mut _ as isize); }
+        process_names_filtered(Some(&pids)).iter().any(|n| super::is_game_exe(n))
+    }
+
     pub fn process_names() -> Vec<String> {
+        process_names_filtered(None)
+    }
+
+    fn process_names_filtered(pids: Option<&[u32]>) -> Vec<String> {
         let mut out = vec![];
         unsafe {
             let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -585,7 +609,9 @@ mod win {
             let mut ok = Process32FirstW(snap, &mut e) != 0;
             while ok {
                 let len = e.szExeFile.iter().position(|&c| c == 0).unwrap_or(e.szExeFile.len());
-                out.push(String::from_utf16_lossy(&e.szExeFile[..len]));
+                if pids.map_or(true, |ids| ids.contains(&e.th32ProcessID)) {
+                    out.push(String::from_utf16_lossy(&e.szExeFile[..len]));
+                }
                 ok = Process32NextW(snap, &mut e) != 0;
             }
             CloseHandle(snap);
@@ -595,7 +621,7 @@ mod win {
 }
 
 #[cfg(windows)]
-use win::{capture_foreground_monitor, foreground, process_names, restore_focus};
+use win::{capture_foreground_monitor, foreground, game_window_visible, process_names, restore_focus};
 
 /* SetWindowDisplayAffinity musí volat vlákno, které okno vlastní (hlavní vlákno). */
 #[cfg(windows)]
@@ -646,6 +672,8 @@ fn foreground() -> isize {
 }
 #[cfg(not(windows))]
 fn restore_focus(_prev: isize) {}
+#[cfg(not(windows))]
+fn game_window_visible() -> bool { false }
 #[cfg(not(windows))]
 fn process_names() -> Vec<String> {
     vec![]

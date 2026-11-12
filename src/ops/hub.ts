@@ -90,6 +90,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let overlayKnown = false;
   let pushTimer: ReturnType<typeof setTimeout> | null = null;
   let gameRunning = false;
+  let gameVisible = false;
   /* hlídání hry dalo odpověď (jinak nevíme, jestli hra běží) */
   let gameKnown = false;
   let overlayOpen = false;
@@ -184,7 +185,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       run(async () => {
         await native.watch(auto);
         if (!auto) { if (!buddyHidden) await openBuddy(); }
-        else if (!gameRunning) await closeBuddy();
+        else if (!gameVisible) await closeBuddy();
       });
     }
   }
@@ -196,7 +197,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const b = st().buddy;
     if (!b.enabled) return;
     setHidden(!visible);
-    run(() => (!visible ? closeBuddy() : !b.autoOpen || gameRunning ? openBuddy() : Promise.resolve()));
+    run(() => (!visible ? closeBuddy() : !b.autoOpen || gameVisible ? openBuddy() : Promise.resolve()));
   }
   const onVisibility = (f: () => void) => { visListeners.add(f); return () => { visListeners.delete(f); }; };
 
@@ -426,9 +427,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       gameRunning = p === true;
       gameKnown = true;
       if (st().buddy.enabled) pushBuddy();
+    }));
+    offs.push(bus.on('game-visible', p => {
+      gameVisible = p === true;
       const b = st().buddy;
       if (!b.enabled || !b.autoOpen || buddyHidden) return;
-      run(() => (gameRunning ? openBuddy() : closeBuddy()));
+      run(() => (gameVisible ? openBuddy() : closeBuddy()));
     }));
 
     queue = queue.then(() => bus.ready());
