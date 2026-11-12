@@ -206,6 +206,28 @@ describe('schéma 6', () => {
 });
 
 describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
+  it('auto buddy follows game window visibility', async () => {
+    const { app, native, hub, buddy } = await setup();
+    app.actions.setBuddy({ enabled: true, autoOpen: true });
+    await hub.idle();
+    native.calls.length = 0;
+    buddy.send('main', 'game', true);
+    await hub.idle();
+    expect(native.calls).toEqual([]);
+    for (const visible of [true, false, true]) {
+      buddy.send('main', 'game-visible', visible);
+      await hub.idle();
+      expect(native.calls.at(-1)).toBe(visible ? 'buddyOpen' : 'buddyClose');
+    }
+    hub.setBuddyVisible(false);
+    await hub.idle();
+    native.calls.length = 0;
+    buddy.send('main', 'game-visible', false);
+    buddy.send('main', 'game-visible', true);
+    await hub.idle();
+    expect(native.calls).toEqual([]);
+  });
+
   it('výchozí stav vypnuto: žádné okno, zkratka ani hlídání; zapnutí a vypnutí se promítne do Rustu', async () => {
     const { app, native, hub, buddy } = await setup();
     await hub.idle();

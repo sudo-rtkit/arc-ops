@@ -83,10 +83,10 @@ Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a ins
   ale čitelný; případné doladění až po zkoušce v aplikaci. Integrace (0.10.0) začne po dokončení 0.9.0.
 
 
-## Oprava buddyho 0.12.1
+## Buddy visibility fix 0.12.1
 
-- Navazuje na lok?ln? verzi 0.12.0 (`b685fb7`): Ops?v hack, pr?b??n? ukl?d?n? s?rie kv?zu a ?ten? materi?l? d?lny.
-- V re?imu automatick?ho otev?en? s hrou se buddy ??d? viditelnost? neminimalizovan?ho okna hry, nikoli jen existenc? procesu. Kontrola ka?dou sekundu; ru?n? skryt? m? p?ednost.
-- Ud?lost `ops:game-visible` se doru?uje p??mo p?es `bus.ts`; `native.ts` slou?? k vol?n? p??kaz? a nemus? ji p?epos?lat.
-- Ov??en?: typov? kontrola, produk?n? frontend build, 637 unit test? (4 p?esko?en?), 16 Rust test?. Nov? regresn? test pokr?v? schov?n?, obnoven? a ru?n? vypnut? buddyho.
-- Ve skute?n? h?e zb?v? ov??it minimalizaci a obnoven?. P?ekryt? hry jin?m oknem bez minimalizace se za skryt? nepova?uje.
+- Built on 0.12.0. Automatic buddy visibility follows a visible, non-minimized game window; checked every second. Manual hiding takes priority.
+- Events arrive directly through bus.ts, not native.ts.
+- Validation: type check, production build, 637 unit tests (4 skipped), 16 Rust tests; subsequently added visibility regression test passed (15 tests in its suite).
+- NSIS installer built successfully in src-tauri/target/release/bundle/nsis/.
+- Still needs an in-game minimize/restore check. Occlusion by another window does not count as hiding.
