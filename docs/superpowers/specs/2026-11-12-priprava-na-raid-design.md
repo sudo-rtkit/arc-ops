@@ -39,6 +39,25 @@ Vyhodnocení po raidu a historie raidů jsou další krok (níže).
 - Bez aktivního plánu: výzva „Připrav raid v aplikaci“ a odkaz do modulu.
 - Overlay si zachová vzhled i chování bez převzetí fokusu.
 
+## Interaktivní mapa (schváleno 12. 11. 2026)
+
+- **Podklad = vlastní snímek mapy ze hry**, který si uživatel vloží do modulu Mapy (soubor, vložení, přetažení
+  nebo snímek zkratkou). Ukládá se jen lokálně a do zálohy jde volitelně, protože obrázky jsou velké. Aplikace
+  **nepřibaluje** žádné mapy ze hry ani z komunitních webů a nekreslí jejich kopie (autorské právo Embarku
+  a autorů komunitních map, nepřesnost kreslení zpaměti).
+- **Vzhled vrstvy navrhuje Sol** (`docs/design/maps/`): taktický styl ladící s overlayem (grafit + meruňka, XCOM 2
+  a ARC Raiders vibe), mřížka, ikony bodů (bedna, extrakce, Raider Hatch, úkol, nebezpečí, poznámka …), barvy
+  13 typů míst MetaForge, popisky, legenda a volitelné barevné sladění snímku. Pro maketu se použije
+  abstraktní vymyšlený terén, nikdy skutečná mapa.
+- **Ovládání:** přiblížení, posun, klik = nový bod (typ, typ místa, poznámka), přesun a smazání bodu.
+  Body jsou v relativních souřadnicích snímku, takže přežijí výměnu snímku ve stejném rozlišení. Rozšiřují se
+  stávající body map (`maps[*].pois`) a jdou do zálohy.
+- **Napojení na přípravu:** na zvolené mapě se zvýrazní body s typem místa, který potřebují předměty ze seznamu,
+  a body úkolů z výběru. V overlayi (záložka Raid) je malý náhled mapy se zvýrazněním.
+- U každé mapy zůstává tlačítko „Otevřít podrobnou mapu na webu“ (stávající odkazy `live` v `maps.ts`),
+  které otevře výchozí prohlížeč.
+- Bez snímku: prázdný stav s návodem, jak mapu ve hře vyfotit. Seznam a doporučení fungují i bez mapy.
+
 ## Stav a data
 
 - Nové schéma (aktuální + 1): `raidPlan` (aktivní plán, zaškrtnutí v overlayi). Je to herní postup, takže patří
