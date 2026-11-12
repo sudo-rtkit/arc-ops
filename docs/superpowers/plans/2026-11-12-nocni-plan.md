@@ -4,6 +4,14 @@ Uživatel šel spát (budík 9:30) a pověřil pokračovat, jako by navržené v
 **2 nové verze k vyzkoušení** a, pokud vyjdou kredity, doplňky „co nám chybí“ jako **podverze posledního buildu**.
 Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a instalátory).
 
+## Poznámky pro další úpravy
+
+- **Aktualizace přes instalátor** (přání uživatele, 12. 11. 2026; zatím k realizaci a ověření):
+  Pokud už je aplikace nainstalovaná, spuštění instalátoru nové verze má aktualizovat stávající instalaci
+  bez nutnosti ruční odinstalace. Zachovat uživatelská data, postup a nastavení; nevytvářet druhou instalaci
+  ani duplicitní zástupce. Ověřit také opětovné spuštění instalátoru stejné verze a aktualizaci, když aplikace
+  běží nebo je schovaná v tray.
+
 ## Verze
 
 1. **0.9.0: kompaktní režim** (Opus, běží): malé okno podle `docs/design/compact/`, připnutí jen v kompaktu,
