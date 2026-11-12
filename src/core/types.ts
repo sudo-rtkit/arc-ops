@@ -257,8 +257,19 @@ export interface OpsPrefs {
   tutorial: { status: TutorialStatus; step: TutorialStep };
 }
 
+/* ----- 0.11.0 (schéma 10): minihry a nátěry Opse; herní postup aplikace, patří do zálohy ----- */
+export interface GamesState {
+  /* Stash Tetris: dohraná kola, nejvyšší hodnota batohu a nejlepší výsledek v procentech Opsova balení */
+  tetris: { played: number; best: number; bestPct: number };
+  /* recyklační kvíz: dohraná kola, nejvíc správných v kole, aktuální a nejdelší série správných odpovědí */
+  quiz: { played: number; best: number; streak: number; bestStreak: number };
+  /* odemčené nátěry (bez výchozího) a vybraný nátěr ('original' = původní vzhled) */
+  paints: string[];
+  paint: string;
+}
+
 export interface AppState {
-  schema: 9;
+  schema: 10;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -295,6 +306,8 @@ export interface AppState {
   mainWindow: MainWindowPrefs;
   /* 0.10.0 (schéma 8): povaha, zvuky a průvodce; import zálohy ani obnova je nemění */
   opsPrefs: OpsPrefs;
+  /* 0.11.0 (schéma 10): minihry a nátěry Opse; jsou v záloze */
+  games: GamesState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

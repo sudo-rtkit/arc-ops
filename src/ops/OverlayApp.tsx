@@ -12,7 +12,7 @@ import { OpsCanvas, type OpsHandle } from './OpsCanvas';
 import { useOpsSpeech } from './speech';
 import { createSoundPlayer } from './sound';
 import { isFreshProfile, nextUpgrade } from '../core/compact';
-import { upgradeHint, type LineRef } from '../core/opsVoice';
+import { upgradeHint, withMinigameHint, type LineRef } from '../core/opsVoice';
 import { STATIONS } from '../core/data/stations';
 import { hotkeyLabel } from './hotkey';
 import { useT, type TFn } from '../i18n/react';
@@ -112,7 +112,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
       </div>
       <aside className="ov-rail">
         <section className="ov-card ov-opscard">
-          <OpsCanvas variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={1} label="Ops" />
+          <OpsCanvas variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games?.paint} scale={1} label="Ops" />
           <span className="ov-stencil">{t('ops.ov.opsLevel', { level: s.profile.level })}</span>
           <b>{form.name[t.lang]}</b>
         </section>
@@ -587,7 +587,8 @@ export default function OverlayApp() {
   const hint = useMemo(() => {
     if (!st0) return null;
     const d = derivedOf(st0);
-    return upgradeHint(nextUpgrade(d.needs, d.targets, st0.inventory), isFreshProfile(st0, STATION_MINS));
+    /* 0.11.0: otevřený overlay = hráč s ním pracuje; když nic nechybí, smí Ops nabídnout minihru */
+    return withMinigameHint(upgradeHint(nextUpgrade(d.needs, d.targets, st0.inventory), isFreshProfile(st0, STATION_MINS)), st0.opsPrefs.dialogs);
   }, [st0]);
   const speech = useOpsSpeech(said.hint ? hint : said.line, st0?.opsPrefs.personality ?? 'friendly', t.lang, {
     ops, nonce: said.n, gesture: said.hint ? null : undefined, onSay: () => sound.play('beep'),
@@ -609,7 +610,7 @@ export default function OverlayApp() {
     <div className="ov" style={glass} data-testid="overlay">
       <i className="ov-tape" aria-hidden="true" /><i className="ov-bracket tl" aria-hidden="true" /><i className="ov-bracket br" aria-hidden="true" />
       <header className="ov-header">
-        <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={1} label="Ops"
+        <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games?.paint} scale={1} label="Ops"
           restAnim={speech.talking ? 'talk' : 'idle'} />
         <div className="grow"><span className="ov-kicker">{t(`ops.ov.kicker.${tab}` as Key)}</span><h1>{t('ops.ov.title')}</h1>
           {speech.text && <p className="ov-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{speech.text}</p>}</div>

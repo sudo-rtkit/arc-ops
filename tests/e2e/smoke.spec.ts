@@ -6,7 +6,7 @@ import { SAMPLE_V1 } from '../core/sample';
 const MODULES: [string, string][] = [
   ['dashboard', 'Dashboard'], ['profile', 'Player Profile'], ['skills', 'Skill Tree'], ['workshop', 'Workshop'], ['inventory', 'Inventory'], ['quests', 'Quests'],
   ['maps', 'Maps'], ['arc', 'ARC Database'], ['weapons', 'Weapons'], ['items', 'Item Database'], ['money', 'Money Runs'], ['trials', 'Weekly Trials'],
-  ['journal', 'Raid Journal'], ['checklist', 'Raid Checklist'], ['stats', 'Statistics'], ['settings', 'Settings & Backup'],
+  ['journal', 'Raid Journal'], ['checklist', 'Raid Checklist'], ['stats', 'Statistics'], ['games', 'Minihry'], ['settings', 'Settings & Backup'],
 ];
 
 function watchErrors(page: Page): string[] {

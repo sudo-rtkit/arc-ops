@@ -16,6 +16,8 @@ import { line, sayLine } from '../core/opsVoice';
 import { restart } from '../core/tutorial';
 import { mainSound } from '../ops/mainHub';
 import { useUi } from '../store/ui';
+import { DEFAULT_PAINT, PAINTS } from '../core/paints';
+import { PaintSwatch, paintName, ruleText } from '../ui/paints';
 
 function HotkeyField() {
   const t = useT();
@@ -94,16 +96,32 @@ export function WardrobePanel() {
   const next = OPS.unlocks.find(u => u.level > level && u.unlockedParts.some(p => !have.includes(p)));
   const nextPart = next?.unlockedParts.find(p => !have.includes(p));
   return (
-    <Panel title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" onClick={() => actions.resetBuddyOutfit()} disabled={!Object.keys(s.buddy.outfit).length}>{t('ops.autoAll')}</Btn>}>
+    <Panel id="wardrobe" title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" onClick={() => actions.resetBuddyOutfit()} disabled={!Object.keys(s.buddy.outfit).length}>{t('ops.autoAll')}</Btn>}>
       <p className="secondary-text">{t('ops.wardrobeHint')}</p>
       <div className="ops-wardrobe">
         <div className="ops-preview">
-          <OpsCanvas variant="detail" fit level={level} outfit={outfit} scale={1} label={t('ops.previewAria')} />
+          <OpsCanvas variant="detail" fit level={level} outfit={outfit} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
           <p data-testid="ops-form">{t('ops.form', { name: form.name[t.lang], level })}</p>
           <p className="meta" data-testid="ops-collection">{t('ops.collection', { have: have.length, total: OPS.parts.length })}</p>
           <p className="meta">{next && nextPart ? t('ops.next', { level: next.level, name: partName(nextPart, t.lang) }) : t('ops.nextMax')}</p>
         </div>
         <div className="ops-slots">
+          {/* 0.11.0: nátěr z odměn miniher (jen kosmetika; původní vzhled je výchozí) */}
+          <div className="field ops-paint-field">
+            <span className="field-label" id="ops-paint-label">{t('ops.paint')}</span>
+            <div className="paint-pick" role="radiogroup" aria-labelledby="ops-paint-label" data-testid="ops-paints">
+              {PAINTS.map(p => {
+                const open = p.id === DEFAULT_PAINT || s.games.paints.includes(p.id);
+                return (
+                  <button key={p.id} type="button" role="radio" aria-checked={s.games.paint === p.id} disabled={!open} data-paint={p.id}
+                    title={open ? undefined : ruleText(t, p.rule)} onClick={() => actions.setPaint(p.id)}>
+                    <PaintSwatch id={p.id} /><span>{paintName(t, p.id)}</span>{!open && <small>{t('games.locked')}</small>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="meta">{t('ops.paintHint')}</p>
+          </div>
           {OPS_SLOTS.map(slot => {
             const manual = s.buddy.outfit[slot];
             const value = manual === undefined ? 'auto' : manual === null ? '' : manual;

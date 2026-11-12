@@ -2,6 +2,9 @@
 
 Datum: 12. 11. 2026. Stav: schváleno uživatelem jako směr, zatím bez implementace.
 
+Stav 0.11.0: Stash Tetris a recyklační kvíz jsou v modulu Minihry; odměny jsou nátěry Opse (přebarvení
+spritů v kódu, výběr v šatníku). Opsův hack zatím není. Podrobnosti v README, oddíl 0.11.0.
+
 ## Pořadí
 
 1. Dokončit nového Opse (GPT-6.1 Sol připravuje tři moderní směry v `docs/design/buddy/v2/`, uživatel vybere).

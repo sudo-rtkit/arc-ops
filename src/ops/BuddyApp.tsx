@@ -284,7 +284,7 @@ export default function BuddyApp() {
       <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={t('ops.buddyAria')}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
-        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} scale={view.scale} label="Ops" initial="appear" />
+        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" />
       </div>
     </div>
   );

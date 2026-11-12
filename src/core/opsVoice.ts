@@ -53,6 +53,11 @@ const GESTURE: Partial<Record<LineKey, Partial<Record<OpsPersonality, OpsAnim>> 
   'hint.fresh': { cheeky: 'shrug' },
   'tut.end': { all: 'success' },
   'tut.welcome': { all: 'greet' },
+  'game.win': { all: 'success' },
+  'game.record': { all: 'success', cheeky: 'laugh' },
+  'game.unlock': { all: 'success' },
+  'game.done': { plain: 'talk', friendly: 'shrug', cheeky: 'laugh' },
+  'hint.minigame': { cheeky: 'laugh' },
 };
 export function lineGesture(key: LineKey, mode: OpsPersonality): OpsAnim | null {
   const g = GESTURE[key];
@@ -68,6 +73,10 @@ export function upgradeHint(up: CompactUpgrade | null, fresh: boolean): LineRef 
   const mats = up.mats.filter(m => m.missing > 0).slice(0, 3).map(m => `${m.missing}× ${m.mat}`).join(', ');
   return line('hint.missing', { mats, station, level, count: up.missing });
 }
+
+/* 0.11.0: když nic nechybí, smí Ops mimo raid nabídnout minihru, ale jen v okně, se kterým hráč právě pracuje
+   (hlavní okno s fokusem, otevřený overlay) a se zapnutými dialogy. Nad hrou nikdy nic nenabízí. */
+export const withMinigameHint = (ref: LineRef, allowed: boolean): LineRef => (allowed && ref.line === 'hint.idle' ? line('hint.minigame') : ref);
 
 /* Jak dlouho bublina zůstane: podle délky textu, 3,5–9 s. */
 export const bubbleMs = (text: string): number => Math.min(9000, Math.max(3500, 1800 + text.length * 55));

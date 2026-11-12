@@ -24,6 +24,8 @@ import { applyProgress, type ProgressApply, type ProgressSummary } from '../core
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
+import { applyGameResult, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
+import { DEFAULT_PAINT } from '../core/paints';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
@@ -68,10 +70,10 @@ export interface AppOptions { now?: () => number; debounceMs?: number; retryMs?:
 
 export type ProfileField = 'level' | 'coins' | 'xp' | 'xpNext' | 'rounds' | 'expBonus' | 'rewardPass' | 'amplified';
 export type ResetModule = 'profile' | 'skills' | 'workshop' | 'inventory' | 'quests' | 'raids' | 'trials' | 'checklists' | 'maps' | 'arc' | 'weapons' | 'dashboard' | 'steps'
-  | 'goals' | 'planner' | 'loadouts' | 'routes' | 'blueprints' | 'tiers';
+  | 'goals' | 'planner' | 'loadouts' | 'routes' | 'blueprints' | 'tiers' | 'games';
 
 /* Moduly pro reset; název a dopad jsou ve slovníku (reset.<id>.name / reset.<id>.impact). */
-export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'quests', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes', 'blueprints', 'tiers'] as ResetModule[]).map(id => ({ id }));
+export const RESET_MODULES: { id: ResetModule }[] = (['profile', 'skills', 'workshop', 'inventory', 'quests', 'raids', 'trials', 'checklists', 'steps', 'maps', 'arc', 'weapons', 'dashboard', 'goals', 'planner', 'loadouts', 'routes', 'blueprints', 'tiers', 'games'] as ResetModule[]).map(id => ({ id }));
 export const resetName = (id: ResetModule): string => t(`reset.${id}.name` as Key);
 export const resetImpact = (id: ResetModule): string => t(`reset.${id}.impact` as Key);
 
@@ -967,6 +969,21 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         o[slot] = value;
       });
     },
+    /* 0.11.0: výsledek dohraného kola minihry (mění jen s.games, nikdy herní data). Vrací, co se stalo
+       (výhra, rekord, nově odemčené nátěry), nebo null, když store není připravený. */
+    finishGame(result: GameResult): GameOutcome | null {
+      let out: GameOutcome | null = null;
+      change(s => { out = applyGameResult(s.games, result); });
+      return out as GameOutcome | null;
+    },
+    /* vybraný nátěr Opse: původní, nebo odemčený */
+    setPaint(id: string) {
+      change(s => {
+        if (id !== DEFAULT_PAINT && !s.games.paints.includes(id)) return false;
+        if (s.games.paint === id) return false;
+        s.games.paint = id;
+      });
+    },
     resetBuddyOutfit() { change(s => { if (!Object.keys(s.buddy.outfit).length) return false; s.buddy.outfit = {}; }); },
     setBuddyPosition(monitor: string, x: number, y: number) {
       change(s => {
@@ -1001,6 +1018,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       /* Záloha nezapne buddyho ani nezmění zkratku a polohy tohoto počítače; sbírka dílů se sjednotí. */
       const cur = st().buddy;
       const next: AppState = { ...nextIn, buddy: { ...nextIn.buddy, enabled: cur.enabled, hotkey: cur.hotkey, autoOpen: cur.autoOpen, positions: cur.positions, monitor: cur.monitor, unlocked: [...new Set([...cur.unlocked, ...nextIn.buddy.unlocked])] } };
+      /* 0.11.0: odemčené nátěry se sjednotí a rekordy miniher se importem nesníží */
+      next.games = mergeGames(st().games, nextIn.games);
       const ok = await replaceState(next, 'import', kind === 'diary' ? 'pred importem deniku' : 'pred importem', raw);
       if (ok) notify(t(kind === 'diary' ? 'notice.importedDiary' : 'notice.importedBackup'));
       return ok;
@@ -1027,6 +1046,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'goals': s.goals = []; for (const r of s.raids) r.goals = []; break;
         case 'planner': s.planner = emptyPlanner(); break;
         case 'loadouts': s.loadouts = []; for (const r of s.raids) r.loadout = ''; break;
+        case 'games': s.games = d.games; break;
         case 'routes': Object.assign(s.gameData, { routes: {}, routesCustom: [], routesHidden: {}, sell: {}, sellCustom: [], sellHidden: {} }); break;
       }
       const ok = await replaceState(s, 'reset', 'pred resetem ' + mod);

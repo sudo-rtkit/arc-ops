@@ -19,7 +19,7 @@ import { hub } from '../ops/mainHub';
 import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
 import { useOpsSpeech } from '../ops/speech';
 import { resolveOutfit } from '../core/ops';
-import { upgradeHint, type LineRef } from '../core/opsVoice';
+import { upgradeHint, withMinigameHint, type LineRef } from '../core/opsVoice';
 import { mainSound } from '../ops/mainHub';
 import { Tutorial, useTourShown } from './Tutorial';
 import { expandTo, winNative, windowCtl } from './windowCtl';
@@ -27,6 +27,17 @@ import { expandTo, winNative, windowCtl } from './windowCtl';
 const STATION_MINS: Record<string, number> = Object.fromEntries(STATIONS.map(s => [s.id, s.min]));
 /* posun středu a fokus se zachovají při přepnutí do plné aplikace a zpět (jen pro tuto relaci) */
 let lastScroll = 0;
+
+/* 0.11.0: okno má fokus (hráč s ním právě pracuje); jen tehdy smí Ops nabídnout minihru */
+function useWindowFocused(): boolean {
+  const [f, setF] = useState(() => typeof document !== 'undefined' && document.hasFocus());
+  useEffect(() => {
+    const on = () => setF(document.visibilityState === 'visible' && document.hasFocus());
+    window.addEventListener('focus', on); window.addEventListener('blur', on); document.addEventListener('visibilitychange', on);
+    return () => { window.removeEventListener('focus', on); window.removeEventListener('blur', on); document.removeEventListener('visibilitychange', on); };
+  }, []);
+  return f;
+}
 
 function useWindowHeight(): number {
   const [h, setH] = useState(() => window.innerHeight);
@@ -108,7 +119,7 @@ function OpsRow({ hint }: { hint: LineRef }) {
   return (
     <div className="cw-opsrow" data-testid="compact-opsrow">
       {/* 0.10.1: menší varianta (96 px místo 128 px), řádek s Opsem v kompaktu zabírá méně místa */}
-      <OpsCanvas ref={ops} variant="corner" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} label={t('ops.previewAria')}
+      <OpsCanvas ref={ops} variant="corner" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint} label={t('ops.previewAria')}
         restAnim={sp.talking ? 'talk' : 'idle'} />
       {sp.text && <p className="cw-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{sp.text}</p>}
     </div>
@@ -121,6 +132,7 @@ export default function Compact() {
   const t = useT();
   const mw = s.mainWindow;
   const short = useWindowHeight() < SHORT_BELOW;
+  const focused = useWindowFocused();
   const tour = useTourShown();
   const fresh = isFreshProfile(s, STATION_MINS);
   const [hint, setHint] = useState('');
@@ -197,7 +209,7 @@ export default function Compact() {
         </div>
       </div>
 
-      {tour ? <Tutorial compact /> : !short && <OpsRow hint={upgradeHint(up, fresh)} />}
+      {tour ? <Tutorial compact /> : !short && <OpsRow hint={withMinigameHint(upgradeHint(up, fresh), focused && s.opsPrefs.dialogs)} />}
 
       <div className="cw-content" ref={content}>
         {fresh ? (

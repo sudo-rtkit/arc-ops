@@ -252,6 +252,32 @@ const cs = {
     friendly: ['Máme základ. Kliknutím na mě otevřeš výbavu a plány. Budu tady, až se vrátíš.', 'Hotovo! Kdykoli budeš chtít prohlídku znovu, najdeš ji v Nastavení.'],
     cheeky: ['Prohlídka skončila. Spropitné nepřijímám, pochvaly ano.', 'A je to. Teď už víš všechno. Skoro všechno. Ten zbytek vím já.'],
   },
+  /* ----- 0.11.0: minihry (jen v hlavním okně nebo overlayi, nikdy nevyžádaně nad hrou) ----- */
+  'hint.minigame': {
+    plain: ['Vše hotovo. Mimo raid můžeš zkusit minihru: Stash Tetris nebo kvíz.', 'Nic nechybí. V modulu Minihry je Stash Tetris a recyklační kvíz.'],
+    friendly: ['Všechno sedí. Čekáš na zápas? Dáme spolu Stash Tetris nebo kvíz?', 'Nic nechybí, raidere. Mimo raid si můžeme zahrát minihru, jestli chceš.'],
+    cheeky: ['Nic nechybí. Nuda. Co takhle Stash Tetris? Stejně tě porazím.', 'Hotovo. Jestli se nudíš v lobby, mám pro tebe kvíz. Těžký.'],
+  },
+  'game.win': {
+    plain: ['Kolo vyhrané.', 'Dobrý výsledek.'],
+    friendly: ['Paráda, tohle kolo je tvoje!', 'Výborně! Takhle se balí batoh.'],
+    cheeky: ['Vyhrál jsi. Nechal jsem tě, ale stejně dobrý.', 'Hm, výhra. Začínám mít konkurenci.'],
+  },
+  'game.record': {
+    plain: ['Nový rekord: {value:raw}.', 'Rekord překonán: {value:raw}.'],
+    friendly: ['Nový rekord, {value:raw}! Na tohle jsem čekal.', 'Koukej, osobní rekord: {value:raw}. Jsem pyšný!'],
+    cheeky: ['Rekord {value:raw}. Zarámuju si ho. Vedle svého.', '{value:raw}? Nový rekord. Kdo tě to učil? Aha, já.'],
+  },
+  'game.unlock': {
+    plain: ['Odemčený nátěr: {name:raw}. Vybereš ho v šatníku.', 'Nový nátěr {name:raw} je v šatníku.'],
+    friendly: ['Nový nátěr {name:raw}! Zkusíme ho v šatníku?', 'Mám nový kabát: {name:raw}. Najdeš ho v šatníku.'],
+    cheeky: ['{name:raw}. Konečně barva, která mi sluší. Šatník čeká.', 'Nový nátěr {name:raw}. Přiznej, že mi to sekne.'],
+  },
+  'game.done': {
+    plain: ['Kolo dohrané. Rada je v souhrnu.', 'Konec kola. Podívej se na rady.'],
+    friendly: ['Dobrý pokus! Mrkni na rady a jdeme znova.', 'Kolo za námi. Příště to bude lepší, rady máš pod výsledkem.'],
+    cheeky: ['To nebylo nejhorší. Ale taky ne nejlepší.', 'Kolo dohrané. Rady si přečti, já počkám. Zase.'],
+  },
   'tut.resume': {
     plain: ['Průvodce byl přerušen. Pokračovat?', 'Pokračovat v průvodci od posledního kroku?'],
     friendly: ['Minule jsme nedokončili prohlídku. Pokračujeme, kde jsme skončili?', 'Jsem zpátky! Dokončíme tu prohlídku?'],
@@ -495,6 +521,31 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['The basics are done. Restart the guide in Settings.', 'Done. The guide is in Settings.'],
     friendly: ['We have the basics. Click me to open gear and plans. I will be here when you are back.', 'Done! Whenever you want the tour again, it is in Settings.'],
     cheeky: ['Tour over. I do not accept tips, compliments yes.', 'There. Now you know everything. Almost everything. I know the rest.'],
+  },
+  'hint.minigame': {
+    plain: ['All done. Outside a raid you can try a minigame: Stash Tetris or the quiz.', 'Nothing missing. The Minigames module has Stash Tetris and a recycle quiz.'],
+    friendly: ['All good. Waiting for a match? Fancy some Stash Tetris or the quiz?', 'Nothing missing, raider. Outside a raid we can play a minigame, if you like.'],
+    cheeky: ['Nothing missing. Boring. How about Stash Tetris? I will win anyway.', 'Done. If the lobby bores you, I have a quiz. A hard one.'],
+  },
+  'game.win': {
+    plain: ['Round won.', 'Good result.'],
+    friendly: ['Great, this round is yours!', 'Well done! That is how you pack a backpack.'],
+    cheeky: ['You won. I let you, but still, nice.', 'Hm, a win. I am getting competition.'],
+  },
+  'game.record': {
+    plain: ['New record: {value:raw}.', 'Record beaten: {value:raw}.'],
+    friendly: ['New record, {value:raw}! I was waiting for this.', 'Look, a personal best: {value:raw}. I am proud!'],
+    cheeky: ['Record {value:raw}. I will frame it. Next to mine.', '{value:raw}? New record. Who taught you that? Right, me.'],
+  },
+  'game.unlock': {
+    plain: ['Paint unlocked: {name:raw}. Pick it in the wardrobe.', 'New paint {name:raw} is in the wardrobe.'],
+    friendly: ['New paint {name:raw}! Shall we try it in the wardrobe?', 'I have a new coat: {name:raw}. It is in the wardrobe.'],
+    cheeky: ['{name:raw}. Finally a colour that suits me. The wardrobe awaits.', 'New paint {name:raw}. Admit it, I look sharp.'],
+  },
+  'game.done': {
+    plain: ['Round finished. The tip is in the summary.', 'End of round. Check the tips.'],
+    friendly: ['Nice try! Check the tips and let us go again.', 'Round done. Next one will be better, the tips are below the result.'],
+    cheeky: ['That was not the worst. Not the best either.', 'Round done. Read the tips, I will wait. Again.'],
   },
   'tut.resume': {
     plain: ['The guide was interrupted. Continue?', 'Continue the guide from the last step?'],

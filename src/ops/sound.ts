@@ -75,6 +75,20 @@ export function synth(ac: AC, out: AudioNode, id: SoundId, rnd: () => number = M
       tone(ac, out, t, 520, 280, 0.08, 'triangle', 0.4);
       noise(ac, out, t + 0.07, 0.025, 2500, 0.55);
       break;
+    case 'win': /* krátká vzestupná dvojice */
+      noise(ac, out, t, 0.02, 2000, 0.3);
+      tone(ac, out, t + 0.01, 523, 523, 0.08, 'triangle', 0.55);
+      tone(ac, out, t + 0.1, 784, 784, 0.14, 'triangle', 0.55);
+      break;
+    case 'record': /* trojí reléový puls nahoru */
+      [587, 740, 988].forEach((f, i) => { noise(ac, out, t + i * 0.09, 0.015, 2200, 0.25); tone(ac, out, t + 0.01 + i * 0.09, f, f, 0.08, 'triangle', 0.5); });
+      tone(ac, out, t + 0.3, 1175, 1175, 0.16, 'square', 0.14);
+      break;
+    case 'unlock': /* servo, cvak zámku a jiskra */
+      tone(ac, out, t, 300, 700, 0.14, 'sawtooth', 0.14);
+      noise(ac, out, t + 0.15, 0.03, 2600, 0.55);
+      [1047, 1319, 1568].forEach((f, i) => tone(ac, out, t + 0.2 + i * 0.06, f, f, 0.09, 'square', 0.13));
+      break;
     case 'beep': { /* řeč: 3 krátké nepravidelné tóny */
       let at = t;
       for (let i = 0; i < 3; i++) {

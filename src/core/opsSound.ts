@@ -1,7 +1,8 @@
 /* Pravidla zvuků Opse (0.10.0). Hra se hraje podle zvuku, takže Ops smí pípnout jen tehdy, když s ním hráč
    právě pracuje: overlay je otevřený, okno aplikace (plné nebo kompaktní) má fokus, nebo hráč právě klikl na
    buddyho. Když je v popředí hra (nebo jiná aplikace) a žádné okno Opse se nepoužívá, Ops mlčí. Čisté funkce. */
-export const SOUNDS = ['scan', 'done', 'unsure', 'error', 'levelup', 'open', 'close', 'beep'] as const;
+/* 0.11.0: win, record, unlock = reakce na minihry (hrají jen v aktivním okně, stejná pravidla). */
+export const SOUNDS = ['scan', 'done', 'unsure', 'error', 'levelup', 'open', 'close', 'beep', 'win', 'record', 'unlock'] as const;
 export type SoundId = typeof SOUNDS[number];
 
 export interface SoundContext {

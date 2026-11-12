@@ -203,3 +203,32 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Stav **schéma 9** (`quests.objectives`: id úkolu → zaškrtnuté indexy); starší stav a zálohy se načtou s prázdnými cíli,
   záloha je obsahuje (herní postup). Testy: `tests/core/quest-objectives.test.ts`, `tests/vision/own-return.test.ts`
   (vlastní snímky, jen lokálně), E2E `tests/e2e/quest-objectives.spec.ts` a `tests/e2e/progress.spec.ts` (oba jazyky).
+
+## Minihry a nátěry Opse (0.11.0)
+
+- **Modul Minihry** (skupina „Mimo raid“ v postranním panelu): jen na chvíle mimo raid. Aplikace stav raidu nezná, proto
+  minihry nikdy nenabízí sama a nad hrou nic nevyskočí; modul se otevírá jen na přání hráče. Kolo má číslo v adrese
+  (`#games/tetris-123456`, `#games/quiz-123456`), takže jde zopakovat.
+- **Stash Tetris**: naskládat loot do batohu 5 × 4 s co nejvyšší hodnotou. Skutečné názvy, prodejní hodnoty a rarita
+  z `src/core/data/itemdata.ts`. Data velikost v mřížce nemají, tvary jsou proto zjednodušené podle typu (drobnosti
+  a materiály 1×1, recyklovatelné věci, pistole, SMG, augmenty a štíty 1×2, dlouhé zbraně 2×2; UI to říká). Po kole
+  srovnání s Opsovým hladovým balením (podle hodnoty na políčko), procenta a krátké rady. Myš (klik, pravé tlačítko otočí)
+  i klávesnice (Enter, šipky, R, Delete, Esc). Logika: `src/core/stashTetris.ts`.
+- **Recyklační kvíz**: 10 otázek z dat aplikace jen tam, kde je odpověď jistá: na co se předmět recykluje, která úroveň
+  stanice potřebuje materiál (jen materiál právě jedné úrovně, vestavěné recepty), který úkol chce předmět odevzdat (jen
+  předmět právě jednoho úkolu) a co má vyšší prodejní hodnotu (rozdíl aspoň 20 %). Ke každé odpovědi vysvětlení, klávesy 1–4.
+  Logika: `src/core/recycleQuiz.ts`.
+- **Nátěry Opse** (`src/core/paints.ts`): přebarvení existujících spritů v kódu přesnou shodou barev palety, alfa beze změny
+  (pixely zůstanou ostré). Mění se jen plechy a hnědé díly; meruňkový lem, oči a tmavé oddělení zůstávají kvůli čitelnosti
+  96px Opse v rohu. Šest nátěrů (Polní oliva, Rezavá bedna, Arktická, Noční hlídka, Pouštní, Zlacená) se odemyká milníky:
+  první kolo, Tetris na 90 % a 100 % Opsova balení, kvíz 8 z 10, série 10 správných odpovědí, 10 kol. Výběr v šatníku
+  (Settings), výchozí je původní vzhled. Nátěr platí ve všech oknech Opse (buddy, overlay, kompakt, průvodce).
+- **Odměny jsou jen kosmetické**: výsledek kola mění jen `games` (rekordy, série, nátěry), nikdy profil, inventář,
+  dílnu ani úkoly.
+- **Ops**: hlášky pro výhru, rekord, odemčení a konec kola (Věcný / Kamarádský / Drzý, CS i EN) a zvuky `win`, `record`,
+  `unlock` (hrají jen v aktivním okně, stejně jako ostatní zvuky). Když nic nechybí, smí Ops nabídnout minihru, ale jen
+  v kompaktním okně s fokusem nebo v otevřeném overlayi a se zapnutými dialogy.
+- Stav **schéma 10** (`games`: rekordy, série, odemčené a vybraný nátěr); starší stav a zálohy se načtou s prázdnými
+  minihrami a původním vzhledem, záloha je obsahuje (herní postup). Import zálohy nátěry sjednotí a rekordy nesníží;
+  reset modulu „Minihry a nátěry“ v Settings. Testy: `tests/core/minigames.test.ts`, E2E `tests/e2e/minigames.spec.ts`
+  (oba jazyky).

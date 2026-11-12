@@ -1,10 +1,13 @@
 import {
-  BookOpen, Bot, Boxes, ChartNoAxesCombined, Coins, Crosshair, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
+  BookOpen, Bot, Boxes, ChartNoAxesCombined, Coins, Crosshair, Gamepad2, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
   ScrollText, Settings, Trophy, UserRound, type LucideIcon,
 } from 'lucide-react';
 
-/* group = klíč skupiny (nav.group.*); název modulu je herní/produktový a je v obou jazycích stejný. */
-export interface ModuleDef { id: string; name: string; icon: LucideIcon; group: 'overview' | 'progress' | 'explore' | 'raids' | 'system' }
+import type { Key } from '../i18n';
+
+/* group = klíč skupiny (nav.group.*); název modulu je herní/produktový a je v obou jazycích stejný.
+   nameKey (0.11.0): modul s přeloženým názvem (Minihry / Minigames); name je pak anglická záloha. */
+export interface ModuleDef { id: string; name: string; nameKey?: Key; icon: LucideIcon; group: 'overview' | 'progress' | 'explore' | 'raids' | 'downtime' | 'system' }
 
 /* Pořadí, skupiny a ikony podle visual-design.md kap. 4. */
 export const MODULES: ModuleDef[] = [
@@ -23,6 +26,8 @@ export const MODULES: ModuleDef[] = [
   { id: 'journal', name: 'Raid Journal', icon: BookOpen, group: 'raids' },
   { id: 'checklist', name: 'Raid Checklist', icon: ListChecks, group: 'raids' },
   { id: 'stats', name: 'Statistics', icon: ChartNoAxesCombined, group: 'raids' },
+  { id: 'games', name: 'Minigames', nameKey: 'nav.games', icon: Gamepad2, group: 'downtime' },
   { id: 'settings', name: 'Settings & Backup', icon: Settings, group: 'system' },
 ];
+export const moduleName = (m: ModuleDef, t: (k: Key) => string): string => (m.nameKey ? t(m.nameKey) : m.name);
 export const moduleById = (id: string): ModuleDef => MODULES.find(m => m.id === id) || MODULES[0];

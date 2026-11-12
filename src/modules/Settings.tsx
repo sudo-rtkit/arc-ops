@@ -198,6 +198,8 @@ export default function Settings({ sub }: { sub: string }) {
   const [importing, setImporting] = useState(sub === 'import');
   const [copied, setCopied] = useState(false);
   useEffect(() => { app.storage.dataDir().then(setDir, () => setDir('—')); }, []);
+  /* 0.11.0: odkaz z Miniher (#settings/wardrobe) otevře šatník */
+  useEffect(() => { if (sub === 'wardrobe') document.getElementById('wardrobe')?.scrollIntoView({ block: 'start' }); }, [sub]);
   return (
     <div className="page">
       <PageHead title="Settings & Backup" sub={t('settings.sub')} />

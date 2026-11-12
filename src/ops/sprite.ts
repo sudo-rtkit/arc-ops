@@ -5,6 +5,7 @@
    nejdřív v nativní mřížce varianty (96 nebo 128 px), pak celým násobkem. */
 import { OPS, OPS_GEOMETRY, formForLevel, partById, type OpsVariantId } from '../core/ops';
 import type { Pose } from './animator';
+import { DEFAULT_PAINT, paintOf, recolorPixels } from '../core/paints';
 
 const URLS = import.meta.glob('../assets/ops2/**/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const cache = new Map<string, HTMLImageElement>();
@@ -24,6 +25,29 @@ function image(file: string): HTMLImageElement | null {
   return im.complete && im.naturalWidth ? im : null;
 }
 
+/* 0.11.0: nátěr = přebarvená kopie obrázku (přesná shoda barev palety, alfa beze změny), jednou na soubor a nátěr.
+   Původní vzhled kreslí přímo obrázek. */
+const painted = new Map<string, HTMLCanvasElement>();
+function source(file: string, paint: string): CanvasImageSource | null {
+  const im = image(file);
+  if (!im || paint === DEFAULT_PAINT) return im;
+  const key = paint + '|' + file;
+  let c = painted.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = im.naturalWidth; c.height = im.naturalHeight;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    if (!x) return im;
+    x.imageSmoothingEnabled = false;
+    x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height);
+    recolorPixels(d.data, paint);
+    x.putImageData(d, 0, 0);
+    painted.set(key, c);
+  }
+  return c;
+}
+
 /* Načte všechny obrázky potřebné pro podobu, outfit a efekty (aby první snímek nebyl neúplný). */
 export function preload(variant: OpsVariantId, level: number, outfit: Record<string, string | null>): Promise<void> {
   const g = OPS_GEOMETRY[variant], form = formForLevel(level);
@@ -41,13 +65,14 @@ export function preload(variant: OpsVariantId, level: number, outfit: Record<str
 export const frameOf = (variant: OpsVariantId): number => OPS_GEOMETRY[variant].frameSize.width;
 
 /* Jeden snímek W × H do ctx (ctx musí mít velikost mřížky varianty). */
-export function drawOps(ctx: CanvasRenderingContext2D, variant: OpsVariantId, level: number, outfit: Record<string, string | null>, pose: Pose): void {
+export function drawOps(ctx: CanvasRenderingContext2D, variant: OpsVariantId, level: number, outfit: Record<string, string | null>, pose: Pose, paintIn?: string): void {
   const g = OPS_GEOMETRY[variant], W = g.frameSize.width, H = g.frameSize.height;
+  const paint = paintOf(paintIn);
   ctx.imageSmoothingEnabled = false;
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, W, H);
   if (pose.transform) {
-    const im = image(g.transforms[pose.transform.spec.id]);
+    const im = source(g.transforms[pose.transform.spec.id], paint);
     if (im) ctx.drawImage(im, pose.transform.index * W, 0, W, H, 0, 0, W, H);
     return;
   }
@@ -60,7 +85,7 @@ export function drawOps(ctx: CanvasRenderingContext2D, variant: OpsVariantId, le
     const anchors = g.anchors[ref];
     for (const slot of OPS.drawOrder) {
       if (slot === 'body') {
-        const im = image(st.file);
+        const im = source(st.file, paint);
         if (im) ctx.drawImage(im, frame * W, 0, W, H, 0, 0, W, H);
         continue;
       }
@@ -69,7 +94,7 @@ export function drawOps(ctx: CanvasRenderingContext2D, variant: OpsVariantId, le
       const a = anchors[OPS.slots.indexOf(slot)];
       const asset = id ? g.parts[id] : undefined;
       if (!p || !a || !asset) continue;
-      const im = image(asset.file);
+      const im = source(asset.file, paint);
       if (!im) continue;
       const x = a[0] + asset.offset[0], y = a[1] + asset.offset[1];
       if (asset.frameSize) {

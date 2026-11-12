@@ -3,7 +3,7 @@ import { Loader } from 'lucide-react';
 import { Sidebar } from './shell/Sidebar';
 import { TopBar } from './shell/TopBar';
 import { Banners, Toasts } from './shell/Banners';
-import { moduleById } from './shell/modules';
+import { moduleById, moduleName } from './shell/modules';
 import { useApp, useRoute } from './store';
 import { RaidFormHost } from './ui/RaidForm';
 import { cx } from './ui/components';
@@ -23,6 +23,7 @@ import Journal from './modules/Journal';
 import Checklist from './modules/Checklist';
 import Statistics from './modules/Statistics';
 import Settings from './modules/Settings';
+import Minigames from './modules/Minigames';
 import { useT } from './i18n/react';
 import Compact from './shell/Compact';
 import { CloseDialog } from './shell/CloseDialog';
@@ -34,7 +35,7 @@ import { app as appStore } from './store';
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, quests: Quests, maps: Maps,
   arc: ArcDb, weapons: Weapons, items: ItemDb, money: MoneyRuns, trials: Trials, journal: Journal, checklist: Checklist,
-  stats: Statistics, settings: Settings,
+  stats: Statistics, settings: Settings, games: Minigames,
 };
 
 const COLLAPSE_KEY = 'arcops:ui:collapsed';
@@ -81,7 +82,8 @@ function FullApp() {
   const mod = moduleById(route.module);
   const View = VIEWS[mod.id];
 
-  useEffect(() => { document.title = `${mod.name} · ARC OPS`; }, [mod.name]);
+  const modName = moduleName(mod, t);
+  useEffect(() => { document.title = `${modName} · ARC OPS`; }, [modName]);
   useEffect(() => { document.querySelector('.content')?.scrollTo(0, 0); }, [mod.id]);
 
   const toggle = () => { const v = !collapsed; setCollapsed(v); try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0'); } catch { /* bez úložiště */ } };

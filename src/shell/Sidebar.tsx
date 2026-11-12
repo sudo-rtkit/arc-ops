@@ -1,7 +1,7 @@
 import { useState, type FocusEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { MODULES } from './modules';
+import { MODULES, moduleName } from './modules';
 import { cx } from '../ui/components';
 import { useT } from '../i18n/react';
 import { useUi } from '../store/ui';
@@ -57,12 +57,13 @@ export function Sidebar({ active, compact, canCollapse, onToggle }: { active: st
           const head = m.group !== lastGroup;
           lastGroup = m.group;
           const Icon = m.icon;
+          const name = moduleName(m, t);
           return (
             <div key={m.id} style={{ display: 'contents' }}>
               {head && (compact ? (m.group !== 'overview' && <div className="nav-sep" aria-hidden="true" />) : <div className="nav-group">{t(`nav.group.${m.group}`)}</div>)}
               <a href={'#' + m.id} className={cx('nav-item', active === m.id && 'active', tour === m.id && 'tour-target')} data-tour={tour === m.id ? 'target' : undefined} aria-current={active === m.id ? 'page' : undefined}
-                data-tip={m.name} aria-label={compact ? m.name : undefined}>
-                <Icon size={18} strokeWidth={1.75} aria-hidden="true" /><span>{m.name}</span>
+                data-tip={name} aria-label={compact ? name : undefined}>
+                <Icon size={18} strokeWidth={1.75} aria-hidden="true" /><span>{name}</span>
               </a>
             </div>
           );
