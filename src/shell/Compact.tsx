@@ -16,6 +16,12 @@ import { STATIONS } from '../core/data/stations';
 import type { CompactSection } from '../core/types';
 import { hotkeyLabel } from '../ops/hotkey';
 import { hub } from '../ops/mainHub';
+import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
+import { useOpsSpeech } from '../ops/speech';
+import { resolveOutfit } from '../core/ops';
+import { upgradeHint, type LineRef } from '../core/opsVoice';
+import { mainSound } from '../ops/mainHub';
+import { Tutorial, useTourShown } from './Tutorial';
 import { expandTo, winNative, windowCtl } from './windowCtl';
 
 const STATION_MINS: Record<string, number> = Object.fromEntries(STATIONS.map(s => [s.id, s.min]));
@@ -73,12 +79,48 @@ function Toast({ fresh, hint, onHint }: { fresh: boolean; hint: string; onHint: 
   return <div className={cx('cw-toast', 'tone-' + tone, !body && 'is-empty')} role="status" aria-live="polite" data-testid="compact-toast">{body}</div>;
 }
 
+/* Ops (DETAIL) v kompaktním okně: radí k dalšímu vylepšení, reaguje na snímek a zápis z tohoto okna i z buddyho. */
+function OpsRow({ hint }: { hint: LineRef }) {
+  const t = useT();
+  const s = useAppState();
+  const ops = useRef<OpsHandle>(null);
+  const [said, setSaid] = useState<{ line: LineRef | null; n: number }>({ line: null, n: 0 });
+  useEffect(() => {
+    const offStatus = hub.onStatus(st => {
+      if (st.anim !== 'talk' && st.anim !== 'dismiss') ops.current?.play(st.anim);
+      if (st.line) setSaid(x => ({ line: st.line, n: x.n + 1 }));
+    });
+    const offLevel = hub.onLevel(e => {
+      if (e.kind === 'transform') ops.current?.transform(e.transform);
+      else { ops.current?.play('level-up'); ops.current?.sparkle(); }
+    });
+    return () => { offStatus(); offLevel(); };
+  }, []);
+  /* po hlášce ze stavu se po chvíli vrátí rada */
+  useEffect(() => {
+    if (!said.line) return;
+    const h = setTimeout(() => setSaid(x => ({ line: null, n: x.n + 1 })), 12_000);
+    return () => clearTimeout(h);
+  }, [said.n, said.line]);
+  const sp = useOpsSpeech(said.line ?? hint, s.opsPrefs.personality, t.lang, {
+    ops, nonce: said.n, gesture: said.line ? undefined : null, onSay: () => { if (said.line) mainSound.play('beep'); },
+  });
+  return (
+    <div className="cw-opsrow" data-testid="compact-opsrow">
+      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} label={t('ops.previewAria')}
+        restAnim={sp.talking ? 'talk' : 'idle'} />
+      {sp.text && <p className="cw-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{sp.text}</p>}
+    </div>
+  );
+}
+
 export default function Compact() {
   const s = useAppState();
   const d = useDerived();
   const t = useT();
   const mw = s.mainWindow;
   const short = useWindowHeight() < SHORT_BELOW;
+  const tour = useTourShown();
   const fresh = isFreshProfile(s, STATION_MINS);
   const [hint, setHint] = useState('');
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,6 +195,8 @@ export default function Compact() {
           <span className="cw-meta mono">{fresh ? 'XP ' + DASH : p.xpNext > 0 ? t('compact.xp', { xp: p.xp, next: p.xpNext }) : t('compact.xpOnly', { xp: p.xp })}</span>
         </div>
       </div>
+
+      {tour ? <Tutorial compact /> : !short && <OpsRow hint={upgradeHint(up, fresh)} />}
 
       <div className="cw-content" ref={content}>
         {fresh ? (

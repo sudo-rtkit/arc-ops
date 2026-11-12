@@ -195,7 +195,7 @@ pub async fn buddy_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>)
     /* Okno se ukáže samo, až si buddy spočítá velikost a polohu na monitoru. */
     let w = WebviewWindowBuilder::new(&app, BUDDY, WebviewUrl::App("buddy.html".into()))
         .title("Ops")
-        .inner_size(64.0, 64.0)
+        .inner_size(96.0, 96.0)
         /* bez vlastního minima by Windows okno bez rámečku roztáhly na šířku titulku (~136 px) */
         .min_inner_size(16.0, 16.0)
         .decorations(false)

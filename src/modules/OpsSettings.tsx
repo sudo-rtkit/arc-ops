@@ -1,7 +1,7 @@
 /* Nastavení → „Buddy a zkratka“ a „Šatník Opse“ (milník 5). Přepínač je ve výchozím stavu vypnutý; dokud je
    vypnutý, neběží žádné okno ani zkratka. Zkratka se uloží, až ji systém přijme (RegisterHotKey v Rustu). */
 import { useEffect, useMemo, useState } from 'react';
-import { Keyboard, X } from 'lucide-react';
+import { Keyboard, RotateCcw, Volume2, X } from 'lucide-react';
 import { actions, useApp, useAppState } from '../store';
 import { Btn, Panel, Select } from '../ui/components';
 import { useT } from '../i18n/react';
@@ -11,6 +11,11 @@ import { OpsCanvas } from '../ops/OpsCanvas';
 import { hub } from '../ops/mainHub';
 import { hotkeyFrom, hotkeyLabel } from '../ops/hotkey';
 import { MODE_KEY, PIN_KEY } from '../core/mainWindow';
+import { PERSONALITIES, TUTORIAL_STEPS } from '../core/opsPrefs';
+import { line, sayLine } from '../core/opsVoice';
+import { restart } from '../core/tutorial';
+import { mainSound } from '../ops/mainHub';
+import { useUi } from '../store/ui';
 
 function HotkeyField() {
   const t = useT();
@@ -93,7 +98,7 @@ export function WardrobePanel() {
       <p className="secondary-text">{t('ops.wardrobeHint')}</p>
       <div className="ops-wardrobe">
         <div className="ops-preview">
-          <OpsCanvas level={level} outfit={outfit} scale={2} label={t('ops.previewAria')} />
+          <OpsCanvas variant="detail" fit level={level} outfit={outfit} scale={1} label={t('ops.previewAria')} />
           <p data-testid="ops-form">{t('ops.form', { name: form.name[t.lang], level })}</p>
           <p className="meta" data-testid="ops-collection">{t('ops.collection', { have: have.length, total: OPS.parts.length })}</p>
           <p className="meta">{next && nextPart ? t('ops.next', { level: next.level, name: partName(nextPart, t.lang) }) : t('ops.nextMax')}</p>
@@ -113,6 +118,49 @@ export function WardrobePanel() {
                 ]} />
             );
           })}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+/* 0.10.0: povaha Opse, zvuky a průvodce. Patří tomuto počítači (import zálohy je nemění). */
+const SAMPLE = line('hint.missing', { mats: '2× Power Cable', station: 'Gear Bench', level: 2, count: 2 });
+export function OpsVoicePanel() {
+  const t = useT();
+  const p = useAppState().opsPrefs;
+  const [volume, setVolume] = useState(p.volume);
+  useEffect(() => setVolume(p.volume), [p.volume]);
+  const sample = useMemo(() => sayLine(SAMPLE, p.personality, t.lang), [p.personality, t.lang]);
+  const commit = () => { if (volume !== p.volume) actions.setOpsPrefs({ volume }); };
+  const n = TUTORIAL_STEPS.filter(x => x !== 'profile-manual').indexOf(p.tutorial.step === 'profile-manual' ? 'profile' : p.tutorial.step) + 1;
+  return (
+    <Panel title={t('opsVoice.title')}>
+      <div className="stack" data-testid="ops-voice">
+        <div className="field">
+          <span className="field-label" id="ops-personality-label">{t('opsVoice.personality')}</span>
+          <div className="seg" role="group" aria-labelledby="ops-personality-label">
+            {PERSONALITIES.map(x => <button key={x} type="button" aria-pressed={p.personality === x} onClick={() => actions.setOpsPrefs({ personality: x })}>{t(`opsVoice.p.${x}` as Key)}</button>)}
+          </div>
+          <p className="meta">{t('opsVoice.personalityHint')}</p>
+          <blockquote className="ops-sample" data-testid="ops-sample"><span className="meta">{t('opsVoice.sample')}</span> {sample}</blockquote>
+        </div>
+        <label className="toggle"><input type="checkbox" data-testid="ops-sound" checked={p.sound} onChange={e => actions.setOpsPrefs({ sound: e.target.checked })} />{t('opsVoice.sound')}</label>
+        <p className="meta">{t('opsVoice.soundHint')}</p>
+        <div className="field">
+          <label className="field-label" htmlFor="ops-volume">{t('opsVoice.volume')}: <span className="mono">{t('ops.opacityVal', { v: volume })}</span></label>
+          <div className="row">
+            <input id="ops-volume" type="range" min={0} max={100} step={1} value={volume} disabled={!p.sound}
+              onChange={e => setVolume(Number(e.target.value))} onPointerUp={commit} onKeyUp={commit} onBlur={commit} />
+            <Btn size="sm" icon={Volume2} disabled={!p.sound || volume === 0} onClick={() => { commit(); mainSound.play('done', { force: true }); }}>{t('opsVoice.test')}</Btn>
+          </div>
+        </div>
+        <label className="toggle"><input type="checkbox" data-testid="ops-dialogs" checked={p.dialogs} onChange={e => actions.setOpsPrefs({ dialogs: e.target.checked })} />{t('opsVoice.dialogs')}</label>
+        <p className="meta">{t('opsVoice.dialogsHint')}</p>
+        <div className="field">
+          <span className="field-label">{t('opsVoice.tutorial')}</span>
+          <p className="meta" data-testid="tour-status">{p.tutorial.status === 'active' ? t('opsVoice.tour.active', { n, total: TUTORIAL_STEPS.length - 1 }) : t(`opsVoice.tour.${p.tutorial.status}` as Key)}</p>
+          <div className="row"><Btn size="sm" icon={RotateCcw} data-testid="tour-restart" onClick={() => { useUi.setState({ tourHidden: false }); actions.setOpsPrefs({ tutorial: restart() }); }}>{t('opsVoice.tourRestart')}</Btn></div>
         </div>
       </div>
     </Panel>

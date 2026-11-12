@@ -400,3 +400,4 @@
 .tree-ro .node.end.has { box-shadow: inset 0 0 0 var(--line-thin) var(--bc); }
 .tree-ro .node { min-height: 64px; }
 @container (max-width: 760px) { .cmp-grid { grid-template-columns: minmax(0, 1fr); } .catalog-sort { width: 100%; } }
+.ops-sample { margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3); border-left: 2px solid var(--accent); background: var(--bg-app); color: var(--text-primary); font-size: var(--font-size-sm); }

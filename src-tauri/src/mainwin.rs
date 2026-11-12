@@ -457,7 +457,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, m: &TrayMenu) -> tauri::Result<Men
     }
 }
 
-/* Ikony z docs/design/icon/v1 jako surová RGBA (scripts/gen-tray-icons.mjs). */
+/* Ikony Bedňáka 2.0 z docs/design/buddy/bednak2/icon jako surová RGBA (scripts/gen-tray-icons.mjs). */
 static TRAY_DARK_16: &[u8] = include_bytes!("../icons/tray/tray-dark-16.rgba");
 static TRAY_DARK_32: &[u8] = include_bytes!("../icons/tray/tray-dark-32.rgba");
 static TRAY_LIGHT_16: &[u8] = include_bytes!("../icons/tray/tray-light-16.rgba");

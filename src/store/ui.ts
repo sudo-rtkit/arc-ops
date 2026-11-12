@@ -13,6 +13,10 @@ interface UiStore {
   timerReset: () => void;
   /* 0.9.0: dialog při zavření okna křížkem (skrýt do oznamovací oblasti / ukončit) */
   closeAsk: boolean;
+  /* 0.10.0: průvodce ukazuje na modul v postranním panelu (id modulu), null = nic */
+  tourTarget: string | null;
+  /* průvodce schovaný do konce relace (pokračuje při dalším spuštění) */
+  tourHidden: boolean;
 }
 
 export const useUi = create<UiStore>((set, get) => ({
@@ -26,6 +30,8 @@ export const useUi = create<UiStore>((set, get) => ({
   },
   timerReset: () => set({ timer: { start: 0, acc: 0, running: false } }),
   closeAsk: false,
+  tourTarget: null,
+  tourHidden: false,
 }));
 
 export const elapsed = (t: UiStore['timer'], now = Date.now()): number => t.acc + (t.running ? now - t.start : 0);

@@ -1,0 +1,31 @@
+{
+  "nearestNeighbourFiles": 281,
+  "iconFiles": 25,
+  "silhouettes": {
+    "corner": [
+      2660,
+      3155,
+      3480,
+      3871,
+      4398
+    ],
+    "detail": [
+      4130,
+      4934,
+      5479,
+      6141,
+      7086
+    ]
+  },
+  "bodyTiles": {
+    "corner": {
+      "timed": 2580,
+      "uniqueWithinClips": 1388
+    },
+    "detail": {
+      "timed": 2580,
+      "uniqueWithinClips": 1392
+    }
+  },
+  "result": "PASS"
+}

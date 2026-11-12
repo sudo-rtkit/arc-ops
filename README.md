@@ -133,3 +133,26 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - Stav: **schéma 7** (`mainWindow`, `quests.pinned`); starší stav a zálohy se načtou s výchozími hodnotami. Záloha nese i okno,
   ale import, obnova snímku ani reset **nemění nastavení okna tohoto počítače**. Rust: `src-tauri/src/mainwin.rs`.
 - Testy: `tests/core/compact-mode.test.ts`, E2E `tests/e2e/compact.spec.ts` (nativní okno nahrazené zástupcem), Rust `mainwin::tests`.
+
+## Bedňák 2.0, zvuky, povahy a průvodce (0.10.0)
+
+- **Bedňák 2.0** (grafika `docs/design/buddy/bednak2/`): varianta **CORNER 96 px** v okně buddyho, **DETAIL 128 px** v hlavičce
+  a kartě overlaye, v kompaktním okně, v průvodci a v šatníku (256 px = přesné 2× zvětšení kompozice ve 128). Runtime data
+  generuje `node scripts/gen-ops-assets.mjs` (`src/core/data/ops2*.json` s tabulkou kotev, `src/assets/ops2/`, jen potřebné PNG).
+  Všech 23 animací je napojeno na události: příchod a pozdrav při otevření, odchod před zavřením, sken, přemýšlení při čtení,
+  prohlížení lootu, nesení při zápisu, úspěch, chyba, level-up s proměnou a jiskrou, spánek (dřív, když hra neběží),
+  probuzení, tažení a krok po přesunu, řeč během bubliny, ukazování v průvodci, krčení/naštvání/smích podle povahy.
+  Vývoj 0–75 i ID dílů beze změny; ruční volba neznámého dílu se při načtení vrátí na automatiku, sbírka zůstává.
+- **Ikona aplikace a tray** z `docs/design/buddy/bednak2/icon/` (celá sada Tauri 1:1, tray světlá/tmavá 16/32, favicon).
+- **Zvuky** syntetizované ve Web Audio (žádné soubory, nic ze hry): sken, hotovo, nejistota, chyba, level, panel, pípavá řeč.
+  Hraje jen okno, které hráč právě používá (hlavní okno s fokusem, otevřený overlay, kliknutí na buddyho); hra v popředí
+  bez otevřeného overlaye = ticho (`src/core/opsSound.ts`). Výchozí zapnuto s hlasitostí 25 %, Nastavení → Ops: povaha, zvuky a průvodce.
+- **Povahy** Věcný / Kamarádský (výchozí) / Drzý: každá hláška Opse má v CS i EN pro každou povahu několik variant, střídají se
+  bez okamžitého opakování (`src/i18n/opsLines.ts`, `src/core/opsVoice.ts`). Nevyžádané bubliny jen při práci s Opsem.
+- **Průvodce prvním spuštěním** (`src/core/tutorial.ts`, `src/shell/Tutorial.tsx`): přivítání, profil (ručně nebo záloha;
+  snímek profilu „připravujeme“), první snímek, prohlídka Inventáře, Workshopu, Úkolů, Buildů a kompaktu, nastavení buddyho, konec.
+  Nemodální karta, jde přeskočit v každém kroku, schovat do příštího spuštění (pak se zeptá a pokračuje), znovu spustit v Nastavení
+  a vypnout přepínačem „Dialogy a průvodce“. Nebere fokus.
+- Stav: **schéma 8** (`opsPrefs`: povaha, zvuky, dialogy, postup průvodce); starší stav a zálohy se načtou s výchozími hodnotami.
+  Import zálohy, obnova ani reset tato nastavení tohoto počítače nemění.
+- Testy: `tests/core/ops2.test.ts`, E2E `tests/e2e/ops2.spec.ts` (oba jazyky).

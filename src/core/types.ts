@@ -240,8 +240,24 @@ export interface MainWindowPrefs {
 }
 
 /* Schéma 7: 6 → 7 doplnilo mainWindow a quests.pinned. Schéma 6: 5 → 6 doplnilo buddy. Schéma 5: 4 → 5 doplnilo advice, blueprints, tierList a projects. Schéma 4: 3 → 4 doplnilo quests a planner.includeQuests. */
+/* ----- 0.10.0: povaha, zvuky a průvodce Opse; patří tomuto počítači (import zálohy je nemění) ----- */
+/* Věcný / Kamarádský / Drzý */
+export type OpsPersonality = 'plain' | 'friendly' | 'cheeky';
+export type TutorialStep = 'welcome' | 'profile' | 'profile-manual' | 'capture' | 'tour-inventory' | 'tour-workshop' | 'tour-quests' | 'tour-builds' | 'tour-compact' | 'buddy' | 'end';
+/* new = ještě neběžel (spustí se sám), active = rozběhnutý (po přerušení pokračuje), done / skipped = konec */
+export type TutorialStatus = 'new' | 'active' | 'done' | 'skipped';
+export interface OpsPrefs {
+  personality: OpsPersonality;
+  /* zvuky zapnuté a hlasitost 0–100 (výchozí nízká) */
+  sound: boolean;
+  volume: number;
+  /* průvodce a krátké nevyžádané bubliny; vypnuto = Ops mluví jen na vyžádání */
+  dialogs: boolean;
+  tutorial: { status: TutorialStatus; step: TutorialStep };
+}
+
 export interface AppState {
-  schema: 7;
+  schema: 8;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -276,6 +292,8 @@ export interface AppState {
   buddy: BuddyState;
   /* 0.9.0: hlavní okno; import zálohy ani obnova je nemění (nastavení tohoto počítače) */
   mainWindow: MainWindowPrefs;
+  /* 0.10.0 (schéma 8): povaha, zvuky a průvodce; import zálohy ani obnova je nemění */
+  opsPrefs: OpsPrefs;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

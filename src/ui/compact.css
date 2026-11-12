@@ -136,3 +136,10 @@
 .tb-compact { flex: none; }
 
 @media (prefers-reduced-motion: reduce) { .cw-chevron { transition: none; } }
+
+/* 0.10.0: Ops (DETAIL 128 px) s hláškou mezi profilem a obsahem; v nízkém okně se nezobrazí */
+.cw-opsrow { display: flex; align-items: center; gap: 8px; padding: 0 var(--cw-pad) 0 4px; background: var(--bg-panel); border-top: 1px solid var(--border-subtle); flex: none; }
+.cw-opsrow canvas { image-rendering: pixelated; flex: none; margin: -6px 0 -10px; }
+.cw-speech { position: relative; margin: 0; padding: 8px 10px; flex: 1; min-width: 0; background: var(--bg-app); border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--accent); border-radius: 2px; color: var(--text-primary); font-size: 12.5px; line-height: 1.35;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }

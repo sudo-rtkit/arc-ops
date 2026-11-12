@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { OPS, OPS_SLOTS, collection, emptyBuddy, formForLevel, levelEvent, normalizeBuddy, resolveOutfit, syncBuddy, unlockedUpTo, validHotkey } from '../../src/core/ops';
+import { OPS, OPS_GEOMETRY, OPS_SLOTS, collection, emptyBuddy, formForLevel, levelEvent, normalizeBuddy, resolveOutfit, syncBuddy, unlockedUpTo, validHotkey } from '../../src/core/ops';
 import { defaultState, normalize, SCHEMA } from '../../src/core/state';
 import { makeBackup, parseBackup } from '../../src/core/backup';
 import { createApp } from '../../src/store/app';
@@ -22,7 +22,7 @@ import { matchContext } from '../../src/core/catalog';
 import { loadFixture, TOOLTIP } from '../vision/load';
 
 const NOW = new Date(2026, 10, 11, 12, 0).getTime();
-const ASSETS = fileURLToPath(new URL('../../src/assets/ops/', import.meta.url));
+const ASSETS = fileURLToPath(new URL('../../src/assets/ops2/', import.meta.url));
 
 function storage() {
   const kv = memoryKV();
@@ -64,9 +64,15 @@ describe('Ops: podoby, sbírka a šatník', () => {
     expect(OPS.unlocks[0].unlockedParts).toEqual([]);
     for (let l = 1; l <= 75; l++) expect(OPS.unlocks[l].unlockedParts.length, `level ${l}`).toBeGreaterThan(0);
     expect(unlockedUpTo(75)).toHaveLength(OPS.parts.length);
-    const files = new Set([...OPS.forms.flatMap(f => Object.values(f.states).map(s => s.file)), ...OPS.parts.flatMap(p => [p.file, ...Object.values(p.forms ?? {}).map(x => x.file)]), ...OPS.transforms.map(t => t.file), OPS.fx.sparkle.file]);
-    for (const f of files) expect(existsSync(ASSETS + f), f).toBe(true);
-    for (const f of OPS.forms) for (const [k, s] of Object.entries(f.states)) expect(s.anchors.length, `${f.id}/${k}`).toBe(OPS.states[k].frameCount);
+    /* 0.10.0: obě varianty Bedňáka 2.0 mají všechny podoby, stavy, díly, proměny a jiskru jako PNG v aplikaci */
+    for (const g of Object.values(OPS_GEOMETRY)) {
+      const files = new Set([...Object.values(g.forms).flatMap(f => Object.values(f).map(s => s.file)), ...Object.values(g.parts).map(p => p.file), ...Object.values(g.transforms), g.sparkle]);
+      for (const f of files) expect(existsSync(ASSETS + f), f).toBe(true);
+      for (const f of OPS.forms) for (const [k, st] of Object.entries(OPS.states)) expect(g.forms[f.id][k].frames.length, `${g.variant}/${f.id}/${k}`).toBe(st.frameCount);
+      expect(Object.keys(g.parts).sort()).toEqual(OPS.parts.map(p => p.id).sort());
+    }
+    expect(OPS_GEOMETRY.corner.frameSize).toEqual({ width: 96, height: 96 });
+    expect(OPS_GEOMETRY.detail.frameSize).toEqual({ width: 128, height: 128 });
   });
 
   it('sbírka se jen rozšiřuje: pokles levelu nic neodebere, auto outfit sleduje level', () => {
@@ -111,8 +117,8 @@ describe('Ops: podoby, sbírka a šatník', () => {
 describe('Ops: animace a okno', () => {
   it('jednorázový stav se vrátí na klid, proměna skryje výbavu a skončí jiskrou', () => {
     const a = new Animator();
-    a.play('done');
-    const total = OPS.states.done.durationsMs.reduce((x, y) => x + y, 0);
+    a.play('success');
+    const total = OPS.states.success.durationsMs.reduce((x, y) => x + y, 0);
     for (let t = 0; t < total; t += 50) a.tick(50);
     a.tick(1);
     expect(a.anim).toBe('idle');
@@ -121,7 +127,8 @@ describe('Ops: animace a okno', () => {
     expect(a.pose().transform?.index).toBe(0);
     for (let i = 0; i < 10; i++) a.tick(100);
     expect(end).toHaveBeenCalledOnce();
-    expect(a.pose()).toMatchObject({ transform: null, anim: 'idle' });
+    /* 0.10.0: po proměně následuje level-up s jiskrou */
+    expect(a.pose()).toMatchObject({ transform: null, anim: 'level-up' });
     expect(a.pose().sparkle).not.toBeNull();
     const r = new Animator(); r.reduced = true;
     const end2 = vi.fn();
@@ -143,13 +150,13 @@ describe('Ops: animace a okno', () => {
 
 describe('schéma 6', () => {
   it('výchozí stav má buddyho vypnutého; stav schématu 5 se načte beze ztrát a dostane výchozí hodnoty', () => {
-    expect(SCHEMA).toBe(7);
+    expect(SCHEMA).toBe(8);
     const d = defaultState(NOW);
     expect(d.buddy).toEqual(emptyBuddy());
     expect(d.buddy.enabled).toBe(false);
     const old = { schema: 5, profile: { level: 33 }, inventory: { 'Metal Parts': 4 }, tierList: { weapons: { S: ['x'] } } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(7);
+    expect(s.schema).toBe(8);
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
     expect(s.buddy).toEqual(emptyBuddy());
     expect(resolveOutfit(s.profile.level, s.buddy)).toEqual(OPS.unlocks[33].defaultOutfit);
@@ -242,7 +249,7 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     expect(st.saves.length).toBe(saves);
     expect(st.snaps.length).toBe(snaps);
     expect(hub.batch().shots).toEqual([]);
-    expect(statuses).toEqual([{ anim: 'unsure', msg: { key: 'ops.msg.nothing' } }]);
+    expect(statuses).toMatchObject([{ anim: 'shrug', line: { line: 'scan.nothing' }, solicited: true }]);
   });
 
   it('snímek se STASH přijde do dávky; overlay zapíše přes hlavní okno se snímkem stavu, kopie sama neukládá', async () => {

@@ -3,12 +3,17 @@
    (store tohoto okna se nikdy nespustí, takže nic neukládá); zápisy jdou do hlavního okna jako akce. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import { app, useAppState, useDerived } from '../store';
+import { app, derivedOf, useAppState, useDerived } from '../store';
 import { createBus } from './bus';
 import { startHello } from './handshake';
 import { createNative } from './native';
-import type { BatchView, LootShot, OverlayView } from './hub';
-import { OpsCanvas } from './OpsCanvas';
+import type { BatchView, BuddyStatus, LootShot, OverlayView } from './hub';
+import { OpsCanvas, type OpsHandle } from './OpsCanvas';
+import { useOpsSpeech } from './speech';
+import { createSoundPlayer } from './sound';
+import { isFreshProfile, nextUpgrade } from '../core/compact';
+import { upgradeHint, type LineRef } from '../core/opsVoice';
+import { STATIONS } from '../core/data/stations';
 import { hotkeyLabel } from './hotkey';
 import { useT, type TFn } from '../i18n/react';
 import type { Key } from '../i18n';
@@ -27,6 +32,15 @@ import { itemKey } from '../core/types';
 
 const bus = createBus('overlay');
 const native = createNative();
+const STATION_MINS: Record<string, number> = Object.fromEntries(STATIONS.map(x => [x.id, x.min]));
+/* overlay hraje zvuky, když je otevřený a má fokus (hráč ho právě používá) */
+let soundPrefs = { on: false, volume: 0 };
+const sound = createSoundPlayer(() => ({
+  /* skrytý overlay fokus mít nemůže, takže fokus = overlay je otevřený a hráč ho používá */
+  on: soundPrefs.on, volume: soundPrefs.volume, overlayOpen: typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus(),
+  appFocused: false, buddyTouchAt: 0, gameForeground: false,
+}));
+if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) (window as unknown as { __opsSound?: unknown }).__opsSound = sound;
 
 type Tab = 'overview' | 'quests' | 'shop' | 'scan';
 const TABS: Tab[] = ['overview', 'quests', 'shop', 'scan'];
@@ -94,7 +108,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
       </div>
       <aside className="ov-rail">
         <section className="ov-card ov-opscard">
-          <OpsCanvas level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={2} label="Ops" />
+          <OpsCanvas variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={1} label="Ops" />
           <span className="ov-stencil">{t('ops.ov.opsLevel', { level: s.profile.level })}</span>
           <b>{form.name[t.lang]}</b>
         </section>
@@ -501,6 +515,9 @@ export default function OverlayApp() {
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, quests: null, shop: null, scan: null });
   const batchRef = useRef<BatchView | null>(null);
   const gotState = useRef(false);
+  const ops = useRef<OpsHandle>(null);
+  /* co Ops v hlavičce říká: poslední hláška ze stavu, při otevření rada k dalšímu vylepšení */
+  const [said, setSaid] = useState<{ line: LineRef | null; n: number; hint: boolean }>({ line: null, n: 0, hint: true });
 
   useEffect(() => {
     const offs = [
@@ -518,17 +535,36 @@ export default function OverlayApp() {
         if (want) setTab(want);
         else if (b && (b.shots.length || b.loot || b.emptyAt)) setTab('scan');
         setTimeout(() => document.querySelector<HTMLButtonElement>('.ov-tabs [aria-selected="true"]')?.focus(), 30);
+        setSaid(x => ({ line: null, n: x.n + 1, hint: true }));
+      }),
+      /* stav Opse z hlavního okna (sken, čtení, zápis, chyba) */
+      bus.on('status', p => {
+        const st = p as BuddyStatus;
+        if (st.anim !== 'talk' && st.anim !== 'dismiss') ops.current?.play(st.anim);
+        if (st.sound && st.sound !== 'beep') sound.play(st.sound);
+        if (st.line) setSaid(x => ({ line: st.line, n: x.n + 1, hint: false }));
       }),
     ];
     /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první stav (0.8.0) */
     const stopHello = startHello(bus, 'overlay', () => gotState.current);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); void native.overlayClose(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); sound.play('close'); void native.overlayClose(); } };
     window.addEventListener('keydown', onKey);
     return () => { stopHello(); offs.forEach(f => f()); window.removeEventListener('keydown', onKey); };
   }, []);
   useEffect(() => { if (view) setOpacity(view.state.buddy.opacity); }, [view?.state.buddy.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.shots.length) setTab('scan'); }, [view?.batch.shots.length]);
   useEffect(() => { if (view?.batch.loot) setTab('scan'); }, [view?.batch.loot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const st0 = view?.state;
+  if (st0) soundPrefs = { on: st0.opsPrefs.sound, volume: st0.opsPrefs.volume };
+  const hint = useMemo(() => {
+    if (!st0) return null;
+    const d = derivedOf(st0);
+    return upgradeHint(nextUpgrade(d.needs, d.targets, st0.inventory), isFreshProfile(st0, STATION_MINS));
+  }, [st0]);
+  const speech = useOpsSpeech(said.hint ? hint : said.line, st0?.opsPrefs.personality ?? 'friendly', t.lang, {
+    ops, nonce: said.n, gesture: said.hint ? null : undefined, onSay: () => sound.play('beep'),
+  });
 
   const glass = { ['--ov-alpha' as string]: String(opacity / 100) };
   if (!view) return <div className="ov" style={glass}><p className="ov-loading" role="status">{t('ops.ov.loading')}</p></div>;
@@ -546,10 +582,12 @@ export default function OverlayApp() {
     <div className="ov" style={glass} data-testid="overlay">
       <i className="ov-tape" aria-hidden="true" /><i className="ov-bracket tl" aria-hidden="true" /><i className="ov-bracket br" aria-hidden="true" />
       <header className="ov-header">
-        <OpsCanvas level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={1} label="Ops" initial={tab === 'scan' ? 'unsure' : 'idle'} />
-        <div className="grow"><span className="ov-kicker">{t(`ops.ov.kicker.${tab}` as Key)}</span><h1>{t('ops.ov.title')}</h1></div>
+        <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} scale={1} label="Ops"
+          restAnim={speech.talking ? 'talk' : 'idle'} />
+        <div className="grow"><span className="ov-kicker">{t(`ops.ov.kicker.${tab}` as Key)}</span><h1>{t('ops.ov.title')}</h1>
+          {speech.text && <p className="ov-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{speech.text}</p>}</div>
         <div className="ov-profile"><span className="ov-local">■ {t('ops.ov.local')}</span><span>{view.savedAt ? t('ops.ov.saved', { time: fmtTime(view.savedAt) }) : t('ops.ov.notSaved')}</span></div>
-        <button type="button" className="ov-close" aria-label={t('ops.ov.close')} onClick={() => void native.overlayClose()}><X size={18} aria-hidden="true" /></button>
+        <button type="button" className="ov-close" aria-label={t('ops.ov.close')} onClick={() => { sound.play('close'); void native.overlayClose(); }}><X size={18} aria-hidden="true" /></button>
       </header>
       <nav className="ov-tabs" role="tablist" aria-label={t('ops.ov.tabs')}>
         {TABS.map((x, i) => (

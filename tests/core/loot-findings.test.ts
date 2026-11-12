@@ -202,7 +202,7 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
     expect(hub.handleCapture(FINDINGS)).toBe('loot');
     expect(hub.batch()).toMatchObject({ shots: [], last: 'loot' });
     expect(hub.batch().loot!.read.panels.map(p => p.panel)).toEqual(['backpack', 'quickUse']);
-    expect(statuses.at(-1)).toMatchObject({ anim: 'unsure', msg: { key: 'ops.msg.loot' } });
+    expect(statuses.at(-1)).toMatchObject({ anim: 'inspect', line: { line: 'loot.found' } });
     expect(hub.handleCapture(loadFixture(TOOLTIP))).toBe('read');
     expect(hub.batch().shots).toHaveLength(1);
     expect(hub.batch().loot).not.toBeNull();

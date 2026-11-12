@@ -1,39 +1,61 @@
-/* Buddy Ops (milník 5): podoba podle levelu hráče, sbírka odemčených dílů, šatník a události levelu.
-   Čisté funkce nad manifestem z docs/design/buddy/layers (zúžená kopie src/core/data/opsLayers.json,
-   generuje ji scripts/gen-ops-assets.mjs). Vývoj řídí jen level v profilu Companionu, nic se nečte ze hry. */
-import M from './data/opsLayers.json';
+/* Buddy Ops / Bedňák 2.0 (0.10.0): podoba podle levelu hráče, sbírka odemčených dílů, šatník a události levelu.
+   Čisté funkce nad manifestem z docs/design/buddy/bednak2 (zúžené kopie src/core/data/ops2*.json generuje
+   scripts/gen-ops-assets.mjs). Dvě varianty se stejnou logikou: CORNER 96 px (okno buddyho) a DETAIL 128 px
+   (overlay, kompaktní okno, průvodce; 256 px vzniká přesným 2× zvětšením). Vývoj řídí jen level v profilu
+   Companionu, nic se nečte ze hry. */
+import M from './data/ops2.json';
+import CORNER from './data/ops2-corner.json';
+import DETAIL from './data/ops2-detail.json';
 import type { BuddyState, Lang } from './types';
 import { clampInt, isObj, text } from './util';
 
-export type OpsAnim = 'idle' | 'scanning' | 'done' | 'unsure' | 'sleeping' | 'alert' | 'drag';
-export const OPS_ANIMS: OpsAnim[] = ['idle', 'scanning', 'done', 'unsure', 'sleeping', 'alert', 'drag'];
+export const OPS_ANIMS = [
+  'idle', 'talk', 'greet', 'point-left', 'point-right', 'point-up', 'point-down', 'scanning', 'thinking', 'success', 'level-up',
+  'error', 'sleep', 'wake-up', 'appear', 'dismiss', 'inspect', 'carry', 'drag', 'walk', 'annoyed', 'laugh', 'shrug',
+] as const;
+export type OpsAnim = typeof OPS_ANIMS[number];
+export const isOpsAnim = (v: unknown): v is OpsAnim => typeof v === 'string' && (OPS_ANIMS as readonly string[]).includes(v);
 
 export interface AnimSpec { frameCount: number; durationsMs: number[]; loop: boolean; returnTo: string | null }
-export interface FormSpec {
-  id: string; name: { cs: string; en: string }; levels: [number, number];
-  /* pás těla a kotvy slotů pro každý snímek */
-  states: Record<string, { file: string; anchors: Record<string, [number, number]>[] }>;
-}
+export interface FormSpec { id: string; name: { cs: string; en: string }; levels: [number, number] }
 export interface PartSpec {
-  id: string; slot: string; variant: number; name: { cs: string; en: string }; file: string; offset: [number, number];
-  forms?: Record<string, { file: string; offset: [number, number] }>;
+  id: string; slot: string; variant: number; name: { cs: string; en: string };
   /* štítek: atlas 76 dlaždic, index = level */
-  frameSize?: { width: number; height: number }; frameCount?: number;
+  frameCount?: number;
 }
 export interface UnlockRow { level: number; form: string; unlockedParts: string[]; defaultOutfit: Record<string, string | null>; transformation?: string }
-export interface TransformSpec { id: string; from: string; to: string; file: string; frameCount: number; durationsMs: number[] }
+export interface TransformSpec { id: string; from: string; to: string; frameCount: number; durationsMs: number[] }
 export interface OpsManifest {
-  version: number; frameSize: { width: number; height: number };
-  slots: string[]; drawOrder: string[];
-  states: Record<string, AnimSpec>;
+  version: number; slots: string[]; drawOrder: string[];
+  states: Record<OpsAnim, AnimSpec>;
   forms: FormSpec[]; parts: PartSpec[]; unlocks: UnlockRow[]; transforms: TransformSpec[];
-  fx: { sparkle: { file: string; frameCount: number; durationsMs: number[] } };
+  fx: { sparkle: { frameCount: number; durationsMs: number[] } };
+  aliases: Record<string, string>;
+}
+
+/* Geometrie varianty: cesty k PNG (relativně k src/assets/ops2/), posuny dílů a kotvy slotů po snímcích.
+   frames[i] >= 0: index sady kotev; < 0: snímek je neviditelný (tělo ani šatník se nekreslí), kotvy -1 - i. */
+export type OpsVariantId = 'corner' | 'detail';
+export interface OpsGeometry {
+  variant: OpsVariantId; frameSize: { width: number; height: number };
+  anchors: [number, number][][];
+  forms: Record<string, Record<string, { file: string; frames: number[] }>>;
+  parts: Record<string, { file: string; offset: [number, number]; frameSize?: { width: number; height: number } }>;
+  transforms: Record<string, string>;
+  sparkle: string;
 }
 
 export const OPS = M as unknown as OpsManifest;
+export const OPS_GEOMETRY: Record<OpsVariantId, OpsGeometry> = { corner: CORNER as unknown as OpsGeometry, detail: DETAIL as unknown as OpsGeometry };
 export const OPS_SLOTS: string[] = OPS.slots;
 export const OPS_LEVEL_MAX = OPS.unlocks.length - 1;
 const PARTS = new Map(OPS.parts.map(p => [p.id, p]));
+
+/* Celková délka jednorázové animace v ms (např. odchod před zavřením okna). */
+export const animMs = (anim: OpsAnim): number => OPS.states[anim].durationsMs.reduce((a, b) => a + b, 0);
+
+/* Kdy Ops usne bez aktivity: rychleji, když víme, že hra neběží (null = nevíme). */
+export const sleepAfterMs = (game: boolean | null): number => (game === false ? 60_000 : 10 * 60_000);
 
 export const clampLevel = (level: number): number => clampInt(level, 0, OPS_LEVEL_MAX);
 export const partById = (id: string): PartSpec | undefined => PARTS.get(id);
@@ -42,8 +64,6 @@ export const formForLevel = (level: number): FormSpec => {
   const l = clampLevel(level);
   return OPS.forms.find(f => l >= f.levels[0] && l <= f.levels[1]) ?? OPS.forms[0];
 };
-/* Díl pro danou podobu těla: některé sloty mají vlastní soubor a posun pro širší těla. */
-export const partAsset = (p: PartSpec, formId: string): { file: string; offset: [number, number] } => p.forms?.[formId] ?? p;
 
 /* Všechny díly odemčené do daného levelu včetně (level 0 je holé tělo). */
 export function unlockedUpTo(level: number): string[] {
@@ -98,7 +118,7 @@ export function levelEvent(prev: number, next: number): LevelEvent | null {
   return { kind: 'unlock', level: b, parts };
 }
 
-/* ----- stav (schéma 6) ----- */
+/* ----- stav (schéma 6; od 0.10.0 se ID dílů nezměnila, neznámé ruční volby se při načtení vrátí na automatiku) ----- */
 
 export const OPACITY_MIN = 70;
 export const OPACITY_MAX = 100;

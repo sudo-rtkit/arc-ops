@@ -1,5 +1,10 @@
-/* Časování animací Opse podle manifestu (bez DOM): stav těla, proměna a jiskra. Jednorázové stavy se vrací
-   na returnTo, proměna skryje výbavu a po dohrání přejde do klidu s jiskrou. */
+/* Časování animací Opse / Bedňáka 2.0 podle manifestu (bez DOM): stav těla, proměna a jiskra.
+   - Jednorázový stav se po dohrání vrátí na další stav ve frontě, jinak na klidový stav (rest): běžně idle,
+     během bubliny talk. returnTo:null (dismiss) zůstane na posledním (prázdném) snímku do dalšího příkazu.
+   - Smyčky (talk, scanning, thinking, carry, drag, walk, sleep) ukončí až příslušná interakce; play(…, { once })
+     přehraje smyčku jen jednou (např. walk po přesunu).
+   - Proměna skryje tělo i šatník, po dohrání přejde do level-up s jiskrou. Při omezení pohybu se nic nepřehrává:
+     zobrazí se rovnou cílová viditelnost (idle, nebo prázdný snímek po odchodu). */
 import { OPS, type OpsAnim, type TransformSpec } from '../core/ops';
 
 export interface Pose {
@@ -8,24 +13,62 @@ export interface Pose {
   sparkle: number | null;
 }
 
+/* Klidové stavy, na které se vrací jednorázové animace. */
+export type RestAnim = 'idle' | 'talk' | 'sleep';
+
 export class Animator {
   anim: OpsAnim = 'idle';
   frame = 0;
   private t = 0;
+  private once = false;
+  /* dismiss dohrál: drží poslední (prázdný) snímek */
+  private holding = false;
+  /* čekající jednorázové stavy (např. probuzení, pak výsledek) */
+  queue: OpsAnim[] = [];
+  rest: RestAnim = 'idle';
   transform: { spec: TransformSpec; index: number; t: number } | null = null;
   sparkle: { index: number; t: number } | null = null;
   /* omezení pohybu: statický snímek, proměna hned, bez jiskry */
   reduced = false;
   private onEnd: (() => void) | null = null;
 
-  play(anim: OpsAnim) { this.anim = anim; this.frame = 0; this.t = 0; }
+  play(anim: OpsAnim, opts: { once?: boolean } = {}) {
+    this.anim = anim; this.frame = 0; this.t = 0; this.once = !!opts.once; this.holding = false;
+    /* při omezení pohybu odchod rovnou skončí na prázdném snímku, ostatní stavy ukážou první snímek */
+    if (this.reduced && anim === 'dismiss') { this.frame = OPS.states.dismiss.frameCount - 1; this.holding = true; }
+    else if (this.reduced && !OPS.states[anim].loop) { this.anim = this.rest; this.queue = []; }
+  }
+  /* Přehraje stav po právě běžícím jednorázovém stavu (smyčku nebo klid přeruší hned). */
+  then(anim: OpsAnim) {
+    const st = OPS.states[this.anim];
+    if (!this.transform && (st.loop || this.anim === 'idle' || this.hidden())) { this.play(anim); return; }
+    this.queue.push(anim);
+  }
+  /* Klidový stav; když právě běží klid nebo jiná klidová smyčka, přepne se hned. */
+  setRest(rest: RestAnim) {
+    this.rest = rest;
+    if (this.transform) return;
+    if (this.anim === 'idle' || this.anim === 'talk' || this.anim === 'sleep') { if (this.anim !== rest) this.play(rest); }
+  }
+  /* Je Ops po odchodu skrytý (dismiss na posledním snímku)? */
+  hidden(): boolean { return this.holding; }
+
   startTransform(id: string | null, done?: () => void) {
     const spec = id ? OPS.transforms.find(t => t.id === id) : undefined;
-    if (!spec || this.reduced) { this.transform = null; this.play('idle'); done?.(); return; }
+    this.queue = [];
+    if (!spec || this.reduced) { this.transform = null; this.play(this.reduced ? this.rest : 'level-up'); if (!this.reduced) this.startSparkle(); done?.(); return; }
     this.onEnd = done ?? null;
     this.transform = { spec, index: 0, t: 0 };
   }
   startSparkle() { if (!this.reduced) this.sparkle = { index: 0, t: 0 }; }
+
+  private next() {
+    const q = this.queue.shift();
+    if (q) { this.play(q); return; }
+    const ret = OPS.states[this.anim].returnTo;
+    if (ret === null && !this.once) { this.frame = OPS.states[this.anim].frameCount - 1; this.t = 0; this.holding = true; return; }
+    this.play(this.rest);
+  }
 
   /* Posun o dt ms. Vrací true, když se změnil zobrazený snímek. */
   tick(dt: number): boolean {
@@ -38,18 +81,19 @@ export class Animator {
       while (this.transform && tr.t >= tr.spec.durationsMs[tr.index]) {
         tr.t -= tr.spec.durationsMs[tr.index]; tr.index++; changed = true;
         if (tr.index >= tr.spec.frameCount) {
-          this.transform = null; this.play('idle'); this.startSparkle();
+          this.transform = null; this.play('level-up'); this.startSparkle();
           const cb = this.onEnd; this.onEnd = null; cb?.();
         }
       }
-    } else {
+    } else if (!this.holding) {
       this.t += dt;
-      let st = OPS.states[this.anim];
-      while (this.t >= st.durationsMs[this.frame]) {
+      let guard = 0;
+      while (this.t >= OPS.states[this.anim].durationsMs[this.frame] && guard++ < 200) {
+        const st = OPS.states[this.anim];
         this.t -= st.durationsMs[this.frame]; this.frame++; changed = true;
         if (this.frame >= st.frameCount) {
-          if (st.loop) this.frame = 0;
-          else { this.anim = (st.returnTo as OpsAnim) || 'idle'; this.frame = 0; st = OPS.states[this.anim]; }
+          if (st.loop && !this.once) this.frame = 0;
+          else { this.next(); if (this.holding) break; }
         }
       }
     }

@@ -31,7 +31,7 @@ button, input { font: inherit; color: inherit; }
 .num { text-align: right; }
 
 .ov {
-  position: relative; box-sizing: border-box; height: 100%; display: grid; grid-template-rows: 91px 56px 1fr 67px;
+  position: relative; box-sizing: border-box; height: 100%; display: grid; grid-template-rows: 112px 56px 1fr 67px;
   background: rgb(var(--overlay-glass-rgb) / var(--ov-alpha)); border: 1px solid var(--overlay-line);
 }
 /* jemné zrno */
@@ -44,7 +44,11 @@ button, input { font: inherit; color: inherit; }
 .ov-bracket.br { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
 
 .ov-header { display: flex; align-items: center; gap: 18px; padding: 0 26px; border-bottom: 1px solid var(--border-subtle); }
-.ov-header canvas { image-rendering: pixelated; flex: none; }
+.ov-header canvas { image-rendering: pixelated; flex: none; margin: -10px -6px -8px -10px; }
+/* Ops v hlavičce mluví: jedna až dvě řádky, nikdy nezvětší hlavičku */
+.ov-speech { margin: 6px 0 0; max-width: 560px; color: var(--text-secondary); font-size: 12.5px; line-height: 1.35;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ov-speech::before { content: '› '; color: var(--accent); }
 .ov-kicker, .ov-stencil { font: 500 11px/1 var(--font-mono); letter-spacing: .18em; color: var(--accent); text-transform: uppercase; }
 .ov-header h1 { margin: 6px 0 0; font: 600 26px/1.1 var(--font-head); }
 .ov-profile { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: 12px; color: var(--text-secondary); }

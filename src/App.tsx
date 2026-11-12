@@ -26,6 +26,7 @@ import Settings from './modules/Settings';
 import { useT } from './i18n/react';
 import Compact from './shell/Compact';
 import { CloseDialog } from './shell/CloseDialog';
+import { Tutorial } from './shell/Tutorial';
 import { windowCtl } from './shell/windowCtl';
 import { windowShortcut } from './core/mainWindow';
 import { app as appStore } from './store';
@@ -98,6 +99,7 @@ function FullApp() {
         </main>
       </div>
       {ready && <RaidFormHost />}
+      {ready && <Tutorial compact={false} />}
       <Toasts />
       <CloseDialog />
     </div>

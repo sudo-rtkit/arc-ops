@@ -61,7 +61,7 @@ test.describe('Quests (čeština)', () => {
     await toggle.uncheck();
     await expect(page.locator('main')).not.toContainText('Úkol: Snap and Salvage');
     await expect.poll(async () => (await stateOf(page)).planner.includeQuests).toBe(false);
-    expect((await stateOf(page)).schema).toBe(7);
+    expect((await stateOf(page)).schema).toBe(8);
     expect(errors).toEqual([]);
   });
 

@@ -1,7 +1,7 @@
 /* Jeden store pro celou aplikaci: drží stav, mění ho přes akce a ukládá ho přes rozhraní úložiště.
    Neimportuje React, takže jde testovat v Node se zástupným úložištěm. */
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { CloseAction, CompactSection, MainWindowPrefs } from '../core/types';
+import type { CloseAction, CompactSection, MainWindowPrefs, OpsPrefs } from '../core/types';
 import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Raid, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
@@ -22,6 +22,7 @@ import { applyVisionImport, type VisionApply, type VisionSummary } from '../core
 import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, type RaidLootRefusal } from '../core/lootImport';
 import { PIN_MAX, projectById, questById, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
+import { normalizeOpsPrefs } from '../core/opsPrefs';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
@@ -244,6 +245,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     const n = normalize(next, now(), st().settings.lang);
     /* 0.9.0: okno (režim, připnutí, poloha, křížek) patří tomuto počítači; import, obnova ani reset ho nemění */
     n.mainWindow = structuredClone(st().mainWindow);
+    /* 0.10.0: povaha, zvuky a průvodce Opse také patří tomuto počítači */
+    n.opsPrefs = structuredClone(st().opsPrefs);
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
@@ -923,6 +926,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       change(s => {
         if (!COMPACT_SECTIONS.includes(section) || !!s.mainWindow.collapsed[section] === collapsed) return false;
         if (collapsed) s.mainWindow.collapsed[section] = true; else delete s.mainWindow.collapsed[section];
+      });
+    },
+    /* 0.10.0: povaha, zvuky, dialogy a postup průvodce (pravidla v core/opsPrefs.ts) */
+    setOpsPrefs(patch: Partial<Omit<OpsPrefs, 'tutorial'>> & { tutorial?: Partial<OpsPrefs['tutorial']> }) {
+      change(s => {
+        const n = normalizeOpsPrefs({ ...s.opsPrefs, ...patch, tutorial: { ...s.opsPrefs.tutorial, ...patch.tutorial } });
+        if (JSON.stringify(n) === JSON.stringify(s.opsPrefs)) return false;
+        s.opsPrefs = n;
       });
     },
     /* šatník: 'auto' = podle levelu, null = bez dílu, jinak díl ze sbírky */

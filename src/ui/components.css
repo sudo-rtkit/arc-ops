@@ -444,3 +444,33 @@ details.data-table summary {
 details.data-table summary:hover { color: var(--text-primary); }
 details.data-table[open] summary { margin-bottom: var(--space-2); }
 .kpi .kpi-val.kpi-text { font-family: var(--font-ui); font-weight: var(--weight-semibold); letter-spacing: 0; }
+
+/* ----- 0.10.0: průvodce prvním spuštěním (Ops mluví, karta není modální a nic neblokuje) ----- */
+.tour {
+  position: fixed; left: calc(var(--sidebar-w) + var(--space-5)); bottom: var(--space-5); z-index: var(--z-dropdown);
+  display: flex; align-items: flex-end; gap: 4px; width: min(460px, calc(100vw - var(--sidebar-w) - 40px)); pointer-events: none;
+}
+.shell.compact .tour { left: calc(var(--sidebar-compact-w) + var(--space-5)); }
+.tour > * { pointer-events: auto; }
+.tour canvas { image-rendering: pixelated; flex: none; margin-bottom: -6px; }
+.tour-bubble {
+  position: relative; flex: 1; min-width: 0; padding: 10px 12px 10px; background: var(--bg-raised); border: 1px solid var(--accent);
+  border-radius: 2px; box-shadow: 0 10px 30px rgb(0 0 0 / .45);
+}
+.tour-bubble::before { content: ''; position: absolute; left: -7px; bottom: 26px; width: 12px; height: 12px; background: var(--bg-raised);
+  border-left: 1px solid var(--accent); border-bottom: 1px solid var(--accent); transform: rotate(45deg); }
+.tour-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tour-step { font-size: 11px; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; }
+.tour-x { display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -6px 0 0; background: none; border: 0; color: var(--text-muted); cursor: pointer; border-radius: 2px; }
+.tour-x:hover { color: var(--text-primary); background: var(--bg-hover, rgb(255 255 255 / .06)); }
+.tour-line { margin: 6px 0 10px; font-size: 13.5px; line-height: 1.45; color: var(--text-primary); }
+.tour-replies { display: flex; flex-wrap: wrap; gap: 6px; }
+.tour-soon { margin-left: 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.tour-skip { margin-top: 8px; padding: 0; background: none; border: 0; color: var(--text-muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.tour-skip:hover { color: var(--text-primary); }
+.nav-item.tour-target { outline: 2px solid var(--accent); outline-offset: -2px; box-shadow: 0 0 0 4px rgb(255 160 90 / .18); }
+/* kompaktní okno: karta místo řádku s Opsem mezi profilem a obsahem (nic nepřekrývá) */
+.tour.tour--compact { position: static; width: auto; padding: 6px var(--cw-pad, 16px) 8px 4px; background: var(--bg-panel); border-top: 1px solid var(--border-subtle); flex: none; }
+.tour.tour--compact canvas { margin: -6px 0 -10px; }
+.tour.tour--compact .tour-bubble { box-shadow: none; }
+.tour.tour--compact .tour-line { font-size: 12.5px; margin: 4px 0 8px; }

@@ -16,6 +16,7 @@ import { normalizeBlueprints } from './itemdb';
 import { emptyTierList, normalizeTierList } from './tierlist';
 import { emptyBuddy, normalizeBuddy } from './ops';
 import { emptyMainWindow, normalizeMainWindow } from './mainWindow';
+import { emptyOpsPrefs, normalizeOpsPrefs } from './opsPrefs';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -24,7 +25,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 7 as const;
+export const SCHEMA = 8 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -81,6 +82,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     projects: {},
     buddy: emptyBuddy(),
     mainWindow: emptyMainWindow(),
+    opsPrefs: emptyOpsPrefs(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -404,6 +406,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.buddy = normalizeBuddy(r.buddy);
   /* schéma 7 (0.9.0): ve starším stavu chybí, okno začne v plném režimu, křížek se zeptá */
   out.mainWindow = normalizeMainWindow(r.mainWindow);
+  /* schéma 8 (0.10.0): ve starším stavu chybí; povaha Kamarádský, zvuky potichu zapnuté, průvodce se nabídne */
+  out.opsPrefs = normalizeOpsPrefs(r.opsPrefs);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   return out;

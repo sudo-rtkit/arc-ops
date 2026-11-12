@@ -17,8 +17,11 @@ import { normalizeItems } from '../core/raidItems';
 import type { RaidLootResult } from '../store/app';
 import { matchContext } from '../core/catalog';
 import { getMaterials } from '../core/gamedata';
-import { levelEvent, resolveOutfit, type LevelEvent, type OpsAnim } from '../core/ops';
-import { msg, t, type Lang, type MsgRef } from '../i18n';
+import { animMs, levelEvent, resolveOutfit, type LevelEvent, type OpsAnim } from '../core/ops';
+import { line, sayLine, type LineRef } from '../core/opsVoice';
+import type { SoundId } from '../core/opsSound';
+import type { OpsPersonality } from '../core/types';
+import { getLang, t, type Lang } from '../i18n';
 import type { Bus } from './bus';
 import type { Native } from './native';
 
@@ -40,16 +43,32 @@ export interface BatchView {
 export interface BuddyView {
   lang: Lang; level: number; outfit: Record<string, string | null>; scale: 1 | 2;
   positions: Record<string, { x: number; y: number }>; monitor: string; hotkey: string;
+  /* 0.10.0: povaha, zvuky a dialogy; hra běží (null = nevíme, hlídání je vypnuté) */
+  personality: OpsPersonality; sound: boolean; volume: number; dialogs: boolean; game: boolean | null;
 }
 export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string }
-export interface BuddyStatus { anim: OpsAnim; msg: MsgRef | null }
+/* Je Ops UI právě v použití (pro zvuky a nevyžádané bubliny)? */
+export interface UiActivity { overlayOpen: boolean; appFocused: boolean }
+/* Stav Opse: animace, hláška (varianta podle povahy se vybere v okně), zvuk a zda šlo o odpověď na akci hráče. */
+export interface BuddyStatus { anim: OpsAnim; line: LineRef | null; sound: SoundId | null; solicited: boolean; ui: UiActivity }
+/* Událost levelu pro okno buddyho, s informací o použití UI. */
+export type BuddyLevelEvent = LevelEvent & { ui: UiActivity };
 
 /* Nejvýš tolik stránek stashe v jedné dávce. */
 export const BATCH_MAX = 12;
 
-export interface HubOptions { app: App; bus: Bus; native: Native; now?: () => number; pushMs?: number; navigate?: (route: string) => void }
+export interface HubOptions {
+  app: App; bus: Bus; native: Native; now?: () => number; pushMs?: number; navigate?: (route: string) => void;
+  /* má hlavní okno fokus (plný nebo kompaktní režim)? */
+  appFocused?: () => boolean;
+  /* jak dlouho před zavřením okna buddyho hraje odchod (dismiss); 0 = zavřít hned */
+  dismissMs?: number;
+}
+/* Délka odchodu podle manifestu. */
+export const DISMISS_MS = animMs('dismiss');
+const SOUND_OF: Partial<Record<OpsAnim, SoundId>> = { scanning: 'scan', thinking: 'unsure', success: 'done', error: 'error', inspect: 'unsure', shrug: 'unsure', annoyed: 'unsure' };
 
-export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, navigate }: HubOptions) {
+export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, navigate, appFocused = () => false, dismissMs = 0 }: HubOptions) {
   const st = () => app.store.getState().state;
   const emptyBatch = (): BatchView => ({ shots: [], loot: null, last: null, emptyAt: 0, rejected: '', failed: '' });
   let batch: BatchView = emptyBatch();
@@ -60,6 +79,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let overlayKnown = false;
   let pushTimer: ReturnType<typeof setTimeout> | null = null;
   let gameRunning = false;
+  /* hlídání hry dalo odpověď (jinak nevíme, jestli hra běží) */
+  let gameKnown = false;
+  let overlayOpen = false;
+  const statusListeners = new Set<(s: BuddyStatus) => void>();
+  const eventListeners = new Set<(e: LevelEvent) => void>();
   /* 0.9.0: buddy skrytý z nabídky oznamovací oblasti (jen pro tuto relaci; zkratka a snímek běží dál) */
   let buddyHidden = false;
   const visListeners = new Set<() => void>();
@@ -76,6 +100,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const buddyView = (s: AppState): BuddyView => ({
     lang: s.settings.lang, level: s.profile.level, outfit: resolveOutfit(s.profile.level, s.buddy), scale: s.buddy.scale,
     positions: s.buddy.positions, monitor: s.buddy.monitor, hotkey: s.buddy.hotkey,
+    personality: s.opsPrefs.personality, sound: s.opsPrefs.sound, volume: s.opsPrefs.volume, dialogs: s.opsPrefs.dialogs,
+    game: gameKnown ? gameRunning : null,
   });
   const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey });
   const pushBuddy = (force = false) => {
@@ -91,7 +117,35 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     if (now || pushMs <= 0) { bus.send('overlay', 'state', overlayView()); return; }
     pushTimer = setTimeout(() => { pushTimer = null; bus.send('overlay', 'state', overlayView()); }, pushMs);
   };
-  const status = (anim: OpsAnim, m: MsgRef | null = null) => bus.send('buddy', 'status', { anim, msg: m } satisfies BuddyStatus);
+  const ui = (): UiActivity => ({ overlayOpen, appFocused: appFocused() });
+  /* Stav jde buddymu, overlayi (když existuje) a místním posluchačům hlavního okna (kompakt, průvodce). */
+  const status = (anim: OpsAnim, l: LineRef | null = null, solicited = true) => {
+    const s: BuddyStatus = { anim, line: l, sound: SOUND_OF[anim] ?? (l ? 'beep' : null), solicited, ui: ui() };
+    bus.send('buddy', 'status', s);
+    if (overlayKnown) bus.send('overlay', 'status', s);
+    statusListeners.forEach(f => f(s));
+  };
+  /* Text hlášky pro hlášení v hlavním okně (podle povahy a jazyka). */
+  const text = (l: LineRef) => sayLine(l, st().opsPrefs.personality, getLang());
+  /* Okno buddyho zavřít až po odchodu (dismiss); bez zpoždění v testech. */
+  let closing = 0, dismissing = false;
+  const closeBuddy = async () => {
+    if (dismissMs > 0) {
+      const id = ++closing;
+      dismissing = true;
+      bus.send('buddy', 'status', { anim: 'dismiss', line: null, sound: null, solicited: false, ui: ui() } satisfies BuddyStatus);
+      await new Promise(r => setTimeout(r, dismissMs));
+      if (id !== closing) return;
+      dismissing = false;
+    }
+    await native.buddyClose();
+  };
+  const openBuddy = async () => {
+    closing++;
+    /* znovu otevřen během odchodu: okno ještě existuje, Ops se musí vrátit příchodem */
+    if (dismissing) { dismissing = false; bus.send('buddy', 'status', { anim: 'appear', line: null, sound: null, solicited: false, ui: ui() } satisfies BuddyStatus); }
+    await native.buddyOpen();
+  };
 
   /* ----- přepínač a okna ----- */
   function syncNative(s: AppState) {
@@ -103,7 +157,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
         run(async () => {
           await native.enable(true);
           if (hotkey) await native.setHotkey(hotkey).catch(() => app.notify(t('ops.hotkey.lost'), 'warning'));
-          if (auto) await native.watch(true); else if (!buddyHidden) await native.buddyOpen();
+          if (auto) await native.watch(true); else if (!buddyHidden) await openBuddy();
         });
       } else {
         batch = emptyBatch();
@@ -118,8 +172,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const auto = b.autoOpen;
       run(async () => {
         await native.watch(auto);
-        if (!auto) { if (!buddyHidden) await native.buddyOpen(); }
-        else if (!gameRunning) await native.buddyClose();
+        if (!auto) { if (!buddyHidden) await openBuddy(); }
+        else if (!gameRunning) await closeBuddy();
       });
     }
   }
@@ -131,7 +185,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const b = st().buddy;
     if (!b.enabled) return;
     setHidden(!visible);
-    run(() => (!visible ? native.buddyClose() : !b.autoOpen || gameRunning ? native.buddyOpen() : Promise.resolve()));
+    run(() => (!visible ? closeBuddy() : !b.autoOpen || gameRunning ? openBuddy() : Promise.resolve()));
   }
   const onVisibility = (f: () => void) => { visListeners.add(f); return () => { visListeners.delete(f); }; };
 
@@ -149,8 +203,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     if (!appCaptureAt || now() - appCaptureAt > APP_CAPTURE_MS) { appCaptureAt = 0; return; }
     appCaptureAt = 0;
     if (result === 'read' || result === 'loot') { void run(() => native.overlayOpen('scan')); return; }
-    if (result === 'failed') app.notify(t('ops.msg.failed'), 'danger');
-    else app.notify(t(reason === 'otherScreen' ? 'ops.msg.otherScreen' : 'ops.msg.nothing'), 'warning');
+    if (result === 'failed') app.notify(text(line('scan.failed')), 'danger');
+    else app.notify(text(line(reason === 'otherScreen' ? 'scan.otherScreen' : 'scan.nothing')), 'warning');
   }
 
   /* ----- zkratka (volá ji Nastavení): uloží se jen ta, kterou systém přijal ----- */
@@ -177,7 +231,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const r = readCapture(img);
     if (r.kind === 'empty') {
       batch = { ...batch, emptyAt: now(), rejected: r.reason, failed: '' };
-      status('unsure', msg(r.reason === 'otherScreen' ? 'ops.msg.otherScreen' : 'ops.msg.nothing'));
+      status('shrug', line(r.reason === 'otherScreen' ? 'scan.otherScreen' : 'scan.nothing'));
       pushOverlay(true);
       return 'empty';
     }
@@ -186,9 +240,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const sig = lootSignature(r.read);
       batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
       const a = analyzeLoot(r.read, s.vision.learned, matchCtx(s));
-      if (raidWithSig(s, sig)) status('unsure', msg('ops.msg.lootDup'));
-      else if (a.empty) status('done', msg('ops.msg.lootEmpty'));
-      else status('unsure', msg('ops.msg.loot', { count: a.groups.length }));
+      if (raidWithSig(s, sig)) status('annoyed', line('loot.dup'));
+      else if (a.empty) status('shrug', line('loot.empty'));
+      else status('inspect', line('loot.found', { count: a.groups.length }));
       pushOverlay(true);
       return 'loot';
     }
@@ -197,15 +251,16 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const mats = getMaterials(s).map(m => m.name);
     const a = analyzeShots(shots.map(x => x.read), s.vision.learned, matchContext(mats, [...new Set(Object.values(s.items).map(x => x.name))]));
     const check = a.groups.filter(g => g.match.status !== 'known' || !g.countSure).length;
-    if (check) status('unsure', msg('ops.msg.check', { count: check, pages: shots.length }));
-    else status('done', msg('ops.msg.read', { count: a.groups.length, pages: shots.length }));
+    if (check) status('thinking', line('scan.check', { count: check, pages: shots.length }));
+    else status('talk', line('scan.read', { count: a.groups.length, pages: shots.length }));
     pushOverlay(true);
     return 'read';
   }
 
   async function takeCapture(p: { id: number; width: number; height: number }) {
     let buf: ArrayBuffer | null = null;
-    try { buf = await native.captureTake(p.id); } catch { status('alert', msg('ops.msg.failed')); afterAppCapture('failed'); return; }
+    status('thinking');
+    try { buf = await native.captureTake(p.id); } catch { status('error', line('scan.failed')); afterAppCapture('failed'); return; }
     let data: Uint8Array | null = new Uint8Array(buf);
     buf = null;
     try { const r = handleCapture({ width: p.width, height: p.height, data }); afterAppCapture(r, batch.rejected); }
@@ -213,8 +268,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   }
 
   async function importShots(input: VisionApply): Promise<VisionSummary | null> {
+    status('carry');
     const sum = await app.actions.importFromScreens(input);
-    if (sum) { clearBatch(); status('done', msg('ops.msg.written', { count: sum.materials + sum.items })); }
+    if (sum) { clearBatch(); status('success', line('scan.written', { count: sum.materials + sum.items })); }
+    else status('error', null);
     bus.send('overlay', 'imported', { summary: sum });
     pushOverlay(true);
     return sum;
@@ -226,8 +283,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     let res: RaidLootResult;
     if (!shot || shot.id !== shotId) res = { ok: false, reason: 'empty' };
     else {
+      status('carry');
       res = await app.actions.importRaidLoot(input, shot.sig);
-      if (res.ok) { if (batch.loot?.id === shotId) clearLoot(); status('done', msg('ops.msg.lootWritten', { count: res.items.length })); }
+      if (res.ok) { if (batch.loot?.id === shotId) clearLoot(); status('success', line('loot.written', { count: res.items.length })); }
+      else status('error', null);
     }
     bus.send('overlay', 'lootImported', { result: res });
     pushOverlay(true);
@@ -257,7 +316,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       pushOverlay();
       if (prevLevel !== null && s.profile.level !== prevLevel) {
         const ev: LevelEvent | null = levelEvent(prevLevel, s.profile.level);
-        if (ev) bus.send('buddy', 'event', ev);
+        if (ev) { bus.send('buddy', 'event', { ...ev, ui: ui() } satisfies BuddyLevelEvent); eventListeners.forEach(f => f(ev)); }
       }
       prevLevel = s.profile.level;
     };
@@ -288,13 +347,17 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }));
     /* události z Rustu */
     offs.push(bus.on('capture-start', () => status('scanning')));
+    /* overlay otevřený/zavřený (z Rustu) */
+    offs.push(bus.on('overlay', p => { overlayOpen = p === true; bus.send('buddy', 'ui', ui()); }));
     offs.push(bus.on('capture-ready', p => { const c = p as { id: number; width: number; height: number }; if (c && Number.isFinite(c.id)) void takeCapture(c); }));
-    offs.push(bus.on('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('alert', msg('ops.msg.failed')); pushOverlay(true); afterAppCapture('failed'); }));
+    offs.push(bus.on('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));
     offs.push(bus.on('game', p => {
       gameRunning = p === true;
+      gameKnown = true;
+      if (st().buddy.enabled) pushBuddy();
       const b = st().buddy;
       if (!b.enabled || !b.autoOpen || buddyHidden) return;
-      run(() => (gameRunning ? native.buddyOpen() : native.buddyClose()));
+      run(() => (gameRunning ? openBuddy() : closeBuddy()));
     }));
 
     queue = queue.then(() => bus.ready());
@@ -305,9 +368,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   function stop() { offs.splice(0).forEach(f => f()); if (pushTimer) clearTimeout(pushTimer); }
 
+  const onStatus = (f: (s: BuddyStatus) => void) => { statusListeners.add(f); return () => { statusListeners.delete(f); }; };
+  const onLevel = (f: (e: LevelEvent) => void) => { eventListeners.add(f); return () => { eventListeners.delete(f); }; };
+
   return {
     start, stop, setHotkey, handleCapture, importShots, importLoot, batch: () => batch, idle: () => queue,
-    captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility,
+    captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, ui,
   };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

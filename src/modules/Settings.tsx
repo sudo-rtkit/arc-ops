@@ -18,7 +18,7 @@ import { catalogCount } from '../core/catalog';
 import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
 import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
-import { OpsPanel, WardrobePanel } from './OpsSettings';
+import { OpsPanel, OpsVoicePanel, WardrobePanel } from './OpsSettings';
 import { WindowPanel } from './WindowSettings';
 
 /* Odkazy na zdroje herních dat (uvedení zdroje). Otevřou se jen na kliknutí; aplikace z nich nic nestahuje. */
@@ -209,6 +209,7 @@ export default function Settings({ sub }: { sub: string }) {
       </Panel>
       <WindowPanel />
       <OpsPanel />
+      <OpsVoicePanel />
       <WardrobePanel />
       <Panel title="Data">
         <dl className="dl">

@@ -4,6 +4,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { MODULES } from './modules';
 import { cx } from '../ui/components';
 import { useT } from '../i18n/react';
+import { useUi } from '../store/ui';
 
 type Tip = { text: string; x: number; y: number } | null;
 
@@ -44,6 +45,7 @@ export function Sidebar({ active, compact, canCollapse, onToggle }: { active: st
   let lastGroup = '';
   const tip = useNavTip(compact);
   const t = useT();
+  const tour = useUi(u => u.tourTarget);
   return (
     <aside className="sidebar" aria-label={t('nav.main')} {...tip.handlers}>
       <a className="brand" href="#dashboard" aria-label={t('nav.brand')}>
@@ -58,7 +60,7 @@ export function Sidebar({ active, compact, canCollapse, onToggle }: { active: st
           return (
             <div key={m.id} style={{ display: 'contents' }}>
               {head && (compact ? (m.group !== 'overview' && <div className="nav-sep" aria-hidden="true" />) : <div className="nav-group">{t(`nav.group.${m.group}`)}</div>)}
-              <a href={'#' + m.id} className={cx('nav-item', active === m.id && 'active')} aria-current={active === m.id ? 'page' : undefined}
+              <a href={'#' + m.id} className={cx('nav-item', active === m.id && 'active', tour === m.id && 'tour-target')} data-tour={tour === m.id ? 'target' : undefined} aria-current={active === m.id ? 'page' : undefined}
                 data-tip={m.name} aria-label={compact ? m.name : undefined}>
                 <Icon size={18} strokeWidth={1.75} aria-hidden="true" /><span>{m.name}</span>
               </a>

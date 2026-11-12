@@ -1,24 +1,36 @@
-/* Okno buddyho Ops (milník 5): malé, bez rámečku, vždy navrchu, průhledné kolem postavičky. Kliknutí otevře nebo
-   zavře overlay, tažení přesune okno (poloha se pamatuje pro každý monitor). Stav je jen kopie z hlavního okna;
-   samo nic neukládá, polohu posílá hlavnímu oknu. Hlášky se ukážou v bublině, okno se kvůli ní dočasně zvětší. */
+/* Okno buddyho Ops / Bedňák 2.0 (milník 5, 0.10.0): malé, bez rámečku, vždy navrchu, průhledné kolem postavičky
+   (varianta CORNER 96 px). Kliknutí otevře nebo zavře overlay, tažení přesune okno (poloha se pamatuje pro každý
+   monitor). Stav je jen kopie z hlavního okna; samo nic neukládá, polohu posílá hlavnímu oknu.
+   - Animace podle událostí: příchod a pozdrav při otevření, odchod před zavřením, sken, přemýšlení při čtení,
+     nesení při zápisu, úspěch, chyba, level-up s proměnou a jiskrou, spánek bez aktivity, probuzení, tažení a krok.
+   - Hlášky v bublině podle povahy (varianty se střídají). Odpověď na akci hráče (výsledek snímku) se ukáže vždy;
+     nevyžádané hlášky (level, pozdrav) jen se zapnutými dialogy a když hráč s Opsem právě pracuje.
+   - Zvuky hraje jen to okno, které hráč používá: buddy jen krátce po kliknutí na něj (jinak hlavní okno nebo overlay). */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { OpsCanvas, pixelFactor, type OpsHandle } from './OpsCanvas';
 import { createBus } from './bus';
 import { startHello } from './handshake';
 import { createNative } from './native';
 import { buddyWindow, clampTo, defaultSpot, monitorKey, type Rect } from './layout';
-import type { BuddyStatus, BuddyView } from './hub';
-import { FRAME } from './sprite';
-import { formForLevel, partName, type LevelEvent } from '../core/ops';
+import type { BuddyLevelEvent, BuddyStatus, BuddyView, UiActivity } from './hub';
+import { frameOf } from './sprite';
+import { createSoundPlayer } from './sound';
+import { formForLevel, partName, sleepAfterMs, type OpsAnim } from '../core/ops';
+import { BUDDY_TOUCH_MS, type SoundId } from '../core/opsSound';
+import { bubbleMs, createMemo, line, lineGesture, sayLine, type LineRef } from '../core/opsVoice';
 import { isTauri } from '../storage/tauri';
-import { msg, setLang, tm } from '../i18n';
+import { setLang } from '../i18n';
 import { useT } from '../i18n/react';
 
 const bus = createBus('buddy');
 const native = createNative();
-const BUBBLE = { w: 232, h: 52 };
-const BUBBLE_MS = 4200;
-const SLEEP_MS = 10 * 60_000;
+const FRAME = frameOf('corner');
+export const BUBBLE = { w: 260, h: 76 };
+/* nekonečné smyčky stavu (sken, přemýšlení, nesení) bez další zprávy skončí nejpozději po této době */
+const LOOP_MAX_MS = 20_000;
+const LOOPS: OpsAnim[] = ['scanning', 'thinking', 'carry'];
+/* pozdrav jen při prvním otevření v této relaci okna */
+let greeted = false;
 
 type Win = Awaited<ReturnType<typeof winApi>>;
 const winApi = async () => {
@@ -44,51 +56,112 @@ export default function BuddyApp() {
   const drag = useRef<{ x: number; y: number; moving: boolean } | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activity = useRef(Date.now());
+  const touchAt = useRef(0);
+  const clicks = useRef<number[]>([]);
+  const ui = useRef<UiActivity>({ overlayOpen: false, appFocused: false });
   const gotView = useRef(false);
-  /* jazyk pro hlášky v posluchači; posluchače se kvůli změně jazyka nemusí registrovat znovu */
-  const lang = useRef(t.lang);
-  lang.current = t.lang;
+  const memo = useRef(createMemo());
+  /* aktuální nastavení pro posluchače (ti se kvůli změně nemusí registrovat znovu) */
+  const cur = useRef<BuddyView | null>(null);
+  cur.current = view;
+  const sound = useRef(createSoundPlayer(() => ({
+    on: cur.current?.sound ?? false, volume: cur.current?.volume ?? 0,
+    /* overlay a hlavní okno hrají samy; buddy jen po vlastním kliknutí */
+    overlayOpen: false, appFocused: false, buddyTouchAt: touchAt.current, gameForeground: false,
+  })));
 
-  const wake = useCallback(() => {
+  const touching = () => Date.now() - touchAt.current <= BUDDY_TOUCH_MS;
+  const inUse = () => ui.current.overlayOpen || ui.current.appFocused || touching();
+  const playSound = useCallback((id: SoundId | null) => {
+    /* když hráč používá hlavní okno nebo overlay, zvuk hraje to okno */
+    if (!id || ui.current.appFocused || ui.current.overlayOpen) return;
+    sound.current.play(id);
+  }, []);
+
+  const act = useCallback((anim: OpsAnim, opts?: { once?: boolean }) => {
+    const o = ops.current;
+    if (!o) return;
+    if (loopTimer.current) { clearTimeout(loopTimer.current); loopTimer.current = null; }
+    if (o.anim() === 'sleep') { o.play('wake-up'); o.then(anim); }
+    else o.play(anim, opts);
+    if (LOOPS.includes(anim)) loopTimer.current = setTimeout(() => { if (ops.current && LOOPS.includes(ops.current.anim())) ops.current.play('idle'); }, LOOP_MAX_MS);
+  }, []);
+
+  const wake = useCallback((withLine = false) => {
     activity.current = Date.now();
-    if (ops.current?.anim() === 'sleeping') ops.current.play('idle');
+    const o = ops.current;
+    if (o?.anim() === 'sleep') {
+      o.play('wake-up');
+      if (withLine && cur.current?.dialogs) showLine(line('wake'), false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const say = useCallback((text: string) => {
+
+  const hideBubble = useCallback(() => {
+    setBubble(null);
+    const o = ops.current;
+    if (!o) return;
+    o.rest('idle');
+    if (['thinking', 'talk'].includes(o.anim())) o.play('idle');
+  }, []);
+  const say = useCallback((text: string, beep: boolean) => {
     setBubble(text);
+    ops.current?.rest('talk');
+    if (beep) playSound('beep');
     if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
-  }, []);
+    bubbleTimer.current = setTimeout(hideBubble, bubbleMs(text));
+  }, [hideBubble, playSound]);
+  /* Hláška podle povahy; nevyžádaná jen se zapnutými dialogy a když hráč s Opsem pracuje. */
+  const showLine = useCallback((l: LineRef, solicited: boolean, beep = true): boolean => {
+    const v = cur.current;
+    if (!v) return false;
+    if (!solicited && (!v.dialogs || !inUse())) return false;
+    say(sayLine(l, v.personality, v.lang, memo.current), beep);
+    return true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [say]);
 
   /* zprávy z hlavního okna */
   useEffect(() => {
     const offs = [
       bus.on('view', v => { const bv = v as BuddyView; gotView.current = true; setLang(bv.lang); setView(bv); }),
+      bus.on('ui', p => { if (p && typeof p === 'object') ui.current = p as UiActivity; }),
       bus.on('status', p => {
         const s = p as BuddyStatus;
-        wake();
-        ops.current?.play(s.anim);
-        if (s.msg) say(tm(s.msg));
+        if (s.ui) ui.current = s.ui;
+        if (s.anim === 'dismiss') { hideBubble(); ops.current?.play('dismiss'); return; }
+        activity.current = Date.now();
+        if (s.anim !== 'talk') act(s.anim);
+        else if (ops.current?.anim() === 'sleep') ops.current.play('wake-up');
+        if (s.sound && s.sound !== 'beep') playSound(s.sound);
+        if (s.line) showLine(s.line, s.solicited, s.sound === 'beep' || !s.sound);
       }),
       bus.on('event', p => {
-        const e = p as LevelEvent;
+        const e = p as BuddyLevelEvent;
+        if (e.ui) ui.current = e.ui;
         wake();
+        const v = cur.current, lang = v?.lang ?? 'cs';
+        playSound('levelup');
         if (e.kind === 'transform') {
-          ops.current?.transform(e.transform, () => say(tm(msg('ops.msg.form', { level: e.level, name: formForLevel(e.level).name[lang.current] }))));
+          ops.current?.transform(e.transform, () => showLine(line('level.form', { level: e.level, name: formForLevel(e.level).name[lang] }), false, false));
         } else {
+          act('level-up');
           ops.current?.sparkle();
-          const text = e.parts.length === 1 ? tm(msg('ops.msg.level', { level: e.level, name: partName(e.parts[0], lang.current) })) : tm(msg('ops.msg.levelMany', { level: e.level, count: e.parts.length }));
-          say(text);
+          showLine(e.parts.length === 1 ? line('level.part', { level: e.level, name: partName(e.parts[0], lang) }) : line('level.parts', { level: e.level, count: e.parts.length }), false, false);
         }
       }),
     ];
     /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první view (0.8.0) */
     const stopHello = startHello(bus, 'buddy', () => gotView.current);
     const sleep = setInterval(() => {
-      if (Date.now() - activity.current > SLEEP_MS && ops.current?.anim() === 'idle') ops.current.play('sleeping');
-    }, 30_000);
+      const o = ops.current;
+      if (!o || o.anim() !== 'idle') return;
+      if (Date.now() - activity.current > sleepAfterMs(cur.current?.game ?? null)) { o.rest('idle'); o.play('sleep'); }
+    }, 15_000);
     return () => { stopHello(); offs.forEach(f => f()); clearInterval(sleep); };
-  }, [say, wake]);
+  }, [act, hideBubble, playSound, showLine, wake]);
 
   /* velikost a poloha okna (fyzické pixely) */
   const scale = view?.scale ?? 1;
@@ -122,7 +195,18 @@ export default function BuddyApp() {
     return () => { dead = true; };
   }, [view, scale, bubble]);
 
-  /* přesun tažením: konec tažení = chvíli bez pohybu; poloha se uloží vůči monitoru */
+  /* příchod při otevření okna, poprvé v relaci s pozdravem */
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!view || arrived.current) return;
+    arrived.current = true;
+    const o = ops.current;
+    if (!o) return;
+    /* příchod hraje plátno od startu (initial), pozdrav naváže */
+    if (!greeted) { greeted = true; o.then('greet'); setTimeout(() => showLine(line('greet'), false), 900); }
+  }, [view, showLine]);
+
+  /* přesun tažením: konec tažení = chvíli bez pohybu; poloha se uloží vůči monitoru, pak krok */
   useEffect(() => {
     if (!isTauri()) return;
     let off: (() => void) | null = null;
@@ -138,7 +222,7 @@ export default function BuddyApp() {
         if (moveTimer.current) clearTimeout(moveTimer.current);
         moveTimer.current = setTimeout(async () => {
           drag.current = null;
-          if (ops.current?.anim() === 'drag') ops.current.play('idle');
+          if (ops.current?.anim() === 'drag') ops.current.play('walk', { once: true });
           const list = await a.availableMonitors();
           const size = FRAME * pixelFactor(scale), c = { x: placed.current!.x + size / 2, y: placed.current!.y + size / 2 };
           const m = list.find(x => c.x >= x.position.x && c.x < x.position.x + x.size.width && c.y >= x.position.y && c.y < x.position.y + x.size.height) ?? mon.current;
@@ -151,9 +235,24 @@ export default function BuddyApp() {
     return () => { off?.(); };
   }, [scale]);
 
+  const toggle = () => {
+    const v = cur.current;
+    /* rychlé opakované klikání: Ops si postěžuje podle povahy (overlay se dál přepíná) */
+    const now = Date.now();
+    clicks.current = [...clicks.current.filter(x => now - x < 2500), now];
+    if (clicks.current.length >= 4 && v) {
+      clicks.current = [];
+      const g = lineGesture('poke', v.personality);
+      if (g) act(g);
+      showLine(line('poke'), true);
+    }
+    sound.current.play(ui.current.overlayOpen ? 'close' : 'open');
+    void native.overlayToggle();
+  };
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
-    wake();
+    touchAt.current = Date.now();
+    wake(true);
     drag.current = { x: e.screenX, y: e.screenY, moving: false };
   };
   const onMove = (e: React.PointerEvent) => {
@@ -161,7 +260,9 @@ export default function BuddyApp() {
     if (!d || d.moving || !(e.buttons & 1)) return;
     if (Math.abs(e.screenX - d.x) + Math.abs(e.screenY - d.y) < 4) return;
     d.moving = true;
+    touchAt.current = Date.now();
     setBubble(null);
+    ops.current?.rest('idle');
     ops.current?.play('drag');
     void api.current?.win.startDragging();
     /* tažení bez pohybu okna: po chvíli zpět do klidu */
@@ -173,7 +274,7 @@ export default function BuddyApp() {
     /* tažení končí až chvíli bez pohybu okna (časovač v onMoved) */
     if (d?.moving) return;
     drag.current = null;
-    if (d) void native.overlayToggle();
+    if (d) toggle();
   };
 
   if (!view) return null;
@@ -181,9 +282,9 @@ export default function BuddyApp() {
     <div className="buddy" onContextMenu={e => e.preventDefault()}>
       {bubble && <div className={'buddy-bubble' + (opsAt.below ? ' below' : '') + (opsAt.right ? ' right' : '')} role="status" data-testid="buddy-bubble">{bubble}</div>}
       <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={t('ops.buddyAria')}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={wake}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); void native.overlayToggle(); } }}>
-        <OpsCanvas ref={ops} level={view.level} outfit={view.outfit} scale={view.scale} label="Ops" />
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
+        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} scale={view.scale} label="Ops" initial="appear" />
       </div>
     </div>
   );

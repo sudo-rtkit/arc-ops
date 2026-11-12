@@ -1,54 +1,70 @@
-/* Ops na plátně: skládá se v 64 × 64 a zobrazí se celým násobkem fyzických pixelů (k = měřítko × zaokrouhlené
-   DPI), takže pixely zůstanou ostré. Animace podle manifestu; při omezení pohybu je Ops statický. */
+/* Ops na plátně: skládá se v nativní mřížce varianty (CORNER 96 px, DETAIL 128 px) a zobrazí se celým násobkem
+   fyzických pixelů, takže pixely zůstanou ostré. 256 px detail = 128 px kompozice zvětšená přesně 2×.
+   - fit=false (okno buddyho): k = měřítko × zaokrouhlené DPI (okno má přesně tuto fyzickou velikost),
+   - fit=true (vložené do stránky): k = dolní celá část z měřítko × DPI, aby Ops nebyl větší než návrh.
+   Animace podle manifestu; při omezení pohybu je Ops statický. */
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Animator } from './animator';
-import { FRAME, drawOps, preload } from './sprite';
-import type { OpsAnim } from '../core/ops';
+import { Animator, type RestAnim } from './animator';
+import { drawOps, frameOf, preload } from './sprite';
+import type { OpsAnim, OpsVariantId } from '../core/ops';
 
 export interface OpsHandle {
-  play(anim: OpsAnim): void;
+  play(anim: OpsAnim, opts?: { once?: boolean }): void;
+  /* po právě běžícím jednorázovém stavu */
+  then(anim: OpsAnim): void;
+  rest(rest: RestAnim): void;
   transform(id: string | null, done?: () => void): void;
   sparkle(): void;
   anim(): OpsAnim;
+  hidden(): boolean;
 }
 
-export const pixelFactor = (scale: number, dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1): number =>
-  Math.max(1, Math.round(scale)) * Math.max(1, Math.round(dpr));
+export const pixelFactor = (scale: number, dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, fit = false): number =>
+  fit ? Math.max(1, Math.floor(Math.max(1, Math.round(scale)) * dpr + 1e-6)) : Math.max(1, Math.round(scale)) * Math.max(1, Math.round(dpr));
 
 interface Props {
+  variant?: OpsVariantId;
   level: number;
   outfit: Record<string, string | null>;
-  /* celý násobek mřížky 64 px v logických pixelech */
+  /* celý násobek mřížky varianty v logických pixelech */
   scale: number;
+  fit?: boolean;
   label: string;
   className?: string;
   /* výchozí stav při startu */
   initial?: OpsAnim;
+  /* klidový stav (idle, nebo talk během bubliny) */
+  restAnim?: RestAnim;
   still?: boolean;
 }
 
-export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ level, outfit, scale, label, className, initial = 'idle', still }, ref) {
+export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const anim = useRef(new Animator());
-  const view = useRef({ level, outfit });
-  view.current = { level, outfit };
+  const view = useRef({ level, outfit, variant });
+  view.current = { level, outfit, variant };
   const dirty = useRef(true);
 
   useImperativeHandle(ref, () => ({
-    play: a => { anim.current.play(a); dirty.current = true; },
+    play: (a, o) => { anim.current.play(a, o); dirty.current = true; },
+    then: a => { anim.current.then(a); dirty.current = true; },
+    rest: r => { anim.current.setRest(r); dirty.current = true; },
     transform: (id, done) => { anim.current.startTransform(id, done); dirty.current = true; },
     sparkle: () => { anim.current.startSparkle(); dirty.current = true; },
     anim: () => anim.current.anim,
+    hidden: () => anim.current.hidden(),
   }), []);
 
-  useEffect(() => { anim.current.play(initial); }, [initial]);
-  useEffect(() => { dirty.current = true; void preload(level, outfit).then(() => { dirty.current = true; }); }, [level, outfit]);
+  useEffect(() => { anim.current.play(initial); dirty.current = true; }, [initial]);
+  useEffect(() => { anim.current.setRest(restAnim); dirty.current = true; }, [restAnim]);
+  useEffect(() => { dirty.current = true; void preload(variant, level, outfit).then(() => { dirty.current = true; }); }, [variant, level, outfit]);
 
   useEffect(() => {
     const c = canvas.current;
     if (!c) return;
+    const F = frameOf(variant);
     const off = document.createElement('canvas');
-    off.width = off.height = FRAME;
+    off.width = off.height = F;
     const octx = off.getContext('2d');
     const ctx = c.getContext('2d');
     if (!octx || !ctx) return;
@@ -59,26 +75,27 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ level
       a.reduced = !!still || !!mq?.matches;
       if (last && a.tick(ts - last)) dirty.current = true;
       last = ts;
-      const nk = pixelFactor(scale);
+      const nk = pixelFactor(scale, window.devicePixelRatio || 1, fit);
       if (nk !== k) {
         k = nk;
-        c.width = c.height = FRAME * k;
-        const css = (FRAME * k) / (window.devicePixelRatio || 1);
+        c.width = c.height = F * k;
+        const css = (F * k) / (window.devicePixelRatio || 1);
         c.style.width = c.style.height = css + 'px';
         dirty.current = true;
       }
       if (dirty.current) {
         dirty.current = false;
-        drawOps(octx, view.current.level, view.current.outfit, a.pose());
+        drawOps(octx, view.current.variant, view.current.level, view.current.outfit, a.pose());
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.drawImage(off, 0, 0, c.width, c.height);
+        c.dataset.anim = a.transform ? 'transform' : a.anim;
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [scale, still]);
+  }, [scale, still, variant, fit]);
 
-  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" />;
+  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" data-variant={variant} />;
 });
