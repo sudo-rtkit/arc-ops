@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Bot, CircleCheck, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
 import { actions, navigate, useAppState, useDerived } from '../store';
 import { Badge, Btn, Dialog, Empty, IconBtn, PageHead, Panel, Search, Select, Stepper, Tabs, cx } from '../ui/components';
+import { InAppOnly } from '../ui/InAppOnly';
+import { inOverlay } from '../shell/host';
 import { fmt } from '../ui/format';
 import { MATERIAL_CATEGORIES } from '../core/data/materials';
 import { OTHER_CATEGORY, categoryLabel, gameTexts, sourceLabel } from '../core/gametext';
@@ -170,7 +172,7 @@ export default function Inventory({ sub }: { sub: string }) {
       {tab === 'stock' && <Stock />}
       {tab === 'equipment' && <Equipment />}
       {tab === 'cleanup' && <Cleanup />}
-      {tab === 'import' && <ScreenImport />}
+      {tab === 'import' && (inOverlay() ? <InAppOnly route="inventory/import" what="host.why.screenImport" /> : <ScreenImport />)}
       {tab === 'shopping' && (
         <Panel title={t('inv.shoppingTitle')} flush actions={<span className="meta">{t('inv.shoppingMissing', { count: missing.length })}</span>}>
           <p className="meta" style={{ padding: '0 16px' }}>{gameTexts(t.lang).shoppingHint}</p>

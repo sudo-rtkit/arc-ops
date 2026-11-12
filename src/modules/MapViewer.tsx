@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { ImagePlus } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
 import { Btn, ConfirmButton, Dialog, ExtLink, cx } from '../ui/components';
+import { InAppOnly } from '../ui/InAppOnly';
+import { inOverlay } from '../shell/host';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import { MAPS } from '../core/data/maps';
@@ -174,6 +176,8 @@ export default function MapViewer({ mapId }: { mapId: string }) {
     } catch { setErr(t('mapv.err.save')); }
   }, [map.id, map.name, t]);
   const handleBlob = useCallback(async (b: Blob) => {
+    /* 0.16.0: snímek mapy (IndexedDB) zapisuje jen hlavní okno; v overlayi se jen zobrazuje */
+    if (inOverlay()) return;
     const r = await importImage(b);
     if (typeof r === 'string') { setErr(t(`mapv.err.${r}` as Key)); return; }
     if (img) setPending(r); else await commit(r, false);
@@ -324,7 +328,7 @@ export default function MapViewer({ mapId }: { mapId: string }) {
           {MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </label>
-      <Btn icon={ImagePlus} onClick={() => fileRef.current?.click()} data-testid="map-change">{img ? t('mapv.change') : t('mapv.choose')}</Btn>
+      {!inOverlay() && <Btn icon={ImagePlus} onClick={() => fileRef.current?.click()} data-testid="map-change">{img ? t('mapv.change') : t('mapv.choose')}</Btn>}
       <label className="toggle"><input type="checkbox" checked={notes.harmonise} onChange={e => actions.setMapHarmonise(map.id, e.target.checked)} data-testid="map-harmonise" />{t('mapv.harmonise')}</label>
       <span className="mv-web"><ExtLink url={map.live}>{t('mapv.web')}</ExtLink></span>
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden data-testid="map-file"
@@ -346,7 +350,7 @@ export default function MapViewer({ mapId }: { mapId: string }) {
           {planHere && <label className="toggle mv-plan-toggle"><input type="checkbox" checked={hlOn} onChange={e => setHlOn(e.target.checked)} />{t('mapv.plan.highlight')}</label>}
         </div>
       )}
-      {!img ? (loading ? <p className="meta" role="status">{t('common.loading')}</p> : <EmptyShot onFile={() => fileRef.current?.click()} onPaste={() => void pasteBtn()} onDropBlob={b => void handleBlob(b)} err={err} />) : (
+      {!img ? (loading ? <p className="meta" role="status">{t('common.loading')}</p> : (inOverlay() ? <InAppOnly route={'maps/' + map.id} what="host.why.mapImage" /> : <EmptyShot onFile={() => fileRef.current?.click()} onPaste={() => void pasteBtn()} onDropBlob={b => void handleBlob(b)} err={err} />)) : (
         <div className="mv-layout">
           <aside className="mv-legend" aria-label={t('mapv.legend')}>
             <h3>{t('mapv.legend')}</h3>
@@ -450,8 +454,8 @@ export default function MapViewer({ mapId }: { mapId: string }) {
         <span>{img ? t('mapv.foot.local') : t('mapv.foot.backup')}</span>
         {undo && <span className="mv-undo" role="status">{t('mapv.deleted')} <button type="button" className="btn sm" onClick={() => { actions.restorePoi(map.id, undo.poi, undo.index); setUndo(null); }}>{t('mapv.undo')}</button></span>}
         {img && <span className="row">
-          <ConfirmButton size="sm" variant="ghost" title={t('mapv.remove.title')} text={t('mapv.remove.text')} confirmLabel={t('mapv.remove.btn')}
-            onConfirm={async () => { await deleteMapImage(map.id); actions.setMapImage(map.id, null); }}>{t('mapv.remove.btn')}</ConfirmButton>
+          {!inOverlay() && <ConfirmButton size="sm" variant="ghost" title={t('mapv.remove.title')} text={t('mapv.remove.text')} confirmLabel={t('mapv.remove.btn')}
+            onConfirm={async () => { await deleteMapImage(map.id); actions.setMapImage(map.id, null); }}>{t('mapv.remove.btn')}</ConfirmButton>}
           <Btn onClick={addCenter} data-testid="map-add">{t('mapv.add')}</Btn>
         </span>}
       </footer>

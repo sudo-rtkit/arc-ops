@@ -5,6 +5,7 @@ import { createNative } from './native';
 import { DISMISS_MS, createOpsHub } from './hub';
 import { isTauri } from '../storage/tauri';
 import { createSoundPlayer } from './sound';
+import { setHost } from '../shell/host';
 
 export const native = createNative();
 export const hub = createOpsHub({
@@ -34,3 +35,5 @@ export const mainSound = createSoundPlayer(() => {
 hub.onStatus(s => { if (s.sound && s.sound !== 'beep') mainSound.play(s.sound); });
 hub.onLevel(() => { mainSound.play('levelup'); });
 if (!isTauri() && typeof window !== 'undefined') (window as unknown as { __opsSound?: unknown }).__opsSound = mainSound;
+/* 0.16.0: moduly hrají zvuk přes hostitele (shell/host.ts); v hlavním okně je to mainSound */
+setHost({ kind: 'main', play: id => { mainSound.play(id); }, openInApp: route => { const [m, sub] = route.split('/'); navigate(m, sub); } });

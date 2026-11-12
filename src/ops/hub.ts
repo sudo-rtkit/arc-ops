@@ -31,6 +31,7 @@ import type { OpsPersonality } from '../core/types';
 import { getLang, t, type Key, type Lang } from '../i18n';
 import type { Bus } from './bus';
 import type { Native } from './native';
+import { applyRelay, type RelayAck } from '../store/relay';
 
 export interface Shot { id: number; at: number; read: ScreenRead }
 /* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
@@ -59,7 +60,8 @@ export interface BuddyView {
   /* 0.10.0: povaha, zvuky a dialogy; hra běží (null = nevíme, hlídání je vypnuté) */
   personality: OpsPersonality; sound: boolean; volume: number; dialogs: boolean; game: boolean | null;
 }
-export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string }
+/* relay (0.16.0): poslední zpracovaná akce plného modulu z overlaye (store/relay.ts) */
+export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string; relay: RelayAck | null }
 /* Je Ops UI právě v použití (pro zvuky a nevyžádané bubliny)? */
 export interface UiActivity { overlayOpen: boolean; appFocused: boolean }
 /* Stav Opse: animace, hláška (varianta podle povahy se vybere v okně), zvuk a zda šlo o odpověď na akci hráče. */
@@ -105,6 +107,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let appCaptureAt = 0;
   const APP_CAPTURE_MS = 15_000;
   const offs: (() => void)[] = [];
+  /* 0.16.0: potvrzení poslední akce plného modulu z overlaye */
+  let relayAck: RelayAck | null = null;
 
   /* Nativní volání jdou za sebou, aby se zapnutí a vypnutí nepředběhla. */
   let queue: Promise<unknown> = Promise.resolve();
@@ -117,7 +121,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     personality: s.opsPrefs.personality, sound: s.opsPrefs.sound, volume: s.opsPrefs.volume, dialogs: s.opsPrefs.dialogs,
     game: gameKnown ? gameRunning : null,
   });
-  const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey });
+  const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey, relay: relayAck });
   const pushBuddy = (force = false) => {
     const v = buddyView(st()), sig = JSON.stringify(v);
     if (!force && sig === lastBuddy) return;
@@ -416,6 +420,15 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }));
     /* 0.10.1: rychlé úpravy z modulů overlaye; jen známé operace a hodnoty, provede je stejná akce store */
     offs.push(bus.on('edit', p => applyEdit(p)));
+    /* 0.16.0: akce plného modulu v overlayi. Hlavní okno je jediný zapisovatel: jen akce ze seznamu, ověřené
+       argumenty, stejná akce store. Stav se vrátí vždy (i bez změny), s potvrzením, aby overlay zahodil svou kopii. */
+    offs.push(bus.on('action', p => {
+      if (!st().buddy.enabled) return;
+      const r = applyRelay(app, p);
+      if (!r) return;
+      relayAck = r.ack;
+      pushOverlay();
+    }));
     offs.push(bus.on('opacity', p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); }));
     offs.push(bus.on('batchClear', () => { clearBatch(); pushOverlay(true); }));
     offs.push(bus.on('lootImport', p => { const x = lootInput(p); if (x) void importLoot(x.shotId, x.input); }));

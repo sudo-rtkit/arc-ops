@@ -24,7 +24,7 @@ import { resolveOutfit } from '../core/ops';
 import { line, type LineRef } from '../core/opsVoice';
 import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
 import { useOpsSpeech } from '../ops/speech';
-import { mainSound } from '../ops/mainHub';
+import { hostSound } from '../shell/host';
 
 function OpsSays({ said }: { said: { line: LineRef | null; n: number } }) {
   const s = useAppState();
@@ -160,7 +160,7 @@ export default function RaidPrep() {
     if (!ok) return;
     const name = MAPS.find(m => m.id === mapId)?.name ?? mapId;
     setSaid(x => ({ line: line(rows.length ? 'raid.start' : 'raid.startEmpty', { map: name, count: units }), n: x.n + 1 }));
-    mainSound.play('done');
+    hostSound.play('done');
   };
   /* Další raid z vyhodnocení: stejné cíle, doporučená mapa nad zásobou po raidu, stejný loadout. */
   const nextPlan = (n: ReturnType<typeof nextRaid>) => {
@@ -169,7 +169,7 @@ export default function RaidPrep() {
     if (!actions.startRaidPlan({ goals: n.goals, map: n.best.id, loadout: plan.loadout, route: n.best.route?.id ?? '', sig: listSig(now) })) return;
     setGoals(n.goals); setMapPick(n.best.id);
     setSaid(x => ({ line: line(now.length ? 'raid.start' : 'raid.startEmpty', { map: n.best!.name, count: now.reduce((a, r) => a + r.missing, 0) }), n: x.n + 1 }));
-    mainSound.play('done');
+    hostSound.play('done');
   };
   const quests = showAllQuests ? opts.quests : opts.quests.filter(q => q.pinned || q.started || g.quests.includes(q.id)).concat(
     opts.quests.filter(q => !(q.pinned || q.started || g.quests.includes(q.id))).slice(0, Math.max(0, 8 - opts.quests.filter(q => q.pinned || q.started || g.quests.includes(q.id)).length)));

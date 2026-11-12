@@ -4,6 +4,8 @@ import { Check as CheckIcon, Skull } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
 import { Btn, Check, Dialog, FieldError, Select } from './components';
+import { InAppOnly } from './InAppOnly';
+import { inOverlay } from '../shell/host';
 import { ItemList } from './ItemList';
 import { LootScan } from './LootScan';
 import { MAPS } from '../core/data/maps';
@@ -147,7 +149,7 @@ function RaidForm() {
         </div>
         <div className="stack-sm raid-form-loot">
           <ItemList label={t('raid.loot')} items={loot} onChange={setLoot} suggestions={mats} empty={t('raid.noLoot')} />
-          <LootScan gear={gear} loot={loot} onLoot={setLoot} />
+          {inOverlay() ? <InAppOnly compact route="journal" what="host.why.lootScan" /> : <LootScan gear={gear} loot={loot} onLoot={setLoot} />}
           {lstate !== 'none' && lstate !== 'applied' && (
             <Check checked={applyLoot} onChange={setApplyLoot}
               note={lstate === 'changed'

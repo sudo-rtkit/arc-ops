@@ -3,6 +3,8 @@ import { History } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { profileLimit, type ProfileField } from '../store/app';
 import { Empty, NumberField, PageHead, Panel, Progress, Ring, Stepper, Tabs } from '../ui/components';
+import { InAppOnly } from '../ui/InAppOnly';
+import { inOverlay } from '../shell/host';
 import { LineChart } from '../ui/charts';
 import { DASH, fmt, fmtDay, fmtDayShort } from '../ui/format';
 import { gameTexts } from '../core/gametext';
@@ -74,7 +76,7 @@ export default function Profile({ sub }: { sub?: string }) {
           </Panel>
         </div>
       </div>
-      <ProgressShot focus={sub === 'shot'} />
+      {inOverlay() ? <InAppOnly route="profile/shot" what="host.why.progressShot" /> : <ProgressShot focus={sub === 'shot'} />}
       <Panel title={t('profile.trend')} actions={<span className="meta">{t('profile.trendMeta')}</span>}>
         <Tabs label={t('profile.metric')} tabs={METRICS.map(x => ({ id: x.id, label: t(x.label) }))} value={metric} onChange={setMetric} />
         {log.length === 0 ? <Empty icon={History}>{t('profile.trendEmpty')}</Empty> : (

@@ -26,7 +26,7 @@ import { line, type LineRef } from '../core/opsVoice';
 import type { SoundId } from '../core/opsSound';
 import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
 import { useOpsSpeech } from '../ops/speech';
-import { mainSound } from '../ops/mainHub';
+import { hostSound } from '../shell/host';
 import { PaintSwatch, paintName, ruleText } from '../ui/paints';
 
 type Game = 'tetris' | 'quiz' | 'hack';
@@ -699,7 +699,7 @@ export default function Minigames({ sub }: { sub: string }) {
     if (sparkle) ops.current?.sparkle();
     setSaid(x => ({ line: l, n: x.n + 1 }));
     /* zvuk jen v aktivním okně (pravidla mainSound / soundAllowed) */
-    if (snd) mainSound.play(snd);
+    if (snd) hostSound.play(snd);
   };
   const react: OnResult = (out, value) => {
     if (!out) return;

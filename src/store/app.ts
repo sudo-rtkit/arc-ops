@@ -207,9 +207,12 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     return true;
   }
 
+  /* 0.16.0: zrcadlo (okno overlaye). Akce mění jen kopii stavu v tomto okně, aby modul hned viděl výsledek;
+     nic se neukládá ani nekontroluje týden (store zrcadla není ready). Platí jen hlavní okno, viz store/relay.ts. */
+  let mirror = false;
   function change(fn: (s: AppState) => void | false): boolean {
-    if (!get().ready) return false;
-    checkWeek();
+    if (!get().ready && !mirror) return false;
+    if (!mirror) checkWeek();
     const s = structuredClone(get().state);
     if (fn(s) === false) return false;
     syncGoals(s, now());
@@ -217,7 +220,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     s.meta.updatedAt = now();
     logProfile(s);
     set({ state: s });
-    scheduleSave();
+    if (!mirror) scheduleSave();
     return true;
   }
 
@@ -228,6 +231,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
 
   /* ----- start ----- */
   async function init(): Promise<void> {
+    /* zrcadlo stav nenačítá ani neukládá */
+    if (mirror) return;
     let info: LoadInfo = { source: 'none', warning: null, recoveredFrom: null, at: now() };
     let state = defaultState(now(), startLang);
     try {
@@ -1202,5 +1207,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     retrySave: () => doSave(),
   };
 
-  return { store, actions, init, flush, notify, dismiss, change, storage, checkWeek };
+  /* Přepne store na zrcadlo (jen okno overlaye, jednou a natrvalo). Zrcadlo nikdy nebude ready, takže nic neuloží. */
+  const setMirror = () => { if (!get().ready) mirror = true; return mirror; };
+  const isMirror = () => mirror;
+
+  return { store, actions, init, flush, notify, dismiss, change, storage, checkWeek, setMirror, isMirror };
 }

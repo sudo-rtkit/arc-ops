@@ -2,7 +2,7 @@
    aplikace: přehled, dostupné úkoly, nákupy a výsledek snímku ke schválení (0.8.1: stash a loot po raidu odděleně). Stav je kopie z hlavního okna
    (store tohoto okna se nikdy nespustí, takže nic neukládá); zápisy jdou do hlavního okna jako akce. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { X } from 'lucide-react';
+import { LayoutGrid, X } from 'lucide-react';
 import { app, derivedOf, useAppState, useDerived } from '../store';
 import { createBus } from './bus';
 import { startHello } from './handshake';
@@ -35,6 +35,11 @@ import { OvRaid, OvRaidEval } from './OverlayRaid';
 import { raidList } from '../core/raidPrep';
 import { dayKey } from '../core/util';
 import type { ProgressApply, ProgressSummary } from '../core/progressImport';
+import { createMirror } from '../store/relay';
+import { setHost } from '../shell/host';
+import { OverlayApps, closeModule, mainRoute, useOvRoute } from './OverlayApps';
+import { Toasts } from '../shell/Banners';
+import { RaidFormHost } from '../ui/RaidForm';
 
 const bus = createBus('overlay');
 const native = createNative();
@@ -47,11 +52,22 @@ const sound = createSoundPlayer(() => ({
   appFocused: false, buddyTouchAt: 0, gameForeground: false,
 }));
 if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) (window as unknown as { __opsSound?: unknown }).__opsSound = sound;
+/* 0.16.0: store tohoto okna je zrcadlo. Akce plných modulů se provedou na kopii a pošlou do hlavního okna,
+   které je jediný zapisovatel (store/relay.ts). Kopie stavu z hlavního okna je vždy základ. */
+const mirror = createMirror(app, { send: call => bus.send('main', 'action', call) });
+/* moduly hrají zvuk overlaye; „Otevřít v aplikaci“ otevře hlavní okno na dané cestě (hub cestu ověří) */
+setHost({
+  kind: 'overlay', play: id => { sound.play(id); },
+  openInApp: route => { const [m, sub = ''] = route.split('/'); bus.send('main', 'open', { route: mainRoute(m, sub) }); },
+});
 
 /* 0.10.1: i hlavní moduly (profil, inventář, dílna, skill tree) jako kompaktní přehledy s rychlými úpravami */
 /* 0.14.0: záložka Raid (aktivní plán z Přípravy na raid) na konci, pořadí ostatních se nemění */
-type Tab = 'overview' | 'profile' | 'inventory' | 'workshop' | 'quests' | 'skills' | 'shop' | 'scan' | 'raid';
+/* 0.16.0: Aplikace (výběr a plné moduly) není záložka: samostatné tlačítko vpravo v liště záložek, takže záložky,
+   jejich pořadí (Raid na konci) a šipky mezi nimi zůstávají beze změny */
+type Tab = 'overview' | 'profile' | 'inventory' | 'workshop' | 'quests' | 'skills' | 'shop' | 'scan' | 'raid' | 'apps';
 const TABS: Tab[] = ['overview', 'quests', 'profile', 'inventory', 'workshop', 'skills', 'shop', 'scan', 'raid'];
+const VIEWS: Tab[] = [...TABS, 'apps'];
 const RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
 const rarityOf = (name: string): string => { const r = catalogByName(name)?.rarity; return r && (RARITY as readonly string[]).includes(r) ? r : 'unknown'; };
 const abbr = (name: string): string => name.split(/[\s-]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
@@ -542,8 +558,12 @@ export default function OverlayApp() {
   const t = useT();
   const [view, setView] = useState<OverlayView | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
+  /* poslední záložka (při otevřené Aplikaci drží v liště záložek fokus Tabem) */
+  const [lastTab, setLastTab] = useState<Tab>('overview');
+  useEffect(() => { if (tab !== 'apps') setLastTab(tab); }, [tab]);
   const [opacity, setOpacity] = useState(90);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, profile: null, inventory: null, workshop: null, quests: null, skills: null, shop: null, scan: null, raid: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, profile: null, inventory: null, workshop: null, quests: null, skills: null, shop: null, scan: null, raid: null, apps: null });
+  const route = useOvRoute();
   const batchRef = useRef<BatchView | null>(null);
   const gotState = useRef(false);
   const ops = useRef<OpsHandle>(null);
@@ -554,18 +574,18 @@ export default function OverlayApp() {
     const offs = [
       bus.on('state', p => {
         const v = p as OverlayView;
-        app.store.setState({ state: v.state });
+        mirror.receive(v.state, v.relay);
         batchRef.current = v.batch;
         gotState.current = true;
         setView(v);
       }),
       /* z Rustu při otevření: případně rovnou na výsledek snímku */
       bus.on('open', p => {
-        const want = typeof p === 'string' && (TABS as string[]).includes(p) ? (p as Tab) : null;
+        const want = typeof p === 'string' && (VIEWS as string[]).includes(p) ? (p as Tab) : null;
         const b = batchRef.current;
         if (want) setTab(want);
         else if (b && (b.shots.length || b.loot || b.progress || b.emptyAt)) setTab('scan');
-        setTimeout(() => document.querySelector<HTMLButtonElement>('.ov-tabs [aria-selected="true"]')?.focus(), 30);
+        setTimeout(() => document.querySelector<HTMLButtonElement>('.ov-tabs [aria-selected="true"], .ov-tabs [aria-pressed="true"]')?.focus(), 30);
         setSaid(x => ({ line: null, n: x.n + 1, hint: true }));
       }),
       /* stav Opse z hlavního okna (sken, čtení, zápis, chyba) */
@@ -578,12 +598,22 @@ export default function OverlayApp() {
     ];
     /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první stav (0.8.0) */
     const stopHello = startHello(bus, 'overlay', () => gotState.current);
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); sound.play('close'); void native.overlayClose(); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      /* 0.16.0: v plném modulu Escape v poli jen vrátí rozepsanou hodnotu (pole to řeší samo), overlay se nezavře */
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.('.ov-appview') && el.matches('input, textarea, select, [contenteditable="true"]')) return;
+      /* otevřený dialog plného modulu (portál do body) zavírá Escape sám */
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault(); sound.play('close'); void native.overlayClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => { stopHello(); offs.forEach(f => f()); window.removeEventListener('keydown', onKey); };
   }, []);
   useEffect(() => { if (view) setOpacity(view.state.buddy.opacity); }, [view?.state.buddy.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.shots.length) setTab('scan'); }, [view?.batch.shots.length]);
+  /* odkaz nebo výběr modulu (#modul) otevře Aplikaci */
+  useEffect(() => { if (route.module) setTab('apps'); }, [route.module]);
   useEffect(() => { if (view?.batch.loot) setTab('scan'); }, [view?.batch.loot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.progress) setTab('scan'); }, [view?.batch.progress?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -604,7 +634,7 @@ export default function OverlayApp() {
   const s = view.state;
   const d = { quests: QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length };
   const counts: Record<Tab, number | null> = { overview: null, profile: null, inventory: null, workshop: null, skills: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) + (view.batch.progress ? 1 : 0) || null,
-    raid: s.raidPlan ? raidList(s, s.raidPlan.goals, t.lang, dayKey(Date.now())).length : null };
+    raid: s.raidPlan ? raidList(s, s.raidPlan.goals, t.lang, dayKey(Date.now())).length : null, apps: null };
   const onTabKey = (e: ReactKeyboardEvent, i: number) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
     e.preventDefault();
@@ -613,7 +643,7 @@ export default function OverlayApp() {
   };
   const commitOpacity = () => bus.send('main', 'opacity', { value: opacity });
   return (
-    <div className="ov" style={glass} data-testid="overlay">
+    <div className={cx('ov', tab === 'apps' && route.module && 'ov-wide')} style={glass} data-testid="overlay">
       <i className="ov-tape" aria-hidden="true" /><i className="ov-bracket tl" aria-hidden="true" /><i className="ov-bracket br" aria-hidden="true" />
       <header className="ov-header">
         <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games?.paint} scale={1} label="Ops"
@@ -623,15 +653,21 @@ export default function OverlayApp() {
         <div className="ov-profile"><span className="ov-local">■ {t('ops.ov.local')}</span><span>{view.savedAt ? t('ops.ov.saved', { time: fmtTime(view.savedAt) }) : t('ops.ov.notSaved')}</span></div>
         <button type="button" className="ov-close" aria-label={t('ops.ov.close')} onClick={() => { sound.play('close'); void native.overlayClose(); }}><X size={18} aria-hidden="true" /></button>
       </header>
-      <nav className="ov-tabs" role="tablist" aria-label={t('ops.ov.tabs')}>
-        {TABS.map((x, i) => (
-          <button key={x} ref={el => { tabRefs.current[x] = el; }} type="button" role="tab" id={'ov-tab-' + x} aria-selected={tab === x} aria-controls="ov-panel"
-            tabIndex={tab === x ? 0 : -1} onClick={() => setTab(x)} onKeyDown={e => onTabKey(e, i)}>
-            {t(`ops.ov.tab.${x}` as Key)}{counts[x] !== null && <span className="ov-count-badge">{counts[x]}</span>}
-          </button>
-        ))}
+      <nav className="ov-tabs">
+        <div className="ov-tablist" role="tablist" aria-label={t('ops.ov.tabs')}>
+          {TABS.map((x, i) => (
+            <button key={x} ref={el => { tabRefs.current[x] = el; }} type="button" role="tab" id={'ov-tab-' + x} aria-selected={tab === x} aria-controls="ov-panel"
+              tabIndex={(tab === 'apps' ? lastTab : tab) === x ? 0 : -1} onClick={() => setTab(x)} onKeyDown={e => onTabKey(e, i)}>
+              {t(`ops.ov.tab.${x}` as Key)}{counts[x] !== null && <span className="ov-count-badge">{counts[x]}</span>}
+            </button>
+          ))}
+        </div>
+        <button ref={el => { tabRefs.current.apps = el; }} type="button" className="ov-appentry" id="ov-tab-apps" aria-pressed={tab === 'apps'} aria-controls="ov-panel" data-testid="ov-app-entry"
+          onClick={() => { if (tab === 'apps') closeModule(); setTab('apps'); }}>
+          <LayoutGrid size={16} aria-hidden="true" />{t('ops.ov.tab.apps')}
+        </button>
       </nav>
-      <main className="ov-content" role="tabpanel" id="ov-panel" aria-labelledby={'ov-tab-' + tab}>
+      <main className="ov-content" role={tab === 'apps' ? 'region' : 'tabpanel'} id="ov-panel" aria-labelledby={'ov-tab-' + tab}>
         {tab === 'overview' && <Overview batch={view.batch} go={setTab} />}
         {tab === 'profile' && <OvProfile bus={bus} />}
         {tab === 'inventory' && <OvInventory bus={bus} />}
@@ -641,6 +677,7 @@ export default function OverlayApp() {
         {tab === 'shop' && <Shop />}
         {tab === 'scan' && <Scan batch={view.batch} hotkey={view.hotkey} go={setTab} />}
         {tab === 'raid' && <OvRaid bus={bus} />}
+        {tab === 'apps' && <OverlayApps />}
       </main>
       <footer className="ov-footer">
         <span>{t('ops.ov.footer')}</span>
@@ -650,6 +687,8 @@ export default function OverlayApp() {
           <span className="mono">{t('ops.opacityVal', { v: opacity })}</span>
         </label>
       </footer>
+      {tab === 'apps' && route.module && <RaidFormHost />}
+      <Toasts />
     </div>
   );
 }
