@@ -278,6 +278,17 @@ const cs = {
     friendly: ['Dobrý pokus! Mrkni na rady a jdeme znova.', 'Kolo za námi. Příště to bude lepší, rady máš pod výsledkem.'],
     cheeky: ['To nebylo nejhorší. Ale taky ne nejlepší.', 'Kolo dohrané. Rady si přečti, já počkám. Zase.'],
   },
+  /* 0.12.0: Opsův hack (jen v modulu Minihry, po kliknutí hráče) */
+  'game.hackStart': {
+    plain: ['Terminál je online. Propoj zdroj se všemi výstupy.', 'Tři uzly. Otáčej dlaždice, dokud není vše pod napětím.'],
+    friendly: ['Jsem připojený k terminálu. Propojíš mi zdroj se všemi výstupy?', 'Tři uzly a jsme uvnitř. Otáčej, já hlídám napětí.'],
+    cheeky: ['Terminál z doby před ARC. Heslo je „heslo“, ale my to uděláme hezky přes dráty.', 'Hackujeme. Neboj, nic nevybuchne. Asi.'],
+  },
+  'game.hackNode': {
+    plain: ['Uzel prolomen. Další.', 'Uzel je pod napětím. Pokračuj.'],
+    friendly: ['Uzel padl! Jedeme na další.', 'Výborně, proud teče. Další uzel čeká.'],
+    cheeky: ['Uzel prolomen. Ochranka terminálu právě brečí.', 'Další uzel na kolenou. Já bych to měl rychleji, ale hezký.'],
+  },
   'tut.resume': {
     plain: ['Průvodce byl přerušen. Pokračovat?', 'Pokračovat v průvodci od posledního kroku?'],
     friendly: ['Minule jsme nedokončili prohlídku. Pokračujeme, kde jsme skončili?', 'Jsem zpátky! Dokončíme tu prohlídku?'],
@@ -546,6 +557,17 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['Round finished. The tip is in the summary.', 'End of round. Check the tips.'],
     friendly: ['Nice try! Check the tips and let us go again.', 'Round done. Next one will be better, the tips are below the result.'],
     cheeky: ['That was not the worst. Not the best either.', 'Round done. Read the tips, I will wait. Again.'],
+  },
+  /* 0.12.0: Ops hack (only in the Minigames module, after the player's click) */
+  'game.hackStart': {
+    plain: ['Terminal online. Connect the source to every output.', 'Three nodes. Rotate tiles until everything has power.'],
+    friendly: ['I am patched into the terminal. Can you route the source to every output?', 'Three nodes and we are in. You rotate, I watch the voltage.'],
+    cheeky: ['A pre-ARC terminal. The password is “password”, but we will do it properly, with wires.', 'We are hacking. Relax, nothing will explode. Probably.'],
+  },
+  'game.hackNode': {
+    plain: ['Node cracked. Next.', 'The node has power. Keep going.'],
+    friendly: ['Node down! On to the next one.', 'Nice, the current flows. The next node is waiting.'],
+    cheeky: ['Node cracked. Terminal security is crying right now.', 'Another node on its knees. I would have been faster, but nice.'],
   },
   'tut.resume': {
     plain: ['The guide was interrupted. Continue?', 'Continue the guide from the last step?'],

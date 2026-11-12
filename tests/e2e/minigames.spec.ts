@@ -1,9 +1,12 @@
-/* 0.11.0: Minihry ve webovém sestavení, v obou jazycích. Stash Tetris (myš i klávesnice, otočení, srovnání
+/* 0.11.0: Minihry ve webovém sestavení, v obou jazycích. 0.12.0: Opsův hack (klávesnice i myš, tři uzly, norma a
+   nátěry) a série kvízu uložená po každé odpovědi. Stash Tetris (myš i klávesnice, otočení, srovnání
    s Opsovým balením a rady), recyklační kvíz (vysvětlení, klávesy 1–4) a odemčení nátěru s výběrem v šatníku.
    Kola mají pevné číslo v adrese, takže test zná předměty a otázky z jádra. Starší stav (schéma 9) se načte. */
 import { expect, test, type Page } from '@playwright/test';
 import { greedy, makeRound } from '../../src/core/stashTetris';
 import { makeQuiz } from '../../src/core/recycleQuiz';
+import { isSolved, makeHack, rotateAt, rotateMask } from '../../src/core/opsHack';
+import { OPS_LINES } from '../../src/i18n/opsLines';
 import { tl } from '../../src/i18n';
 
 const SEED = 4242;
@@ -42,8 +45,14 @@ const T = {
     unlockQuiz: 'New paint Field Olive, Arctic! Shall we try it in the wardrobe?', arctic: 'Arctic', night: 'Night Watch', original: 'Original', wrong: /^Not quite\. The answer is:/, correct: 'Correct!', wardrobe: 'Ops wardrobe' },
 };
 
+const HT = {
+  cs: { name: 'Opsův hack', unlock: 'Nový nátěr Polní oliva, Uplink! Zkusíme ho v šatníku?', uplink: 'Uplink' },
+  en: { name: 'Ops hack', unlock: 'New paint Field Olive, Uplink! Shall we try it in the wardrobe?', uplink: 'Uplink' },
+};
+
 for (const lang of ['cs', 'en'] as const) {
   const L = T[lang];
+  const H = HT[lang];
 
   test(`Stash Tetris: myš, klávesnice, otočení, výsledek proti Opsovi a odemčené nátěry (${lang})`, async ({ page }) => {
     const errors = watchErrors(page);
@@ -119,9 +128,9 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(page.getByTestId('games-ops').getByTestId('ops-line')).toHaveText(L.unlock);
     await expect.poll(() => soundLog(page)).toContain('unlock');
 
-    await expect.poll(async () => (await stateOf(page)).games.tetris.played).toBe(1);
+    await expect.poll(async () => (await stateOf(page))?.games?.tetris.played).toBe(1);
     const st = await stateOf(page);
-    expect(st.schema).toBe(10);
+    expect(st.schema).toBe(11);
     expect(st.games.tetris).toEqual({ played: 1, best: g.score, bestPct: 100 });
     expect(st.games.paints).toEqual(['olive', 'rust', 'gold']);
     expect(st.games.paint).toBe('original');
@@ -166,7 +175,7 @@ for (const lang of ['cs', 'en'] as const) {
     }
     await expect(page.getByTestId('games-result')).toHaveText(L.score);
     await expect(page.getByTestId('games-ops').getByTestId('ops-line')).toHaveText(L.unlockQuiz);
-    await expect.poll(async () => (await stateOf(page)).games.quiz.played).toBe(1);
+    await expect.poll(async () => (await stateOf(page))?.games?.quiz.played).toBe(1);
     const st = await stateOf(page);
     expect(st.games.quiz).toEqual({ played: 1, best: 9, streak: 9, bestStreak: 9 });
     expect(st.games.paints).toEqual(['olive', 'arctic']);
@@ -187,13 +196,127 @@ for (const lang of ['cs', 'en'] as const) {
     const colors = await canvasColors(page, preview);
     expect(colors).toContain('#F4AD82');
     expect(colors).not.toContain('#1D2225');
-    await expect.poll(async () => (await stateOf(page)).games.paint).toBe('arctic');
+    await expect.poll(async () => (await stateOf(page))?.games?.paint).toBe('arctic');
 
     /* po načtení zůstane; zpět na původní */
     await page.reload();
     await expect(page.getByTestId('ops-paints').getByRole('radio', { name: L.arctic })).toHaveAttribute('aria-checked', 'true');
     await page.getByTestId('ops-paints').getByRole('radio', { name: L.original }).click();
-    await expect.poll(async () => (await stateOf(page)).games.paint).toBe('original');
+    await expect.poll(async () => (await stateOf(page))?.games?.paint).toBe('original');
+    expect(errors).toEqual([]);
+  });
+  test(`Opsův hack: klávesnice i myš, tři uzly, výsledek proti normě a nátěry (${lang})`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await start(page, lang);
+    await page.goto('/#games');
+    await expect(page.getByTestId('games-hack-stats')).toBeVisible();
+    await page.getByTestId('games-play-hack').click();
+    await expect(page).toHaveURL(/#games\/hack-\d+$/);
+    await page.goto(`/#games/hack-${SEED}`);
+    await expect(page.getByRole('heading', { level: 1, name: H.name })).toBeVisible();
+    await expect(page).toHaveTitle(`${L.nav} · ARC OPS`);
+    /* Ops ohlásí terminál (Kamarádský; varianty se střídají, kolo se v testu otevřelo dvakrát) */
+    const opsLine = page.getByTestId('games-ops').getByTestId('ops-line');
+    const saidOneOf = async (key: 'game.hackStart' | 'game.hackNode') => {
+      await expect.poll(async () => (OPS_LINES[lang][key].friendly as string[]).includes((await opsLine.textContent()) ?? '')).toBe(true);
+    };
+    await saidOneOf('game.hackStart');
+
+    const round = makeHack(SEED);
+    const cell = (i: number) => page.locator(`[data-testid="games-hack-grid"] [data-cell="${i}"]`);
+    let moves = 0;
+    for (const [k, node] of round.nodes.entries()) {
+      await expect(page.getByTestId('games-hack-grid')).toHaveAttribute('data-node', String(k));
+      await expect(page.getByTestId('games-hack-grid').locator('[data-cell]')).toHaveCount(node.cols * node.rows);
+      await expect(page.getByTestId('games-hack-cracked')).toHaveCount(0);
+      /* plán: každá dlaždice kratší cestou do polohy řešení; uzel může skončit dřív (jiné platné řešení) */
+      let rot = [...node.start];
+      const plan: { i: number; dir: 1 | -1 }[] = [];
+      node.solution.forEach((m, i) => {
+        let cw = 0; while (rotateMask(m, rot[i] + cw) !== m) cw++;
+        let ccw = 0; while (rotateMask(m, rot[i] - ccw) !== m) ccw++;
+        const dir: 1 | -1 = cw <= ccw ? 1 : -1;
+        for (let n = 0; n < Math.min(cw, ccw); n++) plan.push({ i, dir });
+      });
+      const steps: typeof plan = [];
+      for (const st of plan) {
+        if (isSolved(node, rot)) break;
+        rot = rotateAt(rot, st.i, st.dir);
+        steps.push(st);
+      }
+      expect(isSolved(node, rot)).toBe(true);
+      if (k === 0) {
+        /* první uzel klávesnicí: šipky přesouvají, Enter po směru, Q proti směru */
+        await cell(0).focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(cell(1)).toBeFocused();
+        await page.keyboard.press('ArrowDown');
+        await expect(cell(1 + node.cols)).toBeFocused();
+        for (const st of steps) {
+          await cell(st.i).focus();
+          await page.keyboard.press(st.dir === 1 ? 'Enter' : 'q');
+        }
+      } else {
+        /* další uzly myší: klik po směru, pravé tlačítko proti směru */
+        for (const st of steps) await cell(st.i).click(st.dir === 1 ? undefined : { button: 'right' });
+      }
+      moves += steps.length;
+      await expect(page.getByTestId('games-hack-grid').locator('[data-powered="no"]')).toHaveCount(0);
+      await expect(page.getByTestId('games-hack-status')).toContainText(tl(lang, 'games.h.noLeaks'));
+      if (k + 1 < round.nodes.length) {
+        await expect(page.getByTestId('games-hack-cracked').locator('b')).toHaveText(tl(lang, 'games.h.cracked', { n: k + 1 }));
+        await saidOneOf('game.hackNode');
+        await expect(page.getByTestId('games-hack-next')).toBeFocused();
+        /* vyřešený uzel se už neotáčí (dlaždice jsou aria-disabled, proto vynucený klik) */
+        const before = await cell(0).getAttribute('data-rot');
+        await cell(0).click({ force: true });
+        await expect(cell(0)).toHaveAttribute('data-rot', before!);
+        await page.getByTestId('games-hack-next').focus();
+        await page.keyboard.press('Enter');
+      }
+    }
+    const par = round.nodes.reduce((s, n) => s + n.par, 0);
+    expect(moves).toBeLessThanOrEqual(par);
+    await expect(page.getByTestId('games-result')).toHaveText(tl(lang, 'games.h.resultLine', { moves, par }));
+    await expect(page.getByTestId('games-pct')).toHaveText(tl(lang, 'games.h.pctOfPar', { pct: 100 }));
+    /* první kolo na normu: Polní oliva a Uplink */
+    await expect(page.getByTestId('games-ops').getByTestId('ops-line')).toHaveText(H.unlock);
+    await expect.poll(() => soundLog(page)).toContain('beep');
+    await expect.poll(() => soundLog(page)).toContain('unlock');
+    await expect.poll(async () => (await stateOf(page))?.games?.hack.played).toBe(1);
+    const st = await stateOf(page);
+    expect(st.schema).toBe(11);
+    expect(st.games.hack).toEqual({ played: 1, bestPct: 100, perfect: 1 });
+    expect(st.games.paints).toEqual(['olive', 'uplink']);
+    expect(st.inventory).toEqual({ 'Metal Parts': 5 });
+    expect(st.profile.level).toBe(20);
+
+    await page.getByTestId('games-back').click();
+    await expect(page.getByTestId('games-hack-stats')).toContainText(tl(lang, 'games.pct', { pct: 100 }));
+    await expect(page.getByTestId('games-paints').locator('li[data-unlocked="yes"]')).toHaveCount(3);
+    await expect(page.getByTestId('games-paints').locator('li[data-paint="uplink"]')).toContainText(H.uplink);
+    await expect(page.getByTestId('games-paints').locator('li[data-paint="circuit"]')).toHaveAttribute('data-unlocked', 'no');
+    expect(errors).toEqual([]);
+  });
+
+  test(`Recyklační kvíz: odchod uprostřed kola zachová sérii, rekord kola ne (${lang})`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await start(page, lang);
+    await page.goto(`/#games/quiz-${SEED}`);
+    const quiz = makeQuiz(SEED, lang);
+    await expect(page.getByTestId('games-streak-note')).toBeVisible();
+    for (const q of quiz.questions.slice(0, 3)) {
+      await expect(page.getByTestId('games-question')).toHaveText(tl(lang, q.prompt.key, q.prompt.params));
+      await page.locator(`.mg-option[data-option="${q.answer}"]`).click();
+      await page.getByTestId('games-next').click();
+    }
+    await expect(page.getByTestId('games-quiz-score')).toContainText(tl(lang, 'games.q.streak', { count: 3 }));
+    await page.getByTestId('games-back').click();
+    await expect.poll(async () => (await stateOf(page))?.games?.quiz.streak).toBe(3);
+    await page.reload();
+    const st = await stateOf(page);
+    expect(st.games.quiz).toEqual({ played: 0, best: 0, streak: 3, bestStreak: 3 });
+    await expect(page.getByTestId('games-quiz-stats')).toContainText('3');
     expect(errors).toEqual([]);
   });
 }

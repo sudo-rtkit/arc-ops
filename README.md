@@ -232,3 +232,34 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
   minihrami a původním vzhledem, záloha je obsahuje (herní postup). Import zálohy nátěry sjednotí a rekordy nesníží;
   reset modulu „Minihry a nátěry“ v Settings. Testy: `tests/core/minigames.test.ts`, E2E `tests/e2e/minigames.spec.ts`
   (oba jazyky).
+
+## Opsův hack, série kvízu a názvy materiálů ze snímku (0.12.0)
+
+- **Opsův hack** (třetí minihra v modulu Minihry, `#games/hack-123456`): „hackni terminál“. Mřížka obvodových dlaždic;
+  otáčením se zdroj napětí propojí se všemi výstupy tak, aby každá dlaždice byla pod napětím a žádný vodič nevedl
+  do prázdna. Kolo má tři uzly s rostoucí obtížností (4 × 4, 5 × 5, 6 × 6). Každý uzel vzniká ze seedovaného náhodného
+  stromu přes všechna políčka a jen se zamíchá otočením, takže je řešitelný z konstrukce; test to pro 400 čísel kol
+  ověřuje i nezávislým řešičem, který vidí jen zamíchané dlaždice. Platí každé správné řešení, ne jen to původní.
+  Po kole srovnání s Opsovou normou (nejmenší počet otočení k původnímu řešení). Myš (klik po směru hodin, pravé
+  tlačítko proti směru) i klávesnice (šipky, Enter nebo mezerník po směru, Q proti směru). Logika: `src/core/opsHack.ts`.
+- **Ops v hacku**: hlášky na začátek kola a prolomený uzel (Věcný / Kamarádský / Drzý, CS i EN, dvě varianty) a stávající
+  zvuky (`beep` za uzel, `win` / `record` / `unlock` za kolo; jen v aktivním okně).
+- **Dva nové nátěry** (stejný systém, jen záměna palety, meruňkový lem a oči zůstávají): **Obvodová deska** za 3 dohraná
+  kola hacku a **Uplink** za kolo hacku na Opsovu normu (nebo líp). Kola hacku se počítají i do „dohraných kol“ (Polní
+  oliva, Pouštní).
+- **Kvíz: série se ukládá po každé odpovědi.** Dřív nedohrané kolo neuložilo nic, ani sérii. Teď odchod uprostřed kola
+  sérii zachová (i po zavření aplikace); rekord kola a počet kol se dál počítají jen z dohraných kol. Série 10 odemkne
+  Noční hlídku hned při desáté odpovědi.
+- **Názvy materiálů z detailu stanice dílny.** Kromě úrovně stanice se teď čtou i názvy materiálů na další úroveň
+  (malá písmena, `src/core/vision/mixed.ts`; vzory písmen `src/core/vision/bodyGlyphs.ts` vygenerované z vlastních snímků
+  testem `tests/vision/body.gen.test.ts`) a počty „mám/potřeba“ s jistotou každého pole zvlášť. Název se přiřadí jen ke
+  známému názvu z dat aplikace (přibližná shoda s materiály a katalogem; nečitelný zůstane „?“, nikdy se nevymyslí).
+  Revize ukazuje jistotu názvu, „mám“ a „potřeba“. Jistý materiál s jistým počtem „mám“ jde volitelně zapsat do Zásoby
+  (nikdy předvybraný, přes stejnou revizi a snímek stavu před zápisem).
+  Přesnost na vlastních snímcích (Gear Bench a Gunsmith, 2 × 3 materiály, 5 velikostí 1366–3840 px): název jen ze
+  čtení 27/30, s daty úrovně 30/30, „mám“ 30/30, „potřeba“ 30/30, žádná jistá hodnota špatně; ve 1920 × 1080 všech 6 názvů
+  přesně. Křížově (vzory z jednoho snímku, čtení druhého) název jen ze čtení 27/30. Při 1366 px se písmena slévají a
+  část názvů zůstane nepřečtená (pak jen z dat úrovně a nejistá).
+- Stav **schéma 11** (`games.hack`: dohraná kola, nejlepší procento normy, kola na normu); stav a zálohy schématu 10
+  i starší se načtou beze ztrát, hack začne od nuly. Testy: `tests/core/minigames.test.ts`, `tests/vision/station-materials.test.ts`
+  (umělé obrazovky), `tests/vision/own-return.test.ts` (vlastní snímky, jen lokálně), E2E `tests/e2e/minigames.spec.ts` (oba jazyky).

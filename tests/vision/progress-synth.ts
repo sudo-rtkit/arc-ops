@@ -5,6 +5,7 @@ import type { RgbaImage } from '../../src/core/vision/image';
 import { LETTER_GLYPHS } from '../../src/core/vision/letterGlyphs';
 import { GLYPHS } from '../../src/core/vision/glyphs';
 import { HEAD_GLYPHS } from '../../src/core/vision/headGlyphs';
+import { BODY_GLYPHS } from '../../src/core/vision/bodyGlyphs';
 
 type RGB = [number, number, number];
 export const CREAM: RGB = [249, 238, 223];
@@ -44,6 +45,46 @@ export function text(img: RgbaImage, x: number, y: number, h: number, s: string,
     cx += gw + Math.max(2, Math.round(h * 0.14));
   }
   return cx - x;
+}
+
+/* 0.12.0: text malými a velkými písmeny ze vzorů bodyGlyphs.ts (názvy materiálů). h = výška od horní hrany velkých
+   písmen po účaří (jako v core/vision/mixed.ts); dolní dotažnice jdou pod účaří. Vrací šířku. */
+export function bodyText(img: RgbaImage, x: number, y: number, h: number, s: string, c: RGB): number {
+  let cx = x;
+  for (const ch of s) {
+    if (ch === ' ') { cx += Math.round(h * 0.42); continue; }
+    const t = BODY_GLYPHS.find(b => b.ch === ch);
+    if (!t) throw new Error('bez vzoru: ' + ch);
+    const gh = Math.round(h * t.rh), gy = y + Math.round(h * t.rt), gw = Math.max(2, Math.round(gh * t.ar));
+    for (let yy = 0; yy < gh; yy++) for (let xx = 0; xx < gw; xx++) {
+      const row = t.rows[Math.min(10, Math.floor((yy * 11) / gh))];
+      if (row[Math.min(6, Math.floor((xx * 7) / gw))] === '#') rect(img, cx + xx, gy + yy, 1, 1, c);
+    }
+    cx += gw + Math.max(2, Math.round(h * 0.16));
+  }
+  return cx - x;
+}
+
+/* Detail stanice: hlavička „NÁZEV — LEVEL 01“, krémový panel s názvem a římskou úrovní a materiály na další úroveň
+   (název, pod ním „mám/potřeba“, mám červeně, když chybí). */
+export const RED: RGB = [214, 50, 46];
+export function stationScreen(o: { title: string; level: string; roman: number; rows: [string, number, number][] }): RgbaImage {
+  const img = canvas();
+  header(img, o.title, 'LEVEL ' + o.level);
+  rect(img, 1404, 162, 468, 756, CREAM);
+  rect(img, 1428, 187, 186, 22, [101, 107, 122]);
+  const tw = text(img, 1428, 224, 19, o.title, INK);
+  roman(img, 1428 + tw + 10, 224, 19, o.roman, INK);
+  text(img, 1428, 483, 13, 'REQUIRED RESOURCES', INK);
+  o.rows.forEach(([name, have, need], i) => {
+    const y = 529 + i * 64;
+    rect(img, 1428, y - 8, 48, 48, [40, 60, 80]);
+    /* názvy větší než ve hře (16 px): vzory 7×11 se při kreslení zhrubnou, ve 12 px by umělé písmo nebylo věrné */
+    bodyText(img, 1492, y - 4, 16, name, INK);
+    const w = text(img, 1492, y + 22, 13, String(have), have < need ? RED : INK);
+    text(img, 1492 + w + 2, y + 22, 13, '/' + need, INK);
+  });
+  return img;
 }
 
 /* Římská číslice s patkami (jako ranky v tooltipu): I, II, III, IV, V. */

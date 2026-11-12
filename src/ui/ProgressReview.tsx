@@ -6,7 +6,7 @@ import { useAppState } from '../store';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import type { ProgressRead } from '../core/vision/progress';
-import { proposeProgress, questTickChanges, type Conf, type ProgressApply, type ProgressProposal } from '../core/progressImport';
+import { proposeProgress, questTickChanges, stockChanges, type Conf, type ProgressApply, type ProgressProposal } from '../core/progressImport';
 import { fmt } from './format';
 import { cx } from './components';
 
@@ -50,6 +50,12 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
   } else if (p.kind === 'stations') {
     for (const r of p.rows) rows.push({ key: r.id, label: r.name, read: num(r.value), now: String(r.now), conf: r.conf, same: r.value === r.now,
       note: r.value === null ? undefined : `${r.min}–${r.max}`, set: a => { if (r.value !== null) a.stations = { ...a.stations, [r.id]: r.value }; } });
+    /* 0.12.0: jistý materiál s jistým počtem „mám“ jde volitelně zapsat do Zásoby (nikdy předvybraný) */
+    if (p.source === 'detail') for (const r of stockChanges(p)) {
+      const name = r.name!, have = r.have!;
+      rows.push({ key: `stock:${name}`, label: t('progress.station.stock', { name }), read: fmt(have), now: fmt(r.stock), conf: 'high', same: have === r.stock,
+        note: t('progress.station.stockNote'), pre: false, set: a => { a.inventory = { ...a.inventory, [name]: have }; } });
+    }
   } else if (p.kind === 'skills' && p.skill && p.skill.id) {
     const k = p.skill;
     rows.push({ key: k.id!, label: k.name, read: k.current.value === null ? '?' : `${k.current.value}/${k.max}`, now: `${k.now}/${k.max}`,
@@ -156,12 +162,23 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
         <div className="pr-resources">
           <h4>{t('progress.station.resources')}</h4>
           <table className={c.table} data-testid="progress-resources">
-            <thead><tr><th>{t('progress.col.material')}</th><th className="num">{t('progress.col.game')}</th><th className="num">{t('progress.col.app')}</th></tr></thead>
+            <thead><tr><th>{t('progress.col.material')}</th><th className="num">{t('progress.col.game')}</th><th className="num">{t('progress.col.app')}</th><th>{t('progress.col.status')}</th></tr></thead>
             <tbody>{p.resources.map((r, i) => (
-              <tr key={i}><td>{r.name ?? t('progress.station.resourceN', { n: i + 1 })}</td><td className="num">{num(r.have)} / {num(r.need)}</td><td className="num">{r.name ? fmt(r.stock) : '—'}</td></tr>
+              <tr key={i} data-material={r.name ?? ''} data-name-conf={r.nameConf} data-have-conf={r.haveConf} data-need-conf={r.needConf}>
+                <td><b>{r.name ?? t('progress.station.resourceN', { n: i + 1 })}</b>
+                  {r.source === 'data' && <em className={c.muted}> · {t('progress.station.fromData')}</em>}
+                  {!r.name && r.nameRaw && <em className={c.muted}> · {t('progress.station.readAs', { raw: r.nameRaw })}</em>}</td>
+                <td className="num mono">{num(r.have)} / {num(r.need)}</td>
+                <td className="num mono">{r.name ? fmt(r.stock) : '—'}</td>
+                <td className="pr-confs">{(['name', 'have', 'need'] as const).map(k => {
+                  const cf = r[`${k}Conf` as const];
+                  return <span key={k} className={cx(c.tag, TONE(cf))} data-field={k}>{t(`progress.field.${k}` as Key)}: {confText(cf)}</span>;
+                })}</td>
+              </tr>
             ))}</tbody>
           </table>
           <p className={c.muted}>{p.recipeMatch ? t('progress.station.recipeOk') : t('progress.station.recipeDiff')}</p>
+          <p className={c.muted}>{t('progress.station.namesRule')}</p>
         </div>
       )}
 

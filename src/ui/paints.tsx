@@ -13,6 +13,8 @@ export function ruleText(t: TFn, rule: PaintRule): string {
     case 'tetrisPct': return t('games.rule.tetrisPct', { pct: rule.pct });
     case 'quizScore': return t('games.rule.quizScore', { correct: rule.correct, total: QUIZ_LEN });
     case 'quizStreak': return t('games.rule.quizStreak', { count: rule.streak });
+    case 'hackRounds': return t('games.rule.hackRounds', { count: rule.rounds });
+    case 'hackPerfect': return t('games.rule.hackPerfect');
   }
 }
 

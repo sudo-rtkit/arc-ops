@@ -263,13 +263,15 @@ export interface GamesState {
   tetris: { played: number; best: number; bestPct: number };
   /* recyklační kvíz: dohraná kola, nejvíc správných v kole, aktuální a nejdelší série správných odpovědí */
   quiz: { played: number; best: number; streak: number; bestStreak: number };
+  /* 0.12.0 (schéma 11): Opsův hack: dohraná kola, nejlepší procento Opsovy normy, kola přesně na normu (nebo líp) */
+  hack: { played: number; bestPct: number; perfect: number };
   /* odemčené nátěry (bez výchozího) a vybraný nátěr ('original' = původní vzhled) */
   paints: string[];
   paint: string;
 }
 
 export interface AppState {
-  schema: 10;
+  schema: 11;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];

@@ -417,6 +417,7 @@
 .pr-objectives li[data-checked='true'] > span:first-child { color: var(--success); }
 .pr-banner { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--warning-border); background: var(--warning-bg); }
 .pr-resources h4 { margin: 0 0 var(--space-1); }
+.pr-confs { display: flex; flex-wrap: wrap; gap: 4px; }
 .pr-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
 .pr-foot p { margin: 0; }
 .pr-card .table tr.off td { opacity: .6; }
@@ -489,3 +490,25 @@ button.mg-cell:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .mg-explain { padding: var(--space-3); border-radius: var(--radius-control); border-left: var(--line-strong) solid var(--success); background: var(--success-bg); }
 .mg-explain.bad { border-left-color: var(--danger); background: var(--danger-bg); }
 .mg-explain p { margin-top: var(--space-1); color: var(--text-secondary); }
+
+/* ----- 0.12.0: Opsův hack ----- */
+.mg-hack { display: flex; flex-direction: column; gap: var(--gap); }
+.mg-hack-grid { --tile: 64px; display: flex; flex-direction: column; gap: 3px; padding: 6px; width: max-content; max-width: 100%; background: var(--surface-inset); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); user-select: none; }
+.mg-hack-row { display: flex; gap: 3px; }
+.mg-hack-tile { width: var(--tile); height: var(--tile); padding: 0; display: grid; place-items: center; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: 4px; cursor: pointer; }
+.mg-hack-tile:hover:not([aria-disabled="true"]) { border-color: var(--border-control); background: var(--bg-raised); }
+.mg-hack-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+.mg-hack-tile[aria-disabled="true"] { cursor: default; }
+.mg-hack-tile.source { background: var(--bg-selected); }
+.mg-hack-turn { display: block; width: 100%; height: 100%; transition: transform .14s ease-out; }
+.mg-hack-svg { display: block; width: 100%; height: 100%; }
+.mg-hack-svg line { stroke: var(--steel-wire, #596267); stroke-width: 6; stroke-linecap: square; }
+.mg-hack-svg .joint { fill: var(--steel-wire, #596267); }
+.mg-hack-svg .out { fill: var(--bg-raised); stroke: var(--steel-wire, #596267); stroke-width: 3; }
+.mg-hack-svg .src { fill: var(--accent); }
+.mg-hack-svg .bolt { fill: var(--on-accent); }
+.mg-hack-svg.on line { stroke: var(--accent); }
+.mg-hack-svg.on .joint { fill: var(--accent); }
+.mg-hack-svg.on .out { fill: var(--amber); stroke: var(--accent); }
+@media (max-width: 720px) { .mg-hack-grid { --tile: 48px; } }
+@media (prefers-reduced-motion: reduce) { .mg-hack-turn { transition: none; } }

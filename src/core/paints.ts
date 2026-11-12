@@ -25,7 +25,10 @@ export type PaintRule =
   | { kind: 'played'; rounds: number }
   | { kind: 'tetrisPct'; pct: number }
   | { kind: 'quizScore'; correct: number }
-  | { kind: 'quizStreak'; streak: number };
+  | { kind: 'quizStreak'; streak: number }
+  /* 0.12.0: Opsův hack */
+  | { kind: 'hackRounds'; rounds: number }
+  | { kind: 'hackPerfect'; rounds: number };
 
 export interface PaintSpec { id: string; rule: PaintRule; colors: Partial<Record<SwapName, string>> }
 
@@ -55,6 +58,14 @@ export const PAINTS: PaintSpec[] = [
   { /* Zlacený: Stash Tetris aspoň stejně dobře jako Ops (100 %) */
     id: 'gold', rule: { kind: 'tetrisPct', pct: 100 },
     colors: { graphite: '#1E1709', panel: '#2E230C', dark: '#433210', seam: '#5C4516', steel: '#8F6B1F', slate: '#B38A2C', tin: '#DDBA5A', copper: '#5E6E78', rust: '#45535C', umber: '#2E393F', cloth: '#4F4A3A', clothLight: '#6F684F' },
+  },
+  { /* 0.12.0 Obvodová deska: 3 dohraná kola Opsova hacku (zelený laminát a měděné spoje) */
+    id: 'circuit', rule: { kind: 'hackRounds', rounds: 3 },
+    colors: { graphite: '#0D1912', panel: '#12251A', dark: '#183223', seam: '#21432F', steel: '#2C6143', slate: '#3B7D57', tin: '#7FAE8E', copper: '#C99B4E', rust: '#A27A3A', umber: '#6A5027', cloth: '#37473B', clothLight: '#536656' },
+  },
+  { /* 0.12.0 Uplink: kolo Opsova hacku na Opsovu normu (bez zbytečného otočení) */
+    id: 'uplink', rule: { kind: 'hackPerfect', rounds: 1 },
+    colors: { graphite: '#0C171B', panel: '#112329', dark: '#173039', seam: '#20424D', steel: '#2B6470', slate: '#3A8290', tin: '#8CC2CA', copper: '#C77A8C', rust: '#A15D6D', umber: '#683946', cloth: '#394A4F', clothLight: '#56696E' },
   },
 ];
 export const PAINT_IDS: string[] = PAINTS.map(p => p.id);
@@ -100,10 +111,12 @@ export function recolorPixels(data: Uint8ClampedArray | Uint8Array, id: string):
 export function ruleMet(rule: PaintRule, g: GamesState): boolean {
   switch (rule.kind) {
     case 'default': return true;
-    case 'played': return g.tetris.played + g.quiz.played >= rule.rounds;
+    case 'played': return g.tetris.played + g.quiz.played + g.hack.played >= rule.rounds;
     case 'tetrisPct': return g.tetris.bestPct >= rule.pct;
     case 'quizScore': return g.quiz.best >= rule.correct;
     case 'quizStreak': return g.quiz.bestStreak >= rule.streak;
+    case 'hackRounds': return g.hack.played >= rule.rounds;
+    case 'hackPerfect': return g.hack.perfect >= rule.rounds;
   }
 }
 

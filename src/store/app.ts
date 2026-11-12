@@ -24,7 +24,7 @@ import { applyProgress, type ProgressApply, type ProgressSummary } from '../core
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
-import { applyGameResult, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
+import { applyGameResult, applyQuizAnswer, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
 import { DEFAULT_PAINT } from '../core/paints';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
@@ -975,6 +975,12 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       let out: GameOutcome | null = null;
       change(s => { out = applyGameResult(s.games, result); });
       return out as GameOutcome | null;
+    },
+    /* 0.12.0: odpověď v kvízu uloží sérii hned (odchod uprostřed kola ji zachová). Vrací nově odemčené nátěry. */
+    quizAnswer(correct: boolean): { streak: number; unlocked: string[] } | null {
+      let out: { streak: number; unlocked: string[] } | null = null;
+      change(s => { out = applyQuizAnswer(s.games, !!correct); });
+      return out as { streak: number; unlocked: string[] } | null;
     },
     /* vybraný nátěr Opse: původní, nebo odemčený */
     setPaint(id: string) {

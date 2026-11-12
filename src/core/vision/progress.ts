@@ -5,11 +5,12 @@
    pravé panely od pravé hrany, strom skillů od středu. Text hry musí být anglicky (vzory písmen jsou anglické). */
 import { hueSat, rgbAt, type RgbaImage } from './image';
 import type { Box } from './layout';
-import { components, isCream, maskOf, numberTokens, segmentLine, words, type PixelTest } from './digits';
+import { components, isCream, maskOf, numberTokens, segmentLine, words, type Glyph, type Line, type PixelTest } from './digits';
 import { segmentText } from './tooltip';
 import { isPanelCream } from './overlays';
 import { anyInk, creamPanel, darkInk, hueInk, inkRows, lightInk, parseNumber, readLine, readNumberIn, romanOf, wordNumber, type LineRead } from './text';
 import { nameDistance } from '../catalog';
+import { readMixed } from './mixed';
 
 export type ProgressScreen = 'profile' | 'workshop' | 'station' | 'quest' | 'skills';
 /* Přečtená hodnota: null = nepřečteno. conf 0–1 = nejhorší znak (u čísel a textu) nebo jistota tvaru. */
@@ -21,10 +22,12 @@ export interface ProfileRead { screen: 'profile'; level: Read<number>; xp: Read<
    v rohu dlaždice (Scrappy ji nemá). */
 export interface WorkshopRead { screen: 'workshop'; tiles: { slot: number; level: Read<number> }[] }
 /* Detail stanice: název a úroveň z hlavičky („GEAR BENCH — LEVEL 01“) a z panelu („GEAR BENCH I“), materiály na další
-   úroveň (řádky „mám/potřeba“ v pořadí na obrazovce). */
+   úroveň (řádky „mám/potřeba“ v pořadí na obrazovce). 0.12.0: i název materiálu nad řádkem počtů (malá písmena,
+   core/vision/mixed.ts) jako text s jistotou; ke známému názvu ho přiřadí až core/progressImport.ts. */
+export interface StationResourceRead { name: Read<string>; have: Read<number>; need: Read<number> }
 export interface StationRead {
   screen: 'station'; title: Read<string>; level: Read<number>; panelLevel: Read<number>;
-  resources: { have: Read<number>; need: Read<number> }[];
+  resources: StationResourceRead[];
 }
 /* Úkol obchodníka: obchodník z hlavičky, název úkolu, zaškrtávací políčka cílů v pořadí (null = nejisté). */
 export interface QuestRead { screen: 'quest'; trader: Read<string>; title: Read<string>; objectives: (boolean | null)[] }
@@ -215,21 +218,54 @@ function readStation(img: RgbaImage, g: Geo, h: Header): StationRead {
     const last = t.words[t.words.length - 1];
     if (t.words.length >= 2 && last && ROMAN[last.text]) out.panelLevel = { value: ROMAN[last.text], conf: last.conf, raw: last.text };
   }
-  /* materiály: řádky „mám/potřeba“ (mám je červeně, když chybí) pod nadpisem REQUIRED RESOURCES */
-  const red = hueInk(345, 15, 0.45, 110);
-  const ink = anyInk(darkInk, red);
-  const area: Box = { x: panel.x + g.u * 86, y: panel.y + panel.h * 0.4, w: panel.w - g.u * 110, h: panel.h * 0.34 };
-  for (const r of inkRows(img, area, ink, 2)) {
-    if (r.y1 - r.y0 + 1 < g.u * 8) continue;
-    const line = segmentText(img, { x: area.x, y: r.y0 - g.u * 3, w: area.w, h: r.y1 - r.y0 + 1 + g.u * 6 }, null, ink);
-    const ws = words(line, 0.6);
-    if (ws.length !== 1 || ws[0].length < 3) continue;
-    const n = wordNumber(ws[0], line, true);
+  for (const r of stationResources(img, g, panel)) {
+    const n = wordNumber(r.glyphs, r.line, true);
     const m = /^(\d{1,4})\/(\d{1,4})$/.exec(n.text);
     if (!m) continue;
-    out.resources.push({ have: { value: Number(m[1]), conf: n.conf, raw: m[1] }, need: { value: Number(m[2]), conf: n.conf, raw: m[2] } });
+    /* jistota zvlášť pro „mám“ a „potřeba“ (nejhorší číslice každé části) */
+    const cut = m[1].length;
+    const have: Read<number> = { value: Number(m[1]), conf: Math.min(...n.scores.slice(0, cut)), raw: m[1] };
+    const need: Read<number> = { value: Number(m[2]), conf: Math.min(...n.scores.slice(cut + 1)), raw: m[2] };
+    let name: Read<string> = none();
+    if (r.name) {
+      const t = readMixed(img, r.name, darkInk);
+      if (t.chars >= 3) name = { value: t.text, conf: t.conf, raw: t.text };
+    }
+    out.resources.push({ name, have, need });
   }
   return out;
+}
+
+/* Řádky materiálů v panelu stanice: řádek počtů „mám/potřeba“ (mám je červeně, když chybí) pod nadpisem REQUIRED
+   RESOURCES a těsně nad ním řádek názvu. Vrací výřezy a tvary řádku počtů (jedno slovo). */
+interface ResourceRow { name: Box | null; amount: Box; glyphs: Glyph[]; line: Line }
+const RED_INK = hueInk(345, 15, 0.45, 110);
+function stationResources(img: RgbaImage, g: Geo, panel: Box): ResourceRow[] {
+  const ink = anyInk(darkInk, RED_INK);
+  const area: Box = { x: panel.x + g.u * 86, y: panel.y + panel.h * 0.4, w: panel.w - g.u * 110, h: panel.h * 0.34 };
+  const rows = inkRows(img, area, ink, 2).filter(r => r.y1 - r.y0 + 1 >= g.u * 8);
+  const out: ResourceRow[] = [];
+  let lastAmount = -1;
+  rows.forEach((r, j) => {
+    const amount: Box = { x: area.x, y: r.y0 - g.u * 3, w: area.w, h: r.y1 - r.y0 + 1 + g.u * 6 };
+    const line = segmentText(img, amount, null, ink);
+    const ws = words(line, 0.6);
+    if (ws.length !== 1 || ws[0].length < 3) return;
+    /* jen řádek z číslic a lomítka (název materiálu je víc slov nebo písmena) */
+    if (!/^[\d?]+\/[\d?]+$/.test(wordNumber(ws[0], line, true).text)) return;
+    const prev = j > 0 && j - 1 !== lastAmount ? rows[j - 1] : null;
+    const name = prev && r.y0 - prev.y1 <= g.u * 16 ? { x: area.x, y: prev.y0 - g.u * 3, w: area.w, h: prev.y1 - prev.y0 + 1 + g.u * 6 } : null;
+    lastAmount = j;
+    out.push({ name, amount, glyphs: ws[0], line });
+  });
+  return out;
+}
+
+/* Výřezy detailu stanice pro generátor vzorů písmen (tests/vision/body.gen.test.ts): panel a řádky materiálů. */
+export function stationLayout(img: RgbaImage): { panel: Box; resources: { name: Box | null; amount: Box }[] } | null {
+  const g = geo(img);
+  const panel = creamPanel(img, { x: g.R(1380), y: g.Y(130), w: g.W - g.R(1380), h: g.Y(820) }, g.u * 300, g.u * 300);
+  return panel ? { panel, resources: stationResources(img, g, panel).map(r => ({ name: r.name, amount: r.amount })) } : null;
 }
 
 /* ----- ÚKOL OBCHODNÍKA ----- */

@@ -141,11 +141,13 @@ describe('návrh: jistota a ověření proti datům', () => {
     expect(defaultApply(p).profile).toEqual({ coins: 3 });
   });
   it('detail stanice: hlavička a panel se musí shodnout; recept ověří úroveň', () => {
-    const base: ProgressRead = { screen: 'station', title: R('GEAR BENCH'), level: R(1), panelLevel: R(1), resources: [3, 5, 5].map(n => ({ have: R(0), need: R(n) })) };
+    const base: ProgressRead = { screen: 'station', title: R('GEAR BENCH'), level: R(1), panelLevel: R(1), resources: [3, 5, 5].map(n => ({ name: R<string>(null, 0), have: R(0), need: R(n) })) };
     const ok = proposeProgress(base, s) as StationsProposal;
     expect(ok.rows[0]).toMatchObject({ id: 'gear', value: 1, conf: 'high' });
     expect(ok.recipeMatch).toBe(true);
     expect(ok.resources!.map(x => x.name)).toEqual(['Power Cable', 'Electrical Components', 'Hornet Driver']);
+    /* název nepřečtený: jen z dat úrovně, nejistý; Zásoba se nenabízí */
+    expect(ok.resources!.map(x => [x.source, x.nameConf, x.stockOffer])).toEqual(Array(3).fill(['data', 'medium', false]));
     const clash = proposeProgress({ ...base, panelLevel: R(2) }, s) as StationsProposal;
     expect(clash.rows[0]).toMatchObject({ value: null, conf: 'unknown' });
     const oneSrc = proposeProgress({ ...base, panelLevel: R<number>(null, 0), resources: [] }, s) as StationsProposal;
@@ -195,6 +197,6 @@ describe('zápis jen potvrzených a platných hodnot', () => {
   it('vstup z okna overlaye: jen čísla a krátká id', () => {
     expect(normalizeProgressApply(null)).toBeNull();
     expect(normalizeProgressApply({ profile: { level: '20', coins: 5, evil: 1 }, stations: [1], skills: { a: NaN, b: 2 }, questPin: ['x', 3] }))
-      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, questUndone: [], questPin: ['x'], questTicks: [] });
+      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, inventory: {}, questUndone: [], questPin: ['x'], questTicks: [] });
   });
 });

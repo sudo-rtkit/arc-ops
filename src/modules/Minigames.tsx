@@ -1,14 +1,17 @@
-/* Minihry (0.11.0): Stash Tetris a recyklační kvíz. Jen pro chvíle mimo raid (čekání na zápas, menu): modul
+/* Minihry (0.11.0): Stash Tetris a recyklační kvíz; 0.12.0: Opsův hack (logická hádanka s obvodovými dlaždicemi). Jen pro chvíle mimo raid (čekání na zápas, menu): modul
    se otevírá jen na přání hráče, nic se nenabízí samo a nad hrou nic nevyskakuje. Odměny jsou jen kosmetické
    (nátěry Opse v šatníku); výsledek nikdy nemění herní data. Kolo je dané číslem v adrese (#games/tetris-123456),
-   takže jde zopakovat. Ovládání myší i klávesnicí (šipky, Enter, R = otočit, Delete = vyndat, Esc = pustit). */
+   takže jde zopakovat (#games/hack-123456). Ovládání myší i klávesnicí (šipky, Enter, R = otočit, Delete = vyndat,
+   Esc = pustit; v hacku Enter/mezerník = otočit po směru, Q = proti směru, pravé tlačítko myši = proti směru).
+   Kvíz od 0.12.0 ukládá sérii po každé odpovědi, takže odchod uprostřed kola ji zachová. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
-import { ArrowLeft, ArrowRight, Brain, Check, Package, Palette, RotateCw, Shuffle, Trash2, Trophy, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Brain, Check, Cpu, Package, Palette, RotateCw, Shuffle, Trash2, Trophy, X } from 'lucide-react';
 import { actions, navigate, useAppState } from '../store';
 import { Badge, Btn, PageHead, Panel, cx } from '../ui/components';
 import { useT } from '../i18n/react';
 import { formatInt, type Key } from '../i18n';
-import { QUIZ_LEN, newSeed, tetrisPct, validSeed, type GameOutcome } from '../core/minigames';
+import { QUIZ_LEN, hackPct, newSeed, tetrisPct, validSeed, type GameOutcome } from '../core/minigames';
+import { HACK_NODES, dirsOf, isSolved, kindOf, leaks, makeHack, maskAt, powered, type HackNode } from '../core/opsHack';
 import { canPlace, density, dims, greedy, makeRound, occupancy, place, removeItem, scoreOf, tipsFor, type LootItem, type Placement, type TetrisRound, type Tip } from '../core/stashTetris';
 import { makeQuiz } from '../core/recycleQuiz';
 import { ITEMS_DATE } from '../core/itemdb';
@@ -21,11 +24,13 @@ import { useOpsSpeech } from '../ops/speech';
 import { mainSound } from '../ops/mainHub';
 import { PaintSwatch, paintName, ruleText } from '../ui/paints';
 
-type Game = 'tetris' | 'quiz';
+type Game = 'tetris' | 'quiz' | 'hack';
 type OnResult = (out: GameOutcome | null, value: string) => void;
+/* Ops řekne hlášku (a v aktivním okně případně pípne) */
+type Say = (l: LineRef, snd?: SoundId | null, sparkle?: boolean) => void;
 
 function parseSub(sub: string): { game: Game | null; seed: number | null } {
-  const m = /^(tetris|quiz)(?:-(\d+))?$/.exec(sub);
+  const m = /^(tetris|quiz|hack)(?:-(\d+))?$/.exec(sub);
   if (!m) return { game: null, seed: null };
   return { game: m[1] as Game, seed: validSeed(m[2]) };
 }
@@ -69,6 +74,15 @@ function Hub() {
             <div><dt>{t('games.played')}</dt><dd className="mono">{formatInt(t.lang, g.quiz.played)}</dd></div>
           </dl>
           <div className="row"><Btn variant="primary" icon={Brain} onClick={() => startGame('quiz')} data-testid="games-play-quiz">{t('games.play')}</Btn></div>
+        </Panel>
+        <Panel title={t('games.hack.name')} className="mg-card" actions={<Cpu size={18} aria-hidden="true" className="accent" />}>
+          <p className="secondary-text">{t('games.hack.desc')}</p>
+          <dl className="mg-stats" data-testid="games-hack-stats">
+            <div><dt>{t('games.bestPct')}</dt><dd className="mono">{t('games.pct', { pct: g.hack.bestPct })}</dd></div>
+            <div><dt>{t('games.h.perfect')}</dt><dd className="mono">{formatInt(t.lang, g.hack.perfect)}</dd></div>
+            <div><dt>{t('games.played')}</dt><dd className="mono">{formatInt(t.lang, g.hack.played)}</dd></div>
+          </dl>
+          <div className="row"><Btn variant="primary" icon={Cpu} onClick={() => startGame('hack')} data-testid="games-play-hack">{t('games.play')}</Btn></div>
         </Panel>
       </div>
       <Panel title={t('games.paints')} actions={<a className="btn sm" href="#settings/wardrobe"><Palette size={16} aria-hidden="true" />{t('games.toWardrobe')}</a>}>
@@ -291,15 +305,14 @@ function Tetris({ seed, react }: { seed: number; react: OnResult }) {
 const sizeText = (it: LootItem, rot: boolean) => { const [w, h] = dims(it, rot); return `${w}×${h}`; };
 
 /* ----- recyklační kvíz ----- */
-function Quiz({ seed, react }: { seed: number; react: OnResult }) {
+function Quiz({ seed, react, say }: { seed: number; react: OnResult; say: Say }) {
   const t = useT();
-  const startStreak = useRef(useAppState().games.quiz.streak);
+  /* série je v uloženém stavu (ukládá se po každé odpovědi, ne až na konci kola) */
+  const streak = useAppState().games.quiz.streak;
   const round = useMemo(() => makeQuiz(seed, t.lang), [seed, t.lang]);
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
-  const [streak, setStreak] = useState(startStreak.current);
-  const [maxStreak, setMaxStreak] = useState(startStreak.current);
   const [done, setDone] = useState(false);
   const nextRef = useRef<HTMLButtonElement>(null);
   const optsRef = useRef<HTMLDivElement>(null);
@@ -310,17 +323,18 @@ function Quiz({ seed, react }: { seed: number; react: OnResult }) {
   const answer = (id: string) => {
     if (picked || done || !q) return;
     setPicked(id);
-    if (id === q.answer) {
-      setCorrect(c => c + 1);
-      setStreak(s => { const n = s + 1; setMaxStreak(m => Math.max(m, n)); return n; });
-    } else setStreak(0);
+    const ok = id === q.answer;
+    if (ok) setCorrect(c => c + 1);
+    const res = actions.quizAnswer(ok);
+    /* série 10 odemkne nátěr hned, ne až na konci kola */
+    if (res?.unlocked.length) say(line('game.unlock', { name: res.unlocked.map(x => paintName(t, x)).join(', ') }), 'unlock', true);
     setTimeout(() => nextRef.current?.focus(), 0);
   };
   const next = () => {
     if (!picked) return;
     if (i + 1 < total) { setI(i + 1); setPicked(null); setTimeout(() => optsRef.current?.querySelector('button')?.focus(), 0); return; }
     setDone(true);
-    react(actions.finishGame({ game: 'quiz', correct, total, streak, maxStreak }), t('games.q.of', { n: correct, total }));
+    react(actions.finishGame({ game: 'quiz', correct, total }), t('games.q.of', { n: correct, total }));
     setTimeout(() => resultRef.current?.focus(), 0);
   };
   /* klávesy 1–4 odpoví kdekoli na stránce kvízu (mimo pole formuláře); jen v tomto okně, nic globálního */
@@ -378,7 +392,139 @@ function Quiz({ seed, react }: { seed: number; react: OnResult }) {
           </button>
         </div>
         <p className="meta">{t('games.q.help', { date: ITEMS_DATE })}</p>
+        <p className="meta" data-testid="games-streak-note">{t('games.q.streakSaved')}</p>
       </Panel>
+    </div>
+  );
+}
+
+/* ----- Opsův hack ----- */
+const DIR_KEYS = { n: 'games.h.dir.n', e: 'games.h.dir.e', s: 'games.h.dir.s', w: 'games.h.dir.w' } as const;
+/* Dlaždice jako SVG: vodiče ze středu k hranám, zdroj = čtverec s bleskem, výstup = kruhová kontrolka. Kreslí se tvar
+   z řešení a celé SVG se otáčí (plynulý přechod), takže otočení odpovídá tomu, co hra počítá. */
+function HackTile({ mask, kind, on }: { mask: number; kind: string; on: boolean }) {
+  const ends: [number, number][] = [[20, 0], [40, 20], [20, 40], [0, 20]];
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true" className={cx('mg-hack-svg', on && 'on')}>
+      {ends.map(([x, y], k) => (mask & (1 << k) ? <line key={k} x1="20" y1="20" x2={x} y2={y} /> : null))}
+      {kind === 'source' && <><rect x="11" y="11" width="18" height="18" rx="3" className="src" /><path d="M21.5 13 15.5 21h4l-1 6 6-8h-4z" className="bolt" /></>}
+      {kind === 'output' && <circle cx="20" cy="20" r="7" className="out" />}
+      {kind === 'wire' && <circle cx="20" cy="20" r="3.2" className="joint" />}
+    </svg>
+  );
+}
+
+function Hack({ seed, react, say }: { seed: number; react: OnResult; say: Say }) {
+  const t = useT();
+  const round = useMemo(() => makeHack(seed), [seed]);
+  const [k, setK] = useState(0);
+  /* otočení každé dlaždice jako počet čtvrtotáček (bez modula, kvůli plynulé animaci) */
+  const [turns, setTurns] = useState<number[]>(() => [...round.nodes[0].start]);
+  const [moves, setMoves] = useState(0);
+  const [cursor, setCursor] = useState(0);
+  const [live, setLive] = useState('');
+  const [finished, setFinished] = useState(false);
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const resultRef = useRef<HTMLHeadingElement>(null);
+  const node: HackNode = round.nodes[k];
+  const rot = turns.map(x => ((x % 4) + 4) % 4);
+  const on = powered(node, rot);
+  const leak = leaks(node, rot);
+  const solved = isSolved(node, rot);
+  const par = round.nodes.reduce((sum, n) => sum + n.par, 0);
+  const parSoFar = round.nodes.slice(0, k + 1).reduce((sum, n) => sum + n.par, 0);
+
+  useEffect(() => { say(line('game.hackStart')); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tileLabel = (i: number, r: number[], power: Set<number>) => {
+    const kind = kindOf(node, i);
+    const dirs = dirsOf(maskAt(node, r, i)).map(d => t(DIR_KEYS[d])).join(', ');
+    return t('games.h.tileAria', { row: Math.floor(i / node.cols) + 1, col: (i % node.cols) + 1, kind: t(`games.h.kind.${kind}` as Key), dirs, state: t(power.has(i) ? 'games.h.on' : 'games.h.off') });
+  };
+  const turn = (i: number, dir: 1 | -1) => {
+    if (solved || finished) return;
+    const nt = [...turns]; nt[i] += dir;
+    const nr = nt.map(x => ((x % 4) + 4) % 4);
+    const total = moves + 1;
+    setTurns(nt); setMoves(total); setCursor(i);
+    setLive(tileLabel(i, nr, powered(node, nr)));
+    if (!isSolved(node, nr)) return;
+    if (k + 1 < HACK_NODES) {
+      say(line('game.hackNode'), 'beep');
+      setTimeout(() => nextRef.current?.focus(), 0);
+      return;
+    }
+    setFinished(true);
+    react(actions.finishGame({ game: 'hack', moves: total, par }), t('games.pct', { pct: hackPct(total, par) }));
+    setTimeout(() => resultRef.current?.focus(), 0);
+  };
+  const nextNode = () => {
+    if (!solved || k + 1 >= HACK_NODES) return;
+    setK(k + 1); setTurns([...round.nodes[k + 1].start]); setCursor(0);
+    setTimeout(() => refs.current[0]?.focus(), 0);
+  };
+  const move = (i: number) => { setCursor(i); refs.current[i]?.focus(); };
+  const onKey = (e: ReactKeyboardEvent, i: number) => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const x = i % node.cols, y = Math.floor(i / node.cols);
+    const go = (nx: number, ny: number) => { e.preventDefault(); move(Math.min(node.rows - 1, Math.max(0, ny)) * node.cols + Math.min(node.cols - 1, Math.max(0, nx))); };
+    if (e.key === 'ArrowLeft') go(x - 1, y);
+    else if (e.key === 'ArrowRight') go(x + 1, y);
+    else if (e.key === 'ArrowUp') go(x, y - 1);
+    else if (e.key === 'ArrowDown') go(x, y + 1);
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); turn(i, 1); }
+    else if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); turn(i, -1); }
+  };
+
+  const pct = hackPct(moves, par);
+  return (
+    <div className="mg-hack" data-testid="games-hack" data-seed={seed}>
+      <Panel title={t('games.h.node', { n: k + 1, total: HACK_NODES, cols: node.cols, rows: node.rows })} className="mg-hack-panel"
+        actions={<span className="mono" data-testid="games-hack-moves">{t('games.h.moves', { moves, par: parSoFar })}</span>}>
+        <p className="meta">{t('games.h.goal')}</p>
+        <div className="mg-hack-grid" role="grid" aria-label={t('games.h.gridAria', { cols: node.cols, rows: node.rows })} data-testid="games-hack-grid" data-node={k}
+          onContextMenu={e => e.preventDefault()}>
+          {Array.from({ length: node.rows }, (_, y) => (
+            <div key={y} role="row" className="mg-hack-row">
+              {Array.from({ length: node.cols }, (_, x) => {
+                const i = y * node.cols + x, kind = kindOf(node, i);
+                return (
+                  <button key={`${k}-${i}`} type="button" role="gridcell" className={cx('mg-hack-tile', kind, on.has(i) && 'on')} data-cell={i} data-kind={kind} data-rot={rot[i]}
+                    data-powered={on.has(i) ? 'yes' : 'no'} tabIndex={cursor === i ? 0 : -1} aria-label={tileLabel(i, rot, on)} aria-disabled={solved || finished}
+                    ref={el => { refs.current[i] = el; }} onFocus={() => setCursor(i)} onKeyDown={e => onKey(e, i)}
+                    onClick={() => turn(i, 1)} onContextMenu={e => { e.preventDefault(); turn(i, -1); }}>
+                    <span className="mg-hack-turn" style={{ transform: `rotate(${turns[i] * 90}deg)` }}><HackTile mask={node.solution[i]} kind={kind} on={on.has(i)} /></span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <p className="meta" data-testid="games-hack-status">
+          {t('games.h.powered', { on: on.size, all: node.solution.length })} · {leak ? t('games.h.leaks', { count: leak }) : t('games.h.noLeaks')}
+        </p>
+        <p className="sr-only" aria-live="polite" data-testid="games-live">{live}</p>
+        {solved && !finished && (
+          <div className="mg-explain ok" role="status" data-testid="games-hack-cracked">
+            <b>{t('games.h.cracked', { n: k + 1 })}</b>
+            <div className="row"><button ref={nextRef} type="button" className="btn primary" onClick={nextNode} data-testid="games-hack-next">
+              <ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" />{t('games.h.nextNode')}</button></div>
+          </div>
+        )}
+        {!finished && <p className="meta">{t('games.h.help')}</p>}
+      </Panel>
+      {finished && (
+        <Panel title={t('games.h.result')} className="mg-result">
+          <h3 ref={resultRef} tabIndex={-1} data-testid="games-result">{t('games.h.resultLine', { moves, par })}</h3>
+          <p className={cx('mg-pct', pct >= 100 ? 'mg-good' : 'amber')} data-testid="games-pct">{t('games.h.pctOfPar', { pct })}</p>
+          <ul className="mg-tips" data-testid="games-tips">
+            {moves <= par ? <li>{t('games.h.tipPar')}</li> : <li>{t('games.h.tipOver', { count: moves - par })}</li>}
+            <li>{t('games.h.tipOutputs')}</li>
+          </ul>
+          <div className="row"><Btn variant="primary" icon={Shuffle} onClick={() => startGame('hack')} data-testid="games-next-round">{t('games.newRound')}</Btn></div>
+        </Panel>
+      )}
     </div>
   );
 }
@@ -392,19 +538,21 @@ export default function Minigames({ sub }: { sub: string }) {
   /* hra bez platného čísla kola dostane nové číslo */
   useEffect(() => { if (game && seed === null) startGame(game); }, [game, seed]);
 
-  const react: OnResult = (out, value) => {
-    if (!out) return;
-    let l: LineRef, snd: SoundId | null = null;
-    if (out.unlocked.length) { l = line('game.unlock', { name: out.unlocked.map(id => paintName(t, id)).join(', ') }); snd = 'unlock'; ops.current?.sparkle(); }
-    else if (out.record) { l = line('game.record', { value }); snd = 'record'; }
-    else if (out.win) { l = line('game.win'); snd = 'win'; }
-    else l = line('game.done');
+  const say: Say = (l, snd = null, sparkle = false) => {
+    if (sparkle) ops.current?.sparkle();
     setSaid(x => ({ line: l, n: x.n + 1 }));
     /* zvuk jen v aktivním okně (pravidla mainSound / soundAllowed) */
     if (snd) mainSound.play(snd);
   };
+  const react: OnResult = (out, value) => {
+    if (!out) return;
+    if (out.unlocked.length) say(line('game.unlock', { name: out.unlocked.map(id => paintName(t, id)).join(', ') }), 'unlock', true);
+    else if (out.record) say(line('game.record', { value }), 'record');
+    else if (out.win) say(line('game.win'), 'win');
+    else say(line('game.done'));
+  };
 
-  const title = game === 'tetris' ? t('games.tetris.name') : game === 'quiz' ? t('games.quiz.name') : t('games.title');
+  const title = game === 'tetris' ? t('games.tetris.name') : game === 'quiz' ? t('games.quiz.name') : game === 'hack' ? t('games.hack.name') : t('games.title');
   return (
     <div className="page mg-page">
       <PageHead title={title} sub={game && seed ? t('games.round', { seed: String(seed) }) : t('games.sub')}
@@ -417,7 +565,8 @@ export default function Minigames({ sub }: { sub: string }) {
       </div>
       {!game && <Hub />}
       {game === 'tetris' && seed && <Tetris key={seed} seed={seed} react={react} />}
-      {game === 'quiz' && seed && <Quiz key={seed} seed={seed} react={react} />}
+      {game === 'quiz' && seed && <Quiz key={seed} seed={seed} react={react} say={say} />}
+      {game === 'hack' && seed && <Hack key={seed} seed={seed} react={react} say={say} />}
     </div>
   );
 }

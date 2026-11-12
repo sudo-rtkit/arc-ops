@@ -3,7 +3,10 @@
    hráčem, 'unknown' = nepřečteno nebo nesedí s daty (ukáže se jako „?“ a nikdy se nezapíše). Zapisuje se až po
    výslovném potvrzení (applyProgress) a jen to, co hráč vybral:
    - profil: level, XP, XP na další level, mince;
-   - dílna: úrovně stanic (přehled i detail stanice); materiály z detailu jsou jen informace;
+   - dílna: úrovně stanic (přehled i detail stanice); materiály z detailu jsou informace. 0.12.0: název materiálu se
+     přečte ze snímku a přiřadí jen ke známému názvu (přibližná shoda s materiály a katalogem, nikdy vymyšlený); každé
+     pole má vlastní jistotu. Jistý název i jistý počet „mám“ se nabídne jako volitelný zápis do Zásoby (nikdy
+     předvybraný; zápis jde přes stejnou revizi a snímek stavu jako ostatní);
    - skill tree: rank skillu jen z tooltipu skillu; součty větví z přehledu jen pro kontrolu;
    - úkol (0.10.2): zaškrtnuté cíle se navrhnou k zaškrtnutí v aplikaci (jen když počet cílů sedí s daty; jistý úkol
      předvybraný, nejistý po potvrzení). Nezaškrtnutý cíl, který je v aplikaci zaškrtnutý, se nabídne k odškrtnutí,
@@ -19,7 +22,8 @@ import { AT_HIDEOUT, type Loc } from './data/arctracker';
 import { branchTotals } from './skills';
 import { LIMITS } from './state';
 import { nameDistance } from './catalog';
-import { getStations } from './gamedata';
+import { getMaterials, getStations } from './gamedata';
+import { catalogItems } from './catalog';
 import { clampInt } from './util';
 
 export type Conf = 'high' | 'medium' | 'unknown';
@@ -55,8 +59,15 @@ export interface ProfileProposal {
   now: { level: number; xp: number; xpNext: number; coins: number };
 }
 export interface StationRow { id: string; name: string; value: number | null; conf: Conf; now: number; min: number; max: number }
-/* Materiál na další úroveň z detailu stanice (jen informace): název podle dat, stav podle hry a podle aplikace. */
-export interface ResourceRow { name: string | null; have: number | null; need: number | null; stock: number }
+/* Materiál na další úroveň z detailu stanice: název (přečtený a přiřazený ke známému názvu, nebo z dat úrovně), počty
+   ze hry s jistotou každého pole a zásoba v aplikaci. source: 'read' = název ze snímku, 'data' = jen z dat úrovně
+   (počty sedí, název nepřečten), null = neznámý. stockOffer = jistý název materiálu i jistý počet „mám“: jde nabídnout
+   zápis do Zásoby. */
+export interface ResourceRow {
+  name: string | null; nameConf: Conf; nameRaw: string; source: 'read' | 'data' | null;
+  have: number | null; haveConf: Conf; need: number | null; needConf: Conf;
+  stock: number; stockOffer: boolean;
+}
 export interface StationsProposal {
   kind: 'stations'; source: 'overview' | 'detail';
   rows: StationRow[];
@@ -140,9 +151,23 @@ export function proposeProgress(read: ProgressRead, s: AppState, lang: 'cs' | 'e
       const needs = read.resources.map(r => r.need.value);
       const recipeMatch = !!want && want.length === needs.length && want.every(([, n], i) => n === needs[i]);
       if (recipeMatch && lvl.conf === 'medium' && m.dist <= 1) lvl = { ...lvl, conf: 'high' };
+      const mats = new Set(getMaterials(s).map(x => x.name));
+      const known = [...new Set([...mats, ...catalogItems().map(x => x.name)])];
       const resources: ResourceRow[] = read.resources.map((r, i) => {
-        const name = recipeMatch ? want![i][0] : null;
-        return { name, have: r.have.value, need: r.need.value, stock: name ? s.inventory[name] || 0 : 0 };
+        const fromData = recipeMatch ? want![i][0] : null;
+        const h = field(r.have), n = field(r.need);
+        const m = r.name.value ? bestMatch(r.name.value, known, x => x) : null;
+        let name: string | null = null, nameConf: Conf = 'unknown', source: ResourceRow['source'] = null;
+        if (m) {
+          name = m.item; source = 'read';
+          /* jisté: shoda s daty úrovně, nebo skoro přesně přečtený název, kterému data neodporují */
+          nameConf = m.item === fromData ? 'high' : m.dist <= 1 && !fromData && confOf(r.name) !== 'unknown' ? 'high' : 'medium';
+        } else if (fromData) { name = fromData; nameConf = 'medium'; source = 'data'; }
+        const stockOffer = !!name && nameConf === 'high' && mats.has(name) && h.conf === 'high' && h.value !== null && inRange(LIMITS.inventory)(h.value);
+        return {
+          name, nameConf, nameRaw: r.name.raw, source, have: h.value, haveConf: h.conf, need: n.value, needConf: n.conf,
+          stock: name ? s.inventory[name] || 0 : 0, stockOffer,
+        };
       });
       const f = lvl.value !== null && (lvl.value < st.min || lvl.value > st.max) ? { value: null, conf: 'unknown' as Conf } : lvl;
       out.rows = [{ id: st.id, name: st.name, value: f.value, conf: m.dist <= 1 ? f.conf : lower(f.conf, 'medium'), now: s.stations[st.id] ?? st.min, min: st.min, max: st.max }];
@@ -199,6 +224,8 @@ export interface ProgressApply {
   questPin?: string[];
   /* 0.10.2: zaškrtnutí (on) nebo odškrtnutí cíle úkolu podle indexu v datech */
   questTicks?: QuestTick[];
+  /* 0.12.0: počet materiálu v Zásobě (jen známý materiál, jen na výslovné přání z detailu stanice) */
+  inventory?: Record<string, number>;
 }
 export interface QuestTick { id: string; index: number; on: boolean }
 export interface ProgressSummary { fields: number }
@@ -233,6 +260,13 @@ export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): Pr
     const next = setObjective(s.quests.objectives, x.id, x.index, x.on);
     if (next !== s.quests.objectives) { s.quests.objectives = next; fields++; }
   }
+  const mats = input.inventory && Object.keys(input.inventory).length ? new Set(getMaterials(s).map(x => x.name)) : null;
+  for (const [name, v] of Object.entries(input.inventory ?? {})) {
+    if (!mats?.has(name) || !Number.isInteger(v) || v < LIMITS.inventory[0] || v > LIMITS.inventory[1]) continue;
+    if ((s.inventory[name] || 0) === v) continue;
+    if (v) s.inventory[name] = v; else delete s.inventory[name];
+    fields++;
+  }
   for (const id of input.questPin ?? []) {
     if (!questById(id) || s.quests.pinned.includes(id)) continue;
     s.quests.pinned = [...s.quests.pinned, id].slice(-pinMax); fields++;
@@ -266,11 +300,14 @@ export function defaultApply(p: ProgressProposal): ProgressApply {
 export function proposalChanges(p: ProgressProposal): number {
   switch (p.kind) {
     case 'profile': return (['level', 'xp', 'xpNext', 'coins'] as const).filter(k => p[k].value !== null && p[k].value !== p.now[k]).length;
-    case 'stations': return p.rows.filter(r => r.value !== null && r.value !== r.now).length;
+    case 'stations': return p.rows.filter(r => r.value !== null && r.value !== r.now).length + stockChanges(p).length;
     case 'skills': return p.skill?.id && p.skill.current.value !== null && p.skill.current.value !== p.skill.now ? 1 : 0;
     case 'quest': return p.questId ? ((p.done && p.open) || !p.pinned ? 1 : 0) + questTickChanges(p).length : 0;
   }
 }
+
+/* Volitelné zápisy do Zásoby z detailu stanice: jistý materiál s jistým počtem, který se liší od aplikace. */
+export const stockChanges = (p: StationsProposal): ResourceRow[] => (p.resources ?? []).filter(r => r.stockOffer && r.have !== r.stock);
 
 /* Rozdíly cílů mezi snímkem a aplikací: zaškrtnuté na snímku a ne v aplikaci (on) a naopak (off). Nepřečtený cíl
    (null) ani úkol s jiným počtem cílů nic nenabízí. */
@@ -301,7 +338,7 @@ export function normalizeProgressApply(raw: unknown): ProgressApply | null {
   const ids = (x: unknown): string[] => (Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string' && v.length <= 80).slice(0, 16) : []);
   return {
     profile: nums(o.profile, ['level', 'xp', 'xpNext', 'coins']),
-    stations: nums(o.stations), skills: nums(o.skills),
+    stations: nums(o.stations), skills: nums(o.skills), inventory: nums(o.inventory),
     questUndone: ids(o.questUndone), questPin: ids(o.questPin),
     questTicks: (Array.isArray(o.questTicks) ? o.questTicks : []).slice(0, 64).flatMap((x): QuestTick[] => {
       if (!x || typeof x !== 'object') return [];

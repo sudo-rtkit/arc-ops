@@ -1,7 +1,7 @@
 {
   "name": "arc-raiders-companion",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Osobní operační centrum hráče ARC Raiders. Neoficiální, offline, bez zásahů do hry.",
   "type": "module",
   "scripts": {

@@ -123,9 +123,9 @@ describe('potřeby úkolů v nákupním seznamu a Planneru', () => {
 describe('schéma 4: úkoly ve stavu a v záloze', () => {
   const S3 = { schema: 3, inventory: { 'Metal Parts': 4 }, planner: { stations: {}, items: [], includeGoals: false }, items: {}, vision: { learned: [] }, settings: { autoSnapshot: true, lang: 'cs' } };
   it('migrace 3 → 4 doplní quests a planner.includeQuests a nic neztratí', () => {
-    expect(SCHEMA).toBe(10);
+    expect(SCHEMA).toBe(11);
     const s = normalize(S3, NOW);
-    expect(s.schema).toBe(10);
+    expect(s.schema).toBe(11);
     expect(s.quests).toEqual({ done: {}, pinned: [], objectives: {} });
     expect(s.planner).toEqual({ stations: {}, items: [], includeGoals: false, includeQuests: true });
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
@@ -137,7 +137,7 @@ describe('schéma 4: úkoly ve stavu a v záloze', () => {
     s.quests.done = { [SNAP]: NOW };
     s.planner.includeQuests = false;
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(10);
+    expect(file.schema).toBe(11);
     expect(file.state.quests).toEqual({ done: { [SNAP]: NOW }, pinned: [], objectives: {} });
     const p = parseBackup(makeBackup(s), NOW);
     expect('error' in p ? p.error : p.state).toEqual(s);

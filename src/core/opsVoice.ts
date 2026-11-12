@@ -58,6 +58,8 @@ const GESTURE: Partial<Record<LineKey, Partial<Record<OpsPersonality, OpsAnim>> 
   'game.unlock': { all: 'success' },
   'game.done': { plain: 'talk', friendly: 'shrug', cheeky: 'laugh' },
   'hint.minigame': { cheeky: 'laugh' },
+  'game.hackStart': { all: 'thinking', cheeky: 'laugh' },
+  'game.hackNode': { all: 'success' },
 };
 export function lineGesture(key: LineKey, mode: OpsPersonality): OpsAnim | null {
   const g = GESTURE[key];

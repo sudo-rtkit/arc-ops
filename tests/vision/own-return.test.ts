@@ -10,7 +10,7 @@ import type { RgbaImage } from '../../src/core/vision/image';
 import type { PanelRead } from '../../src/core/vision/read';
 import { readCapture, screenKind } from '../../src/core/opsCapture';
 import { readProgress, type ProgressRead } from '../../src/core/vision/progress';
-import { applyProgress, defaultApply, proposeProgress, questTickChanges, type ProfileProposal, type QuestProposal, type SkillsProposal, type StationsProposal } from '../../src/core/progressImport';
+import { applyProgress, defaultApply, proposeProgress, questTickChanges, stockChanges, type ProfileProposal, type QuestProposal, type SkillsProposal, type StationsProposal } from '../../src/core/progressImport';
 import { resize } from '../../src/core/vision/image';
 import { analyzeLoot } from '../../src/core/visionImport';
 import { applyRaidLoot, checkRaidLoot, lootItems, lootRows, lootSignature } from '../../src/core/lootImport';
@@ -242,6 +242,48 @@ describe.skipIf(!HAS)('vlastní snímky: obrazovky postupu (0.10.1)', () => {
       /* materiály jsou jen informace: zásoba v aplikaci se nemění */
       expect(s.inventory).toEqual(defaultState().inventory);
     }
+  });
+
+  /* 0.12.0: názvy materiálů čtené ze snímku (malá písmena). Přesnost po polích: název jen ze čtení (bez dat úrovně),
+     název s daty úrovně, mám, potřeba. Jistá hodnota nesmí být nikdy špatně; nejistá nebo neznámá se nezapíše sama. */
+  it('dílna: názvy materiálů ze snímku, jistota po polích a volitelný zápis do Zásoby', () => {
+    const tally: Record<string, { n: number; ok: number; sureWrong: number }> = {};
+    const add = (k: string, ok: boolean, sure: boolean) => {
+      const t = (tally[k] ??= { n: 0, ok: 0, sureWrong: 0 });
+      t.n++; if (ok) t.ok++; if (sure && !ok) t.sureWrong++;
+    };
+    for (const w of [...SIZES, 1600, 3840]) for (const [f, key] of [['gear-level.png', 'gear-level'], ['gunsmith-level.png', 'gunsmith-level']] as const) {
+      const r = prog(f, w);
+      if (r.screen !== 'station') throw new Error(r.screen);
+      const want = Object.entries(exp[key].resources) as [string, [number, number]][];
+      expect(r.resources).toHaveLength(want.length);
+      const p = proposeProgress(r, defaultState()) as StationsProposal;
+      /* bez úrovně nejsou data úrovně: název jen ze čtení */
+      const blind = proposeProgress({ ...r, level: { value: null, conf: 0, raw: '' }, panelLevel: { value: null, conf: 0, raw: '' } }, defaultState()) as StationsProposal;
+      want.forEach(([name, [have, need]], i) => {
+        const x = p.resources![i], y = blind.resources![i];
+        add('name (read only)', y.name === name, y.nameConf === 'high');
+        add('name (with level data)', x.name === name, x.nameConf === 'high');
+        add('have', x.have === have, x.haveConf === 'high');
+        add('need', x.need === need, x.needConf === 'high');
+        /* nikdy jiný známý materiál */
+        expect([name, null], `${f} ${w} ${i}`).toContain(y.name);
+        if (w === 0) expect([y.source, y.nameConf, x.stockOffer], `${f} ${name}`).toEqual(['read', 'high', true]);
+      });
+      if (w === 0) {
+        /* zápis do Zásoby jen na přání: výchozí výběr ho nemá */
+        expect(defaultApply(p).inventory).toBeUndefined();
+        expect(stockChanges(p).map(x => [x.name, x.have])).toEqual(want.map(([n, [h]]) => [n, h]));
+        const s = defaultState();
+        applyProgress(s, { inventory: Object.fromEntries(stockChanges(p).map(x => [x.name!, x.have!])) });
+        expect(s.inventory).toEqual(Object.fromEntries(want.map(([n, [h]]) => [n, h])));
+      }
+    }
+    console.log('přesnost materiálů (vlastní snímky, 5 velikostí):\n' + Object.entries(tally).map(([k, t]) => `  ${k}: ${t.ok}/${t.n}, jistě a špatně: ${t.sureWrong}`).join('\n'));
+    for (const t of Object.values(tally)) expect(t.sureWrong).toBe(0);
+    expect(tally['name (with level data)'].ok).toBe(tally['name (with level data)'].n);
+    expect(tally.have.ok).toBe(tally.have.n);
+    expect(tally.need.ok).toBe(tally.need.n);
   });
 
   it.each(SIZES)('přehled dílny: sedm stanic s úrovní I, Scrappy bez čísla; jisté jen stanice ověřené detailem (šířka %i)', w => {
