@@ -107,7 +107,8 @@ function OpsRow({ hint }: { hint: LineRef }) {
   });
   return (
     <div className="cw-opsrow" data-testid="compact-opsrow">
-      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} label={t('ops.previewAria')}
+      {/* 0.10.1: menší varianta (96 px místo 128 px), řádek s Opsem v kompaktu zabírá méně místa */}
+      <OpsCanvas ref={ops} variant="corner" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} label={t('ops.previewAria')}
         restAnim={sp.talking ? 'talk' : 'idle'} />
       {sp.text && <p className="cw-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{sp.text}</p>}
     </div>

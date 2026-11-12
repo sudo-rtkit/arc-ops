@@ -20,6 +20,7 @@ import { baseRoute, baseSell } from '../core/gamedata';
 import { MAPS } from '../core/data/maps';
 import { applyVisionImport, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, type RaidLootRefusal } from '../core/lootImport';
+import { applyProgress, type ProgressApply, type ProgressSummary } from '../core/progressImport';
 import { PIN_MAX, projectById, questById, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
@@ -457,6 +458,17 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         await doSave();
         return done ? { ok: true, ...(done as RaidLootDone) } : { ok: false, reason: late ?? 'notReady' };
       } finally { lootBusy = false; }
+    },
+    /* Postup ze snímku (0.10.1): profil, úrovně stanic, ranky skillů z tooltipu, úkol (jen zrušení chybného
+       „splněno“ a připnutí). Před zápisem snímek stavu; když se nepodaří, nic se nezapíše. */
+    async importProgress(input: ProgressApply): Promise<ProgressSummary | null> {
+      if (!get().ready) return null;
+      await doSave();
+      if (!(await snapshot('import', 'pred importem postupu ze snimku'))) return null;
+      let sum: ProgressSummary = { fields: 0 };
+      change(s => { sum = applyProgress(s, input, PIN_MAX); if (!sum.fields) return false; });
+      await doSave();
+      return sum;
     },
     clearLearned() { change(s => { if (!s.vision.learned.length) return false; s.vision.learned = []; }); },
 

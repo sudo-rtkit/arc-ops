@@ -29,6 +29,9 @@ import type { RaidLootResult } from '../store/app';
 import { MAPS } from '../core/data/maps';
 import { LIMITS } from '../core/state';
 import { itemKey } from '../core/types';
+import { ProgressReview } from '../ui/ProgressReview';
+import { OvInventory, OvProfile, OvSkills, OvWorkshop } from './OverlayModules';
+import type { ProgressApply, ProgressSummary } from '../core/progressImport';
 
 const bus = createBus('overlay');
 const native = createNative();
@@ -42,8 +45,9 @@ const sound = createSoundPlayer(() => ({
 }));
 if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) (window as unknown as { __opsSound?: unknown }).__opsSound = sound;
 
-type Tab = 'overview' | 'quests' | 'shop' | 'scan';
-const TABS: Tab[] = ['overview', 'quests', 'shop', 'scan'];
+/* 0.10.1: i hlavní moduly (profil, inventář, dílna, skill tree) jako kompaktní přehledy s rychlými úpravami */
+type Tab = 'overview' | 'profile' | 'inventory' | 'workshop' | 'quests' | 'skills' | 'shop' | 'scan';
+const TABS: Tab[] = ['overview', 'quests', 'profile', 'inventory', 'workshop', 'skills', 'shop', 'scan'];
 const RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
 const rarityOf = (name: string): string => { const r = catalogByName(name)?.rarity; return r && (RARITY as readonly string[]).includes(r) ? r : 'unknown'; };
 const abbr = (name: string): string => name.split(/[\s-]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
@@ -275,6 +279,7 @@ function StashReview({ batch, hotkey, go }: { batch: BatchView; hotkey: string; 
         {failed && <div className="ov-banner danger" role="alert">{t('ops.ov.c.failed')}</div>}
         <p className="ov-muted">{hotkey ? t('ops.ov.c.emptyHint', { key: hotkeyLabel(hotkey) }) : t('ops.ov.c.emptyHintNoKey')}</p>
         <p className="ov-muted">{t('ops.ov.c.lootHint')}</p>
+        <p className="ov-muted">{t('ops.ov.c.progressHint')}</p>
         {!native.available && <p className="ov-muted">{t('ops.ov.c.unsupported')}</p>}
         {nothing && <button type="button" className="ov-btn" onClick={() => go('overview')}>{t('ops.ov.c.back')}</button>}
       </div>
@@ -473,15 +478,20 @@ function lootDoneText(t: TFn, r: Extract<RaidLootResult, { ok: true }>): string 
   return parts.join(' ');
 }
 
-/* Výsledek snímku: stash a loot po raidu jsou dvě oddělené revize (nikdy jedna tabulka). */
+/* Výsledek snímku: stash, loot po raidu a postup (profil, dílna, úkol, skill tree) jsou oddělené revize. */
+type ScanMode = 'stash' | 'loot' | 'progress';
 function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (tab: Tab) => void }) {
   const t = useT();
-  const [mode, setMode] = useState<'stash' | 'loot'>(batch.last ?? 'stash');
+  const [mode, setMode] = useState<ScanMode>(batch.last ?? 'stash');
   const [writing, setWriting] = useState(false);
   const [fail, setFail] = useState('');
   const [done, setDone] = useState<Extract<RaidLootResult, { ok: true }> | null>(null);
-  useEffect(() => { if (batch.last) setMode(batch.last); }, [batch.last, batch.loot?.id, batch.shots.length]);
+  const [pWriting, setPWriting] = useState(false);
+  const [pDone, setPDone] = useState<ProgressSummary | null>(null);
+  const [pFail, setPFail] = useState(false);
+  useEffect(() => { if (batch.last) setMode(batch.last); }, [batch.last, batch.loot?.id, batch.shots.length, batch.progress?.id]);
   useEffect(() => { setFail(''); if (batch.loot) setDone(null); }, [batch.loot?.id]);
+  useEffect(() => { setPFail(false); if (batch.progress) setPDone(null); }, [batch.progress?.id]);
   useEffect(() => bus.on('lootImported', p => {
     setWriting(false);
     const r = (p as { result?: RaidLootResult } | null)?.result;
@@ -489,19 +499,33 @@ function Scan({ batch, hotkey, go }: { batch: BatchView; hotkey: string; go: (ta
     if (r.ok) { setDone(r); setFail(''); }
     else setFail(['duplicate', 'replaceNeeded', 'gearUnchecked', 'noRaid', 'empty', 'snapshot'].includes(r.reason) ? r.reason : 'other');
   }), []);
-  const hasStash = batch.shots.length > 0, loot = batch.loot;
-  const showLoot = !!loot && (mode === 'loot' || !hasStash);
+  useEffect(() => bus.on('progressImported', p => {
+    setPWriting(false);
+    const sum = (p as { summary?: ProgressSummary | null } | null)?.summary ?? null;
+    if (sum) { setPDone(sum); setPFail(false); } else setPFail(true);
+  }), []);
+  const hasStash = batch.shots.length > 0, loot = batch.loot, prog = batch.progress;
+  const avail: ScanMode[] = [...(hasStash ? ['stash' as const] : []), ...(loot ? ['loot' as const] : []), ...(prog ? ['progress' as const] : [])];
+  const show: ScanMode = avail.includes(mode) ? mode : avail[0] ?? 'stash';
   const onWrite = (input: RaidLootInput) => { if (!loot) return; setWriting(true); setFail(''); bus.send('main', 'lootImport', { shotId: loot.id, input }); };
+  const onProgress = (input: ProgressApply) => { if (!prog) return; setPWriting(true); setPFail(false); bus.send('main', 'progressImport', { shotId: prog.id, input }); };
   return (
     <>
-      {hasStash && loot && (
+      {avail.length > 1 && (
         <div className="ov-filter" role="group" aria-label={t('ops.ov.mode')}>
-          <button type="button" aria-pressed={!showLoot} onClick={() => setMode('stash')}>{t('ops.ov.mode.stash', { count: batch.shots.length })}</button>
-          <button type="button" aria-pressed={showLoot} onClick={() => setMode('loot')}>{t('ops.ov.mode.loot')}</button>
+          {hasStash && <button type="button" aria-pressed={show === 'stash'} onClick={() => setMode('stash')}>{t('ops.ov.mode.stash', { count: batch.shots.length })}</button>}
+          {loot && <button type="button" aria-pressed={show === 'loot'} onClick={() => setMode('loot')}>{t('ops.ov.mode.loot')}</button>}
+          {prog && <button type="button" aria-pressed={show === 'progress'} onClick={() => setMode('progress')}>{t('ops.ov.mode.progress')}</button>}
         </div>
       )}
       {done && !loot && <div className="ov-banner ok" role="status" data-testid="ov-loot-done">{lootDoneText(t, done)}</div>}
-      {showLoot ? <LootReview shot={loot!} writing={writing} fail={fail} onWrite={onWrite} /> : <StashReview batch={batch} hotkey={hotkey} go={go} />}
+      {pDone && !prog && <div className="ov-banner ok" role="status" data-testid="ov-progress-done">{t('progress.done', { count: pDone.fields })}</div>}
+      {pFail && prog && <div className="ov-banner danger" role="alert">{t('progress.failed')}</div>}
+      {show === 'progress' && prog ? (
+        <div className="ov-single" data-testid="ov-progress">
+          <ProgressReview read={prog.read} id={prog.id} variant="ov" writing={pWriting} onWrite={onProgress} onDiscard={() => bus.send('main', 'progressClear')} />
+        </div>
+      ) : show === 'loot' && loot ? <LootReview shot={loot} writing={writing} fail={fail} onWrite={onWrite} /> : <StashReview batch={batch} hotkey={hotkey} go={go} />}
     </>
   );
 }
@@ -512,7 +536,7 @@ export default function OverlayApp() {
   const [view, setView] = useState<OverlayView | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [opacity, setOpacity] = useState(90);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, quests: null, shop: null, scan: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ overview: null, profile: null, inventory: null, workshop: null, quests: null, skills: null, shop: null, scan: null });
   const batchRef = useRef<BatchView | null>(null);
   const gotState = useRef(false);
   const ops = useRef<OpsHandle>(null);
@@ -533,7 +557,7 @@ export default function OverlayApp() {
         const want = typeof p === 'string' && (TABS as string[]).includes(p) ? (p as Tab) : null;
         const b = batchRef.current;
         if (want) setTab(want);
-        else if (b && (b.shots.length || b.loot || b.emptyAt)) setTab('scan');
+        else if (b && (b.shots.length || b.loot || b.progress || b.emptyAt)) setTab('scan');
         setTimeout(() => document.querySelector<HTMLButtonElement>('.ov-tabs [aria-selected="true"]')?.focus(), 30);
         setSaid(x => ({ line: null, n: x.n + 1, hint: true }));
       }),
@@ -554,6 +578,7 @@ export default function OverlayApp() {
   useEffect(() => { if (view) setOpacity(view.state.buddy.opacity); }, [view?.state.buddy.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.shots.length) setTab('scan'); }, [view?.batch.shots.length]);
   useEffect(() => { if (view?.batch.loot) setTab('scan'); }, [view?.batch.loot?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (view?.batch.progress) setTab('scan'); }, [view?.batch.progress?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const st0 = view?.state;
   if (st0) soundPrefs = { on: st0.opsPrefs.sound, volume: st0.opsPrefs.volume };
@@ -570,7 +595,7 @@ export default function OverlayApp() {
   if (!view) return <div className="ov" style={glass}><p className="ov-loading" role="status">{t('ops.ov.loading')}</p></div>;
   const s = view.state;
   const d = { quests: QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length };
-  const counts: Record<Tab, number | null> = { overview: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) || null };
+  const counts: Record<Tab, number | null> = { overview: null, profile: null, inventory: null, workshop: null, skills: null, quests: d.quests, shop: null, scan: view.batch.shots.length + (view.batch.loot ? 1 : 0) + (view.batch.progress ? 1 : 0) || null };
   const onTabKey = (e: ReactKeyboardEvent, i: number) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
     e.preventDefault();
@@ -599,6 +624,10 @@ export default function OverlayApp() {
       </nav>
       <main className="ov-content" role="tabpanel" id="ov-panel" aria-labelledby={'ov-tab-' + tab}>
         {tab === 'overview' && <Overview batch={view.batch} go={setTab} />}
+        {tab === 'profile' && <OvProfile bus={bus} />}
+        {tab === 'inventory' && <OvInventory bus={bus} />}
+        {tab === 'workshop' && <OvWorkshop bus={bus} />}
+        {tab === 'skills' && <OvSkills bus={bus} />}
         {tab === 'quests' && <Quests />}
         {tab === 'shop' && <Shop />}
         {tab === 'scan' && <Scan batch={view.batch} hotkey={view.hotkey} go={setTab} />}

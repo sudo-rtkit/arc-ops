@@ -112,7 +112,7 @@ button.tb-item[aria-expanded='true'] { background: var(--bg-selected); border-co
 .banner.info { background: var(--info-bg); border-color: var(--info-border); }
 .banner.info > svg { color: var(--info); }
 
-.content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: var(--tour-h, 0px); }
 .page {
   max-width: var(--page-max-w); margin: 0 auto; padding: var(--content-pad); display: flex; flex-direction: column; gap: var(--gap);
 }

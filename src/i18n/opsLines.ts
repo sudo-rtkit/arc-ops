@@ -11,12 +11,12 @@ export type LineVariants = Record<OpsPersonality, Msg[]>;
 const cs = {
   /* ----- snímek a zápis ----- */
   'scan.nothing': {
-    plain: ['Na snímku není inventář.', 'Inventář na snímku nevidím.'],
+    plain: ['Na snímku není inventář ani známá obrazovka.', 'Tuhle obrazovku na snímku nepoznávám.'],
     friendly: ['Tady žádný inventář nevidím. Zkusíme to v INVENTORY?', 'Hm, prázdno. Otevři inventář a cvakni znova.'],
     cheeky: ['Krásný snímek. Jen na něm chybí inventář.', 'Tohle je výhled, ne inventář. Ale hezký.'],
   },
   'scan.otherScreen': {
-    plain: ['Tahle obrazovka se nečte.', 'Tuto obrazovku nečtu. Podporuji STASH a FINDINGS.'],
+    plain: ['Tahle obrazovka se nečte.', 'Tuto obrazovku nečtu. Podporuji STASH, FINDINGS, profil, dílnu, úkoly a skill tree.'],
     friendly: ['Tuhle obrazovku číst neumím. Zkus STASH nebo FINDINGS po raidu.', 'Tady radši nic nečtu. STASH nebo FINDINGS a jedem.'],
     cheeky: ['Tohle čtu jen při úplňku. Dej mi STASH nebo FINDINGS.', 'Pěkná obrazovka. Špatná, ale pěkná.'],
   },
@@ -97,6 +97,32 @@ const cs = {
     ],
   },
 
+  /* 0.10.1: obrazovky postupu (profil, dílna, úkol, skill tree); {what} = název obrazovky ze slovníku */
+  'progress.read': {
+    plain: ['Přečteno: {what:raw}. Zkontroluj a potvrď.', 'Obrazovka {what:raw} přečtena. Zápis až po potvrzení.'],
+    friendly: ['Mám to: {what:raw}. Mrkni na to a potvrď, co sedí.', '{what:raw} přečteno. Projdi to se mnou, ať nic nespletu.'],
+    cheeky: ['{what:raw} přečteno. Tentokrát jsem ani nemžoural.', 'Tak {what:raw}. Zkontroluj mě, ať máš na koho svádět chyby.'],
+  },
+  'progress.same': {
+    plain: ['Přečteno: {what:raw}. Všechno sedí s aplikací.', '{what:raw}: žádná změna proti aplikaci.'],
+    friendly: ['{what:raw} přečteno a všechno sedí. Paráda.', 'Koukal jsem na {what:raw}. Nic nového, máme to v pořádku.'],
+    cheeky: ['{what:raw}: všechno sedí. Nuda, ale spořádaná.', 'Žádná změna. Aspoň vím, že nelžeš.'],
+  },
+  'progress.written': {
+    plain: [
+      { one: 'Zapsána {count} hodnota.', few: 'Zapsány {count} hodnoty.', other: 'Zapsáno {count} hodnot.' },
+      { one: 'Uloženo: {count} hodnota.', few: 'Uloženo: {count} hodnoty.', other: 'Uloženo: {count} hodnot.' },
+    ],
+    friendly: [
+      { one: 'Hotovo, {count} hodnota je v deníku.', few: 'Hotovo, {count} hodnoty jsou v deníku.', other: 'Hotovo, {count} hodnot je v deníku.' },
+      { one: 'Zapsal jsem {count} hodnotu. Postup roste!', few: 'Zapsal jsem {count} hodnoty. Postup roste!', other: 'Zapsal jsem {count} hodnot. Postup roste!' },
+    ],
+    cheeky: [
+      { one: '{count} hodnota zapsaná. Účetnictví je moje vášeň.', few: '{count} hodnoty zapsané. Účetnictví je moje vášeň.', other: '{count} hodnot zapsaných. Účetnictví je moje vášeň.' },
+      { one: 'Zapsáno: {count}. Můžeš se chlubit.', few: 'Zapsáno: {count}. Můžeš se chlubit.', other: 'Zapsáno: {count}. Můžeš se chlubit.' },
+    ],
+  },
+
   /* ----- vývoj ----- */
   'level.part': {
     plain: ['Level {level:raw}: {name:raw}.', 'Level {level:raw}, nový díl: {name:raw}.'],
@@ -167,14 +193,19 @@ const cs = {
     cheeky: ['Jsem Ops. Nejchytřejší bedna v okolí. Dáme prohlídku, ať víš, s kým máš tu čest?', 'Ops hlásí službu. Prohlídka je zdarma, obdiv dobrovolný.'],
   },
   'tut.profile': {
-    plain: ['Nejdřív profil: level a mince. Vyplň je ručně, nebo obnov zálohu.', 'Začneme profilem. Zadej level ručně, nebo načti zálohu.'],
-    friendly: ['Nejdřív ať vím, s kým vyrážím. Napiš mi svůj level, nebo obnov zálohu.', 'Tak, a teď ty. Jaký máš level? Můžeš ho napsat, nebo načíst zálohu.'],
+    plain: ['Nejdřív profil: level a mince. Načti je ze snímku, vyplň ručně, nebo obnov zálohu.', 'Začneme profilem. Načti snímek obrazovky RAIDER, zadej level ručně, nebo načti zálohu.'],
+    friendly: ['Nejdřív ať vím, s kým vyrážím. Pošli mi snímek profilu, napiš mi svůj level, nebo obnov zálohu.', 'Tak, a teď ty. Jaký máš level? Přečtu ho ze snímku, nebo ho napiš či načti zálohu.'],
     cheeky: ['Kdo vlastně jsi? Level stačí, otisky prstů nechci.', 'Profil, prosím. Level, mince. Žádné lhaní, poznám to.'],
   },
   'tut.profileManual': {
     plain: ['Vyplň level a mince v profilu vlevo. Pak klikni Hotovo.', 'Údaje zapiš v profilu. Hotovo, až budeš mít.'],
     friendly: ['Otevřel jsem ti profil. Vyplň level a mince, já počkám.', 'Tady je profil. Zapiš, co víš, a dej mi vědět.'],
     cheeky: ['Profil je otevřený. Piš, já se nekoukám. Teda trochu.', 'Tak šup, level a mince. Já zatím počítám šrouby.'],
+  },
+  'tut.profileShot': {
+    plain: ['Vlož snímek obrazovky RAIDER do panelu Načíst ze snímku, nebo ve hře stiskni zkratku. Pak klikni Hotovo.', 'Profil načtu ze snímku. Vlož ho do panelu v profilu a potvrď hodnoty.'],
+    friendly: ['Otevřel jsem profil. Vlož snímek obrazovky RAIDER (Ctrl+V) a já z něj přečtu level, XP a mince.', 'Hoď mi sem snímek profilu ze hry. Přečtu ho a ty jen potvrdíš, co sedí.'],
+    cheeky: ['Ukaž mi svůj profil. Slibuju, že level nebudu komentovat. Moc.', 'Snímek RAIDER sem a já čtu. Rychleji, než stihneš říct Speranza.'],
   },
   'tut.capture': {
     plain: ['Snímek: ve hře stiskni {key:raw}. Výsledek zkontroluješ a zápis potvrdíš. Bez potvrzení nic nezapíšu.', 'Zkratka {key:raw} vyfotí obrazovku. Pak kontrola a potvrzení. Nic se nezapíše samo.'],
@@ -232,12 +263,12 @@ export type LineKey = keyof typeof cs;
 
 const en: Record<LineKey, LineVariants> = {
   'scan.nothing': {
-    plain: ['No inventory on the screenshot.', 'I cannot see an inventory on this screenshot.'],
+    plain: ['No inventory or known screen on the screenshot.', 'I do not recognise the screen on this screenshot.'],
     friendly: ['No inventory here. Shall we try the INVENTORY screen?', 'Hm, nothing. Open your inventory and snap again.'],
     cheeky: ['Lovely screenshot. It just lacks an inventory.', 'That is a view, not an inventory. A nice one, though.'],
   },
   'scan.otherScreen': {
-    plain: ['This screen is not read.', 'I do not read this screen. STASH and FINDINGS are supported.'],
+    plain: ['This screen is not read.', 'I do not read this screen. STASH, FINDINGS, profile, workshop, quests and skill tree are supported.'],
     friendly: ['I cannot read this screen. Try STASH or FINDINGS after a raid.', 'Better not read this one. STASH or FINDINGS and we are good.'],
     cheeky: ['I only read this one at full moon. Give me STASH or FINDINGS.', 'Nice screen. Wrong, but nice.'],
   },
@@ -317,6 +348,30 @@ const en: Record<LineKey, LineVariants> = {
       { one: 'Written: {count} item. I carry it myself, no thanks needed.', other: 'Written: {count} items. I carry them myself, no thanks needed.' },
     ],
   },
+  'progress.read': {
+    plain: ['Read: {what:raw}. Check and confirm.', 'Screen {what:raw} read. Nothing is written before you confirm.'],
+    friendly: ['Got it: {what:raw}. Have a look and confirm what fits.', '{what:raw} read. Go through it with me so I do not mix anything up.'],
+    cheeky: ['{what:raw} read. I did not even squint this time.', 'So, {what:raw}. Check me, so you have someone to blame.'],
+  },
+  'progress.same': {
+    plain: ['Read: {what:raw}. Everything matches the app.', '{what:raw}: no change against the app.'],
+    friendly: ['{what:raw} read and everything matches. Great.', 'I looked at {what:raw}. Nothing new, we are in order.'],
+    cheeky: ['{what:raw}: everything matches. Boring, but tidy.', 'No change. At least I know you do not lie.'],
+  },
+  'progress.written': {
+    plain: [
+      { one: '{count} value written.', other: '{count} values written.' },
+      { one: 'Saved: {count} value.', other: 'Saved: {count} values.' },
+    ],
+    friendly: [
+      { one: 'Done, {count} value is in the journal.', other: 'Done, {count} values are in the journal.' },
+      { one: 'I wrote {count} value. Progress is growing!', other: 'I wrote {count} values. Progress is growing!' },
+    ],
+    cheeky: [
+      { one: '{count} value written. Bookkeeping is my passion.', other: '{count} values written. Bookkeeping is my passion.' },
+      { one: 'Written: {count}. You may brag now.', other: 'Written: {count}. You may brag now.' },
+    ],
+  },
   'level.part': {
     plain: ['Level {level:raw}: {name:raw}.', 'Level {level:raw}, new part: {name:raw}.'],
     friendly: ['Level {level:raw}! New part: {name:raw}.', 'Woohoo, level {level:raw}. {name:raw} suits me.'],
@@ -382,14 +437,19 @@ const en: Record<LineKey, LineVariants> = {
     cheeky: ['I am Ops. The smartest crate around. A tour, so you know who you are dealing with?', 'Ops reporting for duty. The tour is free, admiration voluntary.'],
   },
   'tut.profile': {
-    plain: ['Profile first: level and coins. Fill them in manually or restore a backup.', 'We start with the profile. Enter your level manually or load a backup.'],
-    friendly: ['First let me know who I am heading out with. Tell me your level, or restore a backup.', 'Now you. What is your level? Type it in, or load a backup.'],
+    plain: ['Profile first: level and coins. Load them from a screenshot, fill them in manually or restore a backup.', 'We start with the profile. Load a RAIDER screenshot, enter your level manually or load a backup.'],
+    friendly: ['First let me know who I am heading out with. Send me a profile screenshot, tell me your level, or restore a backup.', 'Now you. What is your level? I can read it from a screenshot, or type it in or load a backup.'],
     cheeky: ['Who are you, actually? The level will do, I do not need fingerprints.', 'Profile, please. Level, coins. No lying, I can tell.'],
   },
   'tut.profileManual': {
     plain: ['Fill in level and coins in the profile on the left. Then click Done.', 'Enter the values in the profile. Click Done when ready.'],
     friendly: ['I opened your profile. Fill in level and coins, I will wait.', 'Here is the profile. Enter what you know and let me know.'],
     cheeky: ['The profile is open. Type, I am not looking. Well, a little.', 'Come on, level and coins. I will count screws meanwhile.'],
+  },
+  'tut.profileShot': {
+    plain: ['Paste a RAIDER screenshot into the Load from a screenshot panel, or press the hotkey in the game. Then click Done.', 'I will read the profile from a screenshot. Paste it into the profile panel and confirm the values.'],
+    friendly: ['I opened your profile. Paste a RAIDER screenshot (Ctrl+V) and I will read level, XP and coins from it.', 'Drop me a profile screenshot from the game. I read it, you just confirm what fits.'],
+    cheeky: ['Show me your profile. I promise not to comment on the level. Much.', 'RAIDER screenshot here and I read. Faster than you can say Speranza.'],
   },
   'tut.capture': {
     plain: ['Capture: press {key:raw} in the game. You review the result and confirm the write. Nothing is written without confirmation.', 'The {key:raw} shortcut takes a screenshot. Then review and confirm. Nothing is written by itself.'],

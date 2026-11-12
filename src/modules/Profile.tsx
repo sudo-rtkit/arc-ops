@@ -7,6 +7,7 @@ import { LineChart } from '../ui/charts';
 import { DASH, fmt, fmtDay, fmtDayShort } from '../ui/format';
 import { gameTexts } from '../core/gametext';
 import { useT } from '../i18n/react';
+import { ProgressShot } from '../ui/ProgressShot';
 import type { Key } from '../i18n';
 
 type Metric = 'level' | 'coins' | 'xp' | 'rounds' | 'rewardPass';
@@ -16,7 +17,7 @@ const METRICS: { id: Metric; label: Key; unit: Key }[] = [
   { id: 'rewardPass', label: 'profile.rp', unit: 'profile.unit.rp' },
 ];
 
-export default function Profile() {
+export default function Profile({ sub }: { sub?: string }) {
   const s = useAppState();
   const d = useDerived();
   const t = useT();
@@ -73,6 +74,7 @@ export default function Profile() {
           </Panel>
         </div>
       </div>
+      <ProgressShot focus={sub === 'shot'} />
       <Panel title={t('profile.trend')} actions={<span className="meta">{t('profile.trendMeta')}</span>}>
         <Tabs label={t('profile.metric')} tabs={METRICS.map(x => ({ id: x.id, label: t(x.label) }))} value={metric} onChange={setMetric} />
         {log.length === 0 ? <Empty icon={History}>{t('profile.trendEmpty')}</Empty> : (

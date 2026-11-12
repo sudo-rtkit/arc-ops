@@ -20,8 +20,9 @@ export interface StepDef {
 
 export const STEPS: Record<TutorialStep, StepDef> = {
   welcome: { id: 'welcome', line: 'tut.welcome', gesture: 'greet', target: null, replies: [{ id: 'start', primary: true }, { id: 'know' }] },
-  /* snímek profilu zatím aplikace nečte (připravujeme), proto je volba vidět, ale neaktivní */
-  profile: { id: 'profile', line: 'tut.profile', gesture: 'point-left', target: 'profile', replies: [{ id: 'shot', disabled: true }, { id: 'manual', primary: true }, { id: 'backup' }, { id: 'later' }] },
+  /* 0.10.1: profil jde načíst ze snímku obrazovky RAIDER (Profil → Načíst ze snímku, nebo zkratka ve hře) */
+  profile: { id: 'profile', line: 'tut.profile', gesture: 'point-left', target: 'profile', replies: [{ id: 'shot' }, { id: 'manual', primary: true }, { id: 'backup' }, { id: 'later' }] },
+  'profile-shot': { id: 'profile-shot', line: 'tut.profileShot', gesture: 'point-left', target: 'profile', replies: [{ id: 'done', primary: true }, { id: 'manual' }] },
   'profile-manual': { id: 'profile-manual', line: 'tut.profileManual', gesture: 'point-left', target: 'profile', replies: [{ id: 'done', primary: true }] },
   capture: { id: 'capture', line: 'tut.capture', gesture: 'point-up', target: null, replies: [{ id: 'next', primary: true }, { id: 'setKey' }] },
   'tour-inventory': { id: 'tour-inventory', line: 'tut.inventory', gesture: 'point-left', target: 'inventory', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
@@ -58,10 +59,15 @@ export function reply(step: TutorialStep, id: ReplyId): TutorialEffect {
     case 'welcome': return id === 'start' ? { tutorial: at('profile') } : {};
     case 'profile':
       if (id === 'manual') return { tutorial: at('profile-manual'), navigate: 'profile' };
+      if (id === 'shot') return { tutorial: at('profile-shot'), navigate: 'profile/shot' };
       if (id === 'backup') return { tutorial: at('capture'), navigate: 'settings' };
       if (id === 'later') return { tutorial: at('capture') };
       return {};
     case 'profile-manual': return id === 'done' ? { tutorial: at('capture') } : {};
+    case 'profile-shot':
+      if (id === 'done') return { tutorial: at('capture') };
+      if (id === 'manual') return { tutorial: at('profile-manual'), navigate: 'profile' };
+      return {};
     case 'capture':
       if (id === 'next') return { tutorial: at('tour-inventory') };
       if (id === 'setKey') return { navigate: 'settings' };

@@ -5,36 +5,45 @@
      v paměti. Prázdný snímek (bez inventáře) ani jiná obrazovka nic nezapíše.
    - 0.8.1: STASH (stránky stashe) a loot po raidu (FINDINGS) jsou oddělené: stránky jdou do dávky stashe,
      snímek FINDINGS do samostatného místa pro loot (novější nahradí starší). Nikdy se nemíchají.
+   - 0.10.1: obrazovka postupu (profil, dílna, úkol, skill tree) jde do vlastního místa (novější nahradí starší);
+     drží se jen přečtená čísla a názvy, zápis až po potvrzení v revizi (importProgress).
    Bez Reactu a bez DOM, takže jde testovat v Node se zástupným bus a native. */
 import type { App } from '../store/app';
 import type { AppState } from '../core/types';
 import type { ScreenRead } from '../core/vision/read';
 import type { RgbaImage } from '../core/vision/image';
 import { readCapture } from '../core/opsCapture';
+import type { ProgressRead } from '../core/vision/progress';
+import { normalizeProgressApply, proposalChanges, proposeProgress, type ProgressApply, type ProgressSummary } from '../core/progressImport';
 import { analyzeLoot, analyzeShots, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { lootSignature, raidWithSig, type RaidLootInput } from '../core/lootImport';
 import { normalizeItems } from '../core/raidItems';
-import type { RaidLootResult } from '../store/app';
+import type { ProfileField, RaidLootResult } from '../store/app';
+import { SKILL } from '../core/data/skills';
 import { matchContext } from '../core/catalog';
 import { getMaterials } from '../core/gamedata';
 import { animMs, levelEvent, resolveOutfit, type LevelEvent, type OpsAnim } from '../core/ops';
 import { line, sayLine, type LineRef } from '../core/opsVoice';
 import type { SoundId } from '../core/opsSound';
 import type { OpsPersonality } from '../core/types';
-import { getLang, t, type Lang } from '../i18n';
+import { getLang, t, type Key, type Lang } from '../i18n';
 import type { Bus } from './bus';
 import type { Native } from './native';
 
 export interface Shot { id: number; at: number; read: ScreenRead }
 /* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
 export interface LootShot extends Shot { sig: string }
+/* Snímek obrazovky postupu (0.10.1). */
+export interface ProgressShot { id: number; at: number; read: ProgressRead }
 export interface BatchView {
   /* stránky stashe */
   shots: Shot[];
   /* loot po raidu (odděleně od stashe) */
   loot: LootShot | null;
+  /* obrazovka postupu (profil, dílna, úkol, skill tree) */
+  progress: ProgressShot | null;
   /* poslední přečtený druh (overlay podle něj otevře revizi) */
-  last: 'stash' | 'loot' | null;
+  last: 'stash' | 'loot' | 'progress' | null;
   emptyAt: number;
   /* proč se poslední snímek zahodil: bez inventáře, nebo jiná obrazovka s batohem (např. příprava loadoutu) */
   rejected: '' | 'noInventory' | 'otherScreen';
@@ -70,7 +79,7 @@ const SOUND_OF: Partial<Record<OpsAnim, SoundId>> = { scanning: 'scan', thinking
 
 export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, navigate, appFocused = () => false, dismissMs = 0 }: HubOptions) {
   const st = () => app.store.getState().state;
-  const emptyBatch = (): BatchView => ({ shots: [], loot: null, last: null, emptyAt: 0, rejected: '', failed: '' });
+  const emptyBatch = (): BatchView => ({ shots: [], loot: null, progress: null, last: null, emptyAt: 0, rejected: '', failed: '' });
   let batch: BatchView = emptyBatch();
   let nextShot = 1;
   let applied: { enabled: boolean; autoOpen: boolean } = { enabled: false, autoOpen: false };
@@ -199,10 +208,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     catch { appCaptureAt = 0; return false; }
   }
   /* Výsledek snímku z okna: přečtený snímek otevře revizi v overlayi, prázdný nebo neúspěšný se ohlásí v okně. */
-  function afterAppCapture(result: 'empty' | 'read' | 'loot' | 'failed', reason: '' | 'noInventory' | 'otherScreen' = '') {
+  function afterAppCapture(result: 'empty' | 'read' | 'loot' | 'progress' | 'failed', reason: '' | 'noInventory' | 'otherScreen' = '') {
     if (!appCaptureAt || now() - appCaptureAt > APP_CAPTURE_MS) { appCaptureAt = 0; return; }
     appCaptureAt = 0;
-    if (result === 'read' || result === 'loot') { void run(() => native.overlayOpen('scan')); return; }
+    if (result === 'read' || result === 'loot' || result === 'progress') { void run(() => native.overlayOpen('scan')); return; }
     if (result === 'failed') app.notify(text(line('scan.failed')), 'danger');
     else app.notify(text(line(reason === 'otherScreen' ? 'scan.otherScreen' : 'scan.nothing')), 'warning');
   }
@@ -222,13 +231,23 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   /* ----- snímek ----- */
   /* Zahodí jen stránky stashe; loot po raidu zůstane. */
-  function clearBatch() { batch = { ...batch, shots: [], last: batch.loot ? 'loot' : null, emptyAt: 0, rejected: '', failed: '' }; }
-  function clearLoot() { batch = { ...batch, loot: null, last: batch.shots.length ? 'stash' : null }; }
+  const lastOf = (b: BatchView): BatchView['last'] => (b.progress ? 'progress' : b.loot ? 'loot' : b.shots.length ? 'stash' : null);
+  function clearBatch() { batch = { ...batch, shots: [], emptyAt: 0, rejected: '', failed: '' }; batch.last = batch.last === 'stash' ? lastOf(batch) : batch.last; }
+  function clearLoot() { batch = { ...batch, loot: null }; batch.last = batch.last === 'loot' ? lastOf(batch) : batch.last; }
+  function clearProgress() { batch = { ...batch, progress: null }; batch.last = batch.last === 'progress' ? lastOf(batch) : batch.last; }
   const matchCtx = (s: AppState) => matchContext(getMaterials(s).map(m => m.name), [...new Set(Object.values(s.items).map(x => x.name))]);
 
   /* Přečte snímek a zahodí obrazová data. Nic nezapisuje do stavu ani do úložiště. */
-  function handleCapture(img: RgbaImage): 'empty' | 'read' | 'loot' {
+  function handleCapture(img: RgbaImage): 'empty' | 'read' | 'loot' | 'progress' {
     const r = readCapture(img);
+    if (r.kind === 'progress') {
+      batch = { ...batch, progress: { id: nextShot++, at: now(), read: r.progress }, last: 'progress', emptyAt: 0, rejected: '', failed: '' };
+      const p = proposeProgress(r.progress, st(), getLang());
+      const what = t(`progress.screen.${p.kind === 'stations' ? (p.source === 'overview' ? 'workshop' : 'station') : p.kind}` as Key);
+      status(proposalChanges(p) ? 'inspect' : 'talk', line(proposalChanges(p) ? 'progress.read' : 'progress.same', { what }));
+      pushOverlay(true);
+      return 'progress';
+    }
     if (r.kind === 'empty') {
       batch = { ...batch, emptyAt: now(), rejected: r.reason, failed: '' };
       status('shrug', line(r.reason === 'otherScreen' ? 'scan.otherScreen' : 'scan.nothing'));
@@ -292,6 +311,48 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     pushOverlay(true);
     return res;
   }
+  /* Postup ze snímku: zapíše se jen právě zobrazený snímek (id) a jen potvrzené hodnoty. */
+  async function importProgress(shotId: number, input: ProgressApply): Promise<ProgressSummary | null> {
+    let sum: ProgressSummary | null = null;
+    if (batch.progress && batch.progress.id === shotId) {
+      status('carry');
+      sum = await app.actions.importProgress(input);
+      if (sum) { if (batch.progress?.id === shotId) clearProgress(); status('success', line('progress.written', { count: sum.fields })); }
+      else status('error', null);
+    }
+    bus.send('overlay', 'progressImported', { summary: sum });
+    pushOverlay(true);
+    return sum;
+  }
+
+  /* Úprava z modulu overlaye (Profil, Inventář, Dílna, Skill tree). Neznámá operace, pole nebo id se zahodí. */
+  const EDIT_PROFILE: readonly ProfileField[] = ['level', 'xp', 'xpNext', 'coins', 'rounds', 'rewardPass'];
+  function applyEdit(p: unknown) {
+    const o = p as Record<string, unknown> | null;
+    if (!o || typeof o !== 'object' || !st().buddy.enabled) return;
+    const dir = o.dir === 1 ? 1 : o.dir === -1 ? -1 : 0;
+    switch (o.op) {
+      case 'profile':
+        if (EDIT_PROFILE.includes(o.field as ProfileField) && typeof o.value === 'number' && Number.isFinite(o.value)) app.actions.setProfile(o.field as ProfileField, o.value);
+        return;
+      case 'station':
+        if (typeof o.id !== 'string' || !(o.id in st().stations)) return;
+        if (dir === 1) app.actions.levelUp(o.id); else if (dir === -1) app.actions.levelDown(o.id);
+        return;
+      case 'inv': {
+        if (typeof o.name !== 'string' || typeof o.value !== 'number' || !Number.isFinite(o.value)) return;
+        const name = o.name;
+        if (!(name in st().inventory) && !getMaterials(st()).some(m => m.name === name)) return;
+        app.actions.invSet(name, o.value);
+        return;
+      }
+      case 'skill':
+        if (typeof o.id !== 'string' || !SKILL[o.id]) return;
+        if (dir === 1) app.actions.skillAdd(o.id); else if (dir === -1) app.actions.skillRemove(o.id);
+        return;
+    }
+  }
+
   /* Vstup z okna overlaye: jen očekávané typy, položky se normalizují. */
   function lootInput(p: unknown): { shotId: number; input: RaidLootInput } | null {
     const o = p as { shotId?: unknown; input?: Record<string, unknown> } | null;
@@ -333,10 +394,18 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const q = p as { id?: unknown; done?: unknown } | null;
       if (q && typeof q.id === 'string' && typeof q.done === 'boolean') app.actions.questSet(q.id, q.done);
     }));
+    /* 0.10.1: rychlé úpravy z modulů overlaye; jen známé operace a hodnoty, provede je stejná akce store */
+    offs.push(bus.on('edit', p => applyEdit(p)));
     offs.push(bus.on('opacity', p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); }));
     offs.push(bus.on('batchClear', () => { clearBatch(); pushOverlay(true); }));
     offs.push(bus.on('lootImport', p => { const x = lootInput(p); if (x) void importLoot(x.shotId, x.input); }));
     offs.push(bus.on('lootClear', () => { clearLoot(); pushOverlay(true); }));
+    offs.push(bus.on('progressImport', p => {
+      const o = p as { shotId?: unknown; input?: unknown } | null;
+      const input = normalizeProgressApply(o?.input);
+      if (o && Number.isFinite(o.shotId) && input) void importProgress(Number(o.shotId), input);
+    }));
+    offs.push(bus.on('progressClear', () => { clearProgress(); pushOverlay(true); }));
     offs.push(bus.on('moved', p => {
       const m = p as { monitor?: unknown; x?: unknown; y?: unknown } | null;
       if (m && typeof m.monitor === 'string' && Number.isFinite(m.x) && Number.isFinite(m.y)) app.actions.setBuddyPosition(m.monitor, Number(m.x), Number(m.y));
@@ -372,7 +441,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const onLevel = (f: (e: LevelEvent) => void) => { eventListeners.add(f); return () => { eventListeners.delete(f); }; };
 
   return {
-    start, stop, setHotkey, handleCapture, importShots, importLoot, batch: () => batch, idle: () => queue,
+    start, stop, setHotkey, handleCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
     captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, ui,
   };
 }

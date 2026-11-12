@@ -243,7 +243,7 @@ export interface MainWindowPrefs {
 /* ----- 0.10.0: povaha, zvuky a průvodce Opse; patří tomuto počítači (import zálohy je nemění) ----- */
 /* Věcný / Kamarádský / Drzý */
 export type OpsPersonality = 'plain' | 'friendly' | 'cheeky';
-export type TutorialStep = 'welcome' | 'profile' | 'profile-manual' | 'capture' | 'tour-inventory' | 'tour-workshop' | 'tour-quests' | 'tour-builds' | 'tour-compact' | 'buddy' | 'end';
+export type TutorialStep = 'welcome' | 'profile' | 'profile-manual' | 'profile-shot' | 'capture' | 'tour-inventory' | 'tour-workshop' | 'tour-quests' | 'tour-builds' | 'tour-compact' | 'buddy' | 'end';
 /* new = ještě neběžel (spustí se sám), active = rozběhnutý (po přerušení pokračuje), done / skipped = konec */
 export type TutorialStatus = 'new' | 'active' | 'done' | 'skipped';
 export interface OpsPrefs {

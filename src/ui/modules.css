@@ -401,3 +401,19 @@
 .tree-ro .node { min-height: 64px; }
 @container (max-width: 760px) { .cmp-grid { grid-template-columns: minmax(0, 1fr); } .catalog-sort { width: 100%; } }
 .ops-sample { margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3); border-left: 2px solid var(--accent); background: var(--bg-app); color: var(--text-primary); font-size: var(--font-size-sm); }
+
+/* ----- 0.10.1: postup ze snímku v Profilu (sdílená komponenta ui/ProgressReview) ----- */
+.pr-card { display: flex; flex-direction: column; gap: var(--space-3); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-md, 6px); padding: var(--space-3) var(--space-4); }
+.pr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
+.pr-head h3 { margin: 0 0 var(--space-1); }
+.pr-head p { margin: 0; }
+.pr-quest p { margin: var(--space-1) 0; }
+.pr-objectives { list-style: none; margin: var(--space-2) 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.pr-objectives li { display: flex; gap: var(--space-2); align-items: baseline; }
+.pr-objectives li[data-checked='true'] > span:first-child { color: var(--success); }
+.pr-banner { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--warning-border); background: var(--warning-bg); }
+.pr-resources h4 { margin: 0 0 var(--space-1); }
+.pr-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.pr-foot p { margin: 0; }
+.pr-card .table tr.off td { opacity: .6; }
+.pr-card .table tr.unsure td { background: var(--warning-bg); }

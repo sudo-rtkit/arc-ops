@@ -5,7 +5,7 @@ import { clampInt, isObj } from './util';
 
 export const PERSONALITIES: readonly OpsPersonality[] = ['plain', 'friendly', 'cheeky'];
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
-  'welcome', 'profile', 'profile-manual', 'capture', 'tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds', 'tour-compact', 'buddy', 'end',
+  'welcome', 'profile', 'profile-manual', 'profile-shot', 'capture', 'tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds', 'tour-compact', 'buddy', 'end',
 ];
 const STATUSES: readonly TutorialStatus[] = ['new', 'active', 'done', 'skipped'];
 export const VOLUME_DEFAULT = 25;

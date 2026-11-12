@@ -186,11 +186,14 @@ describe('průvodce prvním spuštěním', () => {
     go('next'); expect(st.step).toBe('buddy');
     go('next'); go('finish'); expect(st).toEqual({ status: 'done', step: 'end' });
   });
-  it('přeskočení v každém kroku, prohlídku jde vynechat, snímek profilu je zatím neaktivní', () => {
+  it('přeskočení v každém kroku, prohlídku jde vynechat, snímek profilu je aktivní (0.10.1)', () => {
     for (const step of TUTORIAL_STEPS) expect(skip(step)).toEqual({ status: 'skipped', step });
     expect(reply('welcome', 'know').tutorial?.status).toBe('skipped');
     expect(reply('tour-workshop', 'skipTour').tutorial?.step).toBe('buddy');
-    expect(STEPS.profile.replies.find(r => r.id === 'shot')?.disabled).toBe(true);
+    expect(STEPS.profile.replies.find(r => r.id === 'shot')?.disabled).toBeFalsy();
+    expect(reply('profile', 'shot')).toEqual({ tutorial: { status: 'active', step: 'profile-shot' }, navigate: 'profile/shot' });
+    expect(reply('profile-shot', 'done').tutorial?.step).toBe('capture');
+    expect(reply('profile-shot', 'manual')).toEqual({ tutorial: { status: 'active', step: 'profile-manual' }, navigate: 'profile' });
     for (const s of TUTORIAL_STEPS) expect(STEPS[s].replies.some(r => r.primary)).toBe(true);
   });
   it('kdy se ukáže: nový jen se zapnutými dialogy a automatikou, rozběhnutý vždy (pokračuje), schovaný ne', () => {

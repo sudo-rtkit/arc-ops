@@ -150,9 +150,37 @@ otisky ikon (`vision.learned`, čísla). Aplikace sama nic nesnímá a se hrou n
 - **Povahy** Věcný / Kamarádský (výchozí) / Drzý: každá hláška Opse má v CS i EN pro každou povahu několik variant, střídají se
   bez okamžitého opakování (`src/i18n/opsLines.ts`, `src/core/opsVoice.ts`). Nevyžádané bubliny jen při práci s Opsem.
 - **Průvodce prvním spuštěním** (`src/core/tutorial.ts`, `src/shell/Tutorial.tsx`): přivítání, profil (ručně nebo záloha;
-  snímek profilu „připravujeme“), první snímek, prohlídka Inventáře, Workshopu, Úkolů, Buildů a kompaktu, nastavení buddyho, konec.
+  snímek profilu od 0.10.1), první snímek, prohlídka Inventáře, Workshopu, Úkolů, Buildů a kompaktu, nastavení buddyho, konec.
   Nemodální karta, jde přeskočit v každém kroku, schovat do příštího spuštění (pak se zeptá a pokračuje), znovu spustit v Nastavení
   a vypnout přepínačem „Dialogy a průvodce“. Nebere fokus.
 - Stav: **schéma 8** (`opsPrefs`: povaha, zvuky, dialogy, postup průvodce); starší stav a zálohy se načtou s výchozími hodnotami.
   Import zálohy, obnova ani reset tato nastavení tohoto počítače nemění.
 - Testy: `tests/core/ops2.test.ts`, E2E `tests/e2e/ops2.spec.ts` (oba jazyky).
+
+## Postup ze snímku, moduly v overlayi (0.10.1)
+
+- **Další obrazovky hry ze snímku** (`src/core/vision/progress.ts`, `src/core/vision/text.ts`): stejná cesta jako loot
+  (zkratka → Rust snímek jen do paměti → revize v overlayi → výslovné potvrzení), nově i v Profilu → **Načíst ze snímku**
+  (vložený soubor, Ctrl+V nebo přetažení). Čte se jen čtení pixelů: druh obrazovky podle hlavičky (šipka zpět, nadpis,
+  zvýrazněná záložka), text podle vzorů písmen aplikace (`letterGlyphs.ts`, nově `headGlyphs.ts` z generátoru
+  `tests/vision/head.gen.test.ts`), polohy v jednotkách výšky obrazu (1366 až 3840 px). Hra musí být anglicky.
+  - **PROFIL (RAIDER)**: level, XP / XP na další level, mince → zapisuje profil.
+  - **DÍLNA**: přehled (úrovně ze 7 dlaždic stanic podle pořadí; jisté jen Gear Bench a Gunsmith ověřené detailem, ostatní
+    k potvrzení, Scrappy číslo nemá) a detail stanice (úroveň z hlavičky i panelu, materiály na další úroveň porovnané s daty)
+    → zapisuje úrovně stanic; materiály jsou jen informace.
+  - **ÚKOL obchodníka**: obchodník, název úkolu a zaškrtnutí cílů. Aplikace jednotlivé cíle nesleduje, takže se jen ukážou;
+    úkol se nikdy neoznačí jako splněný. Jisté je jen „nesplněno“ (nezaškrtnutý cíl): nabídne zrušení chybného „splněno“
+    a připnutí na přání.
+  - **SKILL TREE**: součty větví jen pro kontrolu (jednotlivé ranky se z přehledu neodvozují); rank skillu jen z tooltipu
+    (samotná číslice = aktuální rank, „III ▶ IV“ = aktuální III, IV je jen návrh, max = poslední rank bez šipky).
+  - Každé pole má jistotu (`src/core/progressImport.ts`): jisté je předvybrané, nejisté (nízká shoda znaků nebo dvě skoro
+    stejně blízké číslice) se musí potvrdit, nečitelné je „?“ a nikdy se nezapíše. Před zápisem snímek stavu.
+- **Průvodce**: krok profilu nabízí „Načíst snímek“ (dřív „připravujeme“) s odbočkou na ruční vyplnění.
+- **Overlay = přístup k hlavním modulům** (milník 6, podmnožina, `src/ops/OverlayModules.tsx`): záložky Profil, Inventář,
+  Dílna a Skilly vedle Přehledu, Úkolů, Nákupů a Ze snímku. Kompaktní přehledy s rychlými úpravami (pole profilu, počty
+  materiálů, úroveň stanic ±, ranky ±); úpravy jdou do hlavního okna jako akce `edit`, hub je ověří a provede stejnou akcí store.
+  Podrobnosti (grafy, recepty, buildy, celý strom) otevře „Otevřít v aplikaci“.
+- Drobnosti: řádek s Opsem v kompaktu používá menší variantu (96 px), karta průvodce v plném okně už nezakrývá konec obsahu.
+- Stav zůstává **schéma 8** (nic nového se neukládá). Testy: `tests/vision/progress.test.ts` (umělé obrazovky, bez vlastních
+  snímků), `tests/vision/own-return.test.ts` (vlastní snímky, jen lokálně), `tests/core/progress-flow.test.ts`,
+  E2E `tests/e2e/progress.spec.ts` a `tests/e2e/overlay-modules.spec.ts` (oba jazyky).

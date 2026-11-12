@@ -14,7 +14,10 @@ const walk = (dir: string, re: RegExp): string[] => readdirSync(dir).flatMap(n =
   return statSync(p).isDirectory() ? walk(p, re) : re.test(n) ? [p] : [];
 });
 const rel = (f: string) => f.slice(root.length).split('\\').join('/');
-const read = (f: string) => readFileSync(join(root, f), 'utf8');
+/* obsah souborů se načte jednou (hledá se v nich mnoho slov; opakované čtení velkých datových souborů zdržovalo) */
+const cache = new Map<string, string>();
+const load = (abs: string) => { let s = cache.get(abs); if (s === undefined) { s = readFileSync(abs, 'utf8'); cache.set(abs, s); } return s; };
+const read = (f: string) => load(join(root, f));
 
 const TS = walk(join(root, 'src'), /\.(tsx?)$/);
 const RS = walk(join(root, 'src-tauri', 'src'), /\.rs$/);
@@ -27,12 +30,12 @@ describe('bezpečnost milníku 5', () => {
       'SendInput', 'keybd_event', 'mouse_event', 'SetWindowsHookEx', 'ReadProcessMemory', 'WriteProcessMemory', 'CreateRemoteThread',
       'OpenProcess', 'PROCESS_VM_READ', 'PROCESS_ALL_ACCESS', 'VirtualAllocEx', 'NtReadVirtualMemory', 'PostMessage', 'SendMessage',
       'WM_KEYDOWN', 'WM_MOUSEWHEEL', 'LowLevelKeyboardProc', 'WH_KEYBOARD', 'WH_MOUSE', 'MiniDumpWriteDump', 'DebugActiveProcess',
-    ]) expect(ALL.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);
+    ]) expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual([]);
   });
 
   it('žádný síťový klient v src/ ani src-tauri/src', () => {
     for (const word of ['reqwest', 'ureq', 'hyper::', 'TcpStream', 'UdpSocket', 'std::net', 'fetch(', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon']) {
-      expect(ALL.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);
+      expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual([]);
     }
   });
 
@@ -76,7 +79,7 @@ describe('bezpečnost milníku 5', () => {
     const conf = JSON.parse(read('src-tauri/tauri.conf.json'));
     expect(conf.app.windows.find((w: { label: string }) => w.label === 'main').create).toBe(false);
     /* frontend se jen zeptá, jak se aplikace spustila */
-    expect(TS.filter(f => readFileSync(f, 'utf8').includes("'launch_info'")).map(rel)).toEqual(['src/ops/native.ts']);
+    expect(TS.filter(f => load(f).includes("'launch_info'")).map(rel)).toEqual(['src/ops/native.ts']);
   });
 
   it('instalátor po dokončení aplikaci sám nespustí (volba je ve výchozím stavu vypnutá) a radí zavřít hru', () => {
@@ -100,9 +103,9 @@ describe('bezpečnost milníku 5', () => {
 
   it('frontend obrazovku nesnímá ani nemá přístup ke zkratkám; snímek přijde jen z Rustu do paměti', () => {
     for (const word of ['getDisplayMedia', 'getUserMedia', 'globalShortcut', 'global-shortcut', 'desktopCapturer', 'plugin:global']) {
-      expect(TS.filter(f => readFileSync(f, 'utf8').includes(word)).map(rel), word).toEqual([]);
+      expect(TS.filter(f => load(f).includes(word)).map(rel), word).toEqual([]);
     }
-    expect(TS.filter(f => readFileSync(f, 'utf8').includes("'capture_take'")).map(rel)).toEqual(['src/ops/native.ts']);
+    expect(TS.filter(f => load(f).includes("'capture_take'")).map(rel)).toEqual(['src/ops/native.ts']);
     /* zpracování snímku nezná úložiště ani převod do souboru */
     for (const f of ['src/ops/hub.ts', 'src/core/opsCapture.ts', 'src/ops/native.ts']) {
       const s = read(f);

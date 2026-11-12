@@ -32,8 +32,8 @@ const T = {
     welcome: 'Čau, raidere. Jsem Ops. Ty nosíš kořist, já hlídám, co ti chybí. Dáme rychlou prohlídku?',
     welcomeCheeky: 'Jsem Ops. Nejchytřejší bedna v okolí. Dáme prohlídku, ať víš, s kým máš tu čest?',
     start: 'Jdeme na to', manual: 'Vyplnit ručně', done: 'Hotovo', next: 'Dál', resume: 'Pokračovat', skip: 'Přeskočit průvodce',
-    shot: /Načíst snímek/, soon: 'připravujeme', restart: 'Spustit průvodce znovu', hide: 'Schovat do příštího spuštění',
-    profileLine: 'Nejdřív ať vím, s kým vyrážím. Napiš mi svůj level, nebo obnov zálohu.',
+    shot: /Načíst snímek/, soon: 'připravujeme', profileShotLine: 'Otevřel jsem profil. Vlož snímek obrazovky RAIDER (Ctrl+V) a já z něj přečtu level, XP a mince.', restart: 'Spustit průvodce znovu', hide: 'Schovat do příštího spuštění',
+    profileLine: 'Nejdřív ať vím, s kým vyrážím. Pošli mi snímek profilu, napiš mi svůj level, nebo obnov zálohu.',
     captureNoKey: 'Abych mohl číst inventář, zapni mě v Nastavení a vyber zkratku. Bez tvého souhlasu nic nezapíšu.',
     resumeLine: 'Minule jsme nedokončili prohlídku. Pokračujeme, kde jsme skončili?',
     inventory: 'Tady je Inventář. Co máš, co prodat a co recyklovat.',
@@ -49,8 +49,8 @@ const T = {
     welcome: 'Hi, raider. I am Ops. You carry the loot, I keep track of what you are missing. Quick tour?',
     welcomeCheeky: 'I am Ops. The smartest crate around. A tour, so you know who you are dealing with?',
     start: "Let's go", manual: 'Fill in manually', done: 'Done', next: 'Next', resume: 'Continue', skip: 'Skip the guide',
-    shot: /Load a screenshot/, soon: 'coming soon', restart: 'Restart the guide', hide: 'Hide until next start',
-    profileLine: 'First let me know who I am heading out with. Tell me your level, or restore a backup.',
+    shot: /Load a screenshot/, soon: 'coming soon', profileShotLine: 'I opened your profile. Paste a RAIDER screenshot (Ctrl+V) and I will read level, XP and coins from it.', restart: 'Restart the guide', hide: 'Hide until next start',
+    profileLine: 'First let me know who I am heading out with. Send me a profile screenshot, tell me your level, or restore a backup.',
     captureNoKey: 'To read your inventory, enable me in Settings and pick a shortcut. Nothing is written without your OK.',
     resumeLine: 'We did not finish the tour last time. Continue where we left off?',
     inventory: 'This is the Inventory. What you have, what to sell and what to recycle.',
@@ -82,8 +82,12 @@ for (const lang of ['cs', 'en'] as const) {
       await expect(page).toHaveURL(/#workshop$/);
       await tour.getByRole('button', { name: L.start }).click();
       await expect(tour.getByTestId('tour-line')).toHaveText(L.profileLine);
-      await expect(tour.getByRole('button', { name: L.shot })).toBeDisabled();
-      await expect(tour.getByRole('button', { name: L.shot })).toContainText(L.soon);
+      /* 0.10.1: profil ze snímku je aktivní: otevře Profil → Načíst ze snímku, z odbočky jde i ruční vyplnění */
+      await expect(tour.getByRole('button', { name: L.shot })).toBeEnabled();
+      await tour.getByRole('button', { name: L.shot }).click();
+      await expect(page).toHaveURL(/#profile\/shot$/);
+      await expect(tour.getByTestId('tour-line')).toHaveText(L.profileShotLine);
+      await expect(page.getByTestId('progress-shot')).toBeVisible();
       await expect(page.locator('.sidebar a.nav-item[href="#profile"]')).toHaveClass(/tour-target/);
       await tour.getByRole('button', { name: L.manual }).click();
       await expect(page).toHaveURL(/#profile$/);
@@ -166,7 +170,7 @@ for (const lang of ['cs', 'en'] as const) {
       expect(errors).toEqual([]);
     });
 
-    test('Bedňák 2.0 v kompaktu (detail s radou) a v overlayi (detail v hlavičce)', async ({ page, context }) => {
+    test('Bedňák 2.0 v kompaktu (menší varianta s radou) a v overlayi (detail v hlavičce)', async ({ page, context }) => {
       const errors = watchErrors(page);
       await seed(page, {
         schema: 7, profile: { level: 20, xp: 2977, xpNext: 29000, coins: 58313, rounds: 40 }, stations: { gear: 1 },
@@ -176,7 +180,8 @@ for (const lang of ['cs', 'en'] as const) {
       }, { size: { width: 420, height: 720 } });
       const c = page.getByRole('region', { name: L.region });
       const row = c.getByTestId('compact-opsrow');
-      await expect(row.locator('canvas')).toHaveAttribute('data-variant', 'detail');
+      /* 0.10.1: v kompaktu menší varianta (96 px) */
+      await expect(row.locator('canvas')).toHaveAttribute('data-variant', 'corner');
       await expect.poll(() => opaquePixels(page, '.cw-opsrow canvas')).toBeGreaterThan(800);
       await expect(row.getByTestId('ops-line')).toHaveText(L.compactHint);
 

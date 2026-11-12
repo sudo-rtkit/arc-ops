@@ -2,7 +2,7 @@
    a nebere fokus (ani při běžící hře: okno zůstane na pozadí a karta se jen vykreslí). Jde přeskočit v každém
    kroku, schovat do příštího spuštění (pak pokračuje, kde skončil) a znovu spustit v Nastavení. Kroky a přechody
    jsou v core/tutorial.ts, texty podle povahy v i18n/opsLines.ts. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { actions, navigate, useAppState } from '../store';
 import { useUi } from '../store/ui';
@@ -25,8 +25,8 @@ const autoStart = (): boolean => {
   const w = window as unknown as { __arcopsTutorial?: boolean };
   return !navigator.webdriver || w.__arcopsTutorial === true;
 };
-/* kroky do počítadla (ruční vyplnění profilu je jen odbočka) */
-const COUNTED = TUTORIAL_STEPS.filter(x => x !== 'profile-manual');
+/* kroky do počítadla (ruční vyplnění profilu a načtení ze snímku jsou jen odbočky) */
+const COUNTED = TUTORIAL_STEPS.filter(x => x !== 'profile-manual' && x !== 'profile-shot');
 /* ptát se na pokračování jen jednou za relaci */
 let resumeAsked = false;
 
@@ -46,6 +46,7 @@ export function Tutorial({ compact }: { compact: boolean }) {
   const shown = tutorialShown(tut, p.dialogs, autoStart(), hidden);
   const def = STEPS[tut.step];
   const ops = useRef<OpsHandle>(null);
+  const card = useRef<HTMLElement>(null);
 
   /* na co krok ukazuje v postranním panelu (jen plný režim) */
   const target = shown && !resume && !compact ? def.target : null;
@@ -57,6 +58,18 @@ export function Tutorial({ compact }: { compact: boolean }) {
   /* v kompaktním okně není postranní panel: ukazuje nahoru na rozbalení */
   const gesture = resume ? 'greet' : compact && def.gesture.startsWith('point-') ? 'point-up' : def.gesture;
   const sp = useOpsSpeech(ref, p.personality, t.lang, { ops, gesture, nonce: resume ? -1 : TUTORIAL_STEPS.indexOf(tut.step), onSay: () => mainSound.play('beep') });
+
+  /* 0.10.1: v plném okně karta leží přes obsah; obsah dostane dole místo o výšce karty, aby šel dorolovat nad ni */
+  const visible = shown && !!ref;
+  useLayoutEffect(() => {
+    const el = card.current, root = document.documentElement;
+    if (compact || !visible || !el) { root.style.removeProperty('--tour-h'); return; }
+    const set = () => root.style.setProperty('--tour-h', Math.ceil(el.getBoundingClientRect().height) + 24 + 'px');
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(el);
+    return () => { ro?.disconnect(); root.style.removeProperty('--tour-h'); };
+  }, [compact, visible]);
 
   if (!shown || !ref) return null;
 
@@ -73,10 +86,10 @@ export function Tutorial({ compact }: { compact: boolean }) {
     if (e.compact) void windowCtl.setMode('compact');
   };
   const replies = resume ? [{ id: 'resume' as const, primary: true }] : def.replies;
-  const n = COUNTED.indexOf(tut.step === 'profile-manual' ? 'profile' : tut.step) + 1;
+  const n = COUNTED.indexOf(tut.step === 'profile-manual' || tut.step === 'profile-shot' ? 'profile' : tut.step) + 1;
 
   return (
-    <aside className={cx('tour', compact && 'tour--compact')} aria-label={t('tut.label')} data-testid="tour" data-step={resume ? 'resume' : tut.step}>
+    <aside ref={card} className={cx('tour', compact && 'tour--compact')} aria-label={t('tut.label')} data-testid="tour" data-step={resume ? 'resume' : tut.step}>
       <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} label={t('ops.previewAria')}
         restAnim={sp.talking ? 'talk' : 'idle'} />
       <div className="tour-bubble">
