@@ -70,6 +70,13 @@ Nic se nepushuje bez výslovného pokynu uživatele (jen lokální commity a ins
   **Ráno vyzkoušet:** snímek profilu, dílny, úkolu a tooltipu skillu ve hře; nové záložky overlaye.
   Nehotové: sledování postupu cílů úkolů (vyžaduje schéma 9), názvy materiálů se ze snímku nečtou, pořadí dlaždic
   Utility/Medical/Refiner/Explosives odvozené z ikon a neověřené, vyšší úrovně stanic jen v syntetických testech.
+- **0.10.2: hotovo** (commit bdceafd, neodesláno). Cíle úkolů: zaškrtávátka v modulu Úkoly, postup „Cíle 2/4“
+  v seznamu, kompaktu a overlayi; snímek úkolu navrhne zaškrtnuté cíle (jen když sedí počet cílů; úkol se sám
+  nikdy nesplní). Schéma 9. Instalátor novější verze předvybere instalaci přes stávající, data zůstanou.
+  Ověřeno: 596 unit testů, 87 E2E, 16 Rust testů, typová kontrola, tichá instalace přes starší verzi na zkušební kopii.
+  Instalátor: `src-tauri/target/release/bundle/nsis/ARC Raiders Companion_0.10.2_x64-setup.exe`.
+  **Vyzkoušet:** grafický instalátor přes nainstalovanou 0.10.1 (předvolba „Instalovat přes stávající“), zaškrtnutí
+  cílů a snímek úkolu ve hře.
 - Bedňák 2.0 grafika: **hotová a přijatá** (`docs/design/buddy/bednak2/`): 5 podob s odlišnou siluetou (legenda
   výrazně větší), roh 96 px čitelný na tmavém, šedém i světlém pozadí díky meruňkovému okraji, 27 animací
   v obou variantách, 8 výrazů, nová ikona (čistá hlava Bedňáka). Výhrada: na levelech 60+ je detail trochu hustší,
