@@ -28,6 +28,18 @@ Všechny obrázky ukazují demo data z prohlížečového sestavení, bez herní
 
 **Příprava na raid a vlastní mapa.** Vybereš cíle (úkoly, další úroveň stanice, projekt, peníze) a dostaneš jeden seznam toho, co chybí, s typem místa z katalogu předmětů, doporučenou mapu s důvody a plán v záložce Raid v konzoli včetně rady nechat / prodat / recyklovat. Interaktivní mapa stojí na snímku herní mapy, který si vložíš sám; aplikace žádné herní mapy nepřibaluje. Nad ním jsou tvoje body a zvýraznění podle plánu. Po raidu se plán porovná s nálezem (z potvrzeného snímku FINDINGS nebo ze změny zásoby): co ještě chybí, která vylepšení jsou připravená, doporučení dalšího raidu a uložení do deníku raidů; statistika pak ukáže, které mapy ti s cíli pomáhají.
 
+| Aktivní plán: cíle, materiály a důvody výběru mapy | Interaktivní mapa: vlastní body a zvýraznění plánu |
+|---|---|
+| [![Aktivní plán: cíle, materiály a důvody výběru mapy](docs/assets/github/raid-prep.png)](docs/assets/github/raid-prep@2x.png) | [![Interaktivní mapa: vlastní body a zvýraznění plánu](docs/assets/github/interactive-map.png)](docs/assets/github/interactive-map@2x.png) |
+
+Podklad na obrázku je smyšlená grafika projektu zastupující hráčův vlastní snímek. Nejde o herní ani komunitní mapu. Mapu a loadout si vybíráš sám.
+
+| Záložka Raid: nálezy a rady k předmětům | Po raidu: nalezeno, chybí a připravené vylepšení |
+|---|---|
+| [![Záložka Raid: nálezy a rady k předmětům](docs/assets/github/overlay-raid.png)](docs/assets/github/overlay-raid@2x.png) | [![Po raidu: nalezeno, chybí a připravené vylepšení](docs/assets/github/post-raid.png)](docs/assets/github/post-raid@2x.png) |
+
+Historie plánů patří k záznamům v deníku raidů. Statistika ukazuje, které mapy pomáhají s cíli; méně než tři plánované raidy označí jako „málo dat“.
+
 ### Co dál?
 
 Karta **Co dál?** na Dashboardu seřadí další nejlepší kroky z tvých dat: vylepšení, které jde postavit, raid k vyhodnocení, připnutý úkol připravený k odevzdání, volné skill body, nedokončené Weekly Trials, plnou bednu, starou zálohu nebo cíl s blížícím se termínem. Každý tip říká proč, jedním klikem otevře správný modul a jde skrýt, dokud se jeho podmínka nezmění, nebo odložit o den. Nejdůležitější tip je i v kompaktním okně a v polní konzoli a Ops ho řekne ve zvolené povaze, když s nimi pracuješ, nikdy nad hrou.
@@ -36,11 +48,19 @@ Karta **Co dál?** na Dashboardu seřadí další nejlepší kroky z tvých dat:
 
 **Ctrl+K** (nebo pole v postranním panelu) najde předmět, úkol, stanici, skill, build, mapu, modul, sekci nastavení nebo tip, česky i anglicky, bez ohledu na diakritiku a drobné překlepy. Předmět otevře svou kartu: vzácnost, hodnotu, hmotnost a stack, tvoji zásobu, kde je potřeba (úkoly, stanice, projekty, tvoje cíle, aktivní plán raidu) a kolik ještě chybí, co z něj recyklací vznikne a z čeho vzniká on, kde ho hledat a které tvoje body na mapě sedí, a radu nechat / recyklovat / prodat i s důvodem. Stejnou kartu otevřou názvy předmětů v celé aplikaci, v hlavním okně i v polní konzoli.
 
+| Ctrl+K: výsledky ve skupinách | Karta předmětu: proč ho potřebuješ |
+|---|---|
+| [![Ctrl+K: výsledky ve skupinách](docs/assets/github/search.png)](docs/assets/github/search@2x.png) | [![Karta předmětu: proč ho potřebuješ](docs/assets/github/item-card.png)](docs/assets/github/item-card@2x.png) |
+
+Ctrl+K funguje při fokusu aplikace nebo konzole; je to zkratka daného okna. Karta ukazuje i odpovídající vlastní body na mapě. Chybějící údaje katalogu zůstávají neznámé.
+
 ### Bedňák / Ops
 
 Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi povahami. Kliknutím otevřeš konzoli s profilem, úkoly, zásobou, dílnou, skilly, nákupy a revizí snímku a aktivním plánem raidu. Tlačítko **Aplikace** otevře nad hrou ve větším panelu kterýkoli plný modul (skill tree, recepty, databázi předmětů, mapy, deník, statistiky, minihry…); nastavení a zálohy zůstávají v hlavním okně. Výchozí stav buddyho je **vypnuto**.
 
 ![Demo polní konzole s Opsem](docs/assets/github/overlay.png)
+
+[![Plný modul úkolů otevřený v konzoli](docs/assets/github/overlay-app.png)](docs/assets/github/overlay-app@2x.png)
 
 Navíc: rady pro úklid stashe, recyklace, blueprinty, porovnání zbraní, vlastní tier list, deník raidů, statistiky, checklisty a export/obnova JSON záloh. Herní data mohou za aktualizacemi zaostávat.
 
@@ -55,9 +75,11 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 
 ## Soukromí a bezpečnost
 
-Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Snímky se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
+Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
 Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze snímků potvrzuje hráč, před zápisem vzniká snímek stavu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
+
+Verze 0.16.1 zpřísnila oprávnění jednotlivých oken, ověřování zpráv mezi okny a limity velikosti obrázků. Podrobnosti jsou v [historii verzí](CHANGELOG.md#0161--security-hardening).
 
 ## Časté otázky
 

@@ -24,7 +24,7 @@ All views below use **demo data** from the browser build. The desktop app provid
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/github/feature-1.png" alt="Plan: stash, workshop and shopping lists"><br><b>Your operations desk</b><br>Profile, priorities, raid records, workshop upgrades and material shopping lists.<br><a href="docs/assets/github/dashboard@2x.png"><img src="docs/assets/github/dashboard.png" alt="Demo dashboard with level 20 profile and upgrade priorities"></a></td>
+<td width="50%"><img src="docs/assets/github/feature-1.png" alt="Plan: stash, workshop and shopping lists"><br><b>Your operations desk</b><br>Profile, priorities, raid records, workshop upgrades and material shopping lists.<br><a href="docs/assets/github/dashboard@2x.png"><img src="docs/assets/github/dashboard.png" alt="Demo dashboard with fictional level 37 profile and What next advisor"></a></td>
 <td width="50%"><img src="docs/assets/github/feature-5.png" alt="Keep close: compact window and optional Ops buddy"><br><b>A smaller window</b><br>Pin quests, see have/need counts and jump to raid logging or stash cleanup.<br><a href="docs/assets/github/compact@2x.png"><img src="docs/assets/github/compact.png" alt="Demo compact window with three pinned quests and Gear Bench shopping list"></a></td>
 </tr>
 <tr>
@@ -39,17 +39,37 @@ All views below use **demo data** from the browser build. The desktop app provid
 
 ### What next?
 
-The Dashboard's **What next?** card ranks your next best actions from your own data, Blitz-style: an upgrade you can build now, a raid to evaluate, a pinned quest ready to hand in, free skill points, unfinished Weekly Trials, a full stash, an old backup or a goal that is due. Each tip says why, opens the right module in one click and can be hidden until its condition changes or snoozed for a day. The top tip also shows in the compact window and the field console, and Ops says it in your chosen personality while you use them, never over the game.
+The Dashboard's **What next?** card ranks your next best actions from your own data: an upgrade you can build now, a raid to evaluate, a pinned quest ready to hand in, free skill points, unfinished Weekly Trials, a full stash, an old backup or a goal that is due. Each tip says why, opens the right module in one click and can be hidden until its condition changes or snoozed for a day. The top tip also shows in the compact window and the field console, and Ops says it in your chosen personality while you use them, never over the game.
+
+| Active plan: goals, materials and map reasons | Interactive map: points and plan highlights |
+|---|---|
+| [![Active plan: goals, materials and map reasons](docs/assets/github/raid-prep.png)](docs/assets/github/raid-prep@2x.png) | [![Interactive map: points and plan highlights](docs/assets/github/interactive-map.png)](docs/assets/github/interactive-map@2x.png) |
+
+The terrain shown here is fictional project artwork, standing in for a player-provided screenshot. It is not a game or community map. You choose the map and loadout.
+
+| Raid tab: finds and item advice | After the raid: found, missing and upgrade ready |
+|---|---|
+| [![Raid tab: finds and item advice](docs/assets/github/overlay-raid.png)](docs/assets/github/overlay-raid@2x.png) | [![After the raid: found, missing and upgrade ready](docs/assets/github/post-raid.png)](docs/assets/github/post-raid@2x.png) |
+
+Plan history stays with entries in the Raid Journal. Statistics show which maps help with your goals; fewer than three planned raids are labelled “little data”.
 
 ### Search everywhere and “Why do I need this?”
 
 Press **Ctrl+K** (or use the sidebar search) to find any item, quest, station, skill, build, map, module, setting or tip, in Czech or English, accents and small typos forgiven. An item opens its card: rarity, value, weight and stack, your stock, where it is needed (quests, stations, projects, your goals, the active raid plan) with what is still missing, what it recycles into and what recycles into it, where to look and which of your map points match, and the keep / recycle / sell verdict with its reason. Item names across the app open the same card, in the main window and in the field console.
+
+| Ctrl+K: grouped search results | Item card: why you need it |
+|---|---|
+| [![Ctrl+K: grouped search results](docs/assets/github/search.png)](docs/assets/github/search@2x.png) | [![Item card: why you need it](docs/assets/github/item-card.png)](docs/assets/github/item-card@2x.png) |
+
+Ctrl+K works while the app or overlay has focus. It is a local window shortcut. The card also shows matching points on your own map; missing catalogue facts stay unknown.
 
 ### Meet Bedňák, callsign Ops
 
 An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. The **App** button opens any full module (skill tree, recipes, item database, maps, journal, statistics, minigames…) in a larger panel over the game; settings and backups stay in the main window. Buddy features start **off** and can be enabled in Settings.
 
 [![Demo field console with Ops and local profile data](docs/assets/github/overlay.png)](docs/assets/github/overlay@2x.png)
+
+[![Full Quests module open inside the overlay](docs/assets/github/overlay-app.png)](docs/assets/github/overlay-app@2x.png)
 
 **Raid prep and your own map.** Pick goals (quests, the next station level, a project or money), get one list of what is still missing with the loot area from the item catalogue, a recommended map with its reasons, and the plan in the console's Raid tab with keep/sell/recycle lookups. The interactive map uses a screenshot of the in-game map that you add yourself; no game maps are bundled. Your points and plan highlights sit on top. After the raid, the plan is compared with what you found (from a confirmed FINDINGS capture or your stock change), shows what is still missing and which upgrades are ready, suggests the next raid and can be saved to the raid journal; statistics then show which maps help with your goals.
 
@@ -67,10 +87,12 @@ For an upgrade, use the newer installer over the existing installation; local da
 ## Your data stays with you
 
 - Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them.
-- Screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
+- Inventory, loot and progression screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - Recognition proposes changes; you review and confirm them. Unreadable fields stay unknown. State snapshots and JSON export/restore help you recover from mistakes.
 - Stash advice never sells, recycles or deletes anything in the game.
+
+Security hardening in 0.16.1 added per-window permissions, validated messages between windows and image-size limits. See the [release notes](CHANGELOG.md#0161--security-hardening) for details.
 
 ## FAQ
 
