@@ -22,14 +22,14 @@ const S2 = {
 describe('schéma 3 (dnes 5)', () => {
   it('výchozí stav (aktuálně schéma 5) má prázdné items a vision', () => {
     const s = defaultState(NOW);
-    expect(SCHEMA).toBe(14);
-    expect(s.schema).toBe(14);
+    expect(SCHEMA).toBe(15);
+    expect(s.schema).toBe(15);
     expect(s.items).toEqual({});
-    expect(s.vision).toEqual({ learned: [], profile: null, lastImportAt: 0 });
+    expect(s.vision).toEqual({ learned: [], profile: null, lastImportAt: 0, stash: null });
   });
   it('migrace 2 → 4 doplní items a vision a nic neztratí', () => {
     const s = normalize(S2, NOW);
-    expect(s.schema).toBe(14);
+    expect(s.schema).toBe(15);
     expect(s.items).toEqual({});
     expect(s.vision.learned).toEqual([]);
     expect(s.profile.coins).toBe(120000);
@@ -37,25 +37,25 @@ describe('schéma 3 (dnes 5)', () => {
     expect(s.gameData.materialsCustom[0].name).toBe('Moje součástka');
     expect(s.settings).toEqual({ autoSnapshot: false, lang: 'en' });
   });
-  it('záloha schématu 2 se načte, schéma 15 je novější verze', () => {
+  it('záloha schématu 2 se načte, schéma 16 je novější verze', () => {
     const p = parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 2, exportedAt: 'x', state: S2 }), NOW);
     expect('error' in p ? p.error : p.state.inventory).toEqual({ 'Metal Parts': 12, 'ARC Alloy': 3 });
     const raw = parseBackup(JSON.stringify(S2), NOW);
     expect('error' in raw ? raw.error : raw.kind).toBe('app');
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 15, state: {} }))).toEqual({ error: ERR_NEWER });
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 16, state: {} }))).toEqual({ error: ERR_NEWER });
   });
   it('deník v1 se převede na aktuální schéma', () => {
     const { state } = importV1(SAMPLE_V1, NOW);
-    expect(state.schema).toBe(14);
+    expect(state.schema).toBe(15);
     expect(state.vision.learned).toEqual([]);
     expect(normalize(JSON.parse(JSON.stringify(state)), NOW)).toEqual(state);
   });
   it('záloha obsahuje items i vision a vrátí je beze změny', () => {
     const s = defaultState(NOW);
     s.items = { 'Ferro II': { key: 'Ferro II', name: 'Ferro', category: 'weapon', tier: 'II', count: 1 } };
-    s.vision = { learned: [{ id: 'l1', itemKey: 'ARC Alloy', kind: 'material', fp: fp(3), rarity: 'rare', at: 7 }], profile: { cellPx: 96, ui: 1 }, lastImportAt: 9 };
+    s.vision = { learned: [{ id: 'l1', itemKey: 'ARC Alloy', kind: 'material', fp: fp(3), rarity: 'rare', at: 7 }], profile: { cellPx: 96, ui: 1 }, lastImportAt: 9, stash: { used: 200, max: 268, at: 5 } };
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(14);
+    expect(file.schema).toBe(15);
     expect(file.state.items).toEqual(s.items);
     expect(file.state.vision).toEqual(s.vision);
     const p = parseBackup(makeBackup(s), NOW);

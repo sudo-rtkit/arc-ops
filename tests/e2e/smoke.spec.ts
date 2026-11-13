@@ -108,7 +108,10 @@ test('export a import vrátí stejný stav', async ({ page }) => {
   await saved(page);
   await page.waitForTimeout(700);
   const after = await stateOf(page);
-  const strip = (s: Record<string, unknown>) => ({ ...s, meta: undefined, profileLog: undefined });
+  /* 0.17.0: export zálohy zapíše svůj čas (rádce „Co dál?“); ostatní stav se importem vrátí beze změny */
+  expect(after.advisor.backupAt).toBeGreaterThan(0);
+  expect(before.advisor.backupAt).toBe(0);
+  const strip = (s: Record<string, unknown>) => ({ ...s, meta: undefined, profileLog: undefined, advisor: { ...(s.advisor as object), backupAt: 0 } });
   expect(strip(after)).toEqual(strip(before));
 });
 

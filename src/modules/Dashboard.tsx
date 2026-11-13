@@ -5,6 +5,7 @@ import { useUi } from '../store/ui';
 import { Badge, Btn, Check, Dialog, Empty, IconBtn, PageHead, Panel, Progress, Tabs, cx } from '../ui/components';
 import Goals, { GoalRow } from './Goals';
 import Recs, { RecItem } from './Recs';
+import { AdvisorAll, AdvisorCard, useTips } from '../ui/Advisor';
 import { isDone, sortGoals } from '../core/goals';
 import { DASH, fmt, fmtDate, fmtMinutes, pct } from '../ui/format';
 import { SKILL } from '../core/data/skills';
@@ -255,7 +256,7 @@ function RecsCard() {
 }
 
 const CARDS: Record<string, () => ReactNode> = {
-  goals: GoalsCard, recs: RecsCard,
+  advisor: AdvisorCard, goals: GoalsCard, recs: RecsCard,
   next: NextCard, phases: PhasesCard, trials: TrialsCard, raids: RaidsCard, missing: MissingCard, progress: ProgressCard, steps: StepsCard,
 };
 
@@ -298,7 +299,7 @@ function FirstRun() {
   );
 }
 
-type DashTab = 'overview' | 'goals' | 'recs';
+type DashTab = 'overview' | 'tips' | 'goals' | 'recs';
 
 export default function Dashboard({ sub }: { sub: string }) {
   const s = useAppState();
@@ -307,7 +308,8 @@ export default function Dashboard({ sub }: { sub: string }) {
   const open = useUi(st => st.openRaidForm);
   const t = useT();
   const [edit, setEdit] = useState(false);
-  const tab: DashTab = sub === 'goals' || sub === 'recs' ? sub : 'overview';
+  const tab: DashTab = sub === 'goals' || sub === 'recs' || sub === 'tips' ? sub : 'overview';
+  const tips = useTips().visible.length;
   const visible = db.order.filter(k => !db.hidden[k]);
   const openGoals = s.goals.filter(g => !isDone(g)).length;
   return (
@@ -316,9 +318,11 @@ export default function Dashboard({ sub }: { sub: string }) {
         actions={<>{tab === 'overview' && <Btn onClick={() => setEdit(true)}>{t('dash.editTitle')}</Btn>}<Btn variant="primary" icon={Plus} onClick={() => open()}>{t('raid.log')}</Btn></>} />
       <Tabs label="Dashboard" value={tab} onChange={v => navigate('dashboard', v === 'overview' ? '' : v)} tabs={[
         { id: 'overview', label: t('nav.group.overview') },
+        { id: 'tips', label: <>{t('dash.tab.tips')} {tips > 0 && <Badge tone="accent">{tips}</Badge>}</> },
         { id: 'goals', label: <>{t('dash.tab.goals')} {openGoals > 0 && <Badge tone="accent">{openGoals}</Badge>}</> },
         { id: 'recs', label: <>{t('card.recs')} {d.recs.length > 0 && <Badge tone="amber">{d.recs.length}</Badge>}</> },
       ]} />
+      {tab === 'tips' && <AdvisorAll />}
       {tab === 'goals' && <Goals />}
       {tab === 'recs' && <Recs />}
       {tab === 'overview' && <>

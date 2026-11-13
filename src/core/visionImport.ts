@@ -8,6 +8,7 @@ import { getMaterials } from './gamedata';
 import { OTHER_CATEGORY } from './gametext';
 import { LIMITS } from './state';
 import { clampInt, text, uid } from './util';
+import { normalizeStashSlots } from './visionState';
 import type { CellRead, PanelRead, ScreenRead, VisionWarning } from './vision/read';
 import type { Rarity } from './vision/rarity';
 import type { Tier } from './vision/digits';
@@ -184,6 +185,8 @@ export interface VisionApply {
   zeroMissing: boolean;
   canZero: boolean;
   profile: { cellPx: number; ui: number } | null;
+  /* 0.17.0: hlavička STASH (obsazeno / maximum) z téhož snímku; chybí nebo null = beze změny */
+  slots?: { used: number | null; max: number | null } | null;
 }
 export interface VisionSummary { materials: number; items: number; zeroed: number; newMaterials: number; coins: number | null; learned: number; other: number }
 
@@ -248,6 +251,9 @@ export function applyVisionImport(s: AppState, input: VisionApply, now: number):
     for (const m of getMaterials(s)) if (!counts.has(m.name) && s.inventory[m.name]) { delete s.inventory[m.name]; sum.zeroed++; }
     for (const key of Object.keys(s.items)) if (!itemCounts.has(key)) { delete s.items[key]; sum.zeroed++; }
   }
+  /* 0.17.0: obsazenost bedny pro rádce „Co dál?“ (jen s maximem z hlavičky, tj. bez filtru kategorie) */
+  const slots = normalizeStashSlots({ used: input.slots?.used, max: input.slots?.max, at: now });
+  if (slots) s.vision.stash = slots;
   if (input.coins !== null) { s.profile.coins = clampInt(input.coins, LIMITS.coins[0], LIMITS.coins[1]); sum.coins = s.profile.coins; }
   for (const r of input.rows) {
     if (alreadyLearned(r.group.match, r.target)) continue;

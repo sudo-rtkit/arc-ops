@@ -13,6 +13,8 @@ import { useOpsSpeech } from './speech';
 import { createSoundPlayer } from './sound';
 import { isFreshProfile, nextUpgrade } from '../core/compact';
 import { upgradeHint, withMinigameHint, type LineRef } from '../core/opsVoice';
+import { visibleTips, type AdvisorTone } from '../core/advisor';
+import { openTip } from '../ui/Advisor';
 import { STATIONS } from '../core/data/stations';
 import { hotkeyLabel } from './hotkey';
 import { useT, type TFn } from '../i18n/react';
@@ -22,7 +24,6 @@ import { cx } from '../ui/components';
 import { formForLevel, resolveOutfit } from '../core/ops';
 import { QUESTS, locText, objectiveProgress, questName, questStatus } from '../core/quests';
 import { catalogByName, catalogItems, matchContext } from '../core/catalog';
-import { cleanupRows, cleanupSummary } from '../core/advice';
 import { analyzeLoot, analyzeShots, defaultTarget, type ImportGroup, type Target, type VisionApply, type VisionSummary } from '../core/visionImport';
 import { lootItems, lootRows, raidGear, raidWithSig, type RaidLootInput } from '../core/lootImport';
 import type { RaidLootResult } from '../store/app';
@@ -92,19 +93,20 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
   const active = QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length;
   const shopMissing = d.shop.filter(r => r.missing > 0);
   const missing = shopMissing.reduce((a, r) => a + r.missing, 0);
-  const clean = cleanupSummary(cleanupRows(d.advice.values()));
-  const steps: { tag: string; tone: string; title: string; sub: string; action: () => void; label: string }[] = [];
-  const open = (route: string) => () => bus.send('main', 'open', { route });
+  const steps: { id?: string; tag: string; tone: string; title: string; sub: string; action: () => void; label: string; dismiss?: () => void }[] = [];
   if (batch.loot) steps.push({ tag: t('ops.ov.tag.review'), tone: 'warn', title: t('ops.ov.l.title'), sub: t('ops.ov.l.banner'), action: () => go('scan'), label: t('ops.ov.tab.scan') });
   if (batch.shots.length) steps.push({ tag: t('ops.ov.tag.review'), tone: 'muted', title: t('ops.ov.step.scan'), sub: t('ops.ov.step.scanSub', { count: batch.shots.length }), action: () => go('scan'), label: t('ops.ov.tab.scan') });
-  for (const n of d.needs.filter(x => !x.block && x.ready >= 1).slice(0, 2)) steps.push({ tag: t('ops.ov.tag.ready'), tone: 'ok', title: t('ops.ov.step.upgrade', { name: n.station.name, level: n.level }), sub: t('ops.ov.step.upgradeSub'), action: open('workshop'), label: t('ops.ov.openApp') });
-  const short = d.needs.find(x => !x.block && x.ready < 1);
-  if (short) {
-    const lack = short.mats.map(([m, n]) => [m, Math.max(0, n - (s.inventory[m] || 0))] as const).filter(([, n]) => n > 0);
-    const total = lack.reduce((a, [, n]) => a + n, 0);
-    steps.push({ tag: t('ops.ov.tag.missing', { n: total }), tone: 'warn', title: t('ops.ov.step.missing', { name: short.station.name, level: short.level }), sub: t('ops.ov.step.missingSub', { count: total, mats: lack.slice(0, 3).map(([m, n]) => `${m} ${n}`).join(', ') }), action: () => go('shop'), label: t('ops.ov.tab.shop') });
+  /* 0.17.0: další kroky = tipy rádce „Co dál?“ (stejné jako na Dashboardu); otevřou plný modul přímo v overlayi,
+     Nastavení (záloha) v hlavním okně */
+  const TONE: Record<AdvisorTone, string> = { success: 'ok', amber: 'warn', danger: 'warn', accent: 'muted' };
+  for (const tip of visibleTips(d.tips, s.advisor, Date.now())) {
+    const title = t.m(tip.title);
+    steps.push({
+      id: tip.id, tag: t(`advisor.rule.${tip.rule}` as Key), tone: TONE[tip.tone], title, sub: t.m(tip.detail), action: () => openTip(tip),
+      label: tip.target.route.startsWith('settings') ? t('ops.ov.advisorInApp') : t('ops.ov.advisorOpen'),
+      dismiss: () => app.actions.advisorDismiss(tip.id, tip.key),
+    });
   }
-  if (clean.items > 0) steps.push({ tag: t('ops.ov.tag.cleanup'), tone: 'muted', title: t('ops.ov.step.cleanup'), sub: t('ops.ov.step.cleanupSub', { sell: clean.sell, recycle: clean.recycle, slots: clean.slots }), action: open('inventory/cleanup'), label: t('ops.ov.openApp') });
   const note = s.steps.find(x => !x.done);
   const form = formForLevel(s.profile.level);
   return (
@@ -120,11 +122,12 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
         <section className="ov-card">
           <header><h3>{t('ops.ov.next')}</h3><span className="ov-stencil">{t('ops.ov.nextTag', { n: String(steps.length).padStart(2, '0') })}</span></header>
           {steps.length === 0 ? <p className="ov-muted">{t('ops.ov.step.none')}</p> : (
-            <ul className="ov-steps">{steps.slice(0, 4).map((x, i) => (
-              <li key={i}>
+            <ul className="ov-steps" data-testid="ov-advisor">{steps.slice(0, 5).map((x, i) => (
+              <li key={x.id ?? i} data-tip={x.id}>
                 <span className={cx('ov-tag', x.tone)}>{x.tag}</span>
                 <span className="grow"><b>{x.title}</b><em>{x.sub}</em></span>
-                <button type="button" className="ov-link" onClick={x.action}>{x.label} →</button>
+                <button type="button" className="ov-link" onClick={x.action} aria-label={x.id ? t('advisor.openAria', { title: x.title }) : undefined}>{x.label} →</button>
+                {x.dismiss && <button type="button" className="ov-x" onClick={x.dismiss} aria-label={t('advisor.dismissAria', { title: x.title })} title={t('advisor.dismiss')}><X size={14} aria-hidden="true" /></button>}
               </li>
             ))}</ul>
           )}
@@ -276,6 +279,7 @@ function StashReview({ batch, hotkey, go }: { batch: BatchView; hotkey: string; 
     const input: VisionApply = {
       rows: rows.map(r => ({ group: r.g, target: r.selected ? r.target : { kind: 'skip' }, count: r.count })),
       coins: coinsOn && coins !== null ? coins : null, zeroMissing: false, canZero: analysis.canZero, profile: analysis.profile,
+      slots: { used: analysis.headerSlots, max: analysis.headerSlotsMax },
     };
     setWriting(true);
     bus.send('main', 'import', { input });
@@ -624,7 +628,11 @@ export default function OverlayApp() {
     if (!st0) return null;
     const d = derivedOf(st0);
     /* 0.11.0: otevřený overlay = hráč s ním pracuje; když nic nechybí, smí Ops nabídnout minihru */
-    return withMinigameHint(upgradeHint(nextUpgrade(d.needs, d.targets, st0.inventory), isFreshProfile(st0, STATION_MINS)), st0.opsPrefs.dialogs);
+    const fresh = isFreshProfile(st0, STATION_MINS);
+    /* 0.17.0: otevřený overlay = hráč s ním pracuje; nejdůležitější tip „Co dál?“ (dialogy a rada nahlas zapnuté) */
+    const top = fresh ? undefined : visibleTips(d.tips, st0.advisor, Date.now())[0];
+    if (top && st0.opsPrefs.dialogs && st0.opsPrefs.advisor) return top.line;
+    return withMinigameHint(upgradeHint(nextUpgrade(d.needs, d.targets, st0.inventory), fresh), st0.opsPrefs.dialogs);
   }, [st0]);
   const speech = useOpsSpeech(said.hint ? hint : said.line, st0?.opsPrefs.personality ?? 'friendly', t.lang, {
     ops, nonce: said.n, gesture: said.hint ? null : undefined, onSay: () => sound.play('beep'),

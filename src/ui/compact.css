@@ -143,3 +143,10 @@
 .cw-speech { position: relative; margin: 0; padding: 8px 10px; flex: 1; min-width: 0; background: var(--bg-app); border: 1px solid var(--border-subtle);
   border-left: 2px solid var(--accent); border-radius: 2px; color: var(--text-primary); font-size: 12.5px; line-height: 1.35;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+
+/* 0.17.0: nejdůležitější tip „Co dál?“ pod Opsem */
+.cw-tip { display: flex; align-items: center; gap: 4px; padding: 4px var(--cw-pad) 6px; background: var(--bg-panel); border-bottom: 1px solid var(--border-subtle); flex: none; }
+.cw-tip-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg-app); border: 1px solid var(--accent-border); border-radius: 2px; color: var(--text-primary); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.cw-tip-open:hover, .cw-tip-open:focus-visible { border-color: var(--accent); }
+.cw-tip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-tip-x { flex: none; }

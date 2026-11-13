@@ -5,18 +5,18 @@
 .kpi-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--gap); }
 .dash-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
 .span-3 { grid-column: span 3; } .span-4 { grid-column: span 4; } .span-5 { grid-column: span 5; } .span-6 { grid-column: span 6; }
-.span-7 { grid-column: span 7; } .span-8 { grid-column: span 8; }
+.span-7 { grid-column: span 7; } .span-8 { grid-column: span 8; } .span-12 { grid-column: 1 / -1; }
 .row-a { min-height: 232px; align-self: stretch; }
 @container (max-width: 1320px) {
   .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-grid > * { grid-column: span 1; }
-  .dash-grid > .span-8 { grid-column: span 2; }
+  .dash-grid > .span-8, .dash-grid > .span-12 { grid-column: 1 / -1; }
 }
 @container (max-width: 760px) {
   .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dash-grid { grid-template-columns: minmax(0, 1fr); }
-  .dash-grid > *, .dash-grid > .span-8 { grid-column: span 1; }
+  .dash-grid > *, .dash-grid > .span-8, .dash-grid > .span-12 { grid-column: span 1; }
 }
 /* užší mřížka KPI: dlouhé hodnoty zmenšit, nezalamovat po znacích */
 @container (max-width: 1100px) { .kpi .kpi-val { font-size: 28px; line-height: 36px; } }
@@ -518,3 +518,9 @@ button.mg-cell:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .mg-confirm { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-control); border-left: var(--line-strong) solid var(--warning); background: var(--warning-bg); }
 .mg-confirm p { margin: 0; }
 .mg-resume { margin: 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
+
+/* ----- 0.17.0: rádce „Co dál?“ ----- */
+.advisor-card { border-color: var(--accent-border); }
+.advisor-row { align-items: flex-start; }
+.advisor-row .advisor-actions { flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+@container (max-width: 760px) { .advisor-row { flex-wrap: wrap; } .advisor-row .advisor-actions { width: 100%; justify-content: flex-start; } }

@@ -1,11 +1,11 @@
 /* Normalizace nových částí stavu schématu 3: items (předměty pro 3b) a vision (naučené otisky ikon). */
-import { ITEM_CATEGORIES, ITEM_TIERS, LEARNED_MAX, itemKey, type ItemCategory, type ItemStock, type ItemTier, type VisionState } from './types';
+import { ITEM_CATEGORIES, ITEM_TIERS, LEARNED_MAX, itemKey, type ItemCategory, type ItemStock, type ItemTier, type VisionState, type StashSlots } from './types';
 import type { LearnedFp } from './vision/match';
 import { FP_LEN } from './vision/fingerprint';
 import { RARITIES, type Rarity } from './vision/rarity';
 import { clampInt, clampNum, isObj, text, uid } from './util';
 
-export const emptyVision = (): VisionState => ({ learned: [], profile: null, lastImportAt: 0 });
+export const emptyVision = (): VisionState => ({ learned: [], profile: null, lastImportAt: 0, stash: null });
 
 export function normalizeItemStock(raw: unknown): Record<string, ItemStock> {
   const out: Record<string, ItemStock> = {};
@@ -49,5 +49,14 @@ export function normalizeVision(raw: unknown): VisionState {
     learned: normalizeLearned(v.learned),
     profile: p && Number.isFinite(cellPx) && cellPx > 0 ? { cellPx: clampInt(cellPx, 1, 2000), ui: clampNum(p.ui, 0, 10) } : null,
     lastImportAt: clampInt(v.lastImportAt || 0, 0, 9e15),
+    stash: normalizeStashSlots(v.stash),
   };
+}
+
+/* 0.17.0: obsazenost bedny z hlavičky snímku STASH (used/max). Bez platného maxima (filtr kategorie) je neznámá. */
+export function normalizeStashSlots(raw: unknown): StashSlots | null {
+  if (!isObj(raw)) return null;
+  const used = Number(raw.used), max = Number(raw.max);
+  if (!Number.isInteger(used) || !Number.isInteger(max) || max < 1 || max > 5000 || used < 0 || used > max) return null;
+  return { used, max, at: clampInt(raw.at || 0, 0, 9e15) };
 }

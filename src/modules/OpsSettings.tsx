@@ -175,6 +175,8 @@ export function OpsVoicePanel() {
         </div>
         <label className="toggle"><input type="checkbox" data-testid="ops-dialogs" checked={p.dialogs} onChange={e => actions.setOpsPrefs({ dialogs: e.target.checked })} />{t('opsVoice.dialogs')}</label>
         <p className="meta">{t('opsVoice.dialogsHint')}</p>
+        <label className="toggle"><input type="checkbox" data-testid="ops-advisor" checked={p.advisor} onChange={e => actions.setOpsPrefs({ advisor: e.target.checked })} />{t('opsVoice.advisor')}</label>
+        <p className="meta">{t('opsVoice.advisorHint')}</p>
         <div className="field">
           <span className="field-label">{t('opsVoice.tutorial')}</span>
           <p className="meta" data-testid="tour-status">{p.tutorial.status === 'active' ? t('opsVoice.tour.active', { n, total: TUTORIAL_STEPS.length - 1 }) : t(`opsVoice.tour.${p.tutorial.status}` as Key)}</p>

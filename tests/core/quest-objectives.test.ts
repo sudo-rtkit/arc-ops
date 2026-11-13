@@ -64,10 +64,10 @@ describe('cíle úkolů: čisté funkce', () => {
 
 describe('schéma 9: migrace a záloha', () => {
   it('stav schématu 8 se načte beze ztrát a dostane prázdné cíle', () => {
-    expect(SCHEMA).toBe(14);
+    expect(SCHEMA).toBe(15);
     const old = { schema: 8, profile: { level: 20, coins: 58313 }, inventory: { 'Metal Parts': 4 }, quests: { done: { ss1: 5 }, pinned: [SHORING] }, opsPrefs: { personality: 'cheeky' } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(14);
+    expect(s.schema).toBe(15);
     expect(s.quests).toEqual({ done: { ss1: 5 }, pinned: [SHORING], objectives: {} });
     expect(s.profile).toMatchObject({ level: 20, coins: 58313 });
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
@@ -76,25 +76,25 @@ describe('schéma 9: migrace a záloha', () => {
   it.each([2, 3, 4, 5, 6, 7])('stav a záloha schématu %i dojdou do schématu 9 s prázdnými cíli', schema => {
     const old = { schema, profile: { level: 7 }, inventory: { Fabric: 2 }, ...(schema >= 4 ? { quests: { done: { ss1: 5 } } } : {}) };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(14);
+    expect(s.schema).toBe(15);
     expect(s.quests.objectives).toEqual({});
     expect(s.profile.level).toBe(7);
     expect(s.inventory).toEqual({ Fabric: 2 });
     const p = parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema, exportedAt: 'x', state: old }), NOW);
     if ('error' in p) throw new Error(p.error);
-    expect(p.state.schema).toBe(14);
+    expect(p.state.schema).toBe(15);
     expect(p.state.quests.objectives).toEqual({});
     expect(p.state.profile.level).toBe(7);
   });
-  it('záloha nese cíle a vrátí je beze změny; schéma 15 je novější verze', () => {
+  it('záloha nese cíle a vrátí je beze změny; schéma 16 je novější verze', () => {
     const s = defaultState(NOW);
     s.quests.objectives = { [SHORING]: [0, 1, 3] };
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(14);
+    expect(file.schema).toBe(15);
     expect(file.state.quests.objectives).toEqual({ [SHORING]: [0, 1, 3] });
     const p = parseBackup(makeBackup(s), NOW);
     expect('error' in p ? p.error : p.state).toEqual(s);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 15, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 16, state: {} }), NOW)).toHaveProperty('error');
   });
 });
 

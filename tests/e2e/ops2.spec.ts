@@ -176,6 +176,8 @@ for (const lang of ['cs', 'en'] as const) {
         schema: 7, profile: { level: 20, xp: 2977, xpNext: 29000, coins: 58313, rounds: 40 }, stations: { gear: 1 },
         inventory: { 'Power Cable': 1, 'Electrical Components': 3, 'Hornet Driver': 1 },
         planner: { stations: { gear: 2 }, items: [], includeGoals: true, includeQuests: true },
+        /* 0.17.0: rada „Co dál?“ nahlas vypnutá: tady se hlídá rada k dalšímu vylepšení (rádce viz advisor.spec.ts) */
+        opsPrefs: { advisor: false },
         buddy: { enabled: true }, mainWindow: { mode: 'compact' }, settings: { autoSnapshot: false, lang },
       }, { size: { width: 420, height: 720 } });
       const c = page.getByRole('region', { name: L.region });

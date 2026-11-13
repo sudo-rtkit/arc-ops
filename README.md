@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.16.1](https://img.shields.io/badge/version-0.16.1-F4AD82?style=flat-square)
+![Version 0.17.0](https://img.shields.io/badge/version-0.17.0-F4AD82?style=flat-square)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
 ![Czech and English](https://img.shields.io/badge/languages-CS%20%2F%20EN-C6AFF1?style=flat-square)
@@ -36,6 +36,10 @@ All views below use **demo data** from the browser build. The desktop app provid
 <td><img src="docs/assets/github/feature-6.png" alt="Unwind: Tetris, recycling quiz and Ops’s Hack"><br><b>A break with Ops</b><br>Stash Tetris, a recycling quiz and Ops’s Hack. Resume saved rounds and unlock cosmetic paints; rewards do not change game progress.<br><a href="docs/assets/github/minigames@2x.png"><img src="docs/assets/github/minigames.png" alt="Demo Ops’s Hack minigame with a rotatable circuit grid"></a></td>
 </tr>
 </table>
+
+### What next?
+
+The Dashboard's **What next?** card ranks your next best actions from your own data, Blitz-style: an upgrade you can build now, a raid to evaluate, a pinned quest ready to hand in, free skill points, unfinished Weekly Trials, a full stash, an old backup or a goal that is due. Each tip says why, opens the right module in one click and can be hidden until its condition changes or snoozed for a day. The top tip also shows in the compact window and the field console, and Ops says it in your chosen personality while you use them, never over the game.
 
 ### Meet Bedňák, callsign Ops
 

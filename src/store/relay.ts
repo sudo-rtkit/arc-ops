@@ -39,6 +39,8 @@ export const RELAY_ACTIONS = [
   'setWeaponNote', 'editWeapon', 'resetWeapon', 'setWeaponHidden', 'addCustomWeapon', 'deleteCustomWeapon',
   'setCardHidden', 'moveCard', 'resetDashboard', 'setCompactQuests', 'setCompactCollapsed', 'setOpsPrefs', 'setBuddyOutfit', 'resetBuddyOutfit',
   'finishGame', 'quizAnswer', 'saveRound', 'finishRound', 'discardRound', 'answerQuiz', 'setPaint',
+  /* 0.17.0: rádce „Co dál?“ (id tipu podle TIP_ID_RE (nejvýš 121 znaků), klíč 200 znaků, odložení 1–30 dní; ořezává akce) */
+  'advisorDismiss', 'advisorSnooze', 'advisorRestore', 'advisorRestoreAll',
 ] as const satisfies readonly ActionName[];
 
 /* Akce jen pro hlavní okno a co vrátí v overlayi místo provedení:

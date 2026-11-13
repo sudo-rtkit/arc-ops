@@ -11,7 +11,7 @@ const STATUSES: readonly TutorialStatus[] = ['new', 'active', 'done', 'skipped']
 export const VOLUME_DEFAULT = 25;
 
 export const emptyOpsPrefs = (): OpsPrefs => ({
-  personality: 'friendly', sound: true, volume: VOLUME_DEFAULT, dialogs: true, tutorial: { status: 'new', step: 'welcome' },
+  personality: 'friendly', sound: true, volume: VOLUME_DEFAULT, dialogs: true, tutorial: { status: 'new', step: 'welcome' }, advisor: true,
 });
 
 export function normalizeOpsPrefs(raw: unknown): OpsPrefs {
@@ -21,6 +21,8 @@ export function normalizeOpsPrefs(raw: unknown): OpsPrefs {
   if (typeof r.sound === 'boolean') d.sound = r.sound;
   if (r.volume !== undefined && Number.isFinite(Number(r.volume))) d.volume = clampInt(r.volume, 0, 100);
   if (typeof r.dialogs === 'boolean') d.dialogs = r.dialogs;
+  /* 0.17.0: rada „Co dál?“ nahlas; ve starším nastavení chybí a je zapnutá */
+  if (typeof r.advisor === 'boolean') d.advisor = r.advisor;
   const t = isObj(r.tutorial) ? r.tutorial : {};
   if (STATUSES.includes(t.status as TutorialStatus)) d.tutorial.status = t.status as TutorialStatus;
   if (TUTORIAL_STEPS.includes(t.step as TutorialStep)) d.tutorial.step = t.step as TutorialStep;

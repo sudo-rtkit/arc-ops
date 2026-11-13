@@ -213,8 +213,8 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   it('starší stav (schéma 7) se načte beze ztráty a dostane výchozí hodnoty', () => {
     const s7 = { schema: 7, profile: { level: 33, coins: 1200 }, inventory: { 'Metal Parts': 5 }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' }, unlocked: ['antenna-1', 'antenna-2'] }, mainWindow: { mode: 'compact' } };
     const s = normalize(s7, NOW);
-    expect(SCHEMA).toBe(14);
-    expect(s.schema).toBe(14);
+    expect(SCHEMA).toBe(15);
+    expect(s.schema).toBe(15);
     expect(s.profile).toMatchObject({ level: 33, coins: 1200 });
     expect(s.inventory).toEqual({ 'Metal Parts': 5 });
     expect(s.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' } });
@@ -224,7 +224,7 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   });
   it('normalizace: neplatné hodnoty se zahodí, hlasitost 0–100', () => {
     expect(normalizeOpsPrefs({ personality: 'rude', sound: 'yes', volume: 400, dialogs: false, tutorial: { status: 'x', step: 'tour-quests' } }))
-      .toEqual({ personality: 'friendly', sound: true, volume: 100, dialogs: false, tutorial: { status: 'new', step: 'tour-quests' } });
+      .toEqual({ personality: 'friendly', sound: true, volume: 100, dialogs: false, tutorial: { status: 'new', step: 'tour-quests' }, advisor: true });
     expect(normalizeOpsPrefs({ personality: 'cheeky', volume: -3 })).toMatchObject({ personality: 'cheeky', volume: 0 });
   });
   it('akce a záloha: import ani obnova nemění povahu, zvuky a průvodce tohoto počítače', async () => {
@@ -234,7 +234,7 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
     expect(here).toMatchObject({ personality: 'cheeky', volume: 60, tutorial: { status: 'active', step: 'tour-quests' } });
     const other = defaultState(NOW);
     other.profile.level = 50;
-    other.opsPrefs = { personality: 'plain', sound: false, volume: 0, dialogs: false, tutorial: { status: 'done', step: 'end' } };
+    other.opsPrefs = { personality: 'plain', sound: false, volume: 0, dialogs: false, tutorial: { status: 'done', step: 'end' }, advisor: false };
     const file = parseBackup(makeBackup(other, new Date(NOW)), NOW);
     if ('error' in file) throw new Error(file.error);
     expect(await app.actions.importState(file.state, '{}', 'app')).toBe(true);

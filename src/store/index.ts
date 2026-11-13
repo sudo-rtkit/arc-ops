@@ -18,6 +18,7 @@ import { runStats } from '../core/runs';
 import { budget, totalPoints, planSteps, planName, nextPlanPoint } from '../core/skills';
 import { adviseAll } from '../core/advice';
 import { stockOf } from '../core/compact';
+import { advisorTips } from '../core/advisor';
 import { navigatorLang, setLang, t } from '../i18n';
 
 /* Jazyk prvního spuštění (a stavu bez uložené volby) podle navigator.language; pak platí volba v Settings. */
@@ -48,6 +49,8 @@ export function derive(s: AppState) {
   const allRoutes = routeLookup(s.gameData);
   const routeNames: Record<string, string> = Object.fromEntries(allRoutes.map(r => [r.id, r.name]));
   const loadoutNames: Record<string, string> = Object.fromEntries(s.loadouts.map(l => [l.id, l.name]));
+  const now = Date.now();
+  const advice = adviseAll(s, dayKey(now), s.settings.lang);
   return {
     stations, sources, needs, shop,
     materials: getMaterials(s),
@@ -64,7 +67,9 @@ export function derive(s: AppState) {
     targets: stationTargets(view, s.planner, s.goals, stations),
     recs: recommend(s, Date.now()),
     /* milník 4: rada nech / recykluj / prodej pro každý předmět v Zásobě a Vybavení (klíč = klíč zásoby) */
-    advice: adviseAll(s, dayKey(Date.now()), s.settings.lang),
+    advice,
+    /* 0.17.0: všechny tipy rádce „Co dál?“ seřazené podle priority (skrytí a odložení filtruje UI: visibleTips) */
+    tips: advisorTips(s, now, s.settings.lang, { advice }),
     workshop: workshopProgress(s.stations, stations),
     phases: phases({ profile: s.profile, stations: s.stations, skills: s.skills }),
     maps: mapStatus(s.profile.rounds),

@@ -371,6 +371,72 @@ const cs = {
     friendly: ['Minule jsme nedokončili prohlídku. Pokračujeme, kde jsme skončili?', 'Jsem zpátky! Dokončíme tu prohlídku?'],
     cheeky: ['Utekl jsi mi uprostřed prohlídky. Dáme zbytek?', 'Prohlídka čeká. Já taky. Pokračujem?'],
   },
+  /* ----- 0.17.0: rádce „Co dál?“ (jen v okně, se kterým hráč pracuje; nikdy během hraní) ----- */
+  'advisor.upgrade': {
+    plain: ["Co dál: vylepši {station:raw} na {level:raw}. Materiál máš.", "Na {station:raw} {level:raw} je vše. Do dílny."],
+    friendly: ["Co dál? Do dílny! {station:raw} {level:raw} má všechno, co potřebuje.", "Mám tip: {station:raw} na {level:raw}. Materiál už je v bedně."],
+    cheeky: ["{station:raw} {level:raw} čeká jen na tebe. Materiál nosíš zbytečně.", "Všechno na {station:raw} {level:raw} máš. Dílna se sama nevylepší."],
+  },
+  'advisor.evaluate': {
+    plain: ["Co dál: vyhodnoť raid na {map:raw}.", "Raid na {map:raw} čeká na vyhodnocení."],
+    friendly: ["Vítej zpátky! Mrkneme, co z plánu na {map:raw} máš?", "Co dál? Vyhodnotíme raid na {map:raw} a naplánujeme další."],
+    cheeky: ["Raid na {map:raw} je za tebou. Teď ta nudná, ale důležitá část.", "Ukaž, co jsi přinesl z {map:raw}. Já to spočítám, ty se tvař skromně."],
+  },
+  'advisor.stale': {
+    plain: ["Plán na {map:raw} je zastaralý. Spusť ho znovu.", "Seznam plánu na {map:raw} se změnil."],
+    friendly: ["Plán na {map:raw} už nesedí, něco se změnilo. Obnovíme ho?", "Co dál? Plán na {map:raw} si zaslouží čerstvý seznam."],
+    cheeky: ["Plán na {map:raw} je starší než moje vtipy. Obnov ho.", "Tvůj plán na {map:raw} žije v minulosti. Vrať ho do přítomnosti."],
+  },
+  'advisor.prep': {
+    plain: ["Co dál: připrav raid. Doporučená mapa {map:raw}, k hledání {count} ks.", "Bez plánu. Doporučuji {map:raw}, {count} ks k hledání."],
+    friendly: ["Co dál? Připravíme raid na {map:raw}, hledáme {count} ks.", "Mám nápad: {map:raw}. Seznam má {count} ks, plán je za minutku."],
+    cheeky: ["Raid bez plánu je turistika. Zkus {map:raw}, {count} ks k nalezení.", "{map:raw} volá. Já bych si udělal plán, ale já nemám nohy."],
+  },
+  'advisor.skills': {
+    plain: [{ one: "Máš {count} volný skill bod.", few: "Máš {count} volné skill body.", other: "Máš {count} volných skill bodů." }, { one: "Rozdej {count} skill bod.", few: "Rozdej {count} skill body.", other: "Rozdej {count} skill bodů." }],
+    friendly: [{ one: "Máš {count} volný skill bod! Rozdáme ho?", few: "Máš {count} volné skill body! Rozdáme je?", other: "Máš {count} volných skill bodů! Rozdáme je?" }, { one: "Co dál? Skill tree čeká na {count} bod.", few: "Co dál? Skill tree čeká na {count} body.", other: "Co dál? Skill tree čeká na {count} bodů." }],
+    cheeky: [{ one: "{count} skill bod jen tak leží. Body se samy neutratí.", few: "{count} skill body jen tak leží. Body se samy neutratí.", other: "{count} skill bodů jen tak leží. Body se samy neutratí." }, { one: "Šetříš {count} bod na horší časy? Ty už jsou tady.", few: "Šetříš {count} body na horší časy? Ty už jsou tady.", other: "Šetříš {count} bodů na horší časy? Ty už jsou tady." }],
+  },
+  'advisor.trials': {
+    plain: [{ one: "Weekly Trials: zbývá {count} den, chybí {left:raw} hvězd.", few: "Weekly Trials: zbývají {count} dny, chybí {left:raw} hvězd.", other: "Weekly Trials: zbývá {count} dní, chybí {left:raw} hvězd." }, { one: "Trials končí za {count} den.", few: "Trials končí za {count} dny.", other: "Trials končí za {count} dní." }],
+    friendly: [{ one: "Co dál? Trials! Zbývá {count} den a {left:raw} hvězd k vzetí.", few: "Co dál? Trials! Zbývají {count} dny a {left:raw} hvězd k vzetí.", other: "Co dál? Trials! Zbývá {count} dní a {left:raw} hvězd k vzetí." }, { one: "Ještě {count} den na Weekly Trials. Dáme to!", few: "Ještě {count} dny na Weekly Trials. Dáme to!", other: "Ještě {count} dní na Weekly Trials. Dáme to!" }],
+    cheeky: [{ one: "Trials končí za {count} den. Hvězdy se samy nepřinesou.", few: "Trials končí za {count} dny. Hvězdy se samy nepřinesou.", other: "Trials končí za {count} dní. Hvězdy se samy nepřinesou." }, { one: "{left:raw} hvězd chybí a zbývá {count} den. Žádný stres. Trochu stres.", few: "{left:raw} hvězd chybí a zbývají {count} dny. Žádný stres. Trochu stres.", other: "{left:raw} hvězd chybí a zbývá {count} dní. Žádný stres. Trochu stres." }],
+  },
+  'advisor.deliver': {
+    plain: ["Úkol {name:raw}: vše máš. Odevzdej u obchodníka {trader:raw}.", "Odevzdej {name:raw} u obchodníka {trader:raw}."],
+    friendly: ["Co dál? {trader:raw} čeká na úkol {name:raw}, všechno máš!", "Hurá, na {name:raw} máš vše. Zajdi za obchodníkem {trader:raw}."],
+    cheeky: ["{trader:raw} se ptal, kde je {name:raw}. Máš to v bedně, tak běž.", "Úkol {name:raw} je hotový, jen ho nosíš sem a tam. {trader:raw} čeká."],
+  },
+  'advisor.stash': {
+    plain: ["Bedna: {used:raw}/{max:raw}. Uvolni místo.", "Bedna je skoro plná ({used:raw}/{max:raw})."],
+    friendly: ["Bedna praská ve švech: {used:raw}/{max:raw}. Uklidíme spolu?", "Co dál? Trochu místa v bedně. Je obsazená {used:raw} z {max:raw}."],
+    cheeky: ["{used:raw} z {max:raw}. Sbíráš, nebo už jen skladuješ?", "Bedna {used:raw}/{max:raw}. Ještě jeden šroub a vybuchne."],
+  },
+  'advisor.cleanup': {
+    plain: [{ one: "Úklid uvolní {count} políčko.", few: "Úklid uvolní {count} políčka.", other: "Úklid uvolní {count} políček." }, { one: "V Úklidu je {count} políčko navíc.", few: "V Úklidu jsou {count} políčka navíc.", other: "V Úklidu je {count} políček navíc." }],
+    friendly: [{ one: "Co dál? Malý úklid a máš {count} volné políčko.", few: "Co dál? Malý úklid a máš {count} volná políčka.", other: "Co dál? Malý úklid a máš {count} volných políček." }, { one: "Mám pro tebe úklid: {count} políčko navíc.", few: "Mám pro tebe úklid: {count} políčka navíc.", other: "Mám pro tebe úklid: {count} políček navíc." }],
+    cheeky: [{ one: "{count} políčko plné věcí, co nepotřebuješ. Fakt.", few: "{count} políčka plná věcí, co nepotřebuješ. Fakt.", other: "{count} políček plných věcí, co nepotřebuješ. Fakt." }, { one: "Úklid by uvolnil {count} políčko. Ne, ten šroub není vzácný.", few: "Úklid by uvolnil {count} políčka. Ne, ten šroub není vzácný.", other: "Úklid by uvolnil {count} políček. Ne, ten šroub není vzácný." }],
+  },
+  'advisor.backup': {
+    plain: [{ one: "Poslední záloha je stará {count} den.", few: "Poslední záloha je stará {count} dny.", other: "Poslední záloha je stará {count} dní." }, { one: "Zálohu jsi uložil před {count} dnem. Ulož novou.", few: "Zálohu jsi uložil před {count} dny. Ulož novou.", other: "Zálohu jsi uložil před {count} dny. Ulož novou." }],
+    friendly: [{ one: "Co dál? Čerstvá záloha. Ta poslední má {count} den.", few: "Co dál? Čerstvá záloha. Ta poslední má {count} dny.", other: "Co dál? Čerstvá záloha. Ta poslední má {count} dní." }, { one: "Záloha je stará {count} den. Uložíme novou, ať o nic nepřijdeš?", few: "Záloha je stará {count} dny. Uložíme novou, ať o nic nepřijdeš?", other: "Záloha je stará {count} dní. Uložíme novou, ať o nic nepřijdeš?" }],
+    cheeky: [{ one: "Záloha stará {count} den. Odvážné.", few: "Záloha stará {count} dny. Odvážné.", other: "Záloha stará {count} dní. Odvážné." }, { one: "{count} den bez zálohy. Já si pamatuju všechno, disk ne.", few: "{count} dny bez zálohy. Já si pamatuju všechno, disk ne.", other: "{count} dní bez zálohy. Já si pamatuju všechno, disk ne." }],
+  },
+  'advisor.backupNone': {
+    plain: ["Nemám záznam o záloze. Ulož ji v Nastavení.", "Ulož si zálohu dat."],
+    friendly: ["Co dál? Uložíme zálohu, ať máš postup v bezpečí.", "O žádné záloze nevím. Jedno kliknutí v Nastavení a je to."],
+    cheeky: ["Žádná záloha? Žiješ nebezpečně. Já ne, tak ji ulož.", "Bez zálohy je to jako raid bez štítu. Jen nudnější, když to praskne."],
+  },
+  'advisor.goal': {
+    plain: [{ one: "Cíl {title:raw}: termín za {count} den.", few: "Cíl {title:raw}: termín za {count} dny.", other: "Cíl {title:raw}: termín za {count} dní." }, "Blíží se termín cíle {title:raw}."],
+    friendly: ["Co dál? Cíl {title:raw} má brzy termín. Zvládneme to!", { one: "Pozor, {title:raw} má termín za {count} den.", few: "Pozor, {title:raw} má termín za {count} dny.", other: "Pozor, {title:raw} má termín za {count} dní." }],
+    cheeky: ["{title:raw} má termín. Termíny jsou jako ARC, přijdou si pro tebe.", { one: "{count} den do termínu cíle {title:raw}. Tik tak.", few: "{count} dny do termínu cíle {title:raw}. Tik tak.", other: "{count} dní do termínu cíle {title:raw}. Tik tak." }],
+  },
+  'advisor.goalLate': {
+    plain: ["Cíl {title:raw} je po termínu.", "Termín cíle {title:raw} uplynul."],
+    friendly: ["Cíl {title:raw} je po termínu. Nevadí, buď ho dodělej, nebo posuň termín.", "Co dál? {title:raw} je po termínu. Podíváme se na to?"],
+    cheeky: ["{title:raw} je po termínu. Já nic neviděl. Skoro nic.", "Termín cíle {title:raw} uplynul. Kalendář je smutný."],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -727,6 +793,72 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['The guide was interrupted. Continue?', 'Continue the guide from the last step?'],
     friendly: ['We did not finish the tour last time. Continue where we left off?', 'I am back! Shall we finish the tour?'],
     cheeky: ['You ran off in the middle of the tour. The rest?', 'The tour is waiting. So am I. Continue?'],
+  },
+  /* ----- 0.17.0: rádce „Co dál?“ (jen v okně, se kterým hráč pracuje; nikdy během hraní) ----- */
+  'advisor.upgrade': {
+    plain: ["What next: upgrade {station:raw} to {level:raw}. You have the material.", "You have everything for {station:raw} {level:raw}. To the workshop."],
+    friendly: ["What next? The workshop! {station:raw} {level:raw} has everything it needs.", "Here is a tip: {station:raw} to {level:raw}. The material is already in the stash."],
+    cheeky: ["{station:raw} {level:raw} is only waiting for you. You carry that material for nothing.", "You have it all for {station:raw} {level:raw}. The workshop will not upgrade itself."],
+  },
+  'advisor.evaluate': {
+    plain: ["What next: evaluate the raid on {map:raw}.", "The raid on {map:raw} is waiting for evaluation."],
+    friendly: ["Welcome back! Shall we see what you found from the {map:raw} plan?", "What next? We evaluate the raid on {map:raw} and plan the next one."],
+    cheeky: ["The {map:raw} raid is done. Now the boring but important part.", "Show me what you brought from {map:raw}. I count, you look humble."],
+  },
+  'advisor.stale': {
+    plain: ["The plan for {map:raw} is out of date. Start it again.", "The plan list for {map:raw} changed."],
+    friendly: ["The plan for {map:raw} no longer fits, something changed. Refresh it?", "What next? The plan for {map:raw} deserves a fresh list."],
+    cheeky: ["The plan for {map:raw} is older than my jokes. Refresh it.", "Your plan for {map:raw} lives in the past. Bring it back to the present."],
+  },
+  'advisor.prep': {
+    plain: ["What next: prepare a raid. Suggested map {map:raw}, {count} units to find.", "No plan. I suggest {map:raw}, {count} units to find."],
+    friendly: ["What next? Let us prepare a raid on {map:raw}, looking for {count} units.", "I have an idea: {map:raw}. The list has {count} units, the plan takes a minute."],
+    cheeky: ["A raid without a plan is sightseeing. Try {map:raw}, {count} units to find.", "{map:raw} is calling. I would make a plan, but I have no legs."],
+  },
+  'advisor.skills': {
+    plain: [{ one: "You have {count} free skill point.", other: "You have {count} free skill points." }, { one: "Spend {count} skill point.", other: "Spend {count} skill points." }],
+    friendly: [{ one: "You have {count} free skill point! Shall we spend it?", other: "You have {count} free skill points! Shall we spend them?" }, { one: "What next? The skill tree is waiting for {count} point.", other: "What next? The skill tree is waiting for {count} points." }],
+    cheeky: [{ one: "{count} skill point just lying around. Points do not spend themselves.", other: "{count} skill points just lying around. Points do not spend themselves." }, { one: "Saving {count} point for hard times? They are here.", other: "Saving {count} points for hard times? They are here." }],
+  },
+  'advisor.trials': {
+    plain: [{ one: "Weekly Trials: {count} day left, {left:raw} stars missing.", other: "Weekly Trials: {count} days left, {left:raw} stars missing." }, { one: "Trials end in {count} day.", other: "Trials end in {count} days." }],
+    friendly: [{ one: "What next? Trials! {count} day left and {left:raw} stars to take.", other: "What next? Trials! {count} days left and {left:raw} stars to take." }, { one: "{count} more day for Weekly Trials. We can do it!", other: "{count} more days for Weekly Trials. We can do it!" }],
+    cheeky: [{ one: "Trials end in {count} day. Stars do not deliver themselves.", other: "Trials end in {count} days. Stars do not deliver themselves." }, { one: "{left:raw} stars missing and {count} day left. No stress. A little stress.", other: "{left:raw} stars missing and {count} days left. No stress. A little stress." }],
+  },
+  'advisor.deliver': {
+    plain: ["Quest {name:raw}: you have everything. Hand it in at {trader:raw}.", "Hand in {name:raw} at {trader:raw}."],
+    friendly: ["What next? {trader:raw} is waiting for {name:raw}, you have it all!", "Yay, you have everything for {name:raw}. Visit {trader:raw}."],
+    cheeky: ["{trader:raw} asked where {name:raw} is. It is in your stash, so go.", "The quest {name:raw} is done, you just carry it around. {trader:raw} is waiting."],
+  },
+  'advisor.stash': {
+    plain: ["Stash: {used:raw}/{max:raw}. Make room.", "The stash is almost full ({used:raw}/{max:raw})."],
+    friendly: ["The stash is bursting: {used:raw}/{max:raw}. Shall we tidy up together?", "What next? A bit of room in the stash. {used:raw} of {max:raw} slots are taken."],
+    cheeky: ["{used:raw} of {max:raw}. Collecting, or just storing now?", "Stash {used:raw}/{max:raw}. One more screw and it pops."],
+  },
+  'advisor.cleanup': {
+    plain: [{ one: "Cleanup frees {count} slot.", other: "Cleanup frees {count} slots." }, { one: "Cleanup has {count} spare slot.", other: "Cleanup has {count} spare slots." }],
+    friendly: [{ one: "What next? A small cleanup and you get {count} free slot.", other: "What next? A small cleanup and you get {count} free slots." }, { one: "I have a cleanup for you: {count} more slot.", other: "I have a cleanup for you: {count} more slots." }],
+    cheeky: [{ one: "{count} slot full of things you do not need. Really.", other: "{count} slots full of things you do not need. Really." }, { one: "Cleanup would free {count} slot. No, that screw is not rare.", other: "Cleanup would free {count} slots. No, that screw is not rare." }],
+  },
+  'advisor.backup': {
+    plain: [{ one: "The last backup is {count} day old.", other: "The last backup is {count} days old." }, { one: "You saved a backup {count} day ago. Save a new one.", other: "You saved a backup {count} days ago. Save a new one." }],
+    friendly: [{ one: "What next? A fresh backup. The last one is {count} day old.", other: "What next? A fresh backup. The last one is {count} days old." }, { one: "The backup is {count} day old. Save a new one so you lose nothing?", other: "The backup is {count} days old. Save a new one so you lose nothing?" }],
+    cheeky: [{ one: "A backup {count} day old. Bold.", other: "A backup {count} days old. Bold." }, { one: "{count} day without a backup. I remember everything, the disk does not.", other: "{count} days without a backup. I remember everything, the disk does not." }],
+  },
+  'advisor.backupNone': {
+    plain: ["I have no record of a backup. Save one in Settings.", "Save a backup of your data."],
+    friendly: ["What next? Let us save a backup so your progress is safe.", "I know of no backup. One click in Settings and it is done."],
+    cheeky: ["No backup? You live dangerously. I do not, so save one.", "No backup is like a raid without a shield. Just more boring when it breaks."],
+  },
+  'advisor.goal': {
+    plain: [{ one: "Goal {title:raw}: due in {count} day.", other: "Goal {title:raw}: due in {count} days." }, "The goal {title:raw} is due soon."],
+    friendly: ["What next? The goal {title:raw} is due soon. We can do it!", { one: "Heads up, {title:raw} is due in {count} day.", other: "Heads up, {title:raw} is due in {count} days." }],
+    cheeky: ["{title:raw} has a due date. Due dates are like ARC, they come for you.", { one: "{count} day until {title:raw} is due. Tick tock.", other: "{count} days until {title:raw} is due. Tick tock." }],
+  },
+  'advisor.goalLate': {
+    plain: ["The goal {title:raw} is past due.", "The due date of {title:raw} has passed."],
+    friendly: ["The goal {title:raw} is past due. No problem: finish it or move the date.", "What next? {title:raw} is past due. Shall we take a look?"],
+    cheeky: ["{title:raw} is past due. I saw nothing. Almost nothing.", "The due date of {title:raw} has passed. The calendar is sad."],
   },
 };
 

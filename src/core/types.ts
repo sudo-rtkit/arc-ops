@@ -94,7 +94,10 @@ export interface VisionState {
   /* poslední změřená velikost políčka a měřítko UI */
   profile: { cellPx: number; ui: number } | null;
   lastImportAt: number;
+  /* 0.17.0 (schéma 15): obsazenost bedny z hlavičky posledního snímku STASH (used/max), null = neznámá */
+  stash: StashSlots | null;
 }
+export interface StashSlots { used: number; max: number; at: number }
 
 /* ----- uživatelský stav (schéma 3; 2 → 3 doplnilo items a vision) ----- */
 export interface Profile {
@@ -290,6 +293,8 @@ export interface OpsPrefs {
   /* průvodce a krátké nevyžádané bubliny; vypnuto = Ops mluví jen na vyžádání */
   dialogs: boolean;
   tutorial: { status: TutorialStatus; step: TutorialStep };
+  /* 0.17.0: Ops nahlas radí „Co dál?“ (nejdůležitější tip) v kompaktu a overlayi */
+  advisor: boolean;
 }
 
 /* ----- 0.11.0 (schéma 10): minihry a nátěry Opse; herní postup aplikace, patří do zálohy ----- */
@@ -329,8 +334,18 @@ export interface SavedHack {
 }
 export interface GameRounds { tetris: SavedTetris | null; quiz: SavedQuiz | null; hack: SavedHack | null }
 
+/* ----- 0.17.0 (schéma 15): rádce „Co dál?“; herní postup aplikace, patří do zálohy ----- */
+export interface AdvisorState {
+  /* id tipu → klíč podmínky při skrytí; tip se vrátí, až se klíč změní */
+  dismissed: Record<string, string>;
+  /* id tipu → čas, do kdy je tip odložený */
+  snoozed: Record<string, number>;
+  /* poslední úspěšně uložená záloha (0 = aplikace o žádné neví) */
+  backupAt: number;
+}
+
 export interface AppState {
-  schema: 14;
+  schema: 15;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -373,6 +388,8 @@ export interface AppState {
   gameRounds: GameRounds;
   /* 0.14.0 (schéma 13): aktivní plán raidu; ve starším stavu chybí a začne prázdný (null) */
   raidPlan: RaidPlan | null;
+  /* 0.17.0 (schéma 15): skryté a odložené tipy rádce, čas poslední zálohy */
+  advisor: AdvisorState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

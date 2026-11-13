@@ -216,6 +216,7 @@ export default function ScreenImport() {
     setWriting(true);
     const sum = await actions.importFromScreens({
       rows: writeRows, coins: coinsOn && coins !== null ? coins : null, zeroMissing: zeroOn && canZero, canZero, profile: a.profile,
+      slots: { used: a.headerSlots, max: a.headerSlotsMax },
     });
     setWriting(false);
     if (sum) { setDone(sum); clear(); }

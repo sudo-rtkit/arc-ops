@@ -4,6 +4,28 @@ Condensed from the existing Czech README. Versions below describe shipped behavi
 
 The [original Czech technical release notes](docs/history/README-0.13.1.cs.md) are preserved in full, including the intermediate 0.12.1 buddy fix later extended by 0.13.1. Release notes describe implemented versions; they do not imply an installer has been uploaded to GitHub Releases.
 
+## 0.17.0 — Ops as an advisor: “What next?”
+
+- **One advisor engine** (`src/core/advisor.ts`) turns your current state into a ranked list of next best actions. Each tip has a priority with a readable reason (“Why: …”), a short CS/EN title and detail, a target (a module, or an action carried out there: start a plan, evaluate the raid, save a backup) and a condition key. Rules only fire when your own data supports them; nothing is guessed:
+  - **Upgrade ready**: every material for the next station level is in stock and nothing blocks it (higher when the station is your Planner or goal target).
+  - **Evaluate the raid**: the active plan has a raid with loot logged after it started, or finds ticked in the overlay, and the evaluation is not in the journal yet.
+  - **Plan out of date**: the active plan's list changed since it started (stock or goals).
+  - **Prepare a raid**: no active plan, the default goals still miss something; with the recommended map.
+  - **Free skill points**: budget minus spent points, only when you track your skill tree.
+  - **Weekly Trials**: the week is not finished (only when you track Trials), with the days left in the week; priority rises towards Sunday.
+  - **Hand in a quest**: a pinned quest whose delivery items are all in stock, with the trader.
+  - **Stash almost full / full**: from the used/max header of your latest STASH screenshot (at most 14 days old). Screen import now remembers this header (used/max, only without a category filter).
+  - **Cleanup**: Cleanup has surplus to sell or recycle and frees slots (folded into the stash tip when the stash is full).
+  - **Backup**: the last backup saved from the app is 14+ days old, or the app has no record of a backup for a player with at least a week of data. Exporting a backup now records its time (also inside the backup file).
+  - **Goal due**: an open goal due within 3 days, or past due.
+- **Dashboard:** a new **What next?** card (right after the KPI strip, also for existing dashboards; it can be hidden or moved like any card) with the top 5 tips, and an **All tips** tab with priority, reason, “snooze for a week” and the list of hidden and snoozed tips with Restore / Restore all.
+- **Dismiss and snooze.** A dismissed tip comes back when its condition changes (e.g. a new station level, another free point, a new stash reading); a snoozed tip comes back after a day (or a week). This is game progress: it is part of the backup. Resetting the Dashboard module also restores hidden tips; the backup time survives imports and resets.
+- **Compact window:** the top tip sits under Ops; clicking it opens the full app on the tip's target, × hides it.
+- **Overlay:** the overview's next steps are now the advisor tips (after any capture to review); clicking one opens the full module right in the overlay (Settings in the main window), × hides it through the main window.
+- **Ops speaks the top tip** in your chosen personality, CS/EN, with at least two variants per personality for every rule: in the compact window while you use it (window focused) and when the overlay opens. Never over the game: the existing rule that nothing pops up or plays sound while the game is in the foreground is unchanged. New Settings toggle **Ops says “What next?” out loud** (this PC only, not in backups); with it off, Ops keeps the previous upgrade hint and tips stay visible on the Dashboard and in the overlay.
+- **Schema 15:** `advisor` (dismissed tips with their condition key, snoozed tips, last backup time) and `vision.stash` (latest STASH header). Older states and backups load unchanged with empty values; the What next? card is inserted after the KPI strip.
+- **Security model unchanged:** no new permissions, commands, events or bus routes. Four relayed overlay actions were added to the allow-list (`advisorDismiss`, `advisorSnooze`, `advisorRestore`, `advisorRestoreAll`); they accept only tip ids matching a fixed pattern (max 121 characters), keys cut to 200 characters and 1–30 snooze days, and keep at most 300 entries.
+
 ## 0.16.1 — Security hardening
 
 ### Bezpečnost (security)

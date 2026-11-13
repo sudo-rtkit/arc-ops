@@ -20,6 +20,7 @@ import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
 import { useOpsSpeech } from '../ops/speech';
 import { resolveOutfit } from '../core/ops';
 import { upgradeHint, withMinigameHint, type LineRef } from '../core/opsVoice';
+import { visibleTips, type AdvisorTip } from '../core/advisor';
 import { mainSound } from '../ops/mainHub';
 import { Tutorial, useTourShown } from './Tutorial';
 import { expandTo, winNative, windowCtl } from './windowCtl';
@@ -90,6 +91,21 @@ function Toast({ fresh, hint, onHint }: { fresh: boolean; hint: string; onHint: 
   return <div className={cx('cw-toast', 'tone-' + tone, !body && 'is-empty')} role="status" aria-live="polite" data-testid="compact-toast">{body}</div>;
 }
 
+/* 0.17.0: nejdůležitější tip „Co dál?“ pod Opsem; otevře cíl v plné aplikaci, jde skrýt */
+function TipChip({ tip }: { tip: AdvisorTip }) {
+  const t = useT();
+  const title = t.m(tip.title);
+  const [module, sub] = tip.target.route.split('/');
+  return (
+    <div className="cw-tip" data-testid="compact-tip" data-tip={tip.id}>
+      <button type="button" className="cw-tip-open" aria-label={t('compact.advisorOpen', { title })} title={t.m(tip.detail)} onClick={() => void expandTo(module, sub || undefined)}>
+        <span className="cw-tag mono" aria-hidden="true">{t('compact.advisor')}</span><span className="cw-tip-title">{title}</span><ArrowRight size={14} aria-hidden="true" />
+      </button>
+      <button type="button" className="cw-icon cw-tip-x" aria-label={t('advisor.dismissAria', { title })} title={t('advisor.dismiss')} onClick={() => app.actions.advisorDismiss(tip.id, tip.key)}><X size={14} aria-hidden="true" /></button>
+    </div>
+  );
+}
+
 /* Ops (DETAIL) v kompaktním okně: radí k dalšímu vylepšení, reaguje na snímek a zápis z tohoto okna i z buddyho. */
 function OpsRow({ hint }: { hint: LineRef }) {
   const t = useT();
@@ -143,6 +159,9 @@ export default function Compact() {
   const quests = useMemo(() => activeQuests(s, t.lang, mw.quests), [s, t.lang, mw.quests]);
   const up = useMemo(() => nextUpgrade(d.needs, d.targets, s.inventory), [d.needs, d.targets, s.inventory]);
   const shop = useMemo(() => compactShopping(up, d.shop), [up, d.shop]);
+  /* 0.17.0: rádce; nahlas jen když hráč s oknem pracuje (fokus), s dialogy a zapnutou radou nahlas */
+  const top = fresh ? undefined : visibleTips(d.tips, s.advisor, Date.now())[0];
+  const speakTip = !!top && focused && s.opsPrefs.dialogs && s.opsPrefs.advisor;
 
   /* posun středu zpět po návratu z plné aplikace; fokus na rozbalení jen když okno už fokus má (žádná aktivace) */
   useLayoutEffect(() => {
@@ -209,7 +228,8 @@ export default function Compact() {
         </div>
       </div>
 
-      {tour ? <Tutorial compact /> : !short && <OpsRow hint={withMinigameHint(upgradeHint(up, fresh), focused && s.opsPrefs.dialogs)} />}
+      {tour ? <Tutorial compact /> : !short && <OpsRow hint={speakTip && top ? top.line : withMinigameHint(upgradeHint(up, fresh), focused && s.opsPrefs.dialogs)} />}
+      {!tour && !short && top && <TipChip tip={top} />}
 
       <div className="cw-content" ref={content}>
         {fresh ? (

@@ -6,6 +6,7 @@ import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout
 import { isLootArea, isPoiType, type PoiType } from '../core/lootAreas';
 import { normalizeRaidPlan } from '../core/raidPrep';
 import { evaluateRaid, planRecord, planSnapshot } from '../core/raidEval';
+import { SNOOZE_DAYS_MAX, dismissTip, restoreAllTips, restoreTip, snoozeTip } from '../core/advisor';
 import type { StorageAdapter, SnapshotInfo, SnapshotKind, LoadSource } from '../storage/adapter';
 import { defaultState, normalize, normalizeRaid, emptyMapNotes, emptyGameData, defaultSteps, defaultTemplates, DASHBOARD_CARDS, LIMITS, RAID_TEMPLATE_ID } from '../core/state';
 import { rollWeek } from '../core/week';
@@ -284,6 +285,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     n.mainWindow = structuredClone(st().mainWindow);
     /* 0.10.0: povaha, zvuky a průvodce Opse také patří tomuto počítači */
     n.opsPrefs = structuredClone(st().opsPrefs);
+    /* 0.17.0: poslední záloha je fakt o tomto počítači; starší záloha ani reset ji nevrátí do minulosti */
+    n.advisor.backupAt = Math.max(n.advisor.backupAt, st().advisor.backupAt);
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
@@ -1075,6 +1078,12 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         s.opsPrefs = n;
       });
     },
+    /* 0.17.0: rádce „Co dál?“: skrýt tip (vrátí se při změně podmínky), odložit o dny, vrátit skrytý či odložený.
+       Id tipu musí odpovídat TIP_ID_RE (nejvýš 121 znaků, jinak se nic nestane), klíč se ořízne na 200 znaků. */
+    advisorDismiss(id: string, key: string) { change(s => { if (!dismissTip(s.advisor, String(id), String(key), now())) return false; }); },
+    advisorSnooze(id: string, days: number) { change(s => { if (!snoozeTip(s.advisor, String(id), clampInt(days, 1, SNOOZE_DAYS_MAX), now())) return false; }); },
+    advisorRestore(id: string) { change(s => { if (!restoreTip(s.advisor, String(id))) return false; }); },
+    advisorRestoreAll() { change(s => { if (!restoreAllTips(s.advisor)) return false; }); },
     /* šatník: 'auto' = podle levelu, null = bez dílu, jinak díl ze sbírky */
     setBuddyOutfit(slot: string, value: string | null) {
       change(s => {
@@ -1187,7 +1196,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'maps': s.maps = {}; break;
         case 'arc': s.arcNotes = {}; Object.assign(s.gameData, { arc: {}, arcCustom: [], arcHidden: {} }); break;
         case 'weapons': s.weaponNotes = {}; Object.assign(s.gameData, { weapons: {}, weaponsCustom: [], weaponsHidden: {} }); break;
-        case 'dashboard': s.dashboard = d.dashboard; break;
+        case 'dashboard': s.dashboard = d.dashboard; s.advisor = { ...d.advisor, backupAt: s.advisor.backupAt }; break;
         case 'goals': s.goals = []; for (const r of s.raids) r.goals = []; break;
         case 'planner': s.planner = emptyPlanner(); break;
         case 'loadouts': s.loadouts = []; for (const r of s.raids) r.loadout = ''; break;
@@ -1209,8 +1218,11 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     /* mapImages (0.14.0): snímky map jen na výslovnou volbu hráče */
     async exportBackup(fileName: string, mapImages: BackupImage[] = []): Promise<boolean> {
       try {
-        const ok = await storage.exportBackup(fileName, makeBackup(st(), new Date(now()), mapImages));
-        if (ok) notify(t('notice.backupSaved'));
+        /* 0.17.0: čas zálohy je už v ní (obnova z ní pak ví, kdy vznikla) a po úspěchu se zapíše do stavu */
+        const at = now();
+        const file = { ...st(), advisor: { ...st().advisor, backupAt: at } };
+        const ok = await storage.exportBackup(fileName, makeBackup(file, new Date(at), mapImages));
+        if (ok) { change(s => { if (s.advisor.backupAt === at) return false; s.advisor.backupAt = at; }); notify(t('notice.backupSaved')); }
         return ok;
       } catch (e) { notify(t('notice.backupFailed', { err: errText(e) }), 'danger'); return false; }
     },
