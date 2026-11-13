@@ -41,6 +41,8 @@ export const RELAY_ACTIONS = [
   'finishGame', 'quizAnswer', 'saveRound', 'finishRound', 'discardRound', 'answerQuiz', 'setPaint',
   /* 0.17.0: rádce „Co dál?“ (id tipu podle TIP_ID_RE (nejvýš 121 znaků), klíč 200 znaků, odložení 1–30 dní; ořezává akce) */
   'advisorDismiss', 'advisorSnooze', 'advisorRestore', 'advisorRestoreAll',
+  /* 0.20.0: Zpět u automatického zápisu, upozornění viděna, vyřízení fronty „Ke kontrole“ (akce samy ověřují id a data) */
+  'autoUndo', 'autoSeen', 'reviewApply',
 ] as const satisfies readonly ActionName[];
 
 /* Akce jen pro hlavní okno a co vrátí v overlayi místo provedení:
@@ -48,13 +50,16 @@ export const RELAY_ACTIONS = [
    - zápis ze snímku obrazovky (jde přes hub se snímkem; v modulech je za výběrem souboru);
    - snímek mapy (obrázek v IndexedDB zapisuje jen hlavní okno) a mapEdit (bere funkci);
    - nastavení tohoto počítače z Nastavení (buddy a zkratka, okno, jazyk, automatické snímky);
-   - 0.19.0: zavření karty „Co je nového“ (ukazuje se jen v hlavním okně). */
+   - 0.19.0: zavření karty „Co je nového“ (ukazuje se jen v hlavním okně);
+   - 0.20.0: automatické snímání a hlavní vypínač napojení na hru (nastavení tohoto počítače), kroky průběhu raidu
+     a automatický zápis (jen hub v hlavním okně, ze snímku). */
 const none = () => undefined;
 const later = <T>(v: T) => () => Promise.resolve(v);
 export const BLOCKED_ACTIONS = {
   importFromScreens: later(null), importRaidLoot: later({ ok: false as const, reason: 'notReady' as const }), importProgress: later(null),
   mapEdit: none, setMapImage: none,
-  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
+  setAutoSnapshot: none, setLang: none, whatsNewSeen: none,
+  setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),
 } satisfies Partial<Record<ActionName, () => unknown>>;

@@ -29,6 +29,9 @@ import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
 import { markSeen } from '../core/whatsnew';
+import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
+import { buildDraft, lifeStep, type LifeEvent, type LifeStep, type ResultCapture } from '../core/raidLife';
+import { raidWithSig } from '../core/lootImport';
 import { applyGameResult, applyQuizAnswer, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
 import { answerQuiz, discardRound, finishRound, mergeRounds, saveRound, type GameId } from '../core/gameRounds';
 import type { GameRounds, SavedQuiz } from '../core/types';
@@ -290,6 +293,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     n.advisor.backupAt = Math.max(n.advisor.backupAt, st().advisor.backupAt);
     /* 0.19.0: poslední viděná verze („Co je nového“) patří tomuto počítači; záloha ji nemění */
     n.whatsNew = structuredClone(st().whatsNew);
+    /* 0.20.0: automatické snímání, hlavní vypínač a průběh raidu patří tomuto počítači; záloha ani obnova je nemění
+       (import tak snímání nikdy nezapne). Fronta „Ke kontrole“ a automatické zápisy zůstanou jen u existujících raidů. */
+    n.autoCapture = structuredClone(st().autoCapture);
+    n.gameLink = structuredClone(st().gameLink);
+    n.raidLife = structuredClone(st().raidLife);
+    const raidIds = new Set(n.raids.map(r => r.id));
+    n.review = st().review.filter(x => x.raidId === null || raidIds.has(x.raidId));
+    n.autoLog = st().autoLog.filter(w => w.undone || raidIds.has(w.raidId));
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
@@ -1051,10 +1062,145 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         if (patch.hotkey !== undefined) b.hotkey = patch.hotkey === '' || validHotkey(patch.hotkey) ? patch.hotkey : b.hotkey;
         if (patch.scale !== undefined) b.scale = patch.scale === 2 ? 2 : 1;
         if (patch.opacity !== undefined) b.opacity = clampInt(patch.opacity, OPACITY_MIN, OPACITY_MAX);
-        if (patch.autoOpen !== undefined) b.autoOpen = patch.autoOpen === true;
+        /* 0.20.0: při hlavním vypínači napojení na hru se automatické zobrazení ani zkratka nezapnou */
+        if (patch.autoOpen !== undefined) b.autoOpen = patch.autoOpen === true && !s.gameLink.off;
+        if (patch.hotkey && s.gameLink.off) b.hotkey = '';
         if (JSON.stringify(b) === before) return false;
       });
     },
+    /* ----- 0.20.0: automatické snímání obrazovek mimo raid (žlutá zóna, výchozí vypnuto) ----- */
+    /* Zapnutí jen s potvrzeným vysvětlením (ack) a bez hlavního vypínače. Vypnutí zahodí rozpracovaný raid. */
+    setAutoCapture(patch: Partial<Pick<AutoCaptureState, 'enabled' | 'paused'>> & { screens?: Partial<Record<AutoScreenPref, boolean>>; ack?: boolean }): boolean {
+      return change(s => {
+        const a = s.autoCapture, before = JSON.stringify(a);
+        if (patch.ack === true && !a.ackAt) a.ackAt = now();
+        if (patch.enabled !== undefined) {
+          const on = patch.enabled === true;
+          if (on && (!a.ackAt || s.gameLink.off)) return false;
+          if (!on && a.enabled) s.raidLife = lifeStep(s.raidLife, { type: 'disable', at: now() }).life;
+          a.enabled = on;
+        }
+        if (patch.paused !== undefined) a.paused = patch.paused === true;
+        if (patch.screens) for (const k of AUTO_SCREENS) if (typeof patch.screens[k] === 'boolean') a.screens[k] = patch.screens[k]!;
+        if (JSON.stringify(a) === before) return false;
+      });
+    },
+    /* „Vypnout všechna napojení na hru“: automatický buddy, zkratka snímku i automatické snímání najednou.
+       Předchozí nastavení se uloží a off = false ho vrátí. */
+    setGameLinkOff(off: boolean): boolean {
+      return change(s => {
+        const g = s.gameLink, b = s.buddy, a = s.autoCapture;
+        if (off) {
+          if (g.off) return false;
+          s.gameLink = { off: true, saved: { autoOpen: b.autoOpen, hotkey: b.hotkey, auto: a.enabled } };
+          b.autoOpen = false; b.hotkey = '';
+          if (a.enabled) s.raidLife = lifeStep(s.raidLife, { type: 'disable', at: now() }).life;
+          a.enabled = false;
+        } else {
+          if (!g.off) return false;
+          const sv = g.saved;
+          s.gameLink = { off: false, saved: null };
+          if (sv) { b.autoOpen = sv.autoOpen; b.hotkey = sv.hotkey === '' || validHotkey(sv.hotkey) ? sv.hotkey : ''; a.enabled = sv.auto && a.ackAt > 0; }
+        }
+      });
+    },
+    /* Krok průběhu raidu (volá jen hub v hlavním okně). Vrací loadout ke spárování u výsledku. */
+    lifeEvent(ev: LifeEvent): LifeStep['pair'] | null {
+      let pair: LifeStep['pair'] | null = null;
+      change(s => {
+        const r = lifeStep(s.raidLife, ev);
+        pair = r.pair ?? null;
+        if (JSON.stringify(r.life) === JSON.stringify(s.raidLife)) return false;
+        s.raidLife = r.life;
+      });
+      return pair;
+    },
+    /* Automatický zápis raidu z výsledku: snímek stavu, záznam s jistými údaji, nejisté do fronty, záznam pro Zpět.
+       Stejný snímek výsledku (podpis) se nezapíše dvakrát. Když se snímek stavu nepodaří, nic se nezapíše. */
+    async autoRaid(cap: ResultCapture, pair: LifeStep['pair'] | null): Promise<{ raidId: string; writeId: string } | null> {
+      if (!get().ready) return null;
+      if (cap.sig && raidWithSig(st(), cap.sig)) return null;
+      await doSave();
+      if (!(await snapshot('import', 'pred automatickym zapisem'))) return null;
+      const raidId = uid(), writeId = uid();
+      let ok = false;
+      change(s => {
+        if (cap.sig && raidWithSig(s, cap.sig)) return false;
+        const d = buildDraft(s, cap, { loadout: pair?.loadout ?? null });
+        const r = normalizeRaid({ ...d.raid, id: raidId, lootApplied: [] });
+        delete r.plan;
+        if (cap.sig) r.lootScan = { sig: cap.sig, at: cap.at, items: r.loot.map(x => ({ ...x })) };
+        s.raids.push(r);
+        s.profile.rounds = Math.min(LIMITS.rounds[1], s.profile.rounds + 1);
+        attachPlan(s, r);
+        for (const x of d.review) s.review.push({ ...x, id: uid(), raidId, at: cap.at });
+        s.review = s.review.slice(-REVIEW_MAX);
+        const w: AutoWrite = { id: writeId, at: cap.at, raidId, survived: r.ok, items: d.items, review: d.review.length, undone: false, seen: false };
+        s.autoLog = [...s.autoLog, w].slice(-AUTO_LOG_MAX);
+        ok = true;
+      });
+      await doSave();
+      return ok ? { raidId, writeId } : null;
+    },
+    /* Zpět: smaže automaticky zapsaný záznam (i převedený loot vrátí z Inventory), kolo ubere a frontu k němu zahodí. */
+    autoUndo(writeId: string): boolean {
+      return change(s => {
+        const w = s.autoLog.find(x => x.id === writeId);
+        if (!w || w.undone) return false;
+        const r = s.raids.find(x => x.id === w.raidId);
+        if (r) {
+          if (r.lootApplied.length) s.inventory = applyDelta(s.inventory, lootDelta([], r.lootApplied));
+          s.raids = s.raids.filter(x => x.id !== r.id);
+          for (const g of s.goals) if (g.doneRaid === r.id) { g.doneRaid = ''; g.doneAt = 0; }
+          s.profile.rounds = Math.max(0, s.profile.rounds - 1);
+        }
+        s.review = s.review.filter(x => x.raidId !== w.raidId);
+        w.undone = true; w.seen = true;
+      });
+    },
+    /* Upozornění na automatické zápisy viděna (hráč otevřel okno Ops a zavřel je). Bez ids všechna. */
+    autoSeen(ids?: string[]): boolean {
+      return change(s => {
+        let n = 0;
+        for (const w of s.autoLog) if (!w.seen && (!Array.isArray(ids) || ids.includes(w.id))) { w.seen = true; n++; }
+        if (!n) return false;
+      });
+    },
+    /* Snímek obrazovky mimo raid (STASH, postup) čeká na revizi v Ops; stejná obrazovka se nahradí novější. */
+    reviewAddScreen(screen: RustScreen): boolean {
+      return change(s => {
+        s.review = [...s.review.filter(x => !(x.kind === 'screen' && x.screen === screen)), { id: uid(), at: now(), kind: 'screen' as const, raidId: null, screen }].slice(-REVIEW_MAX);
+      });
+    },
+    /* Vyřízení fronty „Ke kontrole“ najednou: mapa, výsledek, loot (přidá se do lootu záznamu) nebo zahodit. */
+    reviewApply(editsIn: unknown[]): number {
+      let done = 0;
+      change(s => {
+        for (const raw of Array.isArray(editsIn) ? editsIn.slice(0, REVIEW_MAX) : []) {
+          const e = normalizeReviewEdit(raw);
+          const item = e && s.review.find(x => x.id === e.id);
+          if (!e || !item) continue;
+          const r = item.raidId ? s.raids.find(x => x.id === item.raidId) : undefined;
+          const unsure = (u: 'map' | 'loadout' | 'loot') => { if (r?.auto) r.auto.unsure = r.auto.unsure.filter(x => x !== u); };
+          if (e.kind === 'map') {
+            if (!r || !MAPS.some(m => m.id === e.map)) continue;
+            r.map = e.map; unsure('map');
+          } else if (e.kind === 'outcome') {
+            if (!r) continue;
+            r.ok = e.survived; if (!r.ok) r.coins = 0;
+            if (r.auto) r.auto.survived = e.survived;
+          } else if (e.kind === 'loot') {
+            if (!r) continue;
+            r.loot = normalizeItems([...r.loot, ...e.rows]); unsure('loot');
+          } else if (item.kind === 'loadout') unsure('loadout');
+          s.review = s.review.filter(x => x.id !== item.id);
+          done++;
+        }
+        if (!done) return false;
+      });
+      return done;
+    },
+
     /* 0.9.0: hlavní okno (režim, připnutí, geometrie, křížek, obsah kompaktu); pravidla v core/mainWindow.ts */
     setMainWindow(next: MainWindowPrefs) {
       change(s => {

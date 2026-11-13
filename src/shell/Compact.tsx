@@ -24,6 +24,9 @@ import { visibleTips, type AdvisorTip } from '../core/advisor';
 import { mainSound } from '../ops/mainHub';
 import { Tutorial, useTourShown } from './Tutorial';
 import { expandTo, winNative, windowCtl } from './windowCtl';
+import { actions } from '../store';
+import { autoIndicator } from '../core/autoCapture';
+import { AutoWrites } from '../ui/AutoReview';
 
 const STATION_MINS: Record<string, number> = Object.fromEntries(STATIONS.map(s => [s.id, s.min]));
 /* posun středu a fokus se zachovají při přepnutí do plné aplikace a zpět (jen pro tuto relaci) */
@@ -179,7 +182,9 @@ export default function Compact() {
   };
 
   /* Snímek: stávající cesta buddyho (revize v overlayi a potvrzení zápisu); bez buddyho nebo zkratky jen nápověda */
-  const capReason: Key | null = !winNative.available ? 'compact.capture.web' : !s.buddy.enabled ? 'compact.capture.off' : !s.buddy.hotkey ? 'compact.capture.noKey' : null;
+  const capReason: Key | null = !winNative.available ? 'compact.capture.web' : !s.buddy.enabled || s.gameLink.off ? 'compact.capture.off' : !s.buddy.hotkey ? 'compact.capture.noKey' : null;
+  /* 0.20.0: ukazatel automatického snímání a místní pozastavení (žádná globální zkratka navíc) */
+  const auto = autoIndicator(s);
   const capture = () => {
     if (capReason) { showHint(t(capReason)); return; }
     void hub.captureFromApp().then(ok => { if (!ok) showHint(t('compact.capture.off')); });
@@ -219,6 +224,9 @@ export default function Compact() {
         <div className="cw-row cw-spread">
           <div className="cw-level" aria-label={fresh ? t('compact.levelNone') : t('compact.levelAria', { n: p.level })}><small aria-hidden="true">{t('compact.lv')}</small><span aria-hidden="true">{fresh ? DASH : p.level}</span></div>
           <div className={cx('cw-ops', 'ops-' + ops)} data-testid="compact-ops"><span className="cw-dot" aria-hidden="true" />{t(`compact.ops.${ops}` as Key)}</div>
+          {auto && <button type="button" className={cx('cw-auto', 'auto-' + auto)} data-testid="compact-auto" aria-pressed={auto === 'on'}
+            title={t(auto === 'on' ? 'auto.chip.pause' : 'auto.chip.resume')} aria-label={t(auto === 'on' ? 'auto.chip.pause' : 'auto.chip.resume')}
+            onClick={() => actions.setAutoCapture({ paused: auto === 'on' })}><span className="cw-dot" aria-hidden="true" />{t(auto === 'on' ? 'auto.chip.on' : 'auto.chip.paused')}</button>}
           <div className="cw-coins mono" aria-label={fresh ? t('compact.coinsNone') : t('compact.coinsAria', { n: p.coins })}><Coin /><span aria-hidden="true">{fresh ? DASH : fmt(p.coins)}</span></div>
         </div>
         <div className="cw-xp">
@@ -230,6 +238,7 @@ export default function Compact() {
 
       {tour ? <Tutorial compact /> : !short && <OpsRow hint={speakTip && top ? top.line : withMinigameHint(upgradeHint(up, fresh), focused && s.opsPrefs.dialogs)} />}
       {!tour && !short && top && <TipChip tip={top} />}
+      {!tour && <AutoWrites compact onOpenReview={() => void expandTo('journal')} />}
 
       <div className="cw-content" ref={content}>
         {fresh ? (

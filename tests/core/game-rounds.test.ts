@@ -170,7 +170,7 @@ describe('odměny se nezapočítají dvakrát', () => {
     /* herní data se nemění */
     expect(again.state().inventory).toEqual({ 'Metal Parts': 5 });
     expect(again.state().profile.level).toBe(20);
-    expect(state().schema).toBe(16);
+    expect(state().schema).toBe(17);
   });
 });
 
@@ -191,11 +191,11 @@ describe('nové kolo, reset a záloha', () => {
     expect(await app.actions.resetModule('games')).toBe(true);
     expect(state().gameRounds).toEqual(emptyRounds());
   });
-  it('migrace: stav a záloha schématu 11 se načtou beze ztrát s prázdnými koly; záloha 12 nese kola; 17 je novější', () => {
-    expect(SCHEMA).toBe(16);
+  it('migrace: stav a záloha schématu 11 se načtou beze ztrát s prázdnými koly; záloha 12 nese kola; 18 je novější', () => {
+    expect(SCHEMA).toBe(17);
     const games11 = { tetris: { played: 4, best: 31000, bestPct: 96 }, quiz: { played: 3, best: 9, streak: 5, bestStreak: 12 }, hack: { played: 2, bestPct: 90, perfect: 1 }, paints: ['olive', 'uplink'], paint: 'uplink' };
     const s = normalize({ schema: 11, profile: { level: 33 }, inventory: { Fabric: 9 }, games: games11 }, NOW);
-    expect(s.schema).toBe(16);
+    expect(s.schema).toBe(17);
     expect(s.gameRounds).toEqual(emptyRounds());
     expect(s.games).toEqual(games11);
     const p11 = parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 11, exportedAt: 'x', state: { schema: 11, games: games11, inventory: { Fabric: 9 } } }), NOW);
@@ -206,11 +206,11 @@ describe('nové kolo, reset a záloha', () => {
     const st = defaultState(NOW);
     st.gameRounds = { tetris: tetris(), quiz: quiz({ picked: 'c', correct: 3 }), hack: hack() };
     const file = JSON.parse(makeBackup(st));
-    expect(file.schema).toBe(16);
+    expect(file.schema).toBe(17);
     const back = parseBackup(JSON.stringify(file), NOW);
     if ('error' in back) throw new Error(back.error);
     expect(back.state.gameRounds).toEqual(st.gameRounds);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 17, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 18, state: {} }), NOW)).toHaveProperty('error');
   });
   it('import zálohy: rozehrané kolo tohoto počítače má přednost, záloha doplní jen hry bez kola', async () => {
     const cur = { tetris: tetris({ status: 'done' }), quiz: null, hack: null };

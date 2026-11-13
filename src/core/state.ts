@@ -24,6 +24,8 @@ import { normalizePlanRecord, normalizeRaidPlan } from './raidPrep';
 import { isLootArea, isPoiType } from './lootAreas';
 import { emptyAdvisor, normalizeAdvisor } from './advisor';
 import { emptyWhatsNew, normalizeWhatsNew } from './whatsnew';
+import { emptyAutoCapture, emptyGameLink, normalizeAutoCapture, normalizeAutoLog, normalizeGameLink, normalizeReview } from './autoCapture';
+import { emptyRaidLife, normalizeRaidAuto, normalizeRaidLife } from './raidLife';
 import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -32,7 +34,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 16 as const;
+export const SCHEMA = 17 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -95,6 +97,11 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     raidPlan: null,
     advisor: emptyAdvisor(),
     whatsNew: emptyWhatsNew(),
+    autoCapture: emptyAutoCapture(),
+    gameLink: emptyGameLink(),
+    raidLife: emptyRaidLife(),
+    review: [],
+    autoLog: [],
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -136,6 +143,8 @@ export function normalizeRaid(x: Record<string, unknown>): Raid {
     ...normalizeLootScan(x.lootScan),
     /* schéma 14 (0.15.0): plán raidu v záznamu; ve starších záznamech chybí a záznam zůstává platný */
     ...normalizePlanRecord(x.plan),
+    /* schéma 17 (0.20.0): údaje automatického zápisu; ve starších záznamech chybí */
+    ...normalizeRaidAuto(x.auto),
   };
 }
 
@@ -469,6 +478,15 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.advisor = normalizeAdvisor(r.advisor);
   /* schéma 16 (0.19.0): poslední viděná verze („Co je nového“); ve starším stavu chybí a odhadne se podle schématu */
   out.whatsNew = normalizeWhatsNew(r.whatsNew, r.schema);
+  /* schéma 17 (0.20.0): automatické snímání (výchozí vypnuto), hlavní vypínač, průběh raidu, fronta „Ke kontrole“
+     a automatické zápisy; ve starším stavu chybí a začnou vypnuté a prázdné. Položky fronty a zápisy jen k
+     existujícím záznamům raidů. */
+  out.autoCapture = normalizeAutoCapture(r.autoCapture);
+  out.gameLink = normalizeGameLink(r.gameLink);
+  out.raidLife = normalizeRaidLife(r.raidLife);
+  const raidIds = new Set(out.raids.map(x => x.id));
+  out.review = normalizeReview(r.review).filter(x => x.raidId === null || raidIds.has(x.raidId));
+  out.autoLog = normalizeAutoLog(r.autoLog).filter(w => w.undone || raidIds.has(w.raidId));
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */

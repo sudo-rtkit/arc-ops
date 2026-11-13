@@ -1,6 +1,8 @@
 /* Typy herních dat a uživatelského stavu. Jádro nezná React ani úložiště. */
 import type { Lang } from '../i18n';
 import type { WhatsNewState } from './whatsnew';
+import type { AutoCaptureState, AutoWrite, GameLinkState, ReviewItem } from './autoCapture';
+import type { RaidAuto, RaidLife } from './raidLife';
 export type { Lang };
 
 export type BranchId = 'c' | 'm' | 's';
@@ -126,6 +128,8 @@ export interface Raid {
   /* 0.15.0 (schéma 14): plán raidu uložený se záznamem (cíle, mapa, loadout, nalezené z plánu, hodnota).
      Volitelné: starší záznamy plán nemají a zůstávají platné. */
   plan?: RaidPlanRecord;
+  /* 0.20.0 (schéma 17): záznam z automatického snímání (výsledek, hodnota loadoutu, nejisté údaje). Volitelné. */
+  auto?: RaidAuto;
 }
 /* Předmět plánu v záznamu raidu: kolik chybělo při spuštění plánu a kolik se z toho našlo (nejvýš need). */
 export interface RaidPlanItem { mat: string; need: number; found: number }
@@ -346,7 +350,7 @@ export interface AdvisorState {
 }
 
 export interface AppState {
-  schema: 16;
+  schema: 17;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -393,6 +397,13 @@ export interface AppState {
   advisor: AdvisorState;
   /* 0.19.0 (schéma 16): poslední verze aplikace, kterou tento počítač viděl („Co je nového“); patří tomuto počítači */
   whatsNew: WhatsNewState;
+  /* 0.20.0 (schéma 17): automatické snímání mimo raid, hlavní vypínač napojení na hru, průběh raidu, fronta
+     „Ke kontrole“ a automatické zápisy. Patří tomuto počítači: import zálohy je nemění a snímání nikdy nezapne. */
+  autoCapture: AutoCaptureState;
+  gameLink: GameLinkState;
+  raidLife: RaidLife;
+  review: ReviewItem[];
+  autoLog: AutoWrite[];
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

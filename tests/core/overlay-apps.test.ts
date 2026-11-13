@@ -20,7 +20,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 function fakeNative(): Native {
   const ok = async () => undefined;
-  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, place: ok, drag: ok, captureTake: async () => new ArrayBuffer(0) };
+  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, place: ok, drag: ok, autoCapture: ok, autoStats: async () => null, captureTake: async () => new ArrayBuffer(0) };
 }
 async function mainApp(stored: unknown = { schema: 14, buddy: { enabled: true } }) {
   const kv = memoryKV();

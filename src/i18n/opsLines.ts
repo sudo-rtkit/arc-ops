@@ -458,6 +458,11 @@ const cs = {
     friendly: ["Cíl {title:raw} je po termínu. Nevadí, buď ho dodělej, nebo posuň termín.", "Co dál? {title:raw} je po termínu. Podíváme se na to?"],
     cheeky: ["{title:raw} je po termínu. Já nic neviděl. Skoro nic.", "Termín cíle {title:raw} uplynul. Kalendář je smutný."],
   },
+  'advisor.review': {
+    plain: [{ one: "Ke kontrole čeká {count} údaj z automatického zápisu.", few: "Ke kontrole čekají {count} údaje z automatického zápisu.", other: "Ke kontrole čeká {count} údajů z automatického zápisu." }, "Potvrď nejisté údaje v Deníku raidů."],
+    friendly: [{ one: "Co dál? {count} údaj ke kontrole. Jen potvrdit a hotovo.", few: "Co dál? {count} údaje ke kontrole. Jen potvrdit a hotovo.", other: "Co dál? {count} údajů ke kontrole. Jen potvrdit a hotovo." }, "Pár věcí jsem si nebyl jistý. Mrkneš na ně v Deníku?"],
+    cheeky: [{ one: "{count} údaj ke kontrole. Já hádat nebudu.", few: "{count} údaje ke kontrole. Já hádat nebudu.", other: "{count} údajů ke kontrole. Já hádat nebudu." }, "Tohle jsem si nebyl jistý. Radši se zeptám, než něco vymyslím."],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -900,6 +905,11 @@ const en: Record<LineKey, LineVariants> = {
     plain: ["The goal {title:raw} is past due.", "The due date of {title:raw} has passed."],
     friendly: ["The goal {title:raw} is past due. No problem: finish it or move the date.", "What next? {title:raw} is past due. Shall we take a look?"],
     cheeky: ["{title:raw} is past due. I saw nothing. Almost nothing.", "The due date of {title:raw} has passed. The calendar is sad."],
+  },
+  'advisor.review': {
+    plain: [{ one: "{count} field from an automatic entry waits for review.", other: "{count} fields from an automatic entry wait for review." }, "Confirm the uncertain fields in the Raid Journal."],
+    friendly: [{ one: "What next? {count} field to review. Just confirm it and done.", other: "What next? {count} fields to review. Just confirm them and done." }, "I was not sure about a few things. Take a look in the Journal?"],
+    cheeky: [{ one: "{count} field to review. I am not going to guess.", other: "{count} fields to review. I am not going to guess." }, "I was not sure about this. Better to ask than to make something up."],
   },
 };
 

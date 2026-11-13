@@ -22,6 +22,7 @@ import { PaintSwatch, paintName, ruleText } from '../ui/paints';
 function HotkeyField() {
   const t = useT();
   const hotkey = useAppState().buddy.hotkey;
+  const gameOff = useAppState().gameLink.off;
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<Key | null>(null);
   useEffect(() => {
@@ -43,7 +44,7 @@ function HotkeyField() {
       <span className="field-label" id="ops-hotkey-label">{t('ops.hotkey')}</span>
       <div className="row">
         <kbd className="kbd mono" aria-labelledby="ops-hotkey-label" data-testid="ops-hotkey">{recording ? t('ops.hotkeyRecord') : hotkey ? hotkeyLabel(hotkey) : t('ops.hotkeyNone')}</kbd>
-        <Btn size="sm" icon={Keyboard} onClick={() => { setError(null); setRecording(true); }} disabled={recording}>{t('ops.hotkeySet')}</Btn>
+        <Btn size="sm" icon={Keyboard} onClick={() => { setError(null); setRecording(true); }} disabled={recording || gameOff}>{t('ops.hotkeySet')}</Btn>
         {hotkey && <Btn size="sm" variant="ghost" icon={X} onClick={() => void hub.setHotkey('').then(() => setError(null))}>{t('ops.hotkeyClear')}</Btn>}
       </div>
       {error ? <p className="danger-text" role="alert">{t(error)}</p> : <p className="meta">{t('ops.hotkeyHint')}</p>}
@@ -55,6 +56,8 @@ function HotkeyField() {
 export function OpsPanel() {
   const t = useT();
   const b = useAppState().buddy;
+  /* 0.20.0: hlavní vypínač napojení na hru (Nastavení → Napojení na hru) */
+  const gameOff = useAppState().gameLink.off;
   const kind = useApp(x => x.storageKind);
   const [opacity, setOpacity] = useState(b.opacity);
   useEffect(() => setOpacity(b.opacity), [b.opacity]);
@@ -78,7 +81,7 @@ export function OpsPanel() {
             <input id="ops-opacity" type="range" min={OPACITY_MIN} max={OPACITY_MAX} step={1} value={opacity}
               onChange={e => setOpacity(Number(e.target.value))} onPointerUp={() => actions.setBuddy({ opacity })} onKeyUp={() => actions.setBuddy({ opacity })} onBlur={() => actions.setBuddy({ opacity })} />
           </div>
-          <label className="toggle"><input type="checkbox" checked={b.autoOpen} onChange={e => actions.setBuddy({ autoOpen: e.target.checked })} />{t('ops.autoOpen')}</label>
+          <label className="toggle"><input type="checkbox" data-testid="ops-autoopen" checked={b.autoOpen} disabled={gameOff} onChange={e => actions.setBuddy({ autoOpen: e.target.checked })} />{t('ops.autoOpen')}</label>
           <p className="meta">{t('ops.autoOpenHint')}</p>
         </div>
       )}

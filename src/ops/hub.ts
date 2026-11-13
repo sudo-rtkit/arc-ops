@@ -32,6 +32,9 @@ import { getLang, t, type Key, type Lang } from '../i18n';
 import type { Bus } from './bus';
 import type { Native } from './native';
 import { applyRelay, type RelayAck } from '../store/relay';
+import { readAutoCapture } from '../core/opsCapture';
+import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator, type RustScreen } from '../core/autoCapture';
+import { loadoutSnap } from '../core/raidLife';
 
 export interface Shot { id: number; at: number; read: ScreenRead }
 /* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
@@ -59,6 +62,8 @@ export interface BuddyView {
   positions: Record<string, { x: number; y: number }>; monitor: string; hotkey: string;
   /* 0.10.0: povaha, zvuky a dialogy; hra běží (null = nevíme, hlídání je vypnuté) */
   personality: OpsPersonality; sound: boolean; volume: number; dialogs: boolean; game: boolean | null;
+  /* 0.20.0: ukazatel automatického snímání (běží / pozastaveno / vypnuto) */
+  auto: AutoIndicator;
 }
 /* relay (0.16.0): poslední zpracovaná akce plného modulu z overlaye (store/relay.ts) */
 export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string; relay: RelayAck | null }
@@ -89,6 +94,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let batch: BatchView = emptyBatch();
   let nextShot = 1;
   let applied: { enabled: boolean; autoOpen: boolean } = { enabled: false, autoOpen: false };
+  /* 0.20.0: co je v Rustu nastavené pro automatické snímání (on:maska), hlídání a zkratka */
+  let appliedAuto = 'off';
+  let appliedWatch = false;
+  let appliedHotkey = '';
   let prevLevel: number | null = null;
   let lastBuddy = '';
   let overlayKnown = false;
@@ -120,6 +129,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     positions: s.buddy.positions, monitor: s.buddy.monitor, hotkey: s.buddy.hotkey,
     personality: s.opsPrefs.personality, sound: s.opsPrefs.sound, volume: s.opsPrefs.volume, dialogs: s.opsPrefs.dialogs,
     game: gameKnown ? gameRunning : null,
+    auto: autoIndicator(s),
   });
   const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey, relay: relayAck });
   const pushBuddy = (force = false) => {
@@ -137,12 +147,13 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   };
   const ui = (): UiActivity => ({ overlayOpen, appFocused: appFocused() });
   /* Stav jde buddymu, overlayi (když existuje) a místním posluchačům hlavního okna (kompakt, průvodce). */
-  const status = (anim: OpsAnim, l: LineRef | null = null, solicited = true) => {
+  const say = (anim: OpsAnim, l: LineRef | null = null, solicited = true) => {
     const s: BuddyStatus = { anim, line: l, sound: SOUND_OF[anim] ?? (l ? 'beep' : null), solicited, ui: ui() };
     bus.send('buddy', 'status', s);
     if (overlayKnown) bus.send('overlay', 'status', s);
     statusListeners.forEach(f => f(s));
   };
+  const status = say;
   /* Text hlášky pro hlášení v hlavním okně (podle povahy a jazyka). */
   const text = (l: LineRef) => sayLine(l, st().opsPrefs.personality, getLang());
   /* Okno buddyho zavřít až po odchodu (dismiss); bez zpoždění v testech. */
@@ -166,18 +177,35 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   };
 
   /* ----- přepínač a okna ----- */
+  /* 0.20.0: automatické snímání a hlídání hry. Hlídací smyčka v Rustu běží, když je zapnuté automatické zobrazení
+     buddyho NEBO automatické snímání (jedna smyčka pro obojí). */
+  const autoKey = (s: AppState) => { const on = autoActive(s); return on ? 'on:' + screenBits(s.autoCapture.screens) : 'off'; };
+  function syncAuto(s: AppState) {
+    const key = autoKey(s), watch = s.buddy.autoOpen || autoActive(s), bits = screenBits(s.autoCapture.screens);
+    if (key !== appliedAuto) {
+      appliedAuto = key;
+      const on = key !== 'off';
+      run(() => native.autoCapture(on, on ? bits : 0));
+    }
+    if (watch !== appliedWatch) { appliedWatch = watch; run(() => native.watch(watch)); }
+  }
   function syncNative(s: AppState) {
     const b = s.buddy;
     if (b.enabled !== applied.enabled) {
       applied = { enabled: b.enabled, autoOpen: b.autoOpen };
+      appliedHotkey = b.hotkey;
       if (b.enabled) {
         const hotkey = b.hotkey, auto = b.autoOpen;
+        /* Rust po zapnutí nesnímá ani nehlídá; posílá se jen zapnuté */
+        appliedAuto = 'off'; appliedWatch = false;
         run(async () => {
           await native.enable(true);
           if (hotkey) await native.setHotkey(hotkey).catch(() => app.notify(t('ops.hotkey.lost'), 'warning'));
-          if (auto) await native.watch(true); else if (!buddyHidden) await openBuddy();
+          if (!auto && !buddyHidden) await openBuddy();
         });
+        syncAuto(s);
       } else {
+        appliedAuto = 'off'; appliedWatch = false;
         batch = emptyBatch();
         overlayKnown = false;
         setHidden(false);
@@ -188,11 +216,18 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     if (b.enabled && b.autoOpen !== applied.autoOpen) {
       applied.autoOpen = b.autoOpen;
       const auto = b.autoOpen;
+      syncAuto(s);
       run(async () => {
-        await native.watch(auto);
         if (!auto) { if (!buddyHidden) await openBuddy(); }
         else if (!gameVisible) await closeBuddy();
       });
+    }
+    if (b.enabled) syncAuto(s);
+    /* zkratku změnil stav (hlavní vypínač napojení na hru a jeho obnovení), ne Nastavení přes setHotkey */
+    if (b.enabled && b.hotkey !== appliedHotkey) {
+      const next = b.hotkey;
+      appliedHotkey = next;
+      run(() => native.setHotkey(next).catch(() => { if (next) app.notify(t('ops.hotkey.lost'), 'warning'); }));
     }
   }
 
@@ -211,7 +246,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   /* Stejná cesta jako zkratka (Rust snímá monitor okna v popředí; kompaktní okno je ze snímku vynechané).
      Vrací false, když buddy není zapnutý nebo snímání není k dispozici. */
   async function captureFromApp(): Promise<boolean> {
-    if (!st().buddy.enabled || !native.available) return false;
+    /* 0.20.0: hlavní vypínač napojení na hru vypne i snímek z tlačítka */
+    if (!st().buddy.enabled || st().gameLink.off || !native.available) return false;
     appCaptureAt = now();
     try { await run(() => native.captureNow()); return true; }
     catch { appCaptureAt = 0; return false; }
@@ -227,9 +263,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   /* ----- zkratka (volá ji Nastavení): uloží se jen ta, kterou systém přijal ----- */
   async function setHotkey(accel: string): Promise<string | null> {
+    if (accel && st().gameLink.off) return 'hotkey:off';
     try {
       await run(async () => undefined);
       await native.setHotkey(accel);
+      appliedHotkey = accel;
       app.actions.setBuddy({ hotkey: accel });
       return null;
     } catch (e) {
@@ -247,8 +285,12 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const matchCtx = (s: AppState) => matchContext(getMaterials(s).map(m => m.name), [...new Set(Object.values(s.items).map(x => x.name))]);
 
   /* Přečte snímek a zahodí obrazová data. Nic nezapisuje do stavu ani do úložiště. */
-  function handleCapture(img: RgbaImage): 'empty' | 'read' | 'loot' | 'progress' {
-    const r = readCapture(img);
+  /* silent (0.20.0, automatický snímek): bez animace, hlášky a zvuku Opse (hra je v popředí) */
+  function handleCapture(img: RgbaImage, silent = false): 'empty' | 'read' | 'loot' | 'progress' {
+    return ingest(readCapture(img), silent);
+  }
+  function ingest(r: ReturnType<typeof readCapture>, silent: boolean): 'empty' | 'read' | 'loot' | 'progress' {
+    const status = silent ? () => undefined : say;
     if (r.kind === 'progress') {
       batch = { ...batch, progress: { id: nextShot++, at: now(), read: r.progress }, last: 'progress', emptyAt: 0, rejected: '', failed: '' };
       const p = proposeProgress(r.progress, st(), getLang());
@@ -283,6 +325,44 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     else status('talk', line('scan.read', { count: a.groups.length, pages: shots.length }));
     pushOverlay(true);
     return 'read';
+  }
+
+  /* ----- 0.20.0: automatický snímek obrazovky mimo raid ----- */
+  /* Bez animace, hlášky a zvuku (hra je v popředí). Loadout a výsledek raidu jdou do průběhu raidu a automatického
+     zápisu; ostatní obrazovky do stejné dávky jako snímek ze zkratky a do fronty „Ke kontrole“. Obrazová data se po
+     přečtení zahodí, nic se neukládá. */
+  type AutoOutcome = 'off' | 'empty' | 'loadout' | 'result' | 'dup' | 'screen';
+  async function handleAutoCapture(img: RgbaImage, screen: RustScreen): Promise<AutoOutcome> {
+    const s = st();
+    if (!autoActive(s)) return 'off';
+    const r = readAutoCapture(img, screen);
+    const at = now();
+    if (r.kind === 'empty') return 'empty';
+    if (r.kind === 'loadout') {
+      app.actions.lifeEvent({ type: 'loadout', at, loadout: loadoutSnap(r.loadout, s.vision.learned, matchCtx(s), at) });
+      return 'loadout';
+    }
+    if (r.kind === 'result') {
+      const loot = r.read ? analyzeLoot(r.read, s.vision.learned, matchCtx(s)) : null;
+      const sig = r.read ? lootSignature(r.read) : null;
+      if (sig && raidWithSig(s, sig)) return 'dup';
+      const pair = app.actions.lifeEvent({ type: 'result', at });
+      const done = await app.actions.autoRaid({ at, outcome: r.outcome, loot, sig }, pair);
+      pushOverlay(true);
+      return done ? 'result' : 'dup';
+    }
+    const res = ingest(r.result, true);
+    if (res === 'empty') return 'empty';
+    app.actions.reviewAddScreen(screen);
+    return 'screen';
+  }
+  async function takeAutoCapture(p: { id: number; width: number; height: number }, screen: RustScreen) {
+    let buf: ArrayBuffer | null = null;
+    try { buf = await native.captureTake(p.id); } catch { return; }
+    let data: Uint8Array | null = new Uint8Array(buf);
+    buf = null;
+    try { await handleAutoCapture({ width: p.width, height: p.height, data }, screen); }
+    finally { data = null; }
   }
 
   async function takeCapture(p: { id: number; width: number; height: number }) {
@@ -458,8 +538,15 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     /* overlay otevřený/zavřený */
     offs.push(bus.onNative('overlay', p => { overlayOpen = p === true; bus.send('buddy', 'ui', ui()); }));
     offs.push(bus.onNative('capture-ready', p => {
-      const c = p as { id: number; width: number; height: number } | null;
-      if (c && Number.isSafeInteger(c.id) && Number.isSafeInteger(c.width) && Number.isSafeInteger(c.height)) void takeCapture(c);
+      const c = p as { id: number; width: number; height: number; auto?: unknown } | null;
+      if (!c || !Number.isSafeInteger(c.id) || !Number.isSafeInteger(c.width) || !Number.isSafeInteger(c.height)) return;
+      /* 0.20.0: automatický snímek nese obrazovku podle nadpisu */
+      if (c.auto !== undefined) { if (isRustScreen(c.auto)) void takeAutoCapture(c, c.auto); return; }
+      void takeCapture(c);
+    }));
+    /* 0.20.0: obrazovka v pásu s nadpisy se změnila (null = žádná známá, např. v raidu) */
+    offs.push(bus.onNative('auto-screen', p => {
+      if ((p === null || isRustScreen(p)) && autoActive(st())) app.actions.lifeEvent({ type: 'screen', at: now(), screen: p });
     }));
     offs.push(bus.onNative('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));
     offs.push(bus.onNative('game', p => {
@@ -486,7 +573,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const onLevel = (f: (e: LevelEvent) => void) => { eventListeners.add(f); return () => { eventListeners.delete(f); }; };
 
   return {
-    start, stop, setHotkey, handleCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
+    start, stop, setHotkey, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
     captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, ui,
   };
 }

@@ -31,6 +31,8 @@ import { MAPS } from '../core/data/maps';
 import { LIMITS } from '../core/state';
 import { itemKey } from '../core/types';
 import { ProgressReview } from '../ui/ProgressReview';
+import { AutoWrites } from '../ui/AutoReview';
+import { openInApp } from '../shell/host';
 import { OvInventory, OvProfile, OvSkills, OvWorkshop } from './OverlayModules';
 import { OvRaid, OvRaidEval } from './OverlayRaid';
 import { raidList } from '../core/raidPrep';
@@ -688,6 +690,8 @@ export default function OverlayApp() {
         </button>
       </nav>
       <main className="ov-content" role={tab === 'apps' ? 'region' : 'tabpanel'} id="ov-panel" aria-labelledby={'ov-tab-' + tab}>
+        {/* 0.20.0: automatické zápisy raidů se ukážou, až hráč overlay sám otevře */}
+        <AutoWrites compact onOpenReview={() => openInApp('journal')} />
         {tab === 'overview' && <Overview batch={view.batch} go={setTab} />}
         {tab === 'profile' && <OvProfile bus={bus} />}
         {tab === 'inventory' && <OvInventory bus={bus} />}

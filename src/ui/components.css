@@ -563,3 +563,11 @@ td .item-link b, li .item-link b { font-weight: var(--weight-semibold); }
 .whatsnew-older summary { cursor: pointer; color: var(--text-secondary); }
 .whatsnew-older[open] summary { margin-bottom: var(--space-2); }
 .whatsnew-foot { margin-top: var(--space-3); justify-content: space-between; align-items: center; }
+
+/* 0.20.0: automatické zápisy raidů a fronta „Ke kontrole“ */
+.auto-writes { display: flex; flex-direction: column; gap: 6px; }
+.auto-writes .banner { margin: 0; }
+.review-item { border: 1px solid var(--border-subtle); border-radius: var(--radius, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.review-item.muted { opacity: .6; }
+.review-item .table input.input { width: 100%; min-width: 120px; }
+.review-item .table input.num { width: 80px; }

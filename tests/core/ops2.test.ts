@@ -223,8 +223,8 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   it('starší stav (schéma 7) se načte beze ztráty a dostane výchozí hodnoty', () => {
     const s7 = { schema: 7, profile: { level: 33, coins: 1200 }, inventory: { 'Metal Parts': 5 }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' }, unlocked: ['antenna-1', 'antenna-2'] }, mainWindow: { mode: 'compact' } };
     const s = normalize(s7, NOW);
-    expect(SCHEMA).toBe(16);
-    expect(s.schema).toBe(16);
+    expect(SCHEMA).toBe(17);
+    expect(s.schema).toBe(17);
     expect(s.profile).toMatchObject({ level: 33, coins: 1200 });
     expect(s.inventory).toEqual({ 'Metal Parts': 5 });
     expect(s.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' } });
@@ -260,7 +260,7 @@ describe('hub 0.10.0: odchod před zavřením a stav pro okna', () => {
     return {
       calls, available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new ArrayBuffer(0),
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
     };
   }
   it('skrytí buddyho: nejdřív dismiss, okno se zavře až po odchodu; povaha a zvuky jdou do view', async () => {

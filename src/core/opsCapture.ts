@@ -11,6 +11,9 @@ import { lumMap, type RgbaImage } from './vision/image';
 import { detectLayout } from './vision/layout';
 import { hasContinueButton } from './vision/screen';
 import { readProgress, type ProgressRead } from './vision/progress';
+import { readLoadout, type LoadoutRead } from './vision/loadout';
+import type { RustScreen } from './autoCapture';
+import type { RaidOutcome } from './raidLife';
 
 export type CaptureReject = 'noInventory' | 'otherScreen';
 export type CaptureScreen = 'stash' | 'loot';
@@ -47,4 +50,27 @@ export function readCapture(img: RgbaImage): CaptureResult {
   if (!read.panels.some(p => p.panel === 'backpack')) return { kind: 'empty', reason: 'noInventory' };
   /* hodnota loadoutu ani nic jiného z této obrazovky se za mince nepovažuje */
   return { kind: 'read', screen: 'loot', read: { ...read, coins: null, premium: null, stashValue: null, headerSlots: null, headerSlotsMax: null } };
+}
+
+/* 0.20.0: automatický snímek (src-tauri/src/ops.rs): Rust podle pásu s nadpisy pozná obrazovku a pošle ji s plným
+   snímkem. Loadout se čte čtečkou výbavy (core/vision/loadout.ts); výsledek raidu přímo jako BACKPACK a QUICK USE
+   (KNOCKED OUT loot nemá, výbava je ztracená); ostatní obrazovky stejnou cestou jako snímek ze zkratky. */
+export type AutoRead =
+  | { kind: 'loadout'; loadout: LoadoutRead }
+  | { kind: 'result'; outcome: RaidOutcome; read: ScreenRead | null }
+  | { kind: 'other'; result: CaptureResult }
+  | { kind: 'empty' };
+export function readAutoCapture(img: RgbaImage, screen: RustScreen): AutoRead {
+  if (!img.width || !img.height || img.data.length < img.width * img.height * 4) return { kind: 'empty' };
+  if (screen === 'loadout') {
+    const l = readLoadout(img);
+    return l ? { kind: 'loadout', loadout: l } : { kind: 'empty' };
+  }
+  if (screen === 'findings' || screen === 'knockedOut') {
+    if (screen === 'knockedOut') return { kind: 'result', outcome: 'knockedOut', read: null };
+    const read = readScreenshot(img, { panels: ['backpack', 'quickUse'] });
+    const ok = read.panels.some(p => p.panel === 'backpack');
+    return { kind: 'result', outcome: 'survived', read: ok ? { ...read, coins: null, premium: null, stashValue: null, headerSlots: null, headerSlotsMax: null } : null };
+  }
+  return { kind: 'other', result: readCapture(img) };
 }

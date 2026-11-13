@@ -22,7 +22,12 @@ export interface Native {
   place(r: { x: number; y: number; w: number; h: number }): Promise<void>;
   /* 0.16.1: tažení vlastního okna buddyho */
   drag(): Promise<void>;
+  /* 0.20.0: automatické snímání mimo raid (jen hlavní okno; screens = maska obrazovek pro Rust) a jeho měření */
+  autoCapture(on: boolean, screens: number): Promise<void>;
+  autoStats(): Promise<AutoStats | null>;
 }
+/* Měření automatického snímání z Rustu (doba kroku v µs na hodinách, velikost pásu v B). */
+export interface AutoStats { ticks: number; totalUs: number; maxUs: number; lastUs: number; stripBytes: number; captures: number; screen: string | null }
 
 const call = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core');
@@ -45,6 +50,8 @@ const tauriNative: Native = {
   captureTake: id => call<ArrayBuffer>('capture_take', { id }),
   place: r => call('win_place', { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) }),
   drag: () => call('win_drag'),
+  autoCapture: (on, screens) => call('ops_autocapture', { on, screens }),
+  autoStats: () => call<AutoStats>('ops_autostats'),
 };
 
 const none = async () => undefined;
@@ -53,6 +60,7 @@ export const browserNative: Native = {
   enable: none, setHotkey: none, watch: none, buddyOpen: none, buddyClose: none, buddyReveal: none,
   overlayOpen: none, overlayClose: none, overlayToggle: none, mainFocus: none, captureNow: none, place: none, drag: none,
   captureTake: async () => { throw new Error('capture:unsupported'); },
+  autoCapture: none, autoStats: async () => null,
 };
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);

@@ -11,6 +11,8 @@ import { lootDelta, lootState } from '../core/raidItems';
 import type { Raid, RaidType } from '../core/types';
 import { mapName } from './shared';
 import { useT } from '../i18n/react';
+import { ReviewPanel } from '../ui/AutoReview';
+import type { Key } from '../i18n';
 
 function LootStatus({ r }: { r: Raid }) {
   const t = useT();
@@ -38,6 +40,11 @@ function RaidDetail({ r }: { r: Raid }) {
         {r.lootApplied.length > 0 && <><dt>{t('journal.moved')}</dt><dd className="wrap">{itemsText(r.lootApplied)}</dd></>}
         <dt>{t('journal.goalsDone')}</dt><dd className="wrap">{goals.length ? goals.join(', ') : <span className="muted">{t('journal.none')}</span>}</dd>
         {r.notes && <><dt>{t('common.note')}</dt><dd className="wrap">{r.notes}</dd></>}
+        {r.auto && <>
+          <dt>{t('journal.autoKind')}</dt><dd data-testid="journal-auto">{t('journal.autoBadge')}{r.auto.kind ? ' · ' + t(`journal.autoKind.${r.auto.kind}` as Key) : ''}{r.auto.unsure.length ? ' · ' + t('journal.autoUnsure') : ''}</dd>
+          {r.auto.value !== null && <><dt>{t('journal.autoValue')}</dt><dd className="mono amber">{fmt(r.auto.value)}</dd></>}
+          {r.auto.lostValue !== null && <><dt>{t('journal.autoLost')}</dt><dd className="mono danger" data-testid="journal-auto-lost">{fmt(r.auto.lostValue)}</dd></>}
+        </>}
       </dl>
       {r.plan && <PlanDetail r={r} />}
       <div className="row">
@@ -116,6 +123,7 @@ export default function Journal() {
         </div>
         <span className="meta" aria-live="polite">{t('journal.count', { count: rows.length })} · {t('journal.summary', { ok: st.ok, coins: st.coins })}{pending ? ' · ' + t('journal.pending', { count: pending }) : ''}</span>
       </div></div>
+      <ReviewPanel />
       <Panel title={t('nav.group.raids')} flush>
         {s.raids.length === 0 ? <Empty icon={BookOpen} action={<Btn variant="primary" icon={Plus} onClick={() => open()}>{t('raid.log')}</Btn>}>{t('journal.empty')}</Empty>
           : rows.length === 0 ? <Empty action={<Btn onClick={clear}>{t('filter.clear')}</Btn>}>{t('filter.none')}</Empty> : (
@@ -140,6 +148,7 @@ export default function Journal() {
                           {r.goals.length > 0 && <>{t('journal.goalsLbl', { n: r.goals.length })}<br /></>}
                           {r.plan && <Badge tone="accent">{t('journal.planBadge', { found: r.plan.items.reduce((a, i) => a + i.found, 0), need: r.plan.items.reduce((a, i) => a + i.need, 0) })}</Badge>}
                           <LootStatus r={r} />
+                          {r.auto && <Badge tone={r.auto.unsure.length ? 'amber' : 'accent'}>{t('journal.autoBadge')}{r.auto.unsure.length ? ' · ' + t('journal.autoUnsure') : ''}</Badge>}
                           {!r.loot.length && !r.lost.length && !r.goals.length && !r.plan && r.notes}
                         </td>
                         <td className="actions-cell"><span className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>

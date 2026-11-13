@@ -21,6 +21,7 @@ import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctra
 import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
 import { OpsPanel, OpsVoicePanel, WardrobePanel } from './OpsSettings';
+import { AutoCapturePanel, GameLinkPanel } from './AutoSettings';
 import { WindowPanel } from './WindowSettings';
 import { APP_VERSION } from '../core/whatsnew';
 import { openWhatsNew } from '../shell/WhatsNew';
@@ -249,6 +250,10 @@ export default function Settings({ sub }: { sub: string }) {
       <WindowPanel />
       <Anchor id="ops" />
       <OpsPanel />
+      <Anchor id="auto" />
+      <AutoCapturePanel />
+      <Anchor id="link" />
+      <GameLinkPanel />
       <Anchor id="voice" />
       <OpsVoicePanel />
       <WardrobePanel />

@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.19.0](https://img.shields.io/badge/version-0.19.0-F4AD82?style=flat-square)
+![Version 0.20.0](https://img.shields.io/badge/version-0.20.0-F4AD82?style=flat-square)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
 ![Czech and English](https://img.shields.io/badge/languages-CS%20%2F%20EN-C6AFF1?style=flat-square)
@@ -66,6 +66,8 @@ Ctrl+K works while the app or overlay has focus. It is a local window shortcut. 
 ### Meet Bedňák, callsign Ops
 
 An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. The **App** button opens any full module (skill tree, recipes, item database, maps, journal, statistics, minigames…) in a larger panel over the game; settings and backups stay in the main window. Buddy features start **off** and can be enabled in Settings.
+
+**Automatic capture of out-of-raid screens (optional, off by default, pending Embark review).** If you turn it on in Settings (after a short explanation), Ops watches only while the game is in the foreground: about every 2 s it copies a small strip with the screen title, and only on a known menu screen (loadout prep, raid result, and the screens you pick) does it take one full capture. Captures stay in memory and are discarded after reading. From the loadout and the result it drafts a Raid Journal entry: certain fields are written with a state snapshot and an Undo, uncertain ones wait in a “To review” queue. You can pause it from the compact window or the tray menu, and “Turn off all game connections” turns off the buddy over the game, the capture hotkey and automatic capture at once. Exclusive fullscreen may give black captures; borderless window mode is recommended. You enable it at your own discretion.
 
 [![Demo field console with Ops and local profile data](docs/assets/github/overlay.png)](docs/assets/github/overlay@2x.png)
 

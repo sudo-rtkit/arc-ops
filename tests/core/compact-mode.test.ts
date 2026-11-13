@@ -204,10 +204,10 @@ describe('řadič režimu okna', () => {
 
 describe('schéma 7: migrace a záloha', () => {
   it('stav schématu 6 se načte beze ztrát a dostane výchozí okno a prázdné připnutí', () => {
-    expect(SCHEMA).toBe(16);
+    expect(SCHEMA).toBe(17);
     const old = { schema: 6, profile: { level: 30, coins: 1234 }, inventory: { 'Metal Parts': 4 }, quests: { done: { ss1: 5 } }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS' } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(16);
+    expect(s.schema).toBe(17);
     expect(s.mainWindow).toEqual(emptyMainWindow());
     expect(s.quests).toEqual({ done: { ss1: 5 }, pinned: [], objectives: {} });
     expect(s.profile).toMatchObject({ level: 30, coins: 1234 });
@@ -224,7 +224,7 @@ describe('schéma 7: migrace a záloha', () => {
     s.mainWindow = { ...emptyMainWindow(), mode: 'compact', pin: true, close: 'tray', quests: 4 };
     s.quests.pinned = ['ss1'];
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(16);
+    expect(file.schema).toBe(17);
     expect(file.state.mainWindow).toMatchObject({ mode: 'compact', pin: true, close: 'tray', quests: 4 });
     expect(file.state.quests.pinned).toEqual(['ss1']);
   });
@@ -350,7 +350,7 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
       calls, available: true,
       enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
     };
   }
 

@@ -42,7 +42,7 @@ function fakeNative(): Native & { calls: string[] } {
     calls, available: true,
     enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
     overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new ArrayBuffer(0),
+    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
   };
 }
 async function setup() {
@@ -150,13 +150,13 @@ describe('Ops: animace a okno', () => {
 
 describe('schéma 6', () => {
   it('výchozí stav má buddyho vypnutého; stav schématu 5 se načte beze ztrát a dostane výchozí hodnoty', () => {
-    expect(SCHEMA).toBe(16);
+    expect(SCHEMA).toBe(17);
     const d = defaultState(NOW);
     expect(d.buddy).toEqual(emptyBuddy());
     expect(d.buddy.enabled).toBe(false);
     const old = { schema: 5, profile: { level: 33 }, inventory: { 'Metal Parts': 4 }, tierList: { weapons: { S: ['x'] } } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(16);
+    expect(s.schema).toBe(17);
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
     expect(s.buddy).toEqual(emptyBuddy());
     expect(resolveOutfit(s.profile.level, s.buddy)).toEqual(OPS.unlocks[33].defaultOutfit);

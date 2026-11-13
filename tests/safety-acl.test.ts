@@ -21,7 +21,7 @@ const MAIN = [
   'allow-storage-load', 'allow-storage-save', 'allow-snapshot-create', 'allow-snapshot-list', 'allow-snapshot-read', 'allow-snapshot-delete',
   'allow-import-save-raw', 'allow-export-backup', 'allow-import-backup', 'allow-data-dir', 'allow-open-data-dir', 'allow-open-external',
   'allow-launch-info', 'allow-bus-send', 'allow-ops-enable', 'allow-ops-hotkey', 'allow-ops-watch', 'allow-buddy-open', 'allow-buddy-close',
-  'allow-overlay-open', 'allow-main-focus', 'allow-capture-now', 'allow-capture-take',
+  'allow-overlay-open', 'allow-main-focus', 'allow-capture-now', 'allow-capture-take', 'allow-ops-autocapture', 'allow-ops-autostats',
   'allow-main-mode', 'allow-main-pin', 'allow-main-geometry', 'allow-main-drag', 'allow-main-minimize', 'allow-main-hide', 'allow-main-show',
   'allow-main-ready', 'allow-app-quit', 'allow-tray-sync',
 ];
@@ -93,7 +93,8 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
       expect(body('src-tauri/src/lib.rs', fn), fn).toContain('main_window(&window)?');
     }
     expect(body('src-tauri/src/lib.rs', 'open_external')).toContain('bus::only(&window, &[bus::MAIN, bus::OVERLAY])?');
-    for (const fn of ['ops_enable', 'ops_hotkey', 'ops_watch', 'buddy_open', 'buddy_close', 'overlay_open', 'main_focus', 'capture_take']) {
+    /* 0.20.0: automatické snímání a jeho měření jen z hlavního okna */
+    for (const fn of ['ops_enable', 'ops_hotkey', 'ops_watch', 'buddy_open', 'buddy_close', 'overlay_open', 'main_focus', 'capture_take', 'ops_autocapture', 'ops_autostats']) {
       expect(body('src-tauri/src/ops.rs', fn), fn).toContain('main_only(&window)?');
     }
     expect(body('src-tauri/src/ops.rs', 'buddy_reveal')).toContain('window.label() != BUDDY');
@@ -115,8 +116,8 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     /* Rust posílá události jen přes bus.rs (emit_native a bus_send) */
     const emits = [...rs.matchAll(/\.emit(_to)?\(/g)].length;
     expect(emits).toBe(2);
-    expect(rs).not.toMatch(/"ops:(win-tray|win-close|game|game-visible|capture-ready|capture-start|capture-failed|overlay|open)"/);
-    for (const kind of ['win-tray', 'win-close', 'game', 'game-visible', 'capture-ready', 'capture-start', 'capture-failed', 'overlay', 'open']) {
+    expect(rs).not.toMatch(/"ops:(win-tray|win-close|game|game-visible|capture-ready|capture-start|capture-failed|overlay|open|auto-screen)"/);
+    for (const kind of ['win-tray', 'win-close', 'game', 'game-visible', 'capture-ready', 'capture-start', 'capture-failed', 'overlay', 'open', 'auto-screen']) {
       expect(rs, kind).toContain(`"${kind}"`);
     }
     const ts = walk(join(root, 'src'), /\.tsx?$/).map(f => [f, readFileSync(f, 'utf8')] as const);
@@ -125,7 +126,7 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     }
     /* posluchači událostí z Rustu jsou jen přes onNative */
     const all = ts.map(([, s]) => s).join('\n');
-    for (const kind of ['win-tray', 'win-close', 'game-visible', 'capture-ready', 'capture-start', 'capture-failed']) {
+    for (const kind of ['win-tray', 'win-close', 'game-visible', 'capture-ready', 'capture-start', 'capture-failed', 'auto-screen']) {
       expect(all, kind).toContain(`onNative('${kind}'`);
       expect(all, kind).not.toContain(`.on('${kind}'`);
     }

@@ -10,6 +10,7 @@ import { hub } from '../ops/mainHub';
 import type { LeftGeometry } from '../core/mainWindow';
 import { browserWin, createWindowCtl, type TrayMenu, type WinNative } from './windowCore';
 import { t } from '../i18n';
+import { autoIndicator } from '../core/autoCapture';
 
 const call = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core');
@@ -50,8 +51,12 @@ export async function expandTo(module: string, sub?: string, then?: () => void):
 }
 
 const trayMenu = (): TrayMenu => {
-  const b = app.store.getState().state.buddy;
-  return { open: t('tray.open'), compact: t('tray.compact'), buddyLabel: t('tray.buddy'), buddy: b.enabled ? hub.buddyVisible() : null, quit: t('tray.quit'), tooltip: 'ARC Raiders Companion' };
+  const s = app.store.getState().state, b = s.buddy, auto = autoIndicator(s);
+  return {
+    open: t('tray.open'), compact: t('tray.compact'), buddyLabel: t('tray.buddy'), buddy: b.enabled ? hub.buddyVisible() : null,
+    autoLabel: t('tray.auto'), auto: auto === null ? null : auto === 'on', quit: t('tray.quit'),
+    tooltip: 'ARC Raiders Companion' + (auto === 'on' ? ' · ' + t('auto.chip.on') : ''),
+  };
 };
 
 /* Spouští main.tsx: posluchače událostí z Rustu, sladění okna s uloženým stavem a nabídka oznamovací oblasti. */
@@ -62,6 +67,8 @@ export function startWindowCtl(): void {
   bus.onNative('win-tray', p => {
     if (p === 'full' || p === 'compact') void windowCtl.setMode(p);
     else if (p === 'buddy') hub.setBuddyVisible(!hub.buddyVisible());
+    /* 0.20.0: pozastavit / pokračovat v automatickém snímání (místní přepínač, žádná globální zkratka) */
+    else if (p === 'auto') { const a = app.store.getState().state.autoCapture; if (a.enabled) app.actions.setAutoCapture({ paused: !a.paused }); }
     else if (p === 'quit') void windowCtl.quit();
   });
   let lastTray = '';

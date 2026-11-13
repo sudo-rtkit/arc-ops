@@ -1,6 +1,6 @@
 [package]
 name = "arc-companion"
-version = "0.19.0"
+version = "0.20.0"
 description = "ARC Raiders Companion – osobní operační centrum hráče. Neoficiální, offline."
 edition = "2021"
 publish = false
@@ -8,6 +8,10 @@ publish = false
 [lib]
 name = "arc_companion_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dev-dependencies]
+# 0.20.0: jen testy (src-tauri/tests/headers.rs čte lokální snímky), stejná verze jako už v Cargo.lock
+png = "0.18"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

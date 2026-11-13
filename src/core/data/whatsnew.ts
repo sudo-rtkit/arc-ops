@@ -10,6 +10,15 @@ export interface WhatsNewRelease { version: string; title: WhatsNewText; items: 
 
 export const RELEASES: readonly WhatsNewRelease[] = [
   {
+    version: '0.20.0',
+    title: { cs: 'Automatické snímání mimo raid', en: 'Automatic capture outside raids' },
+    items: [
+      { text: { cs: 'Volitelné (výchozí vypnuto, čeká na ověření u Embarku): Ops pozná loadout a výsledek raidu a připraví zápis do Deníku.', en: 'Optional (off by default, pending Embark review): Ops recognises the loadout and raid result and drafts a Raid Journal entry.' }, link: 'opsSettings' },
+      { text: { cs: 'Jisté údaje se zapíší hned a jdou vrátit tlačítkem Zpět, nejisté čekají ve frontě „Ke kontrole“.', en: 'Certain fields are written right away and can be undone; uncertain ones wait in the “To review” queue.' } },
+      { text: { cs: 'Vypínač „Vypnout všechna napojení na hru“ vypne buddyho nad hrou, zkratku i snímání najednou.', en: 'The “Turn off all game connections” switch turns off the buddy over the game, the hotkey and capture at once.' }, link: 'opsSettings' },
+    ],
+  },
+  {
     version: '0.19.0',
     title: { cs: 'Doladění a rychlejší start', en: 'Polish and a faster start' },
     items: [

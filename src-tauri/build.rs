@@ -29,6 +29,8 @@ const COMMANDS: &[&str] = &[
     "main_focus",
     "capture_now",
     "capture_take",
+    "ops_autocapture",
+    "ops_autostats",
     "win_place",
     "win_drag",
     "main_mode",

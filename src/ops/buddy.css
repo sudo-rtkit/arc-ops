@@ -13,3 +13,6 @@ body { user-select: none; -webkit-user-select: none; cursor: default; }
 }
 .buddy-bubble.right { left: auto; right: 0; }
 .buddy-bubble.below { top: auto; bottom: 0; }
+/* 0.20.0: tečka automatického snímání (vpravo nahoře u Opse) */
+.buddy-auto { position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #E6C66D; box-shadow: 0 0 0 2px rgba(10, 13, 26, .85); pointer-events: none; }
+.buddy-auto.auto-paused { background: #8A8F9C; }

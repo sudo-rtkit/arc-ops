@@ -6,6 +6,7 @@ import { DISMISS_MS, createOpsHub } from './hub';
 import { isTauri } from '../storage/tauri';
 import { createSoundPlayer } from './sound';
 import { setHost } from '../shell/host';
+import { autoActive, isRustScreen } from '../core/autoCapture';
 
 export const native = createNative();
 export const hub = createOpsHub({
@@ -20,6 +21,11 @@ export const hub = createOpsHub({
 if (!isTauri() && typeof window !== 'undefined') {
   (window as unknown as { __opsTest?: unknown }).__opsTest = {
     capture: (width: number, height: number, data: ArrayLike<number>) => hub.handleCapture({ width, height, data: Uint8Array.from(data) }),
+    /* 0.20.0: automatický snímek s obrazovkou podle nadpisu (jako capture-ready s auto z Rustu) a změna obrazovky
+       v pásu s nadpisy (auto-screen); jen v prohlížeči, jen když je snímání zapnuté */
+    autoCapture: (width: number, height: number, data: ArrayLike<number>, screen: string) =>
+      isRustScreen(screen) ? hub.handleAutoCapture({ width, height, data: Uint8Array.from(data) }, screen) : Promise.resolve('empty'),
+    autoScreen: (screen: string | null, at?: number) => { if ((screen === null || isRustScreen(screen)) && autoActive(app.store.getState().state)) app.actions.lifeEvent({ type: 'screen', at: at ?? Date.now(), screen }); },
   };
 }
 

@@ -63,7 +63,7 @@ for (const lang of ['cs', 'en'] as const) {
     await page.getByTestId('raid-maps').locator('li', { hasText: 'Dam' }).getByRole('radio').check();
     await page.getByTestId('raid-start').click();
     await expect.poll(async () => (await stateOf(page)).raidPlan?.snap).toEqual(expect.arrayContaining([{ mat: 'Power Cable', have: 1, missing: 2 }]));
-    expect((await stateOf(page)).schema).toBe(16);
+    expect((await stateOf(page)).schema).toBe(17);
     await expect(page.getByTestId('raid-eval-panel')).toBeVisible();
     await expect(page.getByTestId('raid-eval-sum')).toHaveCount(0);
 

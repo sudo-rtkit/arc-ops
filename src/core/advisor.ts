@@ -10,7 +10,8 @@
    - stash: bedna skoro plná nebo plná podle hlavičky posledního snímku STASH (nejvýš STASH_FRESH_DAYS dní starého);
    - cleanup: Úklid má co prodat nebo recyklovat a uvolní políčka;
    - backup: poslední záloha je stará, nebo o žádné záloze aplikace neví (jen u hráče s daty);
-   - goal: otevřený cíl s termínem do GOAL_SOON_DAYS dní, nebo po termínu.
+   - goal: otevřený cíl s termínem do GOAL_SOON_DAYS dní, nebo po termínu;
+   - review (0.20.0): fronta „Ke kontrole“ z automatického snímání není prázdná.
    Texty jsou odkazy do slovníku (MsgRef), hlášky Opse odkazy do OPS_LINES (LineRef), takže se vykreslí v aktuálním
    jazyce a povaze okna, které je ukáže. Skrytí (dismiss) platí, dokud se nezmění klíč podmínky (key); odložení
    (snooze) do daného času. */
@@ -31,8 +32,8 @@ import { MAPS } from './data/maps';
 import { line, type LineRef } from './opsVoice';
 import { msg, type MsgRef } from '../i18n';
 
-export type AdvisorRule = 'upgrade' | 'evaluate' | 'stale' | 'prep' | 'skills' | 'trials' | 'deliver' | 'stash' | 'cleanup' | 'backup' | 'goal';
-export const ADVISOR_RULES: readonly AdvisorRule[] = ['upgrade', 'evaluate', 'stale', 'prep', 'skills', 'trials', 'deliver', 'stash', 'cleanup', 'backup', 'goal'];
+export type AdvisorRule = 'upgrade' | 'evaluate' | 'stale' | 'prep' | 'skills' | 'trials' | 'deliver' | 'stash' | 'cleanup' | 'backup' | 'goal' | 'review';
+export const ADVISOR_RULES: readonly AdvisorRule[] = ['upgrade', 'evaluate', 'stale', 'prep', 'skills', 'trials', 'deliver', 'stash', 'cleanup', 'backup', 'goal', 'review'];
 /* Kam tip vede: modul (#modul/podsekce), nebo akce, která se provede v modulu (spustit plán, vyhodnotit raid,
    uložit zálohu). Zálohu umí jen hlavní okno (overlay ji otevře v aplikaci). */
 export type AdvisorAction = 'startPlan' | 'evaluateRaid' | 'backup';
@@ -230,6 +231,18 @@ export function advisorTips(s: AppState, now: number, lang: Lang, opts: AdvisorO
       detail: msg('advisor.cleanup.detail', { count: sum.items }),
       target: { kind: 'route', route: 'inventory/cleanup' }, key: hashKey(clean.map(r => r.key).sort().join('|')),
       line: line('advisor.cleanup', { count: sum.slots }),
+    });
+  }
+
+  /* ----- 0.20.0: fronta „Ke kontrole“ z automatického snímání ----- */
+  const review = s.review?.length ?? 0;
+  if (review > 0) {
+    out.push({
+      id: 'review', rule: 'review', score: 62, tone: 'amber',
+      reason: msg('advisor.why.review'),
+      title: msg('advisor.review.title', { count: review }), detail: msg('advisor.review.detail'),
+      target: { kind: 'route', route: 'journal' }, key: hashKey(s.review.map(x => x.id).join('|')),
+      line: line('advisor.review', { count: review }),
     });
   }
 

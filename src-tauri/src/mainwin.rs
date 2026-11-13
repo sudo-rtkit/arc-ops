@@ -412,7 +412,8 @@ pub fn on_close_requested<R: Runtime>(w: &tauri::Window<R>, api: &tauri::CloseRe
 /* ----- oznamovací oblast ----- */
 
 /// Texty nabídky v jazyce UI a stav buddyho (posílá frontend). `buddy` None = položka se nezobrazí
-/// (buddy je v Nastavení vypnutý).
+/// (buddy je v Nastavení vypnutý). 0.20.0: `auto` = automatické snímání (Some(true) běží, Some(false) pozastavené,
+/// None = vypnuté v Nastavení, položka se nezobrazí); přepíná jen pozastavení, bez další globální zkratky.
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TrayMenu {
@@ -420,6 +421,10 @@ pub struct TrayMenu {
     compact: String,
     buddy_label: String,
     buddy: Option<bool>,
+    #[serde(default)]
+    auto_label: String,
+    #[serde(default)]
+    auto: Option<bool>,
     quit: String,
     tooltip: String,
 }
@@ -436,6 +441,8 @@ impl Default for TrayMenu {
             compact: "Kompaktní režim".into(),
             buddy_label: "Buddy Ops".into(),
             buddy: None,
+            auto_label: "Automatické snímání".into(),
+            auto: None,
             quit: "Ukončit".into(),
             tooltip: "ARC Raiders Companion".into(),
         }
@@ -448,13 +455,24 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, m: &TrayMenu) -> tauri::Result<Men
     let compact = MenuItem::with_id(app, "compact", label(&m.compact, &d.compact), true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", label(&m.quit, &d.quit), true, None::<&str>)?;
-    match m.buddy {
-        Some(on) => {
-            let buddy = CheckMenuItem::with_id(app, "buddy", label(&m.buddy_label, &d.buddy_label), true, on, None::<&str>)?;
-            Menu::with_items(app, &[&open, &compact, &buddy, &sep, &quit])
-        }
-        None => Menu::with_items(app, &[&open, &compact, &sep, &quit]),
+    let buddy = match m.buddy {
+        Some(on) => Some(CheckMenuItem::with_id(app, "buddy", label(&m.buddy_label, &d.buddy_label), true, on, None::<&str>)?),
+        None => None,
+    };
+    let auto = match m.auto {
+        Some(on) => Some(CheckMenuItem::with_id(app, "auto", label(&m.auto_label, &d.auto_label), true, on, None::<&str>)?),
+        None => None,
+    };
+    let mut items: Vec<&dyn tauri::menu::IsMenuItem<R>> = vec![&open, &compact];
+    if let Some(b) = &buddy {
+        items.push(b);
     }
+    if let Some(a) = &auto {
+        items.push(a);
+    }
+    items.push(&sep);
+    items.push(&quit);
+    Menu::with_items(app, &items)
 }
 
 /* Ikony Bedňáka 2.0 z docs/design/buddy/bednak2/icon jako surová RGBA (scripts/gen-tray-icons.mjs). */
@@ -524,6 +542,7 @@ fn on_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             emit_tray(app, "compact");
         }
         "buddy" => emit_tray(app, "buddy"),
+        "auto" => emit_tray(app, "auto"),
         "quit" => {
             if !ready(app) {
                 ops::shutdown(app);

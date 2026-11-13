@@ -7,6 +7,8 @@ import { backupFileName } from '../core/backup';
 import { useT, type TFn } from '../i18n/react';
 import type { LoadInfo } from '../store/app';
 import { launchInfo } from '../ops/native';
+import { AutoWrites } from '../ui/AutoReview';
+import { navigate } from '../store';
 
 /* Hlášení úložiště se zobrazí v jazyce UI podle zdroje dat (text z úložiště je jen česká pojistka). */
 const loadWarning = (t: TFn, load: LoadInfo): string =>
@@ -24,6 +26,8 @@ export function Banners() {
   const t = useT();
   return (
     <>
+      {/* 0.20.0: automatické zápisy raidů (jen v okně aplikace, žádné vyskakovací okno nad hrou) */}
+      <AutoWrites onOpenReview={() => navigate('journal')} />
       {bgStart && (
         <div className="banner info" role="status" data-testid="bg-start">
           <Info size={18} aria-hidden="true" />

@@ -5,7 +5,7 @@
 
 mod bus;
 mod mainwin;
-mod ops;
+pub mod ops;
 mod storage;
 
 use std::path::PathBuf;
@@ -252,6 +252,8 @@ pub fn run() {
             ops::main_focus,
             ops::capture_now,
             ops::capture_take,
+            ops::ops_autocapture,
+            ops::ops_autostats,
             ops::win_place,
             ops::win_drag,
             mainwin::main_mode,

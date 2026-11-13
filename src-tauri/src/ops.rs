@@ -13,9 +13,15 @@
 //!   Kromě hlídání („otevřít s hrou“) se seznam čte ještě jednou při startu aplikace (`game_running_now`, 0.8.0),
 //!   nezávisle na přepínači buddyho: když hra běží, hlavní okno se ukáže minimalizované bez aktivace
 //!   (`show_in_background`), aby hře nevzalo fokus.
+//! - 0.20.0 (žlutá zóna, výchozí vypnuto): automatické snímání obrazovek mimo raid (`ops_autocapture`). Jen když ho hráč
+//!   zapne a jen v hlídací smyčce `ops_watch` (žádná druhá smyčka), jen při hře v popředí a vidět. Asi každé 2 s se
+//!   zkopíruje jen horní pás obrazovky s nadpisy (`capture_header_strip`), z něj se spočítá hrubá mapa světlého písma
+//!   a porovná se se vzory známých obrazovek (modul `header`). Teprve při známé obrazovce, která se liší od naposledy
+//!   zpracované (`AutoGate`), se pořídí jeden plný snímek stejnou cestou jako u zkratky (paměť, `capture_take`, 15 s).
+//!   Pás se po porovnání hned zahodí; na disk se nic nezapisuje.
 
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::plugin::TauriPlugin;
@@ -37,6 +43,9 @@ const WATCH_TICK: Duration = Duration::from_millis(150);
 const HIDE_AFTER: Duration = Duration::from_millis(400);
 /* Největší snímek (8K × 8K). */
 const MAX_SIDE: i32 = 8192;
+/* 0.20.0: krok automatického snímání (pás s nadpisy) a nejkratší odstup dvou plných snímků. */
+const AUTO_EVERY: Duration = Duration::from_secs(2);
+pub const AUTO_COOLDOWN: Duration = Duration::from_secs(8);
 
 struct Captured {
     id: u64,
@@ -54,6 +63,24 @@ pub struct OpsState {
     /* okno v popředí před otevřením overlaye (HWND jako číslo a id jeho procesu), aby se mu po zavření vrátil
        fokus; 0.16.1: id procesu brání vrátit fokus cizímu oknu, které mezitím dostalo stejný HWND */
     prev_focus: Mutex<(isize, u32)>,
+    /* 0.20.0: automatické snímání mimo raid (zapíná jen hlavní okno, výchozí vypnuto) a vybrané obrazovky (bity Screen) */
+    auto_on: AtomicBool,
+    auto_mask: AtomicU32,
+    auto_stats: Mutex<AutoStats>,
+}
+
+/// Měření automatického snímání (0.20.0): doba jednoho kroku (snímek pásu + porovnání) a velikost pásu v paměti.
+/// Doba je na hodinách (horní mez času CPU); pás existuje jen během kroku.
+#[derive(Serialize, Clone, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoStats {
+    pub ticks: u64,
+    pub total_us: u64,
+    pub max_us: u64,
+    pub last_us: u64,
+    pub strip_bytes: u64,
+    pub captures: u64,
+    pub screen: Option<&'static str>,
 }
 
 #[derive(Serialize, Clone)]
@@ -62,6 +89,9 @@ struct CaptureReady {
     id: u64,
     width: u32,
     height: u32,
+    /* 0.20.0: snímek z automatického snímání a obrazovka podle nadpisu (jinak chybí) */
+    #[serde(skip_serializing_if = "Option::is_none")]
+    auto: Option<&'static str>,
 }
 
 fn main_only<R: Runtime>(w: &WebviewWindow<R>) -> Result<(), String> {
@@ -159,6 +189,7 @@ pub async fn ops_enable<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>,
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     let st = app.state::<OpsState>();
     st.enabled.store(false, Ordering::SeqCst);
+    st.auto_on.store(false, Ordering::SeqCst);
     if let Ok(mut h) = st.hotkey.lock() {
         *h = None;
     }
@@ -402,11 +433,18 @@ pub async fn capture_now<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>
 }
 
 fn start_capture<R: Runtime>(app: AppHandle<R>) {
+    start_capture_as(app, None);
+}
+
+/* auto = obrazovka z automatického snímání: bez události capture-start (žádná animace ani zvuk nad hrou). */
+fn start_capture_as<R: Runtime>(app: AppHandle<R>, auto: Option<&'static str>) {
     let st = app.state::<OpsState>();
     if st.busy.swap(true, Ordering::SeqCst) {
         return;
     }
-    emit_native(&app, MAIN, "capture-start", ());
+    if auto.is_none() {
+        emit_native(&app, MAIN, "capture-start", ());
+    }
     std::thread::spawn(move || {
         let st = app.state::<OpsState>();
         let result = capture_foreground_monitor();
@@ -417,7 +455,7 @@ fn start_capture<R: Runtime>(app: AppHandle<R>) {
                     *c = Some(Captured { id, rgba });
                 }
                 st.busy.store(false, Ordering::SeqCst);
-                emit_native(&app, MAIN, "capture-ready", CaptureReady { id, width, height });
+                emit_native(&app, MAIN, "capture-ready", CaptureReady { id, width, height, auto });
                 /* Nevyzvednutý snímek se zahodí. */
                 let app2 = app.clone();
                 std::thread::spawn(move || {
@@ -499,6 +537,10 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
         let mut pids: Vec<u32> = Vec::new();
         let mut scanned: Option<Instant> = None;
         let mut gate = BuddyGate::default();
+        /* 0.20.0: automatické snímání ve stejné smyčce (žádné další vlákno ani smyčka) */
+        let mut auto = AutoGate::default();
+        let mut auto_at: Option<Instant> = None;
+        let mut auto_seen: Option<Option<header::Screen>> = None;
         loop {
             let st = app.state::<OpsState>();
             if st.watch_gen.load(Ordering::SeqCst) != gen || !st.enabled.load(Ordering::SeqCst) {
@@ -520,10 +562,417 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
             if let Some(visible) = gate.update(shown, fg, now) {
                 emit_native(&app, MAIN, "game-visible", visible);
             }
+            /* 0.20.0: pás s nadpisy jen při zapnutém automatickém snímání a hře v popředí (vidět, ne minimalizovaná) */
+            if auto_due(st.auto_on.load(Ordering::SeqCst), shown, fg, auto_at, now) {
+                auto_at = Some(now);
+                let mask = st.auto_mask.load(Ordering::SeqCst);
+                let t0 = Instant::now();
+                let (seen, bytes) = match capture_header_strip() {
+                    Ok((w, h, screen_h, rgba)) => {
+                        let f = header::Frame { w: w as usize, h: h as usize, screen_h: screen_h as usize, rgba: &rgba };
+                        (header::classify(&f, mask).map(|x| x.0), rgba.len() as u64)
+                    }
+                    Err(_) => (None, 0),
+                };
+                let us = t0.elapsed().as_micros() as u64;
+                let fire = auto.update(seen, now);
+                if let Ok(mut s) = st.auto_stats.lock() {
+                    s.ticks += 1;
+                    s.total_us += us;
+                    s.last_us = us;
+                    s.max_us = s.max_us.max(us);
+                    s.strip_bytes = bytes;
+                    s.screen = seen.map(|x| x.id());
+                    if fire.is_some() {
+                        s.captures += 1;
+                    }
+                }
+                if auto_seen != Some(seen) {
+                    auto_seen = Some(seen);
+                    emit_native(&app, MAIN, "auto-screen", seen.map(|x| x.id()));
+                }
+                if let Some(screen) = fire {
+                    start_capture_as(app.clone(), Some(screen.id()));
+                }
+            }
             std::thread::sleep(WATCH_TICK);
         }
     });
     Ok(())
+}
+
+/* ----- 0.20.0: automatické snímání obrazovek mimo raid ----- */
+
+/// Zapne nebo vypne automatické snímání a vybere obrazovky (bity `header::Screen`). Jen hlavní okno a jen při
+/// zapnutém Ops. Samotné hlídání běží v `ops_watch` (hub ho při zapnutém snímání spustí).
+#[tauri::command]
+pub async fn ops_autocapture<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, on: bool, screens: u32) -> Result<(), String> {
+    main_only(&window)?;
+    let st = app.state::<OpsState>();
+    if on && !st.enabled.load(Ordering::SeqCst) {
+        return Err("ops:off".into());
+    }
+    st.auto_mask.store(screens & header::ALL_BITS, Ordering::SeqCst);
+    st.auto_on.store(on && screens & header::ALL_BITS != 0, Ordering::SeqCst);
+    Ok(())
+}
+
+/// Měření automatického snímání pro Nastavení (jen hlavní okno, jen čtení).
+#[tauri::command]
+pub async fn ops_autostats<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<AutoStats, String> {
+    main_only(&window)?;
+    let st = app.state::<OpsState>();
+    let s = st.auto_stats.lock().map_err(|_| "auto:failed")?.clone();
+    Ok(s)
+}
+
+/// Je čas na další pás s nadpisy? Jen při zapnutém snímání, viditelné hře v popředí a nejdřív AUTO_EVERY po minulém.
+pub fn auto_due(on: bool, game_shown: bool, fg: Foreground, last: Option<Instant>, now: Instant) -> bool {
+    on && game_shown && fg == Foreground::Game && last.map_or(true, |t| now.saturating_duration_since(t) >= AUTO_EVERY)
+}
+
+/* Kolikrát po sobě musí pás ukázat stejnou obrazovku (přechodové animace) a kolik kroků bez ní ukončí „výskyt“. */
+const AUTO_CONFIRM: u32 = 2;
+const AUTO_GONE: u32 = 2;
+
+/// Rozhoduje, kdy pořídit plný snímek: jednou za každý výskyt známé obrazovky (potvrzený dvěma kroky po sobě),
+/// jen když se liší od naposledy zpracované, a nejdřív AUTO_COOLDOWN po předchozím. Výskyt končí jinou obrazovkou
+/// nebo AUTO_GONE kroky bez známé obrazovky; krátké zakrytí (jeden krok) ho neukončí.
+#[derive(Default, Debug)]
+pub struct AutoGate {
+    cur: Option<header::Screen>,
+    streak: u32,
+    gone: u32,
+    fired: Option<header::Screen>,
+    last_fire: Option<Instant>,
+}
+
+impl AutoGate {
+    pub fn update(&mut self, seen: Option<header::Screen>, now: Instant) -> Option<header::Screen> {
+        if seen == self.cur {
+            self.streak = self.streak.saturating_add(1);
+        } else {
+            self.cur = seen;
+            self.streak = 1;
+        }
+        let Some(s) = seen else {
+            self.gone = self.gone.saturating_add(1);
+            if self.gone >= AUTO_GONE {
+                self.fired = None;
+            }
+            return None;
+        };
+        self.gone = 0;
+        if self.fired.is_some() && self.fired != Some(s) {
+            self.fired = None;
+        }
+        let cooled = self.last_fire.map_or(true, |t| now.saturating_duration_since(t) >= AUTO_COOLDOWN);
+        if self.streak >= AUTO_CONFIRM && self.fired.is_none() && cooled {
+            self.fired = Some(s);
+            self.last_fire = Some(now);
+            return Some(s);
+        }
+        None
+    }
+}
+
+/// Rozpoznání známé obrazovky podle pásu s nadpisy (0.20.0). Pás = horních STRIP_UNITS z 1080 jednotek výšky
+/// obrazovky (UI hry se škáluje podle výšky). Z pásu se v oblastech sond spočítá hrubá mřížka „světlého písma“
+/// (buňka CELL × CELL jednotek: světlý neutrální nebo krémový pixel) a porovná se se vzorem (Jaccardova shoda,
+/// posun o jednu buňku). Vzory jsou malé binární masky nadpisů vygenerované z vlastních snímků hráče
+/// (src-tauri/tests/headers.rs, GEN_HEADERS=1; snímky se nikdy necommitují), jako vzory písmen v core/vision.
+/// Obrazovka platí, když všechny její sondy projdou prahem (záporná sonda naopak nesmí). Novou obrazovku jde
+/// doplnit přidáním sondy do GEOS a obrazovky do DEFS. Čisté funkce, jen čtou pixely.
+pub mod header {
+    pub const CELL: i32 = 2;
+    pub const STRIP_UNITS: i32 = 240;
+    /* shoda sondy od tohoto prahu; záporná sonda musí zůstat pod NEG_MAX */
+    pub const THRESH: f32 = 0.6;
+    pub const NEG_MAX: f32 = 0.35;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Screen {
+        Loadout,
+        Findings,
+        KnockedOut,
+        Stash,
+        Profile,
+        Workshop,
+        Quests,
+        Skills,
+    }
+    pub const ALL: [Screen; 8] = [
+        Screen::Loadout,
+        Screen::Findings,
+        Screen::KnockedOut,
+        Screen::Stash,
+        Screen::Profile,
+        Screen::Workshop,
+        Screen::Quests,
+        Screen::Skills,
+    ];
+    pub const ALL_BITS: u32 = (1 << ALL.len()) - 1;
+    impl Screen {
+        pub fn id(self) -> &'static str {
+            match self {
+                Screen::Loadout => "loadout",
+                Screen::Findings => "findings",
+                Screen::KnockedOut => "knockedOut",
+                Screen::Stash => "stash",
+                Screen::Profile => "profile",
+                Screen::Workshop => "workshop",
+                Screen::Quests => "quests",
+                Screen::Skills => "skills",
+            }
+        }
+        pub fn bit(self) -> u32 {
+            1 << (self as u32)
+        }
+        pub fn from_id(id: &str) -> Option<Screen> {
+            ALL.iter().copied().find(|s| s.id() == id)
+        }
+    }
+
+    /// Ukotvení sondy: od levé hrany, od středu, nebo od pravé hrany obrazovky (souřadnice pro 1920 × 1080).
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Anchor {
+        L,
+        C,
+        R,
+    }
+    /// Sonda: obdélník v jednotkách 1080p (násobky CELL) a snímek, ze kterého se generuje vzor.
+    pub struct Geo {
+        pub name: &'static str,
+        pub anchor: Anchor,
+        pub x: i32,
+        pub y: i32,
+        pub w: i32,
+        pub h: i32,
+        pub src: &'static str,
+    }
+    use Anchor::{C, L, R};
+    pub const GEOS: &[Geo] = &[
+        /* MANAGE LOADOUT vlevo nahoře (příprava před raidem) */
+        Geo { name: "manage", anchor: L, x: 136, y: 16, w: 204, h: 32, src: "own-prerade-free-loadout.png" },
+        /* LOADOUT nad výbavou na obrazovce výsledku raidu a nadpis KNOCKED OUT */
+        Geo { name: "res-loadout", anchor: C, x: 792, y: 204, w: 124, h: 28, src: "own-after-raid-survived-findings.png" },
+        Geo { name: "res-knocked", anchor: C, x: 708, y: 146, w: 304, h: 40, src: "own-after-raid-knocked-out.png" },
+        /* za KNOCKED OUT je tma; delší nadpis přežití (RETURNING TO SPERANZA) tam pokračuje */
+        Geo { name: "res-knocked-end", anchor: C, x: 1020, y: 146, w: 200, h: 40, src: "own-after-raid-knocked-out.png" },
+        /* INVENTORY: zvýrazněná záložka a nadpis STASH */
+        Geo { name: "inv-pill", anchor: C, x: 762, y: 10, w: 152, h: 44, src: "own-all-1-top.png" },
+        Geo { name: "stash-label", anchor: L, x: 146, y: 142, w: 86, h: 28, src: "own-all-1-top.png" },
+        /* hlavní nabídka: zvýrazněná záložka RAIDER (profil) nebo WORKSHOP; horní hrana „pilulky“ odliší nevybranou */
+        Geo { name: "raider-pill", anchor: L, x: 306, y: 10, w: 110, h: 44, src: "return-and-progression/profile.png" },
+        Geo { name: "raider-edge", anchor: L, x: 318, y: 8, w: 84, h: 8, src: "return-and-progression/profile.png" },
+        Geo { name: "workshop-pill", anchor: L, x: 162, y: 10, w: 150, h: 44, src: "return-and-progression/workshop-overview.png" },
+        Geo { name: "workshop-edge", anchor: L, x: 176, y: 8, w: 122, h: 8, src: "return-and-progression/workshop-overview.png" },
+        /* detail stanice: krémový panel vpravo začíná níž než panel úkolu */
+        Geo { name: "station-panel", anchor: R, x: 1410, y: 168, w: 160, h: 20, src: "return-and-progression/gear-level.png" },
+        /* úkol obchodníka: krémový panel cílů vpravo nahoře */
+        Geo { name: "quest-panel", anchor: R, x: 1410, y: 116, w: 160, h: 20, src: "return-and-progression/quest-shoring.png" },
+        /* tmavá mezera vlevo od krémového panelu (celobílý snímek tak panel nepředstírá) */
+        Geo { name: "quest-gap", anchor: R, x: 1362, y: 116, w: 36, h: 20, src: "return-and-progression/quest-shoring.png" },
+        Geo { name: "station-gap", anchor: R, x: 1362, y: 168, w: 36, h: 20, src: "return-and-progression/gear-level.png" },
+        /* SKILL TREE vlevo nahoře */
+        Geo { name: "skill-title", anchor: L, x: 136, y: 16, w: 116, h: 32, src: "return-and-progression/skill-tree.png" },
+        /* za SKILL TREE je tma (detail stanice tam má „— LEVEL 01“ a záložky) */
+        Geo { name: "skill-end", anchor: L, x: 258, y: 16, w: 160, h: 32, src: "return-and-progression/skill-tree.png" },
+    ];
+
+    /// Obrazovka a její sondy (`!` = záporná sonda). Pořadí rozhoduje: konkrétnější obrazovka je dřív.
+    pub struct Def {
+        pub screen: Screen,
+        pub probes: &'static [&'static str],
+    }
+    pub const DEFS: &[Def] = &[
+        Def { screen: Screen::KnockedOut, probes: &["res-loadout", "res-knocked", "res-knocked-end"] },
+        Def { screen: Screen::Findings, probes: &["res-loadout"] },
+        Def { screen: Screen::Loadout, probes: &["manage"] },
+        Def { screen: Screen::Stash, probes: &["inv-pill", "stash-label"] },
+        Def { screen: Screen::Profile, probes: &["raider-pill", "raider-edge"] },
+        Def { screen: Screen::Workshop, probes: &["workshop-pill", "workshop-edge"] },
+        Def { screen: Screen::Quests, probes: &["quest-panel", "quest-gap"] },
+        Def { screen: Screen::Workshop, probes: &["station-panel", "station-gap", "!quest-panel"] },
+        Def { screen: Screen::Skills, probes: &["skill-title", "skill-end"] },
+    ];
+
+    include!("ops_headers.in");
+
+    /// Vzor sondy (řádky '#' a '.'), nebo None, když ještě není vygenerovaný.
+    pub fn bits(name: &str) -> Option<&'static [&'static str]> {
+        BITS.iter().find(|(n, _)| *n == name).map(|(_, b)| *b)
+    }
+    pub fn geo(name: &str) -> Option<&'static Geo> {
+        GEOS.iter().find(|g| g.name == name)
+    }
+
+    /// Pás s nadpisy: RGBA, šířka a výška pásu v px a výška celé obrazovky (měřítko UI).
+    pub struct Frame<'a> {
+        pub w: usize,
+        pub h: usize,
+        pub screen_h: usize,
+        pub rgba: &'a [u8],
+    }
+
+    /// Výška pásu v px pro obrazovku vysokou `screen_h` px.
+    pub fn strip_rows(screen_h: u32) -> u32 {
+        ((screen_h as u64 * STRIP_UNITS as u64 + 1079) / 1080).min(screen_h as u64) as u32
+    }
+
+    /// Světlé písmo: jasný neutrální nebo krémový pixel (bílá, krém tlačítek a panelů), ne barevný.
+    #[inline]
+    pub fn is_ink(r: u8, g: u8, b: u8) -> bool {
+        let (r, g, b) = (r as i32, g as i32, b as i32);
+        let lum = (299 * r + 587 * g + 114 * b) / 1000;
+        let spread = r.max(g).max(b) - r.min(g).min(b);
+        lum >= 170 && spread <= 70
+    }
+
+    /// Mřížka světlého písma v obdélníku sondy rozšířeném o jednu buňku na každou stranu ((w/CELL+2) × (h/CELL+2)).
+    /// Buňka je „písmo“, když je světlá aspoň čtvrtina pixelů; mimo pás je prázdná.
+    pub fn grid(f: &Frame, g: &Geo) -> (usize, usize, Vec<bool>) {
+        let u = f.screen_h as f32 / 1080.0;
+        let wu = f.w as f32 / u;
+        let ox = match g.anchor {
+            Anchor::L => g.x as f32,
+            Anchor::C => wu / 2.0 + (g.x as f32 - 960.0),
+            Anchor::R => wu - (1920.0 - g.x as f32),
+        } - CELL as f32;
+        let oy = (g.y - CELL) as f32;
+        let (cw, ch) = ((g.w / CELL) as usize + 2, (g.h / CELL) as usize + 2);
+        let mut out = vec![false; cw * ch];
+        for cy in 0..ch {
+            let y0 = ((oy + (cy as i32 * CELL) as f32) * u).floor() as i64;
+            let y1 = (((oy + ((cy as i32 + 1) * CELL) as f32) * u).ceil() as i64).max(y0 + 1);
+            if y0 < 0 || y1 > f.h as i64 {
+                continue;
+            }
+            for cx in 0..cw {
+                let x0 = ((ox + (cx as i32 * CELL) as f32) * u).floor() as i64;
+                let x1 = (((ox + ((cx as i32 + 1) * CELL) as f32) * u).ceil() as i64).max(x0 + 1);
+                if x0 < 0 || x1 > f.w as i64 {
+                    continue;
+                }
+                let (mut on, mut n) = (0u32, 0u32);
+                for y in y0..y1 {
+                    let row = y as usize * f.w * 4;
+                    for x in x0..x1 {
+                        let i = row + x as usize * 4;
+                        n += 1;
+                        if is_ink(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]) {
+                            on += 1;
+                        }
+                    }
+                }
+                out[cy * cw + cx] = n > 0 && on * 4 >= n;
+            }
+        }
+        (cw, ch, out)
+    }
+
+    /// Mřížka sondy bez posunu (pro generování vzoru): řádky '#' a '.'.
+    pub fn template_rows(f: &Frame, g: &Geo) -> Vec<String> {
+        let (cw, ch, cells) = grid(f, g);
+        (1..ch - 1).map(|y| (1..cw - 1).map(|x| if cells[y * cw + x] { '#' } else { '.' }).collect()).collect()
+    }
+
+    /// Shoda sondy se vzorem (0–1), nejlepší přes posun o -1, 0, +1 buňku v obou osách: buňky písma vzoru musí
+    /// v pásu ležet přesně (rozliší text), písmo navíc se ale nepočítá, když sousedí s písmem vzoru (tenká čára
+    /// při neceločíselném měřítku vyjde o buňku tlustší). shoda = nalezené buňky vzoru / (buňky vzoru + písmo
+    /// daleko od vzoru); obojí prázdné = 1.
+    pub fn score(f: &Frame, g: &Geo, rows: &[&str]) -> f32 {
+        let (cw, ch, cells) = grid(f, g);
+        let (tw, th) = (cw - 2, ch - 2);
+        if rows.len() != th || rows.iter().any(|r| r.len() != tw) {
+            return 0.0;
+        }
+        let tpl: Vec<bool> = rows.iter().flat_map(|r| r.bytes().map(|b| b == b'#')).collect();
+        /* písmo vzoru rozšířené o jednu buňku */
+        let mut dil = vec![false; tw * th];
+        for y in 0..th {
+            for x in 0..tw {
+                if tpl[y * tw + x] {
+                    for yy in y.saturating_sub(1)..=(y + 1).min(th - 1) {
+                        for xx in x.saturating_sub(1)..=(x + 1).min(tw - 1) {
+                            dil[yy * tw + xx] = true;
+                        }
+                    }
+                }
+            }
+        }
+        let nt = tpl.iter().filter(|&&b| b).count() as u32;
+        let mut best = 0.0f32;
+        for dy in 0..3 {
+            for dx in 0..3 {
+                let (mut hit, mut far) = (0u32, 0u32);
+                for y in 0..th {
+                    for x in 0..tw {
+                        let a = cells[(y + dy) * cw + x + dx];
+                        let i = y * tw + x;
+                        if a && tpl[i] {
+                            hit += 1;
+                        } else if a && !dil[i] {
+                            far += 1;
+                        }
+                    }
+                }
+                let s = if nt + far == 0 { 1.0 } else { hit as f32 / (nt + far) as f32 };
+                best = best.max(s);
+            }
+        }
+        best
+    }
+
+    /// Shoda pojmenované sondy (0 bez vzoru).
+    pub fn probe(f: &Frame, name: &str) -> f32 {
+        match (geo(name), bits(name)) {
+            (Some(g), Some(b)) => score(f, g, b),
+            _ => 0.0,
+        }
+    }
+
+    /// Známá obrazovka v pásu (jen vybrané bity `mask`) a její skóre (nejhorší kladná sonda), nebo None.
+    pub fn classify(f: &Frame, mask: u32) -> Option<(Screen, f32)> {
+        if f.w == 0 || f.h == 0 || f.screen_h == 0 || f.rgba.len() < f.w * f.h * 4 {
+            return None;
+        }
+        let mut cache: Vec<(&str, f32)> = Vec::new();
+        for d in DEFS {
+            if mask & d.screen.bit() == 0 {
+                continue;
+            }
+            let mut worst = 1.0f32;
+            let mut ok = true;
+            for p in d.probes {
+                let (neg, name) = match p.strip_prefix('!') {
+                    Some(n) => (true, n),
+                    None => (false, *p),
+                };
+                let s = match cache.iter().find(|(n, _)| *n == name) {
+                    Some((_, s)) => *s,
+                    None => {
+                        let s = probe(f, name);
+                        cache.push((name, s));
+                        s
+                    }
+                };
+                if neg {
+                    ok &= s < NEG_MAX;
+                } else {
+                    ok &= s >= THRESH;
+                    worst = worst.min(s);
+                }
+                if !ok {
+                    break;
+                }
+            }
+            if ok {
+                return Some((d.screen, worst));
+            }
+        }
+        None
+    }
 }
 
 /* ----- viditelnost buddyho podle okna v popředí (0.13.1) ----- */
@@ -630,6 +1079,16 @@ mod win {
 
     /// Kopie celého monitoru, na kterém je okno v popředí (GDI BitBlt z plochy). Vrací šířku, výšku a RGBA.
     pub fn capture_foreground_monitor() -> Result<(u32, u32, Vec<u8>), String> {
+        capture_monitor(false).map(|(w, h, _, rgba)| (w, h, rgba))
+    }
+
+    /// 0.20.0: jen horní pás téhož monitoru s nadpisy obrazovek (header::STRIP_UNITS z 1080 jednotek výšky).
+    /// Vrací šířku a výšku pásu, výšku celé obrazovky a RGBA pásu.
+    pub fn capture_header_strip() -> Result<(u32, u32, u32, Vec<u8>), String> {
+        capture_monitor(true)
+    }
+
+    fn capture_monitor(strip: bool) -> Result<(u32, u32, u32, Vec<u8>), String> {
         unsafe {
             let fg = GetForegroundWindow();
             let mon = MonitorFromWindow(fg, MONITOR_DEFAULTTOPRIMARY);
@@ -639,10 +1098,11 @@ mod win {
                 return Err("capture:failed".into());
             }
             let r = mi.rcMonitor;
-            let (w, h) = (r.right - r.left, r.bottom - r.top);
-            if w <= 0 || h <= 0 || w > super::MAX_SIDE || h > super::MAX_SIDE {
+            let (w, screen_h) = (r.right - r.left, r.bottom - r.top);
+            if w <= 0 || screen_h <= 0 || w > super::MAX_SIDE || screen_h > super::MAX_SIDE {
                 return Err("capture:failed".into());
             }
+            let h = if strip { super::header::strip_rows(screen_h as u32) as i32 } else { screen_h };
             let screen = GetDC(null_mut());
             if screen.is_null() {
                 return Err("capture:failed".into());
@@ -670,7 +1130,7 @@ mod win {
                     for px in src.chunks_exact(4) {
                         rgba.extend_from_slice(&[px[2], px[1], px[0], 255]);
                     }
-                    out = Ok((w as u32, h as u32, rgba));
+                    out = Ok((w as u32, h as u32, screen_h as u32, rgba));
                 }
                 SelectObject(mem, old);
             }
@@ -824,7 +1284,7 @@ mod win {
 }
 
 #[cfg(windows)]
-use win::{capture_foreground_monitor, foreground, foreground_pid, game_pids, game_window_shown, process_names, restore_focus};
+use win::{capture_foreground_monitor, capture_header_strip, foreground, foreground_pid, game_pids, game_window_shown, process_names, restore_focus};
 
 /* SetWindowDisplayAffinity musí volat vlákno, které okno vlastní (hlavní vlákno). */
 #[cfg(windows)]
@@ -865,6 +1325,10 @@ pub fn taskbar_light() -> bool {
 
 #[cfg(not(windows))]
 fn capture_foreground_monitor() -> Result<(u32, u32, Vec<u8>), String> {
+    Err("capture:unsupported".into())
+}
+#[cfg(not(windows))]
+fn capture_header_strip() -> Result<(u32, u32, u32, Vec<u8>), String> {
     Err("capture:unsupported".into())
 }
 #[cfg(not(windows))]
@@ -1044,6 +1508,225 @@ mod tests {
         assert!(!place_ok(0, 0, 96, 20000));
         assert!(!place_ok(i32::MIN, 0, 96, 96));
         assert!(!place_ok(0, 200_000, 96, 96));
+    }
+
+    /* ----- 0.20.0: automatické snímání ----- */
+    use header::{Anchor, Screen};
+
+    #[test]
+    fn auto_jen_pri_hre_v_popredi_a_zapnutem_snimani() {
+        let t0 = Instant::now();
+        assert!(auto_due(true, true, Foreground::Game, None, t0));
+        assert!(!auto_due(false, true, Foreground::Game, None, t0), "vypnuté snímání");
+        assert!(!auto_due(true, false, Foreground::Game, None, t0), "hra minimalizovaná nebo zakrytá");
+        for fg in [Foreground::Own, Foreground::Other, Foreground::None] {
+            assert!(!auto_due(true, true, fg, None, t0), "{fg:?}");
+        }
+        /* nejdřív po AUTO_EVERY */
+        assert!(!auto_due(true, true, Foreground::Game, Some(t0), ms(t0, 1_999)));
+        assert!(auto_due(true, true, Foreground::Game, Some(t0), ms(t0, 2_000)));
+    }
+
+    #[test]
+    fn auto_jeden_snimek_za_vyskyt_obrazovky() {
+        let t0 = Instant::now();
+        let mut g = AutoGate::default();
+        let s = |n: u64| ms(t0, n * 2_000);
+        /* potvrzení dvěma kroky po sobě */
+        assert_eq!(g.update(Some(Screen::Loadout), s(0)), None);
+        assert_eq!(g.update(Some(Screen::Loadout), s(1)), Some(Screen::Loadout));
+        /* stejná obrazovka dál: nic */
+        for n in 2..10 {
+            assert_eq!(g.update(Some(Screen::Loadout), s(n)), None);
+        }
+        /* krátké zakrytí (jeden krok bez obrazovky) výskyt neukončí */
+        assert_eq!(g.update(None, s(10)), None);
+        assert_eq!(g.update(Some(Screen::Loadout), s(11)), None);
+        assert_eq!(g.update(Some(Screen::Loadout), s(12)), None);
+        /* raid: dlouho žádná známá obrazovka, pak výsledek */
+        for n in 13..100 {
+            assert_eq!(g.update(None, s(n)), None);
+        }
+        assert_eq!(g.update(Some(Screen::Findings), s(100)), None);
+        assert_eq!(g.update(Some(Screen::Findings), s(101)), Some(Screen::Findings));
+        assert_eq!(g.update(Some(Screen::Findings), s(102)), None);
+        /* zpět na loadout po dvou krocích bez obrazovky = nový výskyt */
+        assert_eq!(g.update(None, s(103)), None);
+        assert_eq!(g.update(None, s(104)), None);
+        assert_eq!(g.update(Some(Screen::Loadout), s(105)), None);
+        assert_eq!(g.update(Some(Screen::Loadout), s(106)), Some(Screen::Loadout));
+    }
+
+    #[test]
+    fn auto_prechodovy_snimek_a_odstup() {
+        let t0 = Instant::now();
+        let mut g = AutoGate::default();
+        /* jediný krok s obrazovkou (přechodová animace) nestačí */
+        assert_eq!(g.update(Some(Screen::Stash), t0), None);
+        assert_eq!(g.update(None, ms(t0, 2_000)), None);
+        assert_eq!(g.update(Some(Screen::Stash), ms(t0, 4_000)), None);
+        assert_eq!(g.update(Some(Screen::Stash), ms(t0, 6_000)), Some(Screen::Stash));
+        /* rychlé přepnutí na jinou obrazovku: čeká se na AUTO_COOLDOWN, pak jeden snímek */
+        assert_eq!(g.update(Some(Screen::Profile), ms(t0, 8_000)), None);
+        assert_eq!(g.update(Some(Screen::Profile), ms(t0, 10_000)), None, "odstup 8 s od minulého snímku");
+        assert_eq!(g.update(Some(Screen::Profile), ms(t0, 14_000)), Some(Screen::Profile));
+        assert_eq!(g.update(Some(Screen::Profile), ms(t0, 16_000)), None);
+        /* zpět na STASH bez mezery: jiná obrazovka = nový výskyt */
+        assert_eq!(g.update(Some(Screen::Stash), ms(t0, 24_000)), None);
+        assert_eq!(g.update(Some(Screen::Stash), ms(t0, 26_000)), Some(Screen::Stash));
+    }
+
+    #[test]
+    fn auto_obrazovky_maji_bity_a_id() {
+        assert_eq!(header::ALL_BITS, 0xff);
+        for s in header::ALL {
+            assert_eq!(Screen::from_id(s.id()), Some(s));
+            assert_eq!(s.bit().count_ones(), 1);
+        }
+        assert_eq!(Screen::from_id("raid"), None);
+        assert_eq!(header::strip_rows(1080), 240);
+        assert_eq!(header::strip_rows(1440), 320);
+        assert_eq!(header::strip_rows(2160), 480);
+        assert_eq!(header::strip_rows(100), 23);
+    }
+
+    /* Umělý pás: tmavé pozadí se šumem a světlé buňky vzorů vybraných sond (v měřítku obrazovky). */
+    fn synth(w: usize, screen_h: usize, probes: &[&str], seed: u32) -> Vec<u8> {
+        let h = header::strip_rows(screen_h as u32) as usize;
+        let mut px = vec![0u8; w * h * 4];
+        let mut r = seed.wrapping_mul(2_654_435_761).max(1);
+        for p in px.chunks_exact_mut(4) {
+            r ^= r << 13;
+            r ^= r >> 17;
+            r ^= r << 5;
+            let v = 8 + (r % 70) as u8;
+            p.copy_from_slice(&[v, v + 4, v + 12, 255]);
+        }
+        let u = screen_h as f32 / 1080.0;
+        let wu = w as f32 / u;
+        for name in probes {
+            let g = header::geo(name).unwrap();
+            let rows = header::bits(name).unwrap();
+            let ox = match g.anchor {
+                Anchor::L => g.x as f32,
+                Anchor::C => wu / 2.0 + (g.x as f32 - 960.0),
+                Anchor::R => wu - (1920.0 - g.x as f32),
+            };
+            for (cy, row) in rows.iter().enumerate() {
+                for (cx, b) in row.bytes().enumerate() {
+                    if b != b'#' {
+                        continue;
+                    }
+                    let x0 = ((ox + (cx as i32 * header::CELL) as f32) * u).round() as usize;
+                    let x1 = ((ox + ((cx as i32 + 1) * header::CELL) as f32) * u).round() as usize;
+                    let y0 = (((g.y + cy as i32 * header::CELL) as f32) * u).round() as usize;
+                    let y1 = (((g.y + (cy as i32 + 1) * header::CELL) as f32) * u).round() as usize;
+                    for y in y0..y1.min(h) {
+                        for x in x0..x1.min(w) {
+                            px[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[236, 232, 222, 255]);
+                        }
+                    }
+                }
+            }
+        }
+        px
+    }
+    fn classify_synth(w: usize, screen_h: usize, probes: &[&str], mask: u32) -> Option<Screen> {
+        let px = synth(w, screen_h, probes, 7);
+        let f = header::Frame { w, h: header::strip_rows(screen_h as u32) as usize, screen_h, rgba: &px };
+        header::classify(&f, mask).map(|x| x.0)
+    }
+
+    #[test]
+    fn hlavicky_maji_vygenerovane_vzory_sedi_s_geometrii() {
+        for g in header::GEOS {
+            let rows = header::bits(g.name).unwrap_or_else(|| panic!("chybí vzor {}", g.name));
+            assert_eq!(rows.len() as i32, g.h / header::CELL, "{}", g.name);
+            assert!(rows.iter().all(|r| r.len() as i32 == g.w / header::CELL && r.bytes().all(|b| b == b'#' || b == b'.')), "{}", g.name);
+            assert_eq!(g.x % header::CELL + g.y % header::CELL + g.w % header::CELL + g.h % header::CELL, 0, "{}", g.name);
+            assert!(g.y + g.h <= header::STRIP_UNITS, "{} mimo pás", g.name);
+        }
+        for d in header::DEFS {
+            for p in d.probes {
+                assert!(header::geo(p.trim_start_matches('!')).is_some(), "{p}");
+            }
+        }
+    }
+
+    #[test]
+    fn hlavicky_umely_pas_kazde_obrazovky_v_ruznych_rozlisenich() {
+        for (w, h) in [(1920, 1080), (2560, 1440), (3840, 2160), (1280, 720)] {
+            for d in header::DEFS {
+                let pos: Vec<&str> = d.probes.iter().filter(|p| !p.starts_with('!')).copied().collect();
+                let px = synth(w, h, &pos, 7);
+                let f = header::Frame { w, h: header::strip_rows(h as u32) as usize, screen_h: h, rgba: &px };
+                let scores: Vec<String> = d.probes.iter().map(|p| format!("{p}={:.2}", header::probe(&f, p.trim_start_matches('!')))).collect();
+                assert_eq!(classify_synth(w, h, &pos, header::ALL_BITS), Some(d.screen), "{w}×{h} {:?} {scores:?}", d.screen);
+            }
+        }
+        /* ultrawide 21:9: sondy ukotvené ke středu a k pravé hraně se posunou */
+        assert_eq!(classify_synth(3440, 1440, &["res-loadout", "res-knocked"], header::ALL_BITS), Some(Screen::KnockedOut));
+        assert_eq!(classify_synth(3440, 1440, &["quest-panel", "quest-gap"], header::ALL_BITS), Some(Screen::Quests));
+    }
+
+    #[test]
+    fn hlavicky_jen_vybrane_obrazovky_a_nic_navic() {
+        /* výsledek raidu: KNOCKED OUT má přednost, bez nadpisu je to FINDINGS */
+        assert_eq!(classify_synth(1920, 1080, &["res-loadout"], header::ALL_BITS), Some(Screen::Findings));
+        /* nevybraná obrazovka se nehlásí */
+        assert_eq!(classify_synth(1920, 1080, &["manage"], header::ALL_BITS & !Screen::Loadout.bit()), None);
+        assert_eq!(classify_synth(1920, 1080, &["manage"], Screen::Loadout.bit()), Some(Screen::Loadout));
+        /* jen šum, nebo samotná záložka bez horní hrany (nevybraná), nebo jen nadpis STASH: nic */
+        assert_eq!(classify_synth(1920, 1080, &[], header::ALL_BITS), None);
+        assert_eq!(classify_synth(1920, 1080, &["stash-label"], header::ALL_BITS), None);
+        assert_eq!(classify_synth(1920, 1080, &["raider-edge"], header::ALL_BITS), None);
+        /* celobílý snímek (záblesk) není žádná obrazovka */
+        let (w, sh) = (1920usize, 1080usize);
+        let h = header::strip_rows(sh as u32) as usize;
+        let white = vec![240u8; w * h * 4];
+        assert_eq!(header::classify(&header::Frame { w, h, screen_h: sh, rgba: &white }, header::ALL_BITS), None);
+        /* prázdný nebo krátký pás */
+        assert_eq!(header::classify(&header::Frame { w: 0, h: 0, screen_h: 1080, rgba: &[] }, header::ALL_BITS), None);
+        assert_eq!(header::classify(&header::Frame { w: 10, h: 10, screen_h: 1080, rgba: &[0; 12] }, header::ALL_BITS), None);
+    }
+
+    #[test]
+    fn hlavicky_jeden_krok_je_levny() {
+        /* doba porovnání na 4K pásu (bez snímku obrazovky): vypíše se pro report, mez je velkorysá kvůli CI */
+        let (w, sh) = (3840usize, 2160usize);
+        let px = synth(w, sh, &["manage"], 3);
+        let f = header::Frame { w, h: header::strip_rows(sh as u32) as usize, screen_h: sh, rgba: &px };
+        let t0 = Instant::now();
+        let n = 20;
+        for _ in 0..n {
+            assert_eq!(header::classify(&f, header::ALL_BITS).map(|x| x.0), Some(Screen::Loadout));
+        }
+        let per = t0.elapsed() / n;
+        println!("classify 4K pás: {per:?} na krok, pás {} B", px.len());
+        assert!(per < Duration::from_millis(250), "{per:?}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn auto_mereni_snimku_pasu_na_tomto_pocitaci() {
+        /* ruční měření (cargo test -- --ignored): snímek pásu z plochy + porovnání */
+        let mut total = Duration::ZERO;
+        let mut max = Duration::ZERO;
+        let n = 30;
+        let mut bytes = 0;
+        for _ in 0..n {
+            let t0 = Instant::now();
+            let (w, h, sh, rgba) = capture_header_strip().expect("pás");
+            let f = header::Frame { w: w as usize, h: h as usize, screen_h: sh as usize, rgba: &rgba };
+            let _ = header::classify(&f, header::ALL_BITS);
+            let d = t0.elapsed();
+            bytes = rgba.len();
+            total += d;
+            max = max.max(d);
+        }
+        let avg = total / n;
+        println!("krok automatického snímání: průměr {avg:?}, max {max:?}, pás {bytes} B; při kroku 2 s = {:.3} % jednoho jádra", avg.as_secs_f64() / 2.0 * 100.0);
     }
 
     #[cfg(windows)]

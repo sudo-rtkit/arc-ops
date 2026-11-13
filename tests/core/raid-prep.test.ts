@@ -162,8 +162,8 @@ describe('schéma 13: migrace, záloha a obnova', () => {
       maps: { dam: { notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě' }], todo: [] } },
     };
     const s = normalize(old, NOW);
-    expect(SCHEMA).toBe(16);
-    expect(s.schema).toBe(16);
+    expect(SCHEMA).toBe(17);
+    expect(s.schema).toBe(17);
     expect(s.raidPlan).toBeNull();
     expect(s.inventory).toEqual({ Wires: 4 });
     expect(s.maps.dam).toEqual({ notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě', type: 'note', area: '' }], todo: [], harmonise: true, img: null });
@@ -180,7 +180,7 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     expect(normalizeRaidPlan({ map: 'dam', goals: { quests: ['a', 'a', 3], money: true }, found: ['Wires', 'Wires'], sig: 'bad' }))
       .toEqual({ goals: { quests: ['a'], stations: [], projects: [], money: true }, map: 'dam', loadout: '', route: '', startedAt: 0, sig: '', found: ['Wires'], snap: null, open: [] });
   });
-  it('záloha nese plán a body; snímky map jen volitelně a jen platné; schéma 17 je novější', () => {
+  it('záloha nese plán a body; snímky map jen volitelně a jen platné; schéma 18 je novější', () => {
     const s = defaultState(NOW);
     s.raidPlan = { goals: goals({ quests: ['ss10y'] }), map: 'buried', loadout: '', route: '', startedAt: NOW, sig: 'r0000abcd', found: ['Wires'], snap: [{ mat: 'Wires', have: 2, missing: 3 }], open: ['quest:ss10y'] };
     s.maps.buried = { notes: '', visited: {}, todo: [], harmonise: false, img: { w: 10, h: 5, at: NOW }, pois: [{ id: 'p', name: '', note: '', type: 'quest', area: '', x: 0.1, y: 0.2 }] };
@@ -210,7 +210,7 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }])).toEqual([]);
     expect(backupImages([{ ...img, dataUrl: png(10, 5).replace('image/png', 'image/webp') }])).toEqual([]);
     expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,' + 'A'.repeat(17 * 1024 * 1024) }])).toEqual([]);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 17, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 18, state: {} }), NOW)).toHaveProperty('error');
   });
 });
 

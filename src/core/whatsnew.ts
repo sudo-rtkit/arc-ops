@@ -26,7 +26,7 @@ export function compareVersions(a: string, b: string): number {
 const maxVersion = (a: string, b: string): string => (compareVersions(a, b) >= 0 ? a : b);
 
 /* Poslední verze, která ukládala dané schéma (pro stav uložený před 0.19.0). Schéma < 8 = před 0.10.0. */
-const SCHEMA_LAST: Record<number, string> = { 8: '0.10.1', 9: '0.10.2', 10: '0.11.0', 11: '0.12.0', 12: '0.13.1', 13: '0.14.0', 14: '0.16.1', 15: '0.18.0' };
+const SCHEMA_LAST: Record<number, string> = { 8: '0.10.1', 9: '0.10.2', 10: '0.11.0', 11: '0.12.0', 12: '0.13.1', 13: '0.14.0', 14: '0.16.1', 15: '0.18.0', 16: '0.19.0' };
 export function versionForSchema(schema: unknown): string | null {
   const n = Number(schema);
   if (!Number.isInteger(n) || n < 1) return null;
