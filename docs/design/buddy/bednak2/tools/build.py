@@ -17,6 +17,12 @@ for key,label,count,ms,loop in [
  ('scanning','Skenování',24,90,True),('thinking','Přemýšlení',20,110,True),('success','Úspěch',24,80,False),('level-up','Nový level',32,85,False),('error','Porucha',16,95,False),
  ('sleep','Spánek',16,280,True),('wake-up','Probuzení',24,90,False),('appear','Příchod',24,70,False),('dismiss','Odchod',24,70,False),('inspect','Prohlížení nálezu',32,125,False),('carry','Nesení kořisti',24,110,True),('drag','Držení myší',16,110,True),('walk','Kroky na místě',24,70,True),('annoyed','Netrpělivost',24,110,False),('laugh','Smích',24,90,False),('shrug','Pokrčení ramen',24,100,False)]:
  STATES[key]={'label':label,'frameCount':count,'durationsMs':[ms]*count,'loop':loop,'returnTo':None if loop or key=='dismiss' else 'idle'}
+# Quiet automatic-capture emotes; manual 'scanning' remains independent.
+for key,label,durations in [
+ ('scan','Auto scan',[100,100,120,120,120,120,120,100,100]),
+ ('scan-ok','Scan OK',[60,70,140,70,60]),
+ ('scan-unsure','Scan unsure',[70,90,180,90,70])]:
+ STATES[key]={'label':label,'frameCount':len(durations),'durationsMs':durations,'loop':False,'returnTo':'idle'}
 STATES['idle']['durationsMs']=[1500,200,180,200,180,200,180,160,80,70,80,250,150,180,180,600]
 DIGITS=['111101101101111','010110010010111','111001111100111','111001111001111','101101111001001','111100111001111','111100111101111','111001001001001','111101111101111','111101111001111']
 def save(im,path):
@@ -44,7 +50,7 @@ class Pen:
 def render(variant,tier,state,i,count,expression='neutral'):
  n=96 if variant=='corner' else 128;sc=n/128;Pen.scale=sc;Pen.corner=variant=='corner'
  im=Image.new('RGBA',(n,n));t=i/max(1,count-1);wave=math.sin(t*math.pi*2);hold=math.sin(t*math.pi)**2
- dx=0;dy=round(wave);e=expression;left=(25,74);right=(101,74);foot=0
+ dx=0;dy=0 if state in ['scan','scan-ok','scan-unsure'] else round(wave);e=expression;left=(25,74);right=(101,74);foot=0
  if expression!='neutral':
   if e=='happy':dy=-2;right=(104,68)
   if e=='focused':dy=1;right=(98,70)
@@ -122,6 +128,38 @@ def render(variant,tier,state,i,count,expression='neutral'):
   if state=='talk':hh=[3,8,5,10,2,6][(i+j*2)%6];yy=56-hh//2
   for col in range(0,ww,3):p.rect((ex+col,yy,ex+col+1,yy+hh),'light' if j==0 else 'apricot')
  if state=='scanning':p.line([(x+9+round(t*(r-x-28)),49),(x+9+round(t*(r-x-28)),63)],'green')
+ # These expressions are native integer-pixel artwork, confined to the visor.
+ # First/last tiles are byte-identical to idle[0], including all plating.
+ if state in ['scan','scan-ok','scan-unsure'] and 0<i<count-1:
+  d=ImageDraw.Draw(im)
+  def xy(xx,yy):return (round(xx*sc),round(yy*sc))
+  d.rectangle((*xy(x+8,47),*xy(r-16,64)),fill=P['panel'])
+  dot=3 if n==96 else 4
+  centers=[xy(49-w//2,56),xy(71+w//2,56)]
+  def pixel_dot(center,blink=False):
+   cx,cy=center;hh=1 if blink else dot
+   d.rectangle((cx-dot//2,cy-hh//2,cx-dot//2+dot-1,cy-hh//2+hh-1),fill=P['apricot'])
+  for j,c in enumerate(centers):pixel_dot(c,state=='scan' and i in ([3] if j==0 else [6]))
+  if state=='scan' and 2<=i<=6:
+   # Single native-pixel row, top-to-bottom, strictly inside the inset visor.
+   yy=round((49+(i-2)*3)*sc)
+   d.line([xy(x+10,0)[0:1]+(yy,),xy(r-18,0)[0:1]+(yy,)],fill=P['copper'],width=1)
+  elif state=='scan-ok' and i in [2,3]:
+   for cx,cy in centers:
+    d.rectangle((cx-dot//2,cy-dot//2,cx-dot//2+dot-1,cy-dot//2+dot-1),fill=P['panel'])
+    # Two tiny lifted LED arches; no human mouth or large badge.
+    span=3 if n==96 else 4
+    d.line([(cx-span,cy+1),(cx,cy-2),(cx+span,cy+1)],fill=P['apricot'],width=1)
+  elif state=='scan-unsure' and i in [2,3]:
+   cx,cy=centers[1]
+   d.rectangle((cx-dot//2,cy-dot//2,cx-dot//2+dot-1,cy-dot//2+dot-1),fill=P['panel'])
+   # A hand-rastered 5x7 question mark at either native resolution.
+   glyph=['01110','10001','00001','00010','00100','00000','00100']
+   for gy,row in enumerate(glyph):
+    for gx,bit in enumerate(row):
+     if bit=='1':
+      xx=cx-2+gx;yy=cy-3+gy
+      d.point((xx,yy),fill=P['apricot'])
  if state=='error' and i%3==0:p.line([(x+12,61),(r-20,58)],'danger')
  if tier>=2:
   p.poly([(x-2,71),(x+12,68),(x+16,82),(x+6,90),(x-2,84)],'dark');p.line([(x,72),(x+10,70),(x+13,81)],'tin',2)
@@ -380,3 +418,5 @@ if __name__=='__main__':
 if __name__=="__main__":
  from finish import finish
  finish()
+ from build_scan import main as build_scan
+ build_scan()

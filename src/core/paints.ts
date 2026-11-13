@@ -92,19 +92,38 @@ export function paintMap(id: string): Map<number, [number, number, number]> {
   return m;
 }
 
-/* Přebarví RGBA pixely na místě (přesná shoda barvy, alfa beze změny). Vrací počet změněných pixelů. */
-export function recolorPixels(data: Uint8ClampedArray | Uint8Array, id: string): number {
+/* Přebarví RGBA pixely na místě (přesná shoda barvy, alfa beze změny). Vrací počet změněných pixelů.
+   keep (0.20.1): pixely s nenulovou hodnotou zůstanou beze změny (měděné LED emocí, viz emoteKeepMask). */
+export function recolorPixels(data: Uint8ClampedArray | Uint8Array, id: string, keep?: Uint8Array | null): number {
   const m = paintMap(id);
   if (!m.size) return 0;
   let n = 0;
   for (let i = 0; i < data.length; i += 4) {
-    if (!data[i + 3]) continue;
+    if (!data[i + 3] || keep?.[i >> 2]) continue;
     const to = m.get((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
     if (!to) continue;
     data[i] = to[0]; data[i + 1] = to[1]; data[i + 2] = to[2];
     n++;
   }
   return n;
+}
+
+/* 0.20.1: pás emoce automatického snímku (scan, scan-ok, scan-unsure) mění proti idle jen pixely v hledí. Měděná
+   linka skenu (copper) jsou LED, ne plech ani díl: nátěr ji nesmí přebarvit (README, „Layers, level forms and paint“).
+   Maska označí pixely pásu v barvě copper, které se liší od snímku 0 pásu idle na stejném místě. Ostatní pixely se
+   přebarví stejně jako v idle, takže návrat do klidu nemá barevný skok. Pás i idle jsou RGBA, idle snímek 0 vlevo. */
+export function emoteKeepMask(sheet: Uint8ClampedArray | Uint8Array, sheetW: number, h: number, idle: Uint8ClampedArray | Uint8Array, idleW: number, frameW: number): Uint8Array {
+  const keep = new Uint8Array(sheetW * h);
+  const cu = rgb(OPS_PALETTE.copper);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < sheetW; x++) {
+      const i = (y * sheetW + x) * 4;
+      if (!sheet[i + 3] || ((sheet[i] << 16) | (sheet[i + 1] << 8) | sheet[i + 2]) !== cu) continue;
+      const j = (y * idleW + (x % frameW)) * 4;
+      if (sheet[i] !== idle[j] || sheet[i + 1] !== idle[j + 1] || sheet[i + 2] !== idle[j + 2] || sheet[i + 3] !== idle[j + 3]) keep[y * sheetW + x] = 1;
+    }
+  }
+  return keep;
 }
 
 /* Splňuje stav miniher pravidlo nátěru? */

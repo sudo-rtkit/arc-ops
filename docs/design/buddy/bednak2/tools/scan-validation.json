@@ -1,0 +1,34 @@
+{
+  "result": "PASS",
+  "variants": {
+    "corner": {
+      "forms": 5,
+      "newClips": 15,
+      "timedFrames": 95,
+      "allLevelFrameComposites": 1444,
+      "alpha": [
+        0,
+        255
+      ],
+      "palette": "existing only",
+      "movement": "none; unchanged idle[0] anchors",
+      "endpoints": "byte-identical idle[0]",
+      "changes": "inside opticClearance only"
+    },
+    "detail": {
+      "forms": 5,
+      "newClips": 15,
+      "timedFrames": 95,
+      "allLevelFrameComposites": 1444,
+      "alpha": [
+        0,
+        255
+      ],
+      "palette": "existing only",
+      "movement": "none; unchanged idle[0] anchors",
+      "endpoints": "byte-identical idle[0]",
+      "changes": "inside opticClearance only"
+    }
+  },
+  "scope": "Native asset/manifest checks; no app integration or game overlay tested."
+}

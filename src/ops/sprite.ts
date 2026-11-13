@@ -5,7 +5,8 @@
    nejdřív v nativní mřížce varianty (96 nebo 128 px), pak celým násobkem. */
 import { OPS, OPS_GEOMETRY, formForLevel, partById, type OpsVariantId } from '../core/ops';
 import type { Pose } from './animator';
-import { DEFAULT_PAINT, paintOf, recolorPixels } from '../core/paints';
+import { DEFAULT_PAINT, emoteKeepMask, paintOf, recolorPixels } from '../core/paints';
+import { isAutoEmote } from '../core/opsEmote';
 
 const URLS = import.meta.glob('../assets/ops2/**/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const cache = new Map<string, HTMLImageElement>();
@@ -28,12 +29,25 @@ function image(file: string): HTMLImageElement | null {
 /* 0.11.0: nátěr = přebarvená kopie obrázku (přesná shoda barev palety, alfa beze změny), jednou na soubor a nátěr.
    Původní vzhled kreslí přímo obrázek. */
 const painted = new Map<string, HTMLCanvasElement>();
-function source(file: string, paint: string): CanvasImageSource | null {
+/* RGBA data obrázku (pro masku emocí). */
+function pixels(im: HTMLImageElement): ImageData | null {
+  const c = document.createElement('canvas');
+  c.width = im.naturalWidth; c.height = im.naturalHeight;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  if (!x) return null;
+  x.drawImage(im, 0, 0);
+  return x.getImageData(0, 0, c.width, c.height);
+}
+/* idleFile (0.20.1): pás emoce automatického snímku; měděné LED proti idle zůstanou nepřebarvené (emoteKeepMask). */
+function source(file: string, paint: string, idleFile?: string, frameW = 0): CanvasImageSource | null {
   const im = image(file);
   if (!im || paint === DEFAULT_PAINT) return im;
   const key = paint + '|' + file;
   let c = painted.get(key);
   if (!c) {
+    /* bez načteného idle by maska chyběla: raději snímek vynechat (preload načte celou podobu) */
+    const idle = idleFile ? image(idleFile) : null;
+    if (idleFile && !idle) return null;
     c = document.createElement('canvas');
     c.width = im.naturalWidth; c.height = im.naturalHeight;
     const x = c.getContext('2d', { willReadFrequently: true });
@@ -41,7 +55,9 @@ function source(file: string, paint: string): CanvasImageSource | null {
     x.imageSmoothingEnabled = false;
     x.drawImage(im, 0, 0);
     const d = x.getImageData(0, 0, c.width, c.height);
-    recolorPixels(d.data, paint);
+    const ip = idle ? pixels(idle) : null;
+    if (idle && !ip) return im;
+    recolorPixels(d.data, paint, ip ? emoteKeepMask(d.data, c.width, c.height, ip.data, ip.width, frameW) : null);
     x.putImageData(d, 0, 0);
     painted.set(key, c);
   }
@@ -85,7 +101,7 @@ export function drawOps(ctx: CanvasRenderingContext2D, variant: OpsVariantId, le
     const anchors = g.anchors[ref];
     for (const slot of OPS.drawOrder) {
       if (slot === 'body') {
-        const im = source(st.file, paint);
+        const im = source(st.file, paint, st !== states.idle && isAutoEmote(pose.anim) ? states.idle.file : undefined, W);
         if (im) ctx.drawImage(im, frame * W, 0, W, H, 0, 0, W, H);
         continue;
       }

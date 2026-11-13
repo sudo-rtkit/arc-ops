@@ -5,7 +5,9 @@
      nesení při zápisu, úspěch, chyba, level-up s proměnou a jiskrou, spánek bez aktivity, probuzení, tažení a krok.
    - Hlášky v bublině podle povahy (varianty se střídají). Odpověď na akci hráče (výsledek snímku) se ukáže vždy;
      nevyžádané hlášky (level, pozdrav) jen se zapnutými dialogy a když hráč s Opsem právě pracuje.
-   - Zvuky hraje jen to okno, které hráč používá: buddy jen krátce po kliknutí na něj (jinak hlavní okno nebo overlay). */
+   - Zvuky hraje jen to okno, které hráč používá: buddy jen krátce po kliknutí na něj (jinak hlavní okno nebo overlay).
+   - 0.20.1: tiché emoce automatického snímku (scan, scan-ok, scan-unsure) jen od hlavního okna a jen při běžícím
+     snímání: bez zvuku, bubliny, probuzení, fokusu a aktivace okna; během tažení, spánku či gesta se zahodí. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { OpsCanvas, pixelFactor, type OpsHandle } from './OpsCanvas';
 import { createBus } from './bus';
@@ -22,6 +24,7 @@ import { isTauri } from '../storage/tauri';
 import { setLang } from '../i18n/core';
 import { useLang } from '../i18n/react';
 import { BUDDY_TEXT } from '../i18n/buddyText';
+import { emoteMsg, isAutoEmote } from '../core/opsEmote';
 
 const bus = createBus('buddy');
 const native = createNative();
@@ -63,6 +66,8 @@ export default function BuddyApp() {
   const clicks = useRef<number[]>([]);
   const ui = useRef<UiActivity>({ overlayOpen: false, appFocused: false });
   const gotView = useRef(false);
+  /* 0.20.1: poslední přijatá emoce automatického snímku (druh:číslo) proti opakovanému blikání */
+  const lastEmote = useRef('');
   const memo = useRef(createMemo());
   /* aktuální nastavení pro posluchače (ti se kvůli změně nemusí registrovat znovu) */
   const cur = useRef<BuddyView | null>(null);
@@ -139,6 +144,16 @@ export default function BuddyApp() {
         if (s.sound && s.sound !== 'beep') playSound(s.sound);
         if (s.line) showLine(s.line, s.solicited, s.sound === 'beep' || !s.sound);
       }),
+      /* 0.20.1: emoce automatického snímku. Nemění aktivitu (Ops kvůli ní neusne později ani se neprobudí),
+         stejné číslo snímku a druh emoce se nepřehraje dvakrát. */
+      bus.on('emote', (p, from) => {
+        const m = emoteMsg(p);
+        if (from !== 'main' || !m || cur.current?.auto !== 'on' || drag.current) return;
+        const key = m.anim + ':' + m.id;
+        if (lastEmote.current === key) return;
+        lastEmote.current = key;
+        ops.current?.emote(m.anim);
+      }),
       bus.on('event', p => {
         const e = p as BuddyLevelEvent;
         if (e.ui) ui.current = e.ui;
@@ -158,7 +173,8 @@ export default function BuddyApp() {
     const stopHello = startHello(bus, 'buddy', () => gotView.current);
     const sleep = setInterval(() => {
       const o = ops.current;
-      if (!o || o.anim() !== 'idle') return;
+      /* spánek vyhraje i nad právě běžící emocí automatického snímku */
+      if (!o || (o.anim() !== 'idle' && !isAutoEmote(o.anim()))) return;
       if (Date.now() - activity.current > sleepAfterMs(cur.current?.game ?? null)) { o.rest('idle'); o.play('sleep'); }
     }, 15_000);
     return () => { stopHello(); offs.forEach(f => f()); clearInterval(sleep); };

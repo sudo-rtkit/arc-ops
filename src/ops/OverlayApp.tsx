@@ -38,6 +38,7 @@ import { OvRaid, OvRaidEval } from './OverlayRaid';
 import { raidList } from '../core/raidPrep';
 import { dayKey } from '../core/util';
 import type { ProgressApply, ProgressSummary } from '../core/progressImport';
+import { emoteMsg } from '../core/opsEmote';
 import { createMirror } from '../store/relay';
 import { setHost } from '../shell/host';
 import { OverlayApps, closeModule, mainRoute, useOvRoute } from './OverlayApps';
@@ -607,6 +608,11 @@ export default function OverlayApp() {
         if (st.anim !== 'talk' && st.anim !== 'dismiss') ops.current?.play(st.anim);
         if (st.sound && st.sound !== 'beep') sound.play(st.sound);
         if (st.line) setSaid(x => ({ line: st.line, n: x.n + 1, hint: false }));
+      }),
+      /* 0.20.1: tichá emoce automatického snímku, jen od hlavního okna; bez zvuku a hlášky */
+      bus.on('emote', (p, from) => {
+        const m = emoteMsg(p);
+        if (from === 'main' && m) ops.current?.emote(m.anim);
       }),
     ];
     /* pozdrav až po registraci posluchačů a opakovaně, dokud nepřijde první stav (0.8.0) */

@@ -27,7 +27,7 @@ async function makeApp(stored?: unknown): Promise<App> {
 }
 
 describe('Bedňák 2.0: manifest a varianty', () => {
-  it('23 animací v obou variantách, časování z manifestu, aliasy starých stavů', () => {
+  it('26 animací v obou variantách (0.20.1: +3 emoce automatického snímku), časování z manifestu, aliasy starých stavů', () => {
     expect(Object.keys(OPS.states).sort()).toEqual([...OPS_ANIMS].sort());
     expect(OPS.aliases).toEqual({ done: 'success', unsure: 'thinking', sleeping: 'sleep', alert: 'error' });
     expect(OPS.states.dismiss).toMatchObject({ loop: false, returnTo: null });

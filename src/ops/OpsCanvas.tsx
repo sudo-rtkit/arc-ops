@@ -7,6 +7,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Animator, type RestAnim } from './animator';
 import { drawOps, frameOf, preload } from './sprite';
 import type { OpsAnim, OpsVariantId } from '../core/ops';
+import type { AutoEmote } from '../core/opsEmote';
 
 export interface OpsHandle {
   play(anim: OpsAnim, opts?: { once?: boolean }): void;
@@ -15,6 +16,8 @@ export interface OpsHandle {
   rest(rest: RestAnim): void;
   transform(id: string | null, done?: () => void): void;
   sparkle(): void;
+  /* 0.20.1: tichá emoce automatického snímku (false = zahozena podle pravidel) */
+  emote(anim: AutoEmote): boolean;
   anim(): OpsAnim;
   hidden(): boolean;
 }
@@ -53,6 +56,7 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
     rest: r => { anim.current.setRest(r); dirty.current = true; },
     transform: (id, done) => { anim.current.startTransform(id, done); dirty.current = true; },
     sparkle: () => { anim.current.startSparkle(); dirty.current = true; },
+    emote: a => { const ok = anim.current.emote(a); if (ok) dirty.current = true; return ok; },
     anim: () => anim.current.anim,
     hidden: () => anim.current.hidden(),
   }), []);

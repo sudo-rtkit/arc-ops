@@ -10,7 +10,7 @@ Grafická dodávka, návrat k původnímu konceptu B. Bedna, zapuštěné hledí
 |---|---|
 | `ops-layers.json` | CORNER, 96 × 96, 16 původních slotů |
 | `ops-layers-detail.json` | DETAIL, 128 × 128, stejná struktura |
-| `corner/bodies/`, `detail/bodies/` | 5 podob × 23 klipů + atlas 8 výrazů pro každou podobu |
+| `corner/bodies/`, `detail/bodies/` | 5 podob × 26 klipů + atlas 8 výrazů pro každou podobu |
 | `corner/parts/`, `detail/parts/` | 80 dílů v každé variantě; 75 nečíselných a 5 atlasů štítků 00–75 |
 | `corner/levels/`, `detail/levels/` | 76 průhledných výchozích outfitů každé varianty |
 | `detail/levels-256/` | 76 přesných 2× kopií kompozic |
@@ -75,7 +75,7 @@ Počty platí **pro každou podobu v každé variantě**, tedy obě varianty maj
 | laugh | 24 | 90 | idle |
 | shrug | 24 | 100 | idle |
 
-Jedna podoba = **516 časovaných tělových snímků**. Jedna varianta = 2580 tělových + 40 výrazových + 40 proměnových + 8 efektových = **2668 dlaždic**. Obě dohromady **5336**, bez počítání štítků a odvozených 256px kopií. Výdrže a opakované pózy nejsou vydávány za unikátní kresby: unikátních tělových bitmap v rámci jednotlivých klipů je 1388 CORNER a 1392 DETAIL, viz `tools/export-validation.json`.
+Původní sada před přidáním scan emotes: jedna podoba = **516 časovaných tělových snímků**. Jedna varianta = 2580 tělových + 40 výrazových + 40 proměnových + 8 efektových = **2668 dlaždic**. Obě dohromady **5336**, bez počítání štítků a odvozených 256px kopií. Výdrže a opakované pózy nejsou vydávány za unikátní kresby: unikátních tělových bitmap v rámci jednotlivých klipů je 1388 CORNER a 1392 DETAIL, viz `tools/export-validation.json`.
 
 Výrazy: `neutral, happy, focused, worried, annoyed, sleepy, smug, surprised`. Atlas má samostatné statické pózy, vlastní kotvy a postoj; nekombinovat jej jako obličejovou vrstvu s jinou animační pózou.
 
@@ -120,3 +120,102 @@ Vizuální listy používají syntetická rušná pozadí, ne screenshoty ARC Ra
 ## Rozhodnutí pro převzetí
 
 Zbývá výtvarné přijetí nového Bedňáka a rozhodnutí, zda nahradit ikonu aplikace i tray. CORNER 96 / DETAIL 128 a přesné 256px zobrazení jsou připravené. Nativní okna, ukládání šatníku, finální CS/EN hlášky a syntéza zvuků patří následné implementaci.
+
+
+## Automatic capture scan emotes (2026-11-13)
+
+These are **direct additive entries in both main manifests**, not a separate overlay
+schema: `ops-layers.json` (CORNER 96) and `ops-layers-detail.json` (DETAIL 128).
+Each of the five forms has the same three new states and timing. Existing `scanning`
+is unchanged: 24 x 90 ms = 2160 ms, looping, focused eyes, body sway and a green
+vertical sweep. Keep that version for explicit/manual hotkey captures.
+
+| Animation | Frames | `durationsMs` in frame order | Total | Behaviour / app event |
+|---|---:|---|---:|---|
+| `scan` | 9 | 100, 100, 120, 120, 120, 120, 120, 100, 100 | 1000 ms | One-shot; auto-capture started |
+| `scan-ok` | 5 | 60, 70, 140, 70, 60 | 400 ms | One-shot; recognised **and applied** |
+| `scan-unsure` | 5 | 70, 90, 180, 90, 70 | 500 ms | One-shot; sent to review queue |
+
+All have `loop:false, returnTo:"idle"`. Timings are authoritative in both global
+`states` and each form's state. `scan` contracts the LEDs into 3x3 dots at 96 px
+(4x4 at 128 px), briefly closes one dot at a time, and sends a **one native-pixel
+horizontal copper/apricot row downward inside the visor**. No beam outside the
+face, glow, alpha fade, body bob, equipment movement, or full-sprite flash.
+`scan-ok` lifts the dots into two small happy LED arches; `scan-unsure` briefly
+replaces the right dot with a native 5x7 question mark. No sound or bubble is
+needed. These are deliberately quieter than `success`, `thinking`, and `scanning`.
+
+### Layers, level forms and paint
+
+Sheets are horizontal, transparent RGBA, exactly as existing body states:
+`{corner,detail}/bodies/{rookie,explorer,scavenger,veteran,legend}/{scan,scan-ok,scan-unsure}.png`.
+There are **30 new native sheets / 190 timed tiles**, plus 15 exact nearest-neighbour
+2x detail sheets under `detail-256/bodies/`. No new standalone FX layer is needed;
+the eyes and line are body pixels. Every frame supplies the existing complete
+16-slot `anchors`, `zOrder`, `visible:true`, `index`, `durationMs`, and
+`opticClearance`. Slot visibility follows the selected outfit as before.
+All anchors and equipment positions equal `idle[0]`; the first and last body tiles
+are byte-identical to `idle[0]`, so return to idle has no positional jump.
+
+Forms cover levels 0-14 / 15-29 / 30-44 / 45-59 / 60-75. Keep the currently equipped
+parts and palette when changing clips; do not reset the outfit. Only existing
+`panel`, `apricot`, and `copper` colours are used for new marks. The grey plating,
+brown parts, alpha silhouette and apricot CORNER rim are unchanged from idle.
+Paint swaps must continue matching the existing material colour table exactly;
+do not tint the entire sprite or include apricot/copper LED pixels in the plating
+swap. No new material colours, palette entries, partial alpha, or antialiasing.
+Use each size's own manifest and integer coordinates; do not scale 96px anchors
+for DETAIL. New total: 535 timed body tiles per form, 2675 per variant; 5526 tiles
+across both variants including the original expression, transform and sparkle tiles.
+Earlier validation/counts in this README describe the original 23-clip baseline.
+
+### Playback policy for the implementer
+
+- When visible and awake, auto-capture started plays `scan` once. If reading takes
+  longer than 1 s, return to idle while waiting; do not loop or restart the sweep.
+- An applied result replaces any still-playing `scan` with `scan-ok`; a review
+  result replaces it with `scan-unsure`. Play only the final disposition once per
+  capture ID. Do not show OK merely because a capture was saved or OCR finished.
+- Coalesce overlapping automatic captures. Ignore stale completion events and do
+  not build an animation queue. A duplicate event must not repeatedly blink Ops.
+- Idle resumes at frame 0 when the one-shot ends. These low-priority emotes must
+  not interrupt manual gestures, dragging, transformation, dismissal or a manual
+  `scanning` session. Drop their visual notifications during those interactions.
+- **Do not wake a sleeping or hidden buddy for automatic captures or results.**
+  Suppress these emotes in sleep/hidden mode; if sleep starts mid-emote, cancel it
+  and let sleep win. Do not replay suppressed results upon waking.
+- With reduced motion, omit `scan` and its sweep. Optionally hold the happy-eye
+  confirmation tile (frame index 2) or question tile (index 2) for 140-180 ms,
+  then idle, without pulsing. In sleep, keep sleep instead.
+
+### Review and regeneration
+
+`preview.html` embeds the updated manifests and all new PNGs and works offline.
+Select Auto scan / Scan OK / Scan unsure in the animation selector, choose either
+variant and any level, and use Replay (one-shots return to idle). Set expression
+back to "Podle animace" to see the animation's eyes; an explicit expression atlas
+replaces the whole body, as before. The preview now also offers exact 4x scaling.
+
+- [Scan sequence, 1x and 4x](boards/scan-frames.png)
+- [OK sequence, 1x and 4x](boards/scan-ok-frames.png)
+- [Unsure sequence, 1x and 4x](boards/scan-unsure-frames.png)
+- [Every frame of all five forms with equipped parts at 1x](boards/scan-forms.png)
+
+Each sequence board includes **every frame**, both native variants, dark,
+mid-grey and light backgrounds, with individual frame timing labels. The forms
+board uses each form's maximum-level default outfit on the same three backgrounds.
+
+Run `python docs/design/buddy/bednak2/tools/build_scan.py` from the repository root
+to regenerate just these additions and the embedded preview. The full `tools/build.py`
+now includes the same native rig definitions and calls this additive exporter last.
+The exporter preserves all existing manifest content and original asset files.
+`tools/scan-validation.json` records palette/alpha checks, fixed anchors, identical
+idle endpoints, visor-only pixel differences, and 2888 successful compositions
+covering all 76 levels x 19 frames x both variants. Older validation JSON files
+are historical baseline checks; they have not been relabelled as new test results.
+No app source, runtime generator, tests or external artwork was changed here.
+
+Offline playback verification: `node docs/design/buddy/bednak2/tools/verify-scan.mjs`.
+`tools/scan-browser-validation.json`: 190 frame compositions pixel-matched against
+an independent PNG compositor, 30 one-shot returns to idle, both 4x display sizes,
+zero JavaScript errors and zero remote requests in headless Edge.

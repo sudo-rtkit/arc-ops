@@ -4,8 +4,11 @@
    - Smyčky (talk, scanning, thinking, carry, drag, walk, sleep) ukončí až příslušná interakce; play(…, { once })
      přehraje smyčku jen jednou (např. walk po přesunu).
    - Proměna skryje tělo i šatník, po dohrání přejde do level-up s jiskrou. Při omezení pohybu se nic nepřehrává:
-     zobrazí se rovnou cílová viditelnost (idle, nebo prázdný snímek po odchodu). */
+     zobrazí se rovnou cílová viditelnost (idle, nebo prázdný snímek po odchodu).
+   - 0.20.1: emote() = malé emoce automatického snímku (scan, scan-ok, scan-unsure) s nízkou prioritou podle
+     emoteAllowed (src/core/opsEmote.ts); po dohrání zpět do klidu od snímku 0. */
 import { OPS, type OpsAnim, type TransformSpec } from '../core/ops';
+import { emoteAllowed, type AutoEmote } from '../core/opsEmote';
 
 export interface Pose {
   anim: OpsAnim; frame: number;
@@ -49,6 +52,12 @@ export class Animator {
     this.rest = rest;
     if (this.transform) return;
     if (this.anim === 'idle' || this.anim === 'talk' || this.anim === 'sleep') { if (this.anim !== rest) this.play(rest); }
+  }
+  /* 0.20.1: emoce automatického snímku; vrací false, když se zahodila (spánek, tažení, gesto, skrytý…). */
+  emote(anim: AutoEmote): boolean {
+    if (!emoteAllowed(anim, { anim: this.anim, transform: !!this.transform, hidden: this.holding, queued: this.queue.length > 0, reduced: this.reduced })) return false;
+    this.play(anim);
+    return true;
   }
   /* Je Ops po odchodu skrytý (dismiss na posledním snímku)? */
   hidden(): boolean { return this.holding; }

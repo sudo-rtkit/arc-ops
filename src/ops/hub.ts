@@ -35,6 +35,7 @@ import { applyRelay, type RelayAck } from '../store/relay';
 import { readAutoCapture } from '../core/opsCapture';
 import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator, type RustScreen } from '../core/autoCapture';
 import { loadoutSnap } from '../core/raidLife';
+import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
 
 export interface Shot { id: number; at: number; read: ScreenRead }
 /* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
@@ -118,6 +119,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const offs: (() => void)[] = [];
   /* 0.16.0: potvrzení poslední akce plného modulu z overlaye */
   let relayAck: RelayAck | null = null;
+  /* 0.20.1: emoce automatického snímku: poslední začatý snímek, poslední snímek s výslednou emocí a čísla snímků
+     bez Rustu (testovací cesta v prohlížeči, záporná, aby se nepletla s čísly z Rustu) */
+  const emoteListeners = new Set<(e: EmoteMsg) => void>();
+  let emoteCur = 0, emoteDone = 0, localShot = 0;
 
   /* Nativní volání jdou za sebou, aby se zapnutí a vypnutí nepředběhla. */
   let queue: Promise<unknown> = Promise.resolve();
@@ -154,6 +159,24 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     statusListeners.forEach(f => f(s));
   };
   const status = say;
+  /* 0.20.1: tichá emoce automatického snímku pro buddyho, overlay a Opse v hlavním okně. Jen při běžícím
+     automatickém snímání (zapnuté, bez pozastavení a bez hlavního vypínače napojení na hru). Žádný zvuk ani hláška:
+     stav (status) se neposílá, takže hlavní okno ani overlay nic nepřehrají. */
+  const emote = (anim: AutoEmote, id: number) => {
+    if (!autoActive(st())) return;
+    const m: EmoteMsg = { anim, id };
+    bus.send('buddy', 'emote', m);
+    if (overlayKnown) bus.send('overlay', 'emote', m);
+    emoteListeners.forEach(f => f(m));
+  };
+  /* Začátek automatického snímku: scan jednou za snímek (opakování téhož čísla nic nedělá). */
+  const emoteStart = (id: number) => { if (id === emoteCur) return; emoteCur = id; emote('scan', id); };
+  /* Výsledná emoce jen jednou za snímek a jen pro poslední začatý snímek (zastaralý výsledek se zahodí). */
+  const emoteEnd = (id: number, anim: AutoEmote | null) => {
+    if (!anim || id !== emoteCur || id === emoteDone) return;
+    emoteDone = id;
+    emote(anim, id);
+  };
   /* Text hlášky pro hlášení v hlavním okně (podle povahy a jazyka). */
   const text = (l: LineRef) => sayLine(l, st().opsPrefs.personality, getLang());
   /* Okno buddyho zavřít až po odchodu (dismiss); bez zpoždění v testech. */
@@ -331,37 +354,48 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   /* Bez animace, hlášky a zvuku (hra je v popředí). Loadout a výsledek raidu jdou do průběhu raidu a automatického
      zápisu; ostatní obrazovky do stejné dávky jako snímek ze zkratky a do fronty „Ke kontrole“. Obrazová data se po
      přečtení zahodí, nic se neukládá. */
-  type AutoOutcome = 'off' | 'empty' | 'loadout' | 'result' | 'dup' | 'screen';
-  async function handleAutoCapture(img: RgbaImage, screen: RustScreen): Promise<AutoOutcome> {
+  /* 0.20.1: id = číslo snímku z Rustu; bez něj (testy, prohlížeč) vlastní záporné. Začátek zahraje scan, výsledek
+     scan-ok (zapsáno) nebo scan-unsure (ke kontrole), viz core/opsEmote.ts. */
+  async function handleAutoCapture(img: RgbaImage, screen: RustScreen, id = --localShot): Promise<AutoOutcome> {
+    if (!autoActive(st())) return 'off';
+    emoteStart(id);
+    const r = await autoRead(img, screen);
+    emoteEnd(id, emoteFor(r.outcome, r.review));
+    return r.outcome;
+  }
+  /* Přečte automatický snímek a zapíše, co jde; review = kolik údajů šlo do fronty „Ke kontrole“. */
+  async function autoRead(img: RgbaImage, screen: RustScreen): Promise<{ outcome: AutoOutcome; review: number }> {
     const s = st();
-    if (!autoActive(s)) return 'off';
     const r = readAutoCapture(img, screen);
     const at = now();
-    if (r.kind === 'empty') return 'empty';
+    if (r.kind === 'empty') return { outcome: 'empty', review: 0 };
     if (r.kind === 'loadout') {
       app.actions.lifeEvent({ type: 'loadout', at, loadout: loadoutSnap(r.loadout, s.vision.learned, matchCtx(s), at) });
-      return 'loadout';
+      return { outcome: 'loadout', review: 0 };
     }
     if (r.kind === 'result') {
       const loot = r.read ? analyzeLoot(r.read, s.vision.learned, matchCtx(s)) : null;
       const sig = r.read ? lootSignature(r.read) : null;
-      if (sig && raidWithSig(s, sig)) return 'dup';
+      if (sig && raidWithSig(s, sig)) return { outcome: 'dup', review: 0 };
       const pair = app.actions.lifeEvent({ type: 'result', at });
       const done = await app.actions.autoRaid({ at, outcome: r.outcome, loot, sig }, pair);
       pushOverlay(true);
-      return done ? 'result' : 'dup';
+      if (!done) return { outcome: 'dup', review: 0 };
+      return { outcome: 'result', review: st().autoLog.find(w => w.id === done.writeId)?.review ?? 0 };
     }
     const res = ingest(r.result, true);
-    if (res === 'empty') return 'empty';
+    if (res === 'empty') return { outcome: 'empty', review: 0 };
     app.actions.reviewAddScreen(screen);
-    return 'screen';
+    return { outcome: 'screen', review: 1 };
   }
   async function takeAutoCapture(p: { id: number; width: number; height: number }, screen: RustScreen) {
     let buf: ArrayBuffer | null = null;
+    /* scan už při vyzvednutí snímku (čtení může chvíli trvat); nezdar = scan sám dohraje do klidu */
+    if (autoActive(st())) emoteStart(p.id);
     try { buf = await native.captureTake(p.id); } catch { return; }
     let data: Uint8Array | null = new Uint8Array(buf);
     buf = null;
-    try { await handleAutoCapture({ width: p.width, height: p.height, data }, screen); }
+    try { await handleAutoCapture({ width: p.width, height: p.height, data }, screen, p.id); }
     finally { data = null; }
   }
 
@@ -571,10 +605,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   const onStatus = (f: (s: BuddyStatus) => void) => { statusListeners.add(f); return () => { statusListeners.delete(f); }; };
   const onLevel = (f: (e: LevelEvent) => void) => { eventListeners.add(f); return () => { eventListeners.delete(f); }; };
+  const onEmote = (f: (e: EmoteMsg) => void) => { emoteListeners.add(f); return () => { emoteListeners.delete(f); }; };
 
   return {
     start, stop, setHotkey, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
-    captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, ui,
+    captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, onEmote, ui,
   };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

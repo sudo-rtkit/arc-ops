@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.19.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.20.1 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,14 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.20.1',
+    title: { cs: 'Ops tiše mrkne při automatickém snímku', en: 'Ops blinks quietly on automatic capture' },
+    items: [
+      { text: { cs: 'Při automatickém snímku Ops jen mrkne LED v hledí: sken, pak úsměv (zapsáno) nebo otazník (ke kontrole).', en: 'On an automatic capture Ops only blinks its visor LEDs: a scan, then a smile (recorded) or a question mark (to review).' } },
+      { text: { cs: 'Bez zvuku, bubliny a změny fokusu. Spícího Opse nebudí a při pozastaveném snímání nedělá nic.', en: 'No sound, no bubble and no focus change. A sleeping Ops stays asleep, and nothing plays while capture is paused.' }, link: 'opsSettings' },
+    ],
+  },
   {
     version: '0.20.0',
     title: { cs: 'Automatické snímání mimo raid', en: 'Automatic capture outside raids' },

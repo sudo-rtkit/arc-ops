@@ -12,6 +12,8 @@ import { clampInt, isObj, safeEntries, text } from './util';
 export const OPS_ANIMS = [
   'idle', 'talk', 'greet', 'point-left', 'point-right', 'point-up', 'point-down', 'scanning', 'thinking', 'success', 'level-up',
   'error', 'sleep', 'wake-up', 'appear', 'dismiss', 'inspect', 'carry', 'drag', 'walk', 'annoyed', 'laugh', 'shrug',
+  /* 0.20.1: malé tiché emoce automatického snímku (jen LED v hledí, viz src/core/opsEmote.ts) */
+  'scan', 'scan-ok', 'scan-unsure',
 ] as const;
 export type OpsAnim = typeof OPS_ANIMS[number];
 export const isOpsAnim = (v: unknown): v is OpsAnim => typeof v === 'string' && (OPS_ANIMS as readonly string[]).includes(v);

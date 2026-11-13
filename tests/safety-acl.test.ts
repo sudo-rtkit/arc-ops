@@ -142,3 +142,48 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     expect(read('src/ops/ovWindow.ts')).toContain("invoke('win_place'");
   });
 });
+
+/* 0.20.1: tiché emoce automatického snímku jedou po existující trase bus_send hlavní → buddy / overlay jako zpráva
+   'emote'. Žádný nový příkaz, oprávnění ani událost z Rustu; automatický snímek dál nevysílá capture-start. */
+describe('0.20.1: zpráva emote', () => {
+  const code = (f: string) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  /* tělo posluchače bus.on('<typ>' … po jeho konec „}),“ */
+  const handler = (f: string, type: string) => {
+    const s = code(f), i = s.indexOf(`bus.on('${type}'`);
+    if (i < 0) throw new Error(`${f}: ${type}`);
+    const j = s.indexOf('}),', i);
+    expect(j, f).toBeGreaterThan(i);
+    return s.slice(i, j + 3);
+  };
+
+  it('posílá ji jen hlavní okno (hub) buddymu a overlayi; přijímají ji jen od hlavního okna', () => {
+    const ts = walk(join(root, 'src'), /\.tsx?$/).map(f => [f.slice(root.length).split('\\').join('/'), code(f.slice(root.length))] as const);
+    const senders = ts.filter(([, s]) => /send\([^)]*'emote'/.test(s)).map(([f]) => f);
+    expect(senders).toEqual(['src/ops/hub.ts']);
+    const hub = code('src/ops/hub.ts');
+    expect(hub).toContain("bus.send('buddy', 'emote', m)");
+    expect(hub).toContain("bus.send('overlay', 'emote', m)");
+    const receivers = ts.filter(([, s]) => s.includes("bus.on('emote'")).map(([f]) => f).sort();
+    expect(receivers).toEqual(['src/ops/BuddyApp.tsx', 'src/ops/OverlayApp.tsx']);
+    for (const f of receivers) {
+      const h = handler(f, 'emote');
+      expect(h, f).toMatch(/from (!==|===) 'main'/);
+      expect(h, f).toContain('emoteMsg(p)');
+      /* tiché: žádný zvuk, bublina, probuzení, fokus, okno ani nativní volání */
+      for (const word of ['sound', 'Sound', 'showLine', 'setBubble', 'setSaid', 'wake(', 'native.', 'focus', '.show(', 'activity.current']) expect(h.includes(word), `${f}: ${word}`).toBe(false);
+    }
+    /* hub: emoce jen při běžícím snímání a bez stavu se zvukem */
+    const emote = hub.slice(hub.indexOf('const emote = '), hub.indexOf('const emoteStart'));
+    expect(emote).toContain('if (!autoActive(st())) return;');
+    expect(emote).not.toMatch(/say\(|status\(|SOUND_OF|native\./);
+  });
+
+  it('žádná nová událost z Rustu ani příkaz; automatický snímek dál bez capture-start', () => {
+    const rs = walk(join(root, 'src-tauri', 'src'), /\.rs$/).map(f => readFileSync(f, 'utf8')).join('\n');
+    expect(rs).not.toContain('"emote"');
+    expect(manifest).not.toContain('emote');
+    const kinds = [...rs.matchAll(/emit_native\([^,]+,[^,]+,\s*"([a-z-]+)"/g)].map(m => m[1]);
+    expect([...new Set(kinds)].sort()).toEqual(['auto-screen', 'capture-failed', 'capture-ready', 'capture-start', 'game', 'game-visible', 'open', 'overlay', 'win-close', 'win-tray'].sort());
+    expect(body('src-tauri/src/ops.rs', 'start_capture_as')).toMatch(/if auto\.is_none\(\) \{\s*emit_native\(&app, MAIN, "capture-start", \(\)\);/);
+  });
+});

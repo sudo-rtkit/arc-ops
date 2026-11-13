@@ -124,7 +124,9 @@ function OpsRow({ hint }: { hint: LineRef }) {
       if (e.kind === 'transform') ops.current?.transform(e.transform);
       else { ops.current?.play('level-up'); ops.current?.sparkle(); }
     });
-    return () => { offStatus(); offLevel(); };
+    /* 0.20.1: tichá emoce automatického snímku (hub ji posílá jen při běžícím snímání); bez zvuku a hlášky */
+    const offEmote = hub.onEmote(e => { ops.current?.emote(e.anim); });
+    return () => { offStatus(); offLevel(); offEmote(); };
   }, []);
   /* po hlášce ze stavu se po chvíli vrátí rada */
   useEffect(() => {
