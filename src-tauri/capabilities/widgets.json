@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "widgets",
+  "description": "Okno widgetů nad hrou (0.22.0): poslech událostí, zprávy hlavnímu oknu, Úpravy zapnout a vypnout (widgets_edit), okno přes celý monitor hry (widgets_fit mění jen toto okno) a otevření panelu Aplikace (widgets_app). Žádné čtení ani ukládání stavu, žádné snímky, zkratky ani ovládání jiných oken.",
+  "windows": ["widgets"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-bus-send",
+    "allow-widgets-edit",
+    "allow-widgets-fit",
+    "allow-widgets-app"
+  ]
+}

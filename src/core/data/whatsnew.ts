@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.21.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.22.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.22.0',
+    title: { cs: 'Widgety nad hrou', en: 'Widgets over the game' },
+    items: [
+      { text: { cs: 'Volitelné karty s tvými daty přímo nad hrou: seznam k nalezení, úkoly, nákupy, Co dál?, skrýš, výzvy a další. Ve Hře jen ukazují a propouštějí myš.', en: 'Optional cards with your own data over the game: to find, quests, shopping, What next?, stash, challenges and more. In Play they only display.' }, link: 'opsSettings' },
+      { text: { cs: 'Klikni na Opse nebo použij zkratku: v Úpravách widgety přesuneš, zvětšíš, nastavíš jim krytí a uložíš rozložení Lobby, Raid i vlastní.', en: 'Click Ops or use the shortcut to open Edit: move and resize widgets, set their opacity and save Lobby, Raid or your own layouts.' } },
+      { text: { cs: 'Plné moduly dál otevře tlačítko Aplikace v Úpravách. Rozložení patří jen tomuto počítači a nejsou v zálohách.', en: 'The App button in Edit still opens every full module. Layouts belong to this PC only and are not in backups.' }, link: 'overlayApp' },
+    ],
+  },
   {
     version: '0.21.0',
     title: { cs: 'Původ dat u každé hodnoty', en: 'The origin of every value' },

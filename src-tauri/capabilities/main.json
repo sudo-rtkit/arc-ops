@@ -40,6 +40,9 @@
     "allow-main-show",
     "allow-main-ready",
     "allow-app-quit",
-    "allow-tray-sync"
+    "allow-tray-sync",
+    "allow-widgets-open",
+    "allow-widgets-close",
+    "allow-widgets-edit"
   ]
 }

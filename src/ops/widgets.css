@@ -1,0 +1,148 @@
+/* 0.22.0: widgety nad hrou (docs/design/overlay-widgets: tokens.css, mockup.css, validation.json).
+   Grafit #1D2225 jako podklad s krytím podle posuvníku (--wg-a, 30–100 %, výchozí 85 %); plocha přímo pod textem
+   má vždy aspoň 90 % (--wg-t = max(krytí, 0,90)). Písmo a ovladače jsou vždy neprůhledné. Ve Hře žádný závoj,
+   animace ani interaktivní prvky; v Úpravách závoj 20 %, lišta, úchyty a dialogy z neprůhledného grafitu. */
+:root {
+  color-scheme: dark;
+  --wg-panel: 29 34 37;
+  --wg-ink: #F2EEE7;
+  --wg-secondary: #C8C7C2;
+  --wg-muted: #A2A8AA;
+  --wg-accent: #F4AD82;
+  --wg-on-accent: #241810;
+  --wg-success: #91CFAB;
+  --wg-control: #849095;
+  --wg-raised: #272D31;
+  --wg-veil: .20;
+  --wg-display: 'Chakra Petch', var(--font-ui);
+}
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+body { font: 400 14px/1.45 var(--font-ui); color: var(--wg-ink); -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.grow { flex: 1; min-width: 0; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.secondary { color: var(--wg-secondary); }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+.wgc { position: fixed; inset: 0; overflow: hidden; }
+/* Hra: nic nepřijímá myš (nativně okno myš propouští; tohle platí i v prohlížeči) */
+.wgc.is-play, .wgc.is-play * { pointer-events: none !important; user-select: none; }
+.wgc-veil { position: absolute; inset: 0; background: rgb(8 11 13 / var(--wg-veil)); }
+.wgc-loading { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); background: #1D2225; padding: 8px 12px; border: 1px solid var(--wg-control); }
+
+/* ----- widget ----- */
+.wg { position: absolute; border: 1px solid var(--wg-control); border-radius: 4px; padding: 3px; background: transparent;
+  box-shadow: inset 0 0 0 3px rgb(var(--wg-panel) / var(--wg-a, .85)), 0 3px 12px #0005; }
+.wg-surface { height: 100%; overflow: hidden; background: rgb(var(--wg-panel) / var(--wg-t, .9)); padding: 12px; border-radius: 2px; }
+.wg.compact .wg-surface { padding: 10px; }
+.wg.edit .wg-surface { overflow: auto; overscroll-behavior: contain; }
+.wg-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #626b7060; }
+.wg.compact .wg-head { margin-bottom: 4px; }
+.wg-head h2 { font: 600 16px/1.3 var(--wg-display); margin: 0; letter-spacing: .2px; overflow-wrap: anywhere; }
+.wg-tag { color: var(--wg-accent); font-family: var(--font-mono); font-size: 12px; margin: 0 0 4px; }
+.wg p { margin: 6px 0; }
+.wg-rows { list-style: none; margin: 0; padding: 0; }
+.wg-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid #626b7060; margin: 0; }
+.wg-rows > li:first-child, .wg-rows > li:first-child > .wg-row { border-top: 0; }
+.wg.compact .wg-row { padding: 4px 0; }
+.wg-row .grow { display: flex; flex-direction: column; gap: 3px; }
+.wg-row .map-badges { gap: 2px 8px; }
+.wg-item { font-weight: 600; }
+.wg-count { white-space: nowrap; }
+.wg-row.done .wg-item { color: var(--wg-secondary); }
+.wg-tick { color: var(--wg-success); vertical-align: middle; }
+.wg-quest { border-top: 1px solid #626b7060; }
+.wg-quest:first-child { border-top: 0; }
+.wg-objs { list-style: none; margin: 0 0 6px; padding: 0 0 0 10px; }
+.wg-obj { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; color: var(--wg-secondary); }
+.wg-obj.done { color: var(--wg-ink); }
+.wg-more { color: var(--wg-accent); margin: 4px 0 0; }
+.wg-empty { margin: 8px 0; }
+.wg-meta { font-size: 12px; color: var(--wg-secondary); }
+.wg-big { font: 500 24px/1.2 var(--font-mono); margin: 4px 0 8px !important; }
+.wg-bar-track { height: 6px; background: #0d1113; border: 1px solid var(--wg-control); }
+.wg-bar-track i { display: block; height: 100%; background: var(--wg-accent); }
+.wg-stars { color: var(--wg-accent); letter-spacing: 2px; }
+.wg-verdict { border-left: 3px solid var(--wg-control); padding: 4px 0 4px 10px; margin: 8px 0; }
+.wg-verdict.keep { border-color: var(--wg-success); }
+.wg-verdict.sell { border-color: var(--wg-accent); }
+.wg-verdict.recycle { border-color: #BAABF2; }
+.wg-kind { display: block; color: var(--wg-accent); }
+.wg-state { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.wg-state i { width: 10px; height: 10px; border: 2px solid var(--wg-control); border-radius: 50%; }
+.wg-state.auto-on i { background: var(--wg-success); border-color: var(--wg-success); }
+.wg-state.auto-paused i { background: var(--wg-accent); border-color: var(--wg-accent); border-radius: 0; }
+.wg-tip b { display: block; }
+.wg-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.wg-check input { width: 18px; height: 18px; accent-color: var(--wg-accent); margin: 0; }
+.wg-field input, .wg-pop input[type=search], .wg-pop input[type=text], .wg-pop input[type=number] {
+  background: #141719; border: 1px solid var(--wg-control); color: var(--wg-ink); padding: 8px; width: 100%; border-radius: 3px; min-height: 36px; }
+
+/* ----- Úpravy: rámeček, lišta widgetu, úchyty ----- */
+.wg.edit { outline: 1px solid var(--wg-accent); outline-offset: 2px; }
+.wg.edit.sel { z-index: 50; }
+.wg-ebar { position: absolute; left: -1px; right: -1px; top: -40px; height: 36px; display: flex; align-items: center; gap: 4px; background: #1D2225;
+  border: 1px solid var(--wg-accent); padding: 0 4px; font-size: 12px; white-space: nowrap; z-index: 2; }
+.wg.bar-below .wg-ebar { top: auto; bottom: -40px; }
+.wg-ebar button { min-height: 28px; padding: 2px 8px; }
+.wg-move { display: inline-flex; align-items: center; gap: 4px; cursor: grab; touch-action: none; }
+.wg-h { position: absolute; width: 9px; height: 9px; background: var(--wg-ink); border: 1px solid #141719; z-index: 3; touch-action: none; }
+/* průhledné rozšíření úchytu na 24 px pro snazší trefení */
+.wg-h::before { content: ''; position: absolute; inset: -8px; }
+.wg-h.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.wg-h.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.wg-h.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.wg-h.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.wg-h.n { top: -6px; left: calc(50% - 5px); cursor: ns-resize; }
+.wg-h.s { bottom: -6px; left: calc(50% - 5px); cursor: ns-resize; }
+.wg-h.e { right: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+.wg-h.w { left: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+.wg-guide { position: absolute; background: var(--wg-accent); box-shadow: 0 0 0 1px #141719; z-index: 60; }
+.wg-guide.v { width: 1px; top: 0; bottom: 0; }
+.wg-guide.h { height: 1px; left: 0; right: 0; }
+
+/* ----- tlačítka (Úpravy jsou neprůhledné) ----- */
+.is-edit button, .wg-btn { cursor: pointer; border: 1px solid var(--wg-control); border-radius: 3px; background: var(--wg-raised); padding: 6px 12px; min-height: 36px; }
+.is-edit button:hover:not(:disabled) { background: #394248; }
+.is-edit button:disabled { opacity: .55; cursor: default; }
+.is-edit button.primary, .wg-btn.primary { background: var(--wg-accent); color: var(--wg-on-accent); border-color: var(--wg-accent); }
+.is-edit :focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 3px; box-shadow: 0 0 0 5px #141719; }
+.is-edit button[aria-pressed="true"] { border-color: var(--wg-accent); background: #3A302A; }
+.wg-toolbar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px;
+  width: max-content; max-width: calc(100vw - 32px); background: #1D2225; border: 1px solid var(--wg-control); padding: 8px; border-radius: 5px; box-shadow: 0 6px 24px #0005; z-index: 100; }
+.wg-mode { font: 600 16px var(--wg-display); color: var(--wg-accent); padding: 0 10px; }
+.wg-redo { display: none; }
+@media (min-width: 1500px) { .wg-redo { display: inline-block; } }
+
+/* ----- dialogy ----- */
+.wg-pop { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 108px); overflow: auto;
+  background: #1D2225; border: 1px solid var(--wg-control); border-top: 2px solid var(--wg-accent); border-radius: 4px; padding: 16px; box-shadow: 0 12px 32px #0007; z-index: 110; }
+.wg-pop h2 { font: 600 20px var(--wg-display); margin: 0 0 6px; }
+.wg-pop h3 { font: 600 14px var(--wg-display); margin: 12px 0 6px; color: var(--wg-secondary); }
+.wg-pop ul { list-style: none; margin: 8px 0; padding: 0; }
+.wg-catrow { display: flex; align-items: center; gap: 12px; min-height: 48px; border-top: 1px solid #363E43; }
+.wg-added { color: var(--wg-secondary); padding: 0 8px; }
+.wg-notice { font-size: 12px; background: var(--wg-raised); padding: 10px; border-left: 2px solid var(--wg-accent); color: var(--wg-secondary); }
+.wg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.wg-actions.split { justify-content: space-between; }
+.wg-preset-row { display: flex; gap: 6px; align-items: stretch; margin: 8px 0; }
+.wg-preset { flex: 1; display: block; text-align: left; padding: 10px 12px !important; }
+.wg-preset strong { display: block; font: 600 18px var(--wg-display); }
+.wg-preset small { color: var(--wg-secondary); }
+.wg-x { min-width: 36px; }
+.wg-checkline { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; cursor: pointer; }
+.wg-checkline input { width: 18px; height: 18px; accent-color: var(--wg-accent); }
+.wg-form label, .wg-label { display: block; margin: 12px 0 4px; font-weight: 600; }
+.wg-err { color: #F09B9E; font-size: 12px; }
+.wg-range { display: block; margin-top: 8px; }
+.wg-range input { width: 100%; accent-color: var(--wg-accent); }
+.wg-seg { display: flex; gap: 4px; }
+.wg-seg button { flex: 1; }
+.wg-nums { display: flex; gap: 8px; }
+.wg-nums label { flex: 1; font-size: 12px; color: var(--wg-secondary); display: flex; flex-direction: column; gap: 4px; }
+.wg-result { width: 100%; text-align: left; margin: 2px 0; }
+.wg-dialog { width: min(380px, calc(100vw - 32px)); top: 30%; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

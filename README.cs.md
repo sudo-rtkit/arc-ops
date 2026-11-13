@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.21.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.22.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -63,6 +63,8 @@ Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi
 **Odkud je každá hodnota.** Malá tečka vedle počtu v zásobě, pole profilu, úrovně stanice, ranku skillu nebo cíle úkolu po najetí myší ukáže původ: ručně, ze snímku (soubor nebo zkratka), z automatického snímání nebo z importu zálohy, kdy, s jakou jistotou rozpoznání a jestli jsi hodnotu potvrdil. Nastavení → Původ dat to shrne po oblastech i s posledními zápisy a karta předmětu má řádek „Původ“. Když se zásoba přes týden nezměnila a máš otevřené cíle, „Co dál?“ navrhne snímek STASH.
 
 **Automatické snímání obrazovek mimo raid (volitelné, výchozí vypnuto, čeká na ověření u Embarku).** Když ho v Nastavení zapneš (po krátkém vysvětlení), Ops hlídá jen při hře v popředí: asi každé 2 s zkopíruje malý pruh s nadpisem obrazovky a teprve u známé obrazovky menu (příprava loadoutu, výsledek raidu a obrazovky, které vybereš) pořídí jeden plný snímek. Snímky zůstávají jen v paměti a po přečtení se zahodí. Z loadoutu a výsledku připraví zápis do Deníku raidů: jisté údaje zapíše se snímkem stavu a tlačítkem Zpět, nejisté čekají ve frontě „Ke kontrole“. Pozastavit jde v kompaktním okně i v nabídce ikony v oznamovací oblasti a „Vypnout všechna napojení na hru“ vypne najednou buddyho nad hrou, zkratku snímku i automatické snímání. Exkluzivní celá obrazovka může dávat černé snímky, doporučený je režim okna bez okraje. Zapínáš na vlastní uvážení.
+
+**Widgety nad hrou (0.22.0, volitelné, výchozí vypnuto, čeká na ověření u Embarku).** Vyber si malé karty s vlastními daty a rozmísti je nad hru: Seznam k nalezení (plán raidu), Připnuté úkoly, Nákupy, Co dál?, Nechat / prodat / recyklovat, Obsazenost skrýše, Týdenní výzvy, Ops, Ke kontrole a Automatické snímání. Žádná mapa, poloha ani minimapa. Ve **Hře** widgety jen ukazují: průhledné okno propouští každý klik do hry a nikdy jí nebere fokus. Klikem na Opse (nebo zkratkou Úprav) otevřeš **Úpravy**: přesun a změna velikosti s mřížkou 8 px a přichycením k okrajům i ostatním widgetům, krytí každého widgetu (30–100 %, text zůstane čitelný), hustota a zámek, přidání z katalogu, Zpět a přepnutí rozložení **Lobby**, **Raid** nebo vlastního jedním klikem. Hotovo nebo Esc vrátí Hru i fokus hře. „Skrýt vše“ vyčistí obrazovku pro tuto relaci. **Aplikace** v Úpravách otevře celou polní konzoli (všechny záložky a plné moduly). Rozložení patří jen tomuto počítači: nejsou v zálohách a import zálohy je nezmění. Hra musí běžet v okně bez okraje nebo v okně; exkluzivní celá obrazovka není podporovaná.
 
 ![Demo polní konzole s Opsem](docs/assets/github/overlay.png)
 

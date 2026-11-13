@@ -1,0 +1,1179 @@
+{
+  "scope": "Design fixtures only. No product build or native overlay test.",
+  "recommendedOpacity": 0.85,
+  "minimumRequestedOpacity": 0.3,
+  "textSurfaceFloor": 0.9,
+  "method": "WCAG sRGB relative luminance; alpha composition in encoded sRGB. Conservative text surface directly over pure white (ignores additional shell darkening). No blur, shadow, game dimming or stroke credit. White is component-wise brightest possible opaque sRGB pixel; busy fixture alternates white and bright bands.",
+  "checks": [
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 10.235,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.991,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 4.914,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.282,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.604,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 10.388,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 7.096,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 4.987,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 6.377,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 6.703,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 13.649,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 9.323,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 6.553,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 8.378,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.85,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 8.807,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 10.235,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.991,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 4.914,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.282,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "white",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        51.599999999999994,
+        56.099999999999994,
+        58.8
+      ],
+      "ratio": 6.604,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 10.388,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 7.096,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 4.987,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 6.377,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "bright-warm",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        51.599999999999994,
+        55.099999999999994,
+        55.3
+      ],
+      "ratio": 6.703,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#F2EEE7",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 13.649,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#C8C7C2",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 9.323,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#A2A8AA",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 6.553,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#F4AD82",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 8.378,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "requestedOpacity": 0.3,
+      "effectiveTextSurfaceOpacity": 0.9,
+      "backdrop": "busy-dark",
+      "foreground": "#91CFAB",
+      "compositedRGB": [
+        29.1,
+        35.6,
+        39.800000000000004
+      ],
+      "ratio": 8.807,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "role": "loot chip text",
+      "foreground": "#E6D16F",
+      "background": "#171D20",
+      "ratio": 11.122,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "role": "loot chip text",
+      "foreground": "#BAABF2",
+      "background": "#171D20",
+      "ratio": 8.268,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "role": "loot chip text",
+      "foreground": "#F2AA88",
+      "background": "#171D20",
+      "ratio": 8.824,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "role": "accent button",
+      "foreground": "#241810",
+      "background": "#F4AD82",
+      "ratio": 9.188,
+      "minimum": 4.5,
+      "pass": true
+    }
+  ],
+  "uiChecks": [
+    {
+      "foreground": "#849095",
+      "background": "#1D2225",
+      "ratio": 4.897,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "#F4AD82",
+      "background": "#1D2225",
+      "ratio": 8.523,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "#849095",
+      "background": "#272D31",
+      "ratio": 4.253,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "#F4AD82",
+      "background": "#272D31",
+      "ratio": 7.401,
+      "minimum": 3,
+      "pass": true
+    }
+  ],
+  "rawUnprotectedComparison": [
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "white",
+      "foreground": "#F2EEE7",
+      "ratio": 8.627,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "white",
+      "foreground": "#C8C7C2",
+      "ratio": 5.893,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "white",
+      "foreground": "#A2A8AA",
+      "ratio": 4.142,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "white",
+      "foreground": "#F4AD82",
+      "ratio": 5.296,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "white",
+      "foreground": "#91CFAB",
+      "ratio": 5.567,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "bright-warm",
+      "foreground": "#F2EEE7",
+      "ratio": 8.828,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "bright-warm",
+      "foreground": "#C8C7C2",
+      "ratio": 6.031,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "bright-warm",
+      "foreground": "#A2A8AA",
+      "ratio": 4.238,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "bright-warm",
+      "foreground": "#F4AD82",
+      "ratio": 5.419,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "bright-warm",
+      "foreground": "#91CFAB",
+      "ratio": 5.697,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "busy-dark",
+      "foreground": "#F2EEE7",
+      "ratio": 13.529,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "busy-dark",
+      "foreground": "#C8C7C2",
+      "ratio": 9.242,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "busy-dark",
+      "foreground": "#A2A8AA",
+      "ratio": 6.495,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "busy-dark",
+      "foreground": "#F4AD82",
+      "ratio": 8.305,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.85,
+      "backdrop": "busy-dark",
+      "foreground": "#91CFAB",
+      "ratio": 8.73,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "white",
+      "foreground": "#F2EEE7",
+      "ratio": 1.634,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "white",
+      "foreground": "#C8C7C2",
+      "ratio": 1.116,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "white",
+      "foreground": "#A2A8AA",
+      "ratio": 1.275,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "white",
+      "foreground": "#F4AD82",
+      "ratio": 1.003,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "white",
+      "foreground": "#91CFAB",
+      "ratio": 1.055,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "bright-warm",
+      "foreground": "#F2EEE7",
+      "ratio": 1.758,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "bright-warm",
+      "foreground": "#C8C7C2",
+      "ratio": 1.201,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "bright-warm",
+      "foreground": "#A2A8AA",
+      "ratio": 1.185,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "bright-warm",
+      "foreground": "#F4AD82",
+      "ratio": 1.079,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "bright-warm",
+      "foreground": "#91CFAB",
+      "ratio": 1.134,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "busy-dark",
+      "foreground": "#F2EEE7",
+      "ratio": 12.179,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "busy-dark",
+      "foreground": "#C8C7C2",
+      "ratio": 8.319,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "busy-dark",
+      "foreground": "#A2A8AA",
+      "ratio": 5.847,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "busy-dark",
+      "foreground": "#F4AD82",
+      "ratio": 7.476,
+      "protected": false
+    },
+    {
+      "requestedOpacity": 0.3,
+      "backdrop": "busy-dark",
+      "foreground": "#91CFAB",
+      "ratio": 7.859,
+      "protected": false
+    }
+  ],
+  "minimumProtectedRatio": 4.914,
+  "exports": [
+    {
+      "file": "raid-1080.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "lobby-1080.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "raid-1440.png",
+      "width": 2560,
+      "height": 1440,
+      "dpr": 1
+    },
+    {
+      "file": "lobby-1440.png",
+      "width": 2560,
+      "height": 1440,
+      "dpr": 1
+    },
+    {
+      "file": "raid-ultrawide.png",
+      "width": 3440,
+      "height": 1440,
+      "dpr": 1
+    },
+    {
+      "file": "lobby-ultrawide.png",
+      "width": 3440,
+      "height": 1440,
+      "dpr": 1
+    },
+    {
+      "file": "edit.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "drag.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "settings.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "presets.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "application.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "search.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "hidden.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "hidden-clean.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "catalog.png",
+      "width": 1920,
+      "height": 2060,
+      "dpr": 1
+    },
+    {
+      "file": "opacity-30.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "opacity-default.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "edit-en.png",
+      "width": 1920,
+      "height": 1080,
+      "dpr": 1
+    },
+    {
+      "file": "settings@2x.png",
+      "width": 688,
+      "height": 1063.09375,
+      "dpr": 2,
+      "crop": ".settings"
+    },
+    {
+      "file": "widget@2x.png",
+      "width": 688,
+      "height": 481.28125,
+      "dpr": 2,
+      "crop": ".edit-widget"
+    }
+  ],
+  "layoutChecks": [
+    {
+      "fixture": "raid-1080",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "lobby-1080",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "raid-1440",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "lobby-1440",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "raid-ultrawide",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "lobby-ultrawide",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "edit",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "drag",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "settings",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "presets",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "application",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "search",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "hidden",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "hidden-clean",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "catalog",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "opacity-30",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "opacity-default",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    },
+    {
+      "fixture": "edit-en",
+      "overflow": false,
+      "clipped": [],
+      "fonts": [
+        {
+          "family": "Inter",
+          "loaded": true
+        },
+        {
+          "family": "Chakra",
+          "loaded": true
+        },
+        {
+          "family": "Jet",
+          "loaded": true
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "limitations": [
+    "Static HTML states; navigation only, not live dragging or persistence.",
+    "Windows focus, click-through, HDR, borderless games and mixed DPI need native validation.",
+    "Antialiasing and perception require implementation check; mathematical checks are not WCAG certification."
+  ]
+}

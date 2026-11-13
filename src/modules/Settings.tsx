@@ -21,7 +21,7 @@ import { catalogCount } from '../core/catalog';
 import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
 import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
-import { OpsPanel, OpsVoicePanel, WardrobePanel } from './OpsSettings';
+import { OpsPanel, OpsVoicePanel, WardrobePanel, WidgetsPanel } from './OpsSettings';
 import { AutoCapturePanel, GameLinkPanel } from './AutoSettings';
 import { WindowPanel } from './WindowSettings';
 import { APP_VERSION } from '../core/whatsnew';
@@ -251,6 +251,7 @@ export default function Settings({ sub }: { sub: string }) {
       <WindowPanel />
       <Anchor id="ops" />
       <OpsPanel />
+      <WidgetsPanel />
       <Anchor id="auto" />
       <AutoCapturePanel />
       <Anchor id="link" />

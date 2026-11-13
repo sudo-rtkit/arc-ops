@@ -1,0 +1,100 @@
+# UI strings / Řetězce UI
+
+Czech default; English game names, loot areas, Ops, Lobby, Raid and Gear Bench 2 stay unchanged. Numbers are locale-formatted. Fixtures contain fictional progress. Symbols have accessible action names.
+
+| Čeština | English |
+|---|---|
+| Seznam k nalezení | To find |
+| Připnuté úkoly | Pinned quests |
+| Najít Power Cable | Find Power Cable |
+| Navštívit vybrané místo | Visit selected location |
+| Ops: skrýt widgety | Ops: hide widgets |
+| Úpravy | Edit |
+| Co dál? | What next? |
+| Doplň Power Cable | Collect Power Cable |
+| 2 kusy pro Gear Bench 2. | 2 units for Gear Bench 2. |
+| Podle tvého plánu. Další krok zvolíš v aplikaci. | Based on your plan. Choose the next step in the app. |
+| Nákupy | Shopping |
+| Chybí 3 kusy pro vybraný upgrade. | 3 units needed for selected upgrade. |
+| Ruční postup · zaškrtnutí v Úpravách. | Manual progress · tick in Edit. |
+| Obsazenost skrýše | Stash capacity |
+| 53 volných míst | 53 free slots |
+| Poslední potvrzený stav · ručně | Last confirmed state · manual |
+| ÚPRAVY | EDIT |
+| + Widget | + Widget |
+| Rozložení ▾ | Layouts ▾ |
+| Zpět | Undo |
+| Obnovit | Reset |
+| Aplikace ↗ | App ↗ |
+| Hledat · Ctrl+K | Search · Ctrl+K |
+| Skrýt vše | Hide all |
+| Hotovo · Esc | Done · Esc |
+| Přesunout | Move |
+| Nastavit | Settings |
+| Odebrat | Remove |
+| Vyber si widgety | Choose your widgets |
+| Jen tvoje data. Přidej, co potřebuješ. | Only your data. Add what you need. |
+| Přidáno | Added |
+| Přidat | Add |
+| Nechat / prodat / recyklovat | Keep / sell / recycle |
+| Týdenní výzvy | Weekly challenges |
+| Ops | Ops |
+| Ke kontrole | To review |
+| Automatické snímání | Automatic capture |
+| Mapy ani živá poloha do overlaye nepatří. | No maps or live position in this overlay. |
+| Přichyceno: vlevo 24 px · mřížka 8 px | Snapped: left 24 px · grid 8 px |
+| Nastavení widgetu | Widget settings |
+| Krytí | Opacity |
+| 30–100 % pro podklad. Textová plocha má nejméně 90 % pro čitelnost. | 30–100% for the fill. Text surfaces retain at least 90% for readability. |
+| Hustota | Density |
+| Kompaktní | Compact |
+| Rozšířená | Expanded |
+| Velikost | Size |
+| Minimum 280 × 200 · maximum 480 × 560 | Minimum 280 × 200 · maximum 480 × 560 |
+| Kotva | Anchor |
+| Vlevo nahoře · 24 / 128 px | Top left · 24 / 128 px |
+| Zamknout widget | Lock widget |
+| Hotovo | Done |
+| Rozložení | Layouts |
+| Seznam + úkoly · minimum v rohu | List + quests · minimal corner layout |
+| Co dál? + nákupy + úkoly + skrýš | What next? + shopping + quests + stash |
+| Uložit jako… | Save as… |
+| Přejmenovat | Rename |
+| Automaticky podle stavu hry | Follow game state automatically |
+| Volitelné, vypnuto. Vyžaduje zapnuté snímání; změnu odlož do konce Úprav. | Optional, off. Requires capture; defer switching until Edit ends. |
+| Jen tento počítač · mimo zálohy | This PC only · excluded from backups |
+| Zpět k widgetům | Back to widgets |
+| Příprava na raid | Raid preparation |
+| Přehled | Overview |
+| Úkoly | Quests |
+| Vlastní plán | Your plan |
+| Vlastní plán · výskyt není zaručen. | Your plan · spawns are not guaranteed. |
+| Schéma stávajícího modulu; plná aplikace pouze na výslovné otevření. | Existing module schematic; full app only opens explicitly. |
+| Hledat | Search |
+| Hledat widget nebo modul | Search widgets or modules |
+| Předměty | Items |
+| Power Cable | Power Cable |
+| Esc zavře hledání | Esc closes search |
+| Ops: zobrazit widgety | Ops: show widgets |
+| Katalog widgetů | Widget catalog |
+| Kompaktní a rozšířená podoba · ukázková vlastní data | Compact and expanded forms · illustrative personal data |
+| Rozhodnutí o předmětu | Item decision |
+| Najít předmět | Find an item |
+| Najít předmět… | Find an item… |
+| NECHAT | KEEP |
+| Hledání pouze v Úpravách. | Search only in Edit. |
+| Důvod: vlastní plán. Bez vybraného cíle se doporučení může změnit. | Reason: your plan. Advice can change without a selected goal. |
+| Odehrát raidy | Complete raids |
+| Sbírat materiál | Collect materials |
+| Vlastní zapsaný postup | Your recorded progress |
+| Připraven. | Ready. |
+| Úpravy otevři zkratkou nebo vstupem Ops. | Open Edit with the shortcut or Ops entry. |
+| záznamy | records |
+| Nejisté údaje čekají na tvoje potvrzení. | Uncertain data awaits your confirmation. |
+| Vypnuto | Off |
+| Volitelné · pouze mimo raid | Optional · outside raids only |
+| Čeká na ověření u Embarku | Awaiting verification with Embark |
+| Minimum: 30 % | Minimum: 30% |
+| Textový podklad zůstává na 90 %. Písmo a ovladače jsou vždy neprůhledné. | Text surface stays at 90%. Type and controls are always opaque. |
+| Výchozí: 85 % | Default: 85% |
+| Čitelnost i přes světlé rušné pozadí. | Readable over a bright busy background. |

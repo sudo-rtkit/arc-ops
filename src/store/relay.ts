@@ -51,6 +51,7 @@ export const RELAY_ACTIONS = [
    - snímek mapy (obrázek v IndexedDB zapisuje jen hlavní okno) a mapEdit (bere funkci);
    - nastavení tohoto počítače z Nastavení (buddy a zkratka, okno, jazyk, automatické snímky);
    - 0.19.0: zavření karty „Co je nového“ (ukazuje se jen v hlavním okně);
+   - 0.22.0: widgety nad hrou a jejich globální zkratky (nastavení tohoto počítače, jen Nastavení hlavního okna);
    - 0.20.0: automatické snímání a hlavní vypínač napojení na hru (nastavení tohoto počítače), kroky průběhu raidu
      a automatický zápis (jen hub v hlavním okně, ze snímku). */
 const none = () => undefined;
@@ -58,7 +59,7 @@ const later = <T>(v: T) => () => Promise.resolve(v);
 export const BLOCKED_ACTIONS = {
   importFromScreens: later(null), importRaidLoot: later({ ok: false as const, reason: 'notReady' as const }), importProgress: later(null),
   mapEdit: none, setMapImage: none,
-  setAutoSnapshot: none, setLang: none, whatsNewSeen: none,
+  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none,
   setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),
@@ -138,6 +139,28 @@ export function applyRelay(app: App, raw: unknown): RelayResult | null {
     replayIds(m.ids, () => (fn as (...a: unknown[]) => unknown)(...args));
   } catch { return { ack, applied: false }; }
   return { ack, applied: app.store.getState().state !== before };
+}
+
+/* ----- 0.22.0: úpravy z okna widgetů ----- */
+/* Okno widgetů smí poslat jen tyto dvě akce, a jen v Úpravách (hra nikdy nedostane vstup, okno ve Hře nic neposílá):
+   zaškrtnutí cíle úkolu a orientační „mám“ v seznamu k nalezení (inventář se nemění). Argumenty mají pevný tvar
+   a meze; cokoli jiného se zahodí. Akce provede stejná akce store jako vlastní UI hlavního okna. */
+export const WIDGET_ACTIONS = ['questObjective', 'setRaidFound'] as const satisfies readonly ActionName[];
+export type WidgetAction = (typeof WIDGET_ACTIONS)[number];
+const shortText = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
+export function applyWidgetAction(app: App, raw: unknown): boolean {
+  const m = raw as { name?: unknown; args?: unknown } | null;
+  if (!m || typeof m !== 'object' || !Array.isArray(m.args) || JSON.stringify(m.args).length > 512) return false;
+  const [a, b, c] = m.args as unknown[];
+  const before = app.store.getState().state;
+  if (m.name === 'questObjective') {
+    if (!shortText(a, 80) || !Number.isSafeInteger(b) || (b as number) < 0 || (b as number) > 63 || typeof c !== 'boolean' || m.args.length !== 3) return false;
+    app.actions.questObjective(a, b as number, c);
+  } else if (m.name === 'setRaidFound') {
+    if (!shortText(a, 80) || typeof b !== 'boolean' || m.args.length !== 2) return false;
+    app.actions.setRaidFound(a, b);
+  } else return false;
+  return app.store.getState().state !== before;
 }
 
 /* ----- overlay: zrcadlo ----- */

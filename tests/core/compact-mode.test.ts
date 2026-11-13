@@ -350,7 +350,7 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
       calls, available: true,
       enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
     };
   }
 

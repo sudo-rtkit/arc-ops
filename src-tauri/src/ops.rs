@@ -19,6 +19,12 @@
 //!   a porovná se se vzory známých obrazovek (modul `header`). Teprve při známé obrazovce, která se liší od naposledy
 //!   zpracované (`AutoGate`), se pořídí jeden plný snímek stejnou cestou jako u zkratky (paměť, `capture_take`, 15 s).
 //!   Pás se po porovnání hned zahodí; na disk se nic nezapisuje.
+//! - 0.22.0: widgety nad hrou. Jedno sdílené průhledné okno vždy navrchu přes celý monitor hry (`widgets`), které ve Hře
+//!   propouští myš (`set_ignore_cursor_events(true)`) a nejde aktivovat (`focusable(false)`, WS_EX_NOACTIVATE), takže
+//!   nikdy nevezme hře myš ani fokus. Úpravy zapne jen výslovná akce (klik na Opse, zkratka Úprav, tlačítko
+//!   v Nastavení): okno přestane propouštět myš a dostane fokus; po Hotovo / Esc se vše vrátí a fokus dostane okno,
+//!   které bylo v popředí předtím (jako u overlaye), ale jen když fokus pořád patří této aplikaci. Malé okno Opse
+//!   (buddy) zůstává jediným místem, které ve Hře přijme klik. Žádné nové API pro procesy, paměť ani vstup.
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -32,6 +38,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 pub const BUDDY: &str = "buddy";
 pub const OVERLAY: &str = "overlay";
+pub const WIDGETS: &str = "widgets";
 const MAIN: &str = "main";
 /* Nevyzvednutý snímek se zahodí po této době. */
 const CAPTURE_TTL: Duration = Duration::from_secs(15);
@@ -67,6 +74,11 @@ pub struct OpsState {
     auto_on: AtomicBool,
     auto_mask: AtomicU32,
     auto_stats: Mutex<AutoStats>,
+    /* 0.22.0: okno widgetů v Úpravách, okno v popředí před Úpravami a dvě volitelné zkratky (Úpravy, Skrýt / zobrazit) */
+    edit: AtomicBool,
+    edit_focus: Mutex<(isize, u32)>,
+    edit_key: Mutex<Option<Shortcut>>,
+    hide_key: Mutex<Option<Shortcut>>,
 }
 
 /// Měření automatického snímání (0.20.0): doba jednoho kroku (snímek pásu + porovnání) a velikost pásu v paměti.
@@ -107,17 +119,30 @@ fn enabled<R: Runtime>(app: &AppHandle<R>) -> bool {
 
 pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     tauri_plugin_global_shortcut::Builder::new()
-        .with_handler(|app, _shortcut, event| {
+        .with_handler(|app, shortcut, event| {
             if event.state() == ShortcutState::Pressed {
-                on_hotkey(app);
+                on_hotkey(app, shortcut);
             }
         })
         .build()
 }
 
-/* Stisk zkratky: otevřený overlay zavře, jinak pořídí snímek. */
-fn on_hotkey<R: Runtime>(app: &AppHandle<R>) {
+/* Stisk zkratky: otevřený overlay zavře, jinak pořídí snímek. 0.22.0: zkratka Úprav přepne Úpravy widgetů,
+   zkratka Skrýt / zobrazit pošle oknu widgetů jen událost (nic se neaktivuje). */
+fn on_hotkey<R: Runtime>(app: &AppHandle<R>, shortcut: &Shortcut) {
     if !enabled(app) {
+        return;
+    }
+    let st = app.state::<OpsState>();
+    let is = |m: &Mutex<Option<Shortcut>>| m.lock().map(|k| k.as_ref() == Some(shortcut)).unwrap_or(false);
+    if is(&st.edit_key) {
+        let _ = set_edit(app, None);
+        return;
+    }
+    if is(&st.hide_key) {
+        if app.get_webview_window(WIDGETS).is_some() {
+            emit_native(app, WIDGETS, "widgets-hide", ());
+        }
         return;
     }
     if let Some(o) = app.get_webview_window(OVERLAY) {
@@ -146,11 +171,24 @@ pub fn parse_hotkey(accel: &str) -> Result<Shortcut, String> {
     accel.parse::<Shortcut>().map_err(|_| "hotkey:invalid".to_string())
 }
 
+/// Zkratka snímku (slot chybí nebo „capture“), Úprav widgetů („edit“) nebo Skrýt / zobrazit widgety („hide“).
+/// Stejná zkratka nesmí být ve dvou slotech.
 #[tauri::command]
-pub async fn ops_hotkey<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, accel: String) -> Result<(), String> {
+pub async fn ops_hotkey<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, accel: String, slot: Option<String>) -> Result<(), String> {
     main_only(&window)?;
     let st = app.state::<OpsState>();
-    let mut cur = st.hotkey.lock().map_err(|_| "hotkey:failed")?;
+    let slot = slot.as_deref().unwrap_or("capture");
+    let slots = [("capture", &st.hotkey), ("edit", &st.edit_key), ("hide", &st.hide_key)];
+    let cell = slots.iter().find(|(n, _)| *n == slot).map(|(_, c)| *c).ok_or("hotkey:invalid")?;
+    if !accel.trim().is_empty() {
+        let next = parse_hotkey(&accel)?;
+        for (n, other) in slots {
+            if n != slot && other.lock().map(|o| o.as_ref() == Some(&next)).unwrap_or(false) {
+                return Err("hotkey:taken".into());
+            }
+        }
+    }
+    let mut cur = cell.lock().map_err(|_| "hotkey:failed")?;
     if accel.trim().is_empty() {
         if let Some(old) = cur.take() {
             let _ = app.global_shortcut().unregister(old);
@@ -190,15 +228,18 @@ pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     let st = app.state::<OpsState>();
     st.enabled.store(false, Ordering::SeqCst);
     st.auto_on.store(false, Ordering::SeqCst);
-    if let Ok(mut h) = st.hotkey.lock() {
-        *h = None;
+    st.edit.store(false, Ordering::SeqCst);
+    for k in [&st.hotkey, &st.edit_key, &st.hide_key] {
+        if let Ok(mut h) = k.lock() {
+            *h = None;
+        }
     }
     let _ = app.global_shortcut().unregister_all();
     st.watch_gen.fetch_add(1, Ordering::SeqCst);
     if let Ok(mut c) = st.capture.lock() {
         *c = None;
     }
-    for label in [OVERLAY, BUDDY] {
+    for label in [WIDGETS, OVERLAY, BUDDY] {
         if let Some(w) = app.get_webview_window(label) {
             let _ = w.destroy();
         }
@@ -216,8 +257,16 @@ pub fn on_window_event<R: Runtime>(w: &tauri::Window<R>, e: &tauri::WindowEvent)
                 api.prevent_close();
                 hide_overlay(w.app_handle());
             }
+            /* Alt+F4 v Úpravách widgety nezavře, jen ukončí Úpravy */
+            WIDGETS => {
+                api.prevent_close();
+                let _ = set_edit(w.app_handle(), Some(false));
+            }
             _ => {}
         }
+    }
+    if w.label() == WIDGETS && matches!(e, tauri::WindowEvent::Destroyed) {
+        w.app_handle().state::<OpsState>().edit.store(false, Ordering::SeqCst);
     }
 }
 
@@ -327,8 +376,9 @@ fn show_overlay<R: Runtime>(app: &AppHandle<R>, tab: Option<String>) -> Result<(
     }
     let w = overlay_window(app)?;
     if !w.is_visible().unwrap_or(false) {
+        let prev = focus_target(app);
         if let Ok(mut p) = app.state::<OpsState>().prev_focus.lock() {
-            *p = foreground();
+            *p = prev;
         }
     }
     w.show().map_err(|e| e.to_string())?;
@@ -391,6 +441,187 @@ pub async fn main_focus<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>)
         let _ = w.set_focus();
     }
     Ok(())
+}
+
+/* ----- 0.22.0: widgety nad hrou ----- */
+
+/* Kam vrátit fokus po zavření overlaye nebo konci Úprav: okno v popředí. Když je to Ops nebo okno widgetů (hráč
+   klikl na Opse), tak okno hry, aby fokus nedostal Ops místo hry. Jen čtení oken, nic se neaktivuje. */
+fn focus_target<R: Runtime>(app: &AppHandle<R>) -> (isize, u32) {
+    let fg = foreground();
+    let child = [BUDDY, WIDGETS].iter().any(|l| app.get_webview_window(l).and_then(|w| hwnd_of(&w)) == Some(fg.0));
+    if fg.1 == std::process::id() && child {
+        if let Some(g) = game_window(&game_pids()) {
+            return g;
+        }
+    }
+    fg
+}
+
+#[cfg(windows)]
+fn hwnd_of<R: Runtime>(w: &WebviewWindow<R>) -> Option<isize> {
+    w.hwnd().ok().map(|h| h.0 as isize)
+}
+#[cfg(not(windows))]
+fn hwnd_of<R: Runtime>(_w: &WebviewWindow<R>) -> Option<isize> {
+    None
+}
+
+/// Obdélník monitoru hry ve fyzických px: monitor největšího viditelného okna hry, jinak monitor Opse, jinak hlavní.
+fn widgets_rect<R: Runtime>(app: &AppHandle<R>) -> Option<(i32, i32, u32, u32)> {
+    if let Some(r) = game_monitor(&game_pids()) {
+        return Some(r);
+    }
+    let m = app
+        .get_webview_window(BUDDY)
+        .and_then(|b| b.current_monitor().ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten())?;
+    Some((m.position().x, m.position().y, m.size().width, m.size().height))
+}
+
+/// Okno widgetů přes celý monitor hry (bez aktivace; změna jen při jiném monitoru nebo rozlišení). Poloha se nastaví
+/// před velikostí i po ní: přesun na monitor s jiným DPI by jinak velikost přepočítal.
+fn fit_widgets<R: Runtime>(app: &AppHandle<R>, w: &WebviewWindow<R>) {
+    let Some((x, y, mw, mh)) = widgets_rect(app) else { return };
+    if !place_ok(x, y, mw, mh) {
+        return;
+    }
+    if let (Ok(p), Ok(s)) = (w.outer_position(), w.inner_size()) {
+        if p.x == x && p.y == y && s.width == mw && s.height == mh {
+            return;
+        }
+    }
+    let _ = w.set_position(PhysicalPosition::new(x, y));
+    let _ = w.set_size(PhysicalSize::new(mw, mh));
+    let _ = w.set_position(PhysicalPosition::new(x, y));
+}
+
+/// Otevře okno widgetů (jen hlavní okno, jen se zapnutým Ops). Ve Hře propouští myš a nejde aktivovat.
+#[tauri::command]
+pub async fn widgets_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    main_only(&window)?;
+    if !enabled(&app) {
+        return Err("ops:off".into());
+    }
+    if let Some(w) = app.get_webview_window(WIDGETS) {
+        fit_widgets(&app, &w);
+        return Ok(());
+    }
+    let w = WebviewWindowBuilder::new(&app, WIDGETS, WebviewUrl::App("widgets.html".into()))
+        .title("Ops widgets")
+        .inner_size(640.0, 480.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .focused(false)
+        .focusable(false)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    app.state::<OpsState>().edit.store(false, Ordering::SeqCst);
+    w.set_ignore_cursor_events(true).map_err(|e| e.to_string())?;
+    exclude_from_capture(&w);
+    fit_widgets(&app, &w);
+    #[cfg(windows)]
+    {
+        if win::reveal_no_activate(&w) {
+            return Ok(());
+        }
+    }
+    w.show().map_err(|e| e.to_string())
+}
+
+/// Zavře okno widgetů (hlavní okno: vypnutí widgetů nebo schování Opse). Rozpracované Úpravy se nejdřív ukončí.
+#[tauri::command]
+pub async fn widgets_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    main_only(&window)?;
+    if app.state::<OpsState>().edit.load(Ordering::SeqCst) {
+        let _ = set_edit(&app, Some(false));
+    }
+    if let Some(w) = app.get_webview_window(WIDGETS) {
+        let _ = w.destroy();
+    }
+    app.state::<OpsState>().edit.store(false, Ordering::SeqCst);
+    Ok(())
+}
+
+/// Úpravy widgetů zapnout (true), vypnout (false) nebo přepnout (bez hodnoty). Klik na Opse, Hotovo / Esc v okně
+/// widgetů a tlačítko v Nastavení; zkratku obslouží Rust sám.
+#[tauri::command]
+pub async fn widgets_edit<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, on: Option<bool>) -> Result<(), String> {
+    only(&window, &[MAIN, BUDDY, WIDGETS])?;
+    set_edit(&app, on)
+}
+
+fn set_edit<R: Runtime>(app: &AppHandle<R>, want: Option<bool>) -> Result<(), String> {
+    if !enabled(app) {
+        return Err("ops:off".into());
+    }
+    let w = app.get_webview_window(WIDGETS).ok_or("widgets:off")?;
+    let st = app.state::<OpsState>();
+    let cur = st.edit.load(Ordering::SeqCst);
+    let on = want.unwrap_or(!cur);
+    if on == cur {
+        if on {
+            let _ = w.set_focus();
+        }
+        return Ok(());
+    }
+    if on {
+        let prev = focus_target(app);
+        if let Ok(mut p) = st.edit_focus.lock() {
+            *p = prev;
+        }
+        st.edit.store(true, Ordering::SeqCst);
+        fit_widgets(app, &w);
+        w.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
+        let _ = w.set_focusable(true);
+        let _ = w.set_focus();
+        emit_native(app, WIDGETS, "widgets-mode", "edit");
+        emit_native(app, MAIN, "widgets-mode", true);
+    } else {
+        st.edit.store(false, Ordering::SeqCst);
+        /* panel Aplikace otevřený z Úprav se zavře s nimi (vrátí fokus oknu widgetů, to ho pak vrátí hře) */
+        hide_overlay(app);
+        emit_native(app, WIDGETS, "widgets-mode", "play");
+        emit_native(app, MAIN, "widgets-mode", false);
+        let _ = w.set_ignore_cursor_events(true);
+        let _ = w.set_focusable(false);
+        let (prev, pid) = st.edit_focus.lock().map(|p| *p).unwrap_or((0, 0));
+        /* hráč mezitím přepnul jinam (Alt+Tab): fokus mu nebrat */
+        if foreground_pid() == Some(std::process::id()) {
+            restore_focus(prev, pid);
+        }
+    }
+    Ok(())
+}
+
+/// Okno widgetů po změně rozlišení, DPI nebo monitoru hry: znovu přes celý monitor hry (bez aktivace).
+#[tauri::command]
+pub async fn widgets_fit<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[WIDGETS])?;
+    fit_widgets(&app, &window);
+    Ok(())
+}
+
+/// Tab nebo modul panelu Aplikace (overview, scan, apps, apps:journal …): malá písmena, nejvýš 16 + 16 znaků.
+pub fn app_tab_ok(tab: &str) -> bool {
+    let mut parts = tab.splitn(2, ':');
+    let ok = |p: &str| !p.is_empty() && p.len() <= 16 && p.bytes().all(|b| b.is_ascii_lowercase());
+    parts.next().map_or(false, ok) && parts.next().map_or(true, ok)
+}
+
+/// Tlačítko Aplikace v Úpravách: otevře stávající panel overlaye (plné moduly), volitelně rovnou na záložce nebo modulu.
+#[tauri::command]
+pub async fn widgets_app<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, tab: Option<String>) -> Result<(), String> {
+    only(&window, &[WIDGETS])?;
+    let tab = tab.filter(|t| app_tab_ok(t));
+    show_overlay(&app, tab)
 }
 
 /* ----- poloha a tažení vlastního okna (0.16.1) ----- */
@@ -1055,10 +1286,10 @@ mod win {
     use std::ffi::c_void;
     use std::mem::{size_of, zeroed};
     use std::ptr::null_mut;
-    use windows_sys::Win32::Foundation::{CloseHandle, HWND, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::Foundation::{CloseHandle, HWND, INVALID_HANDLE_VALUE, RECT};
     use windows_sys::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, GetMonitorInfoW, MonitorFromWindow,
-        ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
+        ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, MONITORINFO, MONITOR_DEFAULTTONULL, MONITOR_DEFAULTTOPRIMARY,
         SRCCOPY,
     };
     use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
@@ -1066,7 +1297,7 @@ mod win {
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
+        EnumWindows, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GetForegroundWindow, IsWindow, SetForegroundWindow, SetWindowDisplayAffinity, ShowWindow, SW_SHOWMINNOACTIVE,
         SW_SHOWNOACTIVATE, WDA_EXCLUDEFROMCAPTURE, WDA_NONE,
     };
 
@@ -1215,9 +1446,14 @@ mod win {
 
     /// Má některý z procesů hry viditelné okno, které není minimalizované?
     pub fn game_window_shown(pids: &[u32]) -> bool {
+        game_window(pids).is_some()
+    }
+
+    /// Největší viditelné, neminimalizované okno procesů hry (HWND jako číslo a id procesu). Jen čtení.
+    pub fn game_window(pids: &[u32]) -> Option<(isize, u32)> {
         struct Find<'a> {
             pids: &'a [u32],
-            found: bool,
+            best: Option<(isize, u32, i64)>,
         }
         unsafe extern "system" fn check(hwnd: HWND, data: isize) -> i32 {
             let f = &mut *(data as *mut Find);
@@ -1225,17 +1461,45 @@ mod win {
                 let mut pid = 0;
                 GetWindowThreadProcessId(hwnd, &mut pid);
                 if f.pids.contains(&pid) {
-                    f.found = true;
-                    return 0;
+                    let mut r: RECT = zeroed();
+                    let area = if GetWindowRect(hwnd, &mut r) != 0 { (r.right - r.left) as i64 * (r.bottom - r.top) as i64 } else { 0 };
+                    if f.best.map_or(true, |b| area > b.2) {
+                        f.best = Some((hwnd as isize, pid, area));
+                    }
                 }
             }
             1
         }
-        let mut f = Find { pids, found: false };
+        if pids.is_empty() {
+            return None;
+        }
+        let mut f = Find { pids, best: None };
         unsafe {
             EnumWindows(Some(check), &mut f as *mut Find as isize);
         }
-        f.found
+        f.best.map(|b| (b.0, b.1))
+    }
+
+    /// Celý monitor, na kterém je okno hry (fyzické px). Bez okna hry nic.
+    pub fn game_monitor(pids: &[u32]) -> Option<(i32, i32, u32, u32)> {
+        let (h, _) = game_window(pids)?;
+        unsafe {
+            let mon = MonitorFromWindow(h as HWND, MONITOR_DEFAULTTONULL);
+            if mon.is_null() {
+                return None;
+            }
+            let mut mi: MONITORINFO = zeroed();
+            mi.cbSize = size_of::<MONITORINFO>() as u32;
+            if GetMonitorInfoW(mon, &mut mi) == 0 {
+                return None;
+            }
+            let r = mi.rcMonitor;
+            let (w, hh) = (r.right - r.left, r.bottom - r.top);
+            if w <= 0 || hh <= 0 {
+                return None;
+            }
+            Some((r.left, r.top, w as u32, hh as u32))
+        }
     }
 
     /// Id běžících procesů hry (podle názvu spustitelného souboru).
@@ -1284,7 +1548,7 @@ mod win {
 }
 
 #[cfg(windows)]
-use win::{capture_foreground_monitor, capture_header_strip, foreground, foreground_pid, game_pids, game_window_shown, process_names, restore_focus};
+use win::{capture_foreground_monitor, capture_header_strip, foreground, foreground_pid, game_monitor, game_pids, game_window, game_window_shown, process_names, restore_focus};
 
 /* SetWindowDisplayAffinity musí volat vlákno, které okno vlastní (hlavní vlákno). */
 #[cfg(windows)]
@@ -1351,6 +1615,14 @@ fn foreground_pid() -> Option<u32> {
 #[cfg(not(windows))]
 fn game_window_shown(_pids: &[u32]) -> bool {
     false
+}
+#[cfg(not(windows))]
+fn game_window(_pids: &[u32]) -> Option<(isize, u32)> {
+    None
+}
+#[cfg(not(windows))]
+fn game_monitor(_pids: &[u32]) -> Option<(i32, i32, u32, u32)> {
+    None
 }
 #[cfg(not(windows))]
 fn game_pids() -> Vec<u32> {
@@ -1498,6 +1770,17 @@ mod tests {
         assert!(!same_owner(1234, 999));
         assert!(!same_owner(0, 0));
         assert!(!same_owner(1234, 0));
+    }
+
+    #[test]
+    fn zalozka_panelu_aplikace() {
+        for ok in ["apps", "scan", "overview", "apps:journal", "apps:checklist"] {
+            assert!(app_tab_ok(ok), "{ok}");
+        }
+        let long = "a".repeat(17);
+        for bad in ["", "Apps", "apps:", ":x", "apps:journal:x", long.as_str(), "apps:Jo", "scan/1", "apps:j-1"] {
+            assert!(!app_tab_ok(bad), "{bad}");
+        }
     }
 
     #[test]

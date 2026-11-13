@@ -161,7 +161,7 @@ function fakeNative(calls: string[]): Native {
   return {
     available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'),
     buddyReveal: rec('buddyReveal'), overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'),
-    mainFocus: rec('mainFocus'), captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'),
+    mainFocus: rec('mainFocus'), captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'),
     captureTake: async () => new ArrayBuffer(0), autoCapture: rec('autoCapture'), autoStats: async () => null,
   };
 }

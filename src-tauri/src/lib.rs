@@ -1,6 +1,6 @@
 //! Rust backend: jen soubory ve složce dat, snímky, souborové dialogy a otevření odkazu nebo složky.
 //! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů, žádná síť.
-//! Buddy, overlay, zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
+//! Buddy, overlay, widgety nad hrou (0.22.0), zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
 //! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
 mod bus;
@@ -256,6 +256,11 @@ pub fn run() {
             ops::ops_autostats,
             ops::win_place,
             ops::win_drag,
+            ops::widgets_open,
+            ops::widgets_close,
+            ops::widgets_edit,
+            ops::widgets_fit,
+            ops::widgets_app,
             mainwin::main_mode,
             mainwin::main_pin,
             mainwin::main_geometry,

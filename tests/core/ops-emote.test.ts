@@ -219,7 +219,7 @@ function fakeNative(): Native {
   const ok = async () => undefined;
   return {
     available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok,
-    mainFocus: ok, captureNow: ok, place: ok, drag: ok, captureTake: async () => new ArrayBuffer(0), autoCapture: ok, autoStats: async () => null,
+    mainFocus: ok, captureNow: ok, place: ok, drag: ok, widgetsOpen: ok, widgetsClose: ok, widgetsEdit: ok, widgetsFit: ok, widgetsApp: ok, captureTake: async () => new ArrayBuffer(0), autoCapture: ok, autoStats: async () => null,
   };
 }
 const LOADOUT = () => syntheticFindings({ skip: [0, 1, 2, 3, 4, 5, 6] });

@@ -4,13 +4,13 @@
    posluchač existuje, se ztratí. Proto ready(): vyřeší se, až jsou aktivní všechny dosud přidané posluchače.
    0.16.1 (bezpečnost):
    - Okna nemají oprávnění vysílat události z JS. Zprávu pošle Rust (src-tauri/src/bus.rs): odesílatele doplní podle
-     štítku volajícího okna, pustí jen trasy hlavní ↔ buddy a hlavní ↔ overlay a omezí velikost. Příjemce dostane
+     štítku volajícího okna, pustí jen trasy hlavní ↔ buddy, hlavní ↔ overlay a hlavní ↔ widgety (0.22.0) a omezí velikost. Příjemce dostane
      ověřeného odesílatele jako druhý argument handleru (from).
    - Události, které posílá jen Rust (oznamovací oblast, zavření okna, hra, snímek, overlay), se poslouchají přes
      onNative (předpona native:). Zpráva z jiného okna se za ně vydávat nemůže. */
 import { isTauri } from '../storage/tauri';
 
-export type WindowLabel = 'main' | 'buddy' | 'overlay';
+export type WindowLabel = 'main' | 'buddy' | 'overlay' | 'widgets';
 export type Handler = (payload: unknown, from: WindowLabel | null) => void;
 export interface Bus {
   label: WindowLabel;
@@ -23,7 +23,7 @@ export interface Bus {
 }
 
 const CHANNEL = 'arcops-ops';
-const LABELS: readonly string[] = ['main', 'buddy', 'overlay'];
+const LABELS: readonly string[] = ['main', 'buddy', 'overlay', 'widgets'];
 const labelOf = (v: unknown): WindowLabel | null => (typeof v === 'string' && LABELS.includes(v) ? (v as WindowLabel) : null);
 
 /* Sleduje rozpracované registrace posluchačů. */

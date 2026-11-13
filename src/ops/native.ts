@@ -5,8 +5,9 @@ import { isTauri } from '../storage/tauri';
 export interface Native {
   available: boolean;
   enable(on: boolean): Promise<void>;
-  /* prázdný text zkratku zruší; chyba je kód hotkey:invalid / hotkey:taken / hotkey:off */
-  setHotkey(accel: string): Promise<void>;
+  /* prázdný text zkratku zruší; chyba je kód hotkey:invalid / hotkey:taken / hotkey:off.
+     0.22.0: slot = zkratka snímku (výchozí), Úprav widgetů (edit) nebo Skrýt / zobrazit widgety (hide) */
+  setHotkey(accel: string, slot?: HotkeySlot): Promise<void>;
   watch(on: boolean): Promise<void>;
   buddyOpen(): Promise<void>;
   buddyClose(): Promise<void>;
@@ -25,7 +26,15 @@ export interface Native {
   /* 0.20.0: automatické snímání mimo raid (jen hlavní okno; screens = maska obrazovek pro Rust) a jeho měření */
   autoCapture(on: boolean, screens: number): Promise<void>;
   autoStats(): Promise<AutoStats | null>;
+  /* 0.22.0: okno widgetů nad hrou (otevřít a zavřít jen hlavní okno), Úpravy (true / false / přepnout), okno přes
+     monitor hry po změně rozlišení (jen okno widgetů) a panel Aplikace z Úprav (jen okno widgetů) */
+  widgetsOpen(): Promise<void>;
+  widgetsClose(): Promise<void>;
+  widgetsEdit(on?: boolean): Promise<void>;
+  widgetsFit(): Promise<void>;
+  widgetsApp(tab?: string): Promise<void>;
 }
+export type HotkeySlot = 'capture' | 'edit' | 'hide';
 /* Měření automatického snímání z Rustu (doba kroku v µs na hodinách, velikost pásu v B). */
 export interface AutoStats { ticks: number; totalUs: number; maxUs: number; lastUs: number; stripBytes: number; captures: number; screen: string | null }
 
@@ -37,7 +46,7 @@ const call = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
 const tauriNative: Native = {
   available: true,
   enable: on => call('ops_enable', { on }),
-  setHotkey: accel => call('ops_hotkey', { accel }),
+  setHotkey: (accel, slot) => call('ops_hotkey', { accel, slot: slot ?? null }),
   watch: on => call('ops_watch', { on }),
   buddyOpen: () => call('buddy_open'),
   buddyClose: () => call('buddy_close'),
@@ -52,6 +61,11 @@ const tauriNative: Native = {
   drag: () => call('win_drag'),
   autoCapture: (on, screens) => call('ops_autocapture', { on, screens }),
   autoStats: () => call<AutoStats>('ops_autostats'),
+  widgetsOpen: () => call('widgets_open'),
+  widgetsClose: () => call('widgets_close'),
+  widgetsEdit: on => call('widgets_edit', { on: on ?? null }),
+  widgetsFit: () => call('widgets_fit'),
+  widgetsApp: tab => call('widgets_app', { tab: tab ?? null }),
 };
 
 const none = async () => undefined;
@@ -61,6 +75,7 @@ export const browserNative: Native = {
   overlayOpen: none, overlayClose: none, overlayToggle: none, mainFocus: none, captureNow: none, place: none, drag: none,
   captureTake: async () => { throw new Error('capture:unsupported'); },
   autoCapture: none, autoStats: async () => null,
+  widgetsOpen: none, widgetsClose: none, widgetsEdit: none, widgetsFit: none, widgetsApp: none,
 };
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);

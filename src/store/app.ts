@@ -1,7 +1,7 @@
 /* Jeden store pro celou aplikaci: drží stav, mění ho přes akce a ukládá ho přes rozhraní úložiště.
    Neimportuje React, takže jde testovat v Node se zástupným úložištěm. */
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { CloseAction, CompactSection, MainWindowPrefs, OpsPrefs } from '../core/types';
+import type { CloseAction, CompactSection, MainWindowPrefs, OpsPrefs, WidgetsSwitch } from '../core/types';
 import type { AppState, ItemCategory, ItemTier, ArcUnit, Goal, GoalLink, Loadout, MapNotes, PlannerItem, Points, Poi, Raid, RaidGoals, Route, SavedBuild, SellItem, Weapon, WeaponNote, Recipe } from '../core/types';
 import { isLootArea, isPoiType, type PoiType } from '../core/lootAreas';
 import { normalizeRaidPlan } from '../core/raidPrep';
@@ -27,7 +27,7 @@ import { applyRaidLoot, checkRaidLoot, type RaidLootDone, type RaidLootInput, ty
 import { applyProgress, type ProgressApply, type ProgressSummary } from '../core/progressImport';
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
-import { normalizeOpsPrefs } from '../core/opsPrefs';
+import { normalizeOpsPrefs, normalizeWidgetsSwitch } from '../core/opsPrefs';
 import { markSeen } from '../core/whatsnew';
 import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
 import { buildDraft, lifeStep, type LifeEvent, type LifeStep, type ResultCapture } from '../core/raidLife';
@@ -1249,11 +1249,20 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
     },
     /* 0.10.0: povaha, zvuky, dialogy a postup průvodce (pravidla v core/opsPrefs.ts) */
-    setOpsPrefs(patch: Partial<Omit<OpsPrefs, 'tutorial'>> & { tutorial?: Partial<OpsPrefs['tutorial']> }) {
+    setOpsPrefs(patch: Partial<Omit<OpsPrefs, 'tutorial' | 'widgets'>> & { tutorial?: Partial<OpsPrefs['tutorial']> }) {
       change(s => {
-        const n = normalizeOpsPrefs({ ...s.opsPrefs, ...patch, tutorial: { ...s.opsPrefs.tutorial, ...patch.tutorial } });
+        /* 0.22.0: widgety a jejich zkratky jen přes setWidgets (overlay smí setOpsPrefs přes relay, tohle ne) */
+        const n = normalizeOpsPrefs({ ...s.opsPrefs, ...patch, tutorial: { ...s.opsPrefs.tutorial, ...patch.tutorial }, widgets: s.opsPrefs.widgets });
         if (JSON.stringify(n) === JSON.stringify(s.opsPrefs)) return false;
         s.opsPrefs = n;
+      });
+    },
+    /* 0.22.0: widgety nad hrou a jejich zkratky (Nastavení hlavního okna; zkratky ukládá hub, až je systém přijme) */
+    setWidgets(patch: Partial<WidgetsSwitch>) {
+      change(s => {
+        const n = normalizeWidgetsSwitch({ ...s.opsPrefs.widgets, ...patch });
+        if (JSON.stringify(n) === JSON.stringify(s.opsPrefs.widgets)) return false;
+        s.opsPrefs = { ...s.opsPrefs, widgets: n };
       });
     },
     /* 0.17.0: rádce „Co dál?“: skrýt tip (vrátí se při změně podmínky), odložit o dny, vrátit skrytý či odložený.

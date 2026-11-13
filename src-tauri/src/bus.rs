@@ -2,7 +2,8 @@
 //!
 //! Žádné okno nemá oprávnění `core:event:allow-emit*`, takže JavaScript nemůže sám vyslat žádnou událost.
 //! - Zprávy okno → okno jdou přes příkaz `bus_send`. Rust doplní odesílatele podle štítku volajícího okna
-//!   (nejde podvrhnout), pustí jen pevné trasy (hlavní ↔ buddy, hlavní ↔ overlay) a omezí název a velikost.
+//!   (nejde podvrhnout), pustí jen pevné trasy (hlavní ↔ buddy, hlavní ↔ overlay, 0.22.0 hlavní ↔ widgety) a omezí
+//!   název a velikost.
 //!   Příjemce dostane událost `bus:<typ>` s `{ from, payload }`.
 //! - Události, které smí poslat jen Rust (zavření a nabídka oznamovací oblasti, viditelnost hry, snímek, overlay),
 //!   mají předponu `native:` a posílá je výhradně `emit_native`. Okno je poslouchá zvlášť (Bus.onNative), takže
@@ -14,6 +15,8 @@ use tauri::{AppHandle, Emitter, Runtime, WebviewWindow};
 pub const MAIN: &str = "main";
 pub const BUDDY: &str = "buddy";
 pub const OVERLAY: &str = "overlay";
+/* 0.22.0: sdílené okno widgetů nad hrou */
+pub const WIDGETS: &str = "widgets";
 /* Nejvýš tolik bajtů JSON v jedné zprávě z buddyho nebo overlaye (akce plného modulu má limit 256 K znaků). */
 pub const MAX_FROM_CHILD: usize = 1024 * 1024;
 /* Zprávy z hlavního okna nesou kopii stavu (limit stavu je 20 MB). */
@@ -26,7 +29,7 @@ pub fn only<R: Runtime>(w: &WebviewWindow<R>, labels: &[&str]) -> Result<(), Str
 
 /// Povolené trasy zpráv mezi okny.
 pub fn route_ok(from: &str, to: &str) -> bool {
-    matches!((from, to), (MAIN, BUDDY) | (MAIN, OVERLAY) | (BUDDY, MAIN) | (OVERLAY, MAIN))
+    matches!((from, to), (MAIN, BUDDY) | (MAIN, OVERLAY) | (MAIN, WIDGETS) | (BUDDY, MAIN) | (OVERLAY, MAIN) | (WIDGETS, MAIN))
 }
 
 /// Typ zprávy: písmeno a pak písmena, číslice nebo pomlčka, nejvýš 32 znaků (platný název události Tauri).
@@ -71,6 +74,13 @@ mod tests {
         assert!(route_ok("main", "overlay"));
         assert!(route_ok("buddy", "main"));
         assert!(route_ok("overlay", "main"));
+        assert!(route_ok("main", "widgets"));
+        assert!(route_ok("widgets", "main"));
+        assert!(!route_ok("widgets", "buddy"));
+        assert!(!route_ok("widgets", "overlay"));
+        assert!(!route_ok("buddy", "widgets"));
+        assert!(!route_ok("overlay", "widgets"));
+        assert!(!route_ok("widgets", "widgets"));
         assert!(!route_ok("buddy", "overlay"));
         assert!(!route_ok("overlay", "buddy"));
         assert!(!route_ok("main", "main"));

@@ -6,7 +6,7 @@ import type { Bus } from './bus';
 
 export const HELLO_DELAYS = [250, 500, 1000, 2000, 4000, 4000, 4000, 4000, 4000, 4000];
 
-export function startHello(bus: Bus, from: 'buddy' | 'overlay', answered: () => boolean): () => void {
+export function startHello(bus: Bus, from: 'buddy' | 'overlay' | 'widgets', answered: () => boolean): () => void {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let i = 0;

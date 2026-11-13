@@ -8,7 +8,7 @@ import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import { OPACITY_MAX, OPACITY_MIN, OPS, OPS_SLOTS, collection, formForLevel, partName, resolveOutfit, slotParts, validHotkey } from '../core/ops';
 import { OpsCanvas } from '../ops/OpsCanvas';
-import { hub } from '../ops/mainHub';
+import { hub, native } from '../ops/mainHub';
 import { hotkeyFrom, hotkeyLabel } from '../ops/hotkey';
 import { MODE_KEY, PIN_KEY } from '../core/mainWindow';
 import { PERSONALITIES } from '../core/opsPrefs';
@@ -50,6 +50,66 @@ function HotkeyField() {
       {error ? <p className="danger-text" role="alert">{t(error)}</p> : <p className="meta">{t('ops.hotkeyHint')}</p>}
       {(hotkey === MODE_KEY || hotkey === PIN_KEY) && <p className="amber" role="note">{t('ops.hotkeyShadow', { key: hotkeyLabel(hotkey) })}</p>}
     </div>
+  );
+}
+
+/* 0.22.0: zkratka widgetů (Úpravy, Skrýt / zobrazit); uloží se, až ji systém přijme (hub.setWidgetKey) */
+function WidgetKeyField({ slot }: { slot: 'edit' | 'hide' }) {
+  const t = useT();
+  const s = useAppState();
+  const value = s.opsPrefs.widgets[slot === 'edit' ? 'editKey' : 'hideKey'];
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState<Key | null>(null);
+  useEffect(() => {
+    if (!recording) return;
+    const on = (e: KeyboardEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.code === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey) { setRecording(false); return; }
+      const h = hotkeyFrom(e);
+      if (!h) return;
+      setRecording(false);
+      if (!validHotkey(h)) { setError('ops.hotkey.invalid'); return; }
+      void hub.setWidgetKey(slot, h).then(err => setError(err ? (`ops.${err.replace(':', '.')}` as Key) : null));
+    };
+    window.addEventListener('keydown', on, true);
+    return () => window.removeEventListener('keydown', on, true);
+  }, [recording, slot]);
+  const id = `wg-key-${slot}`;
+  return (
+    <div className="field">
+      <span className="field-label" id={id}>{t(slot === 'edit' ? 'wg.settings.editKey' : 'wg.settings.hideKey')}</span>
+      <div className="row">
+        <kbd className="kbd mono" aria-labelledby={id} data-testid={id}>{recording ? t('ops.hotkeyRecord') : value ? hotkeyLabel(value) : t('ops.hotkeyNone')}</kbd>
+        <Btn size="sm" icon={Keyboard} onClick={() => { setError(null); setRecording(true); }} disabled={recording || s.gameLink.off}>{t('ops.hotkeySet')}</Btn>
+        {value && <Btn size="sm" variant="ghost" icon={X} onClick={() => void hub.setWidgetKey(slot, '').then(() => setError(null))}>{t('ops.hotkeyClear')}</Btn>}
+      </div>
+      {error && <p className="danger-text" role="alert">{t(error)}</p>}
+    </div>
+  );
+}
+
+/* 0.22.0: Widgety nad hrou (výchozí vypnuto, žlutá zóna). Rozložení se nastavují přímo nad hrou v Úpravách. */
+export function WidgetsPanel() {
+  const t = useT();
+  const s = useAppState();
+  const b = s.buddy, w = s.opsPrefs.widgets;
+  return (
+    <Panel title={t('wg.settings.title')}>
+      <label className="toggle"><input type="checkbox" data-testid="wg-switch" checked={w.on} disabled={!b.enabled || s.gameLink.off} onChange={e => actions.setWidgets({ on: e.target.checked })} />{t('wg.settings.switch')}</label>
+      <p className="secondary-text">{t('wg.settings.explain')}</p>
+      <p className="amber" role="note">{t('wg.settings.embark')}</p>
+      {!b.enabled && <p className="meta" data-testid="wg-needs-ops">{t('wg.settings.needsOps')}</p>}
+      <p className="meta" data-testid="wg-fullscreen">{t('wg.settings.fullscreen')}</p>
+      {b.enabled && w.on && (
+        <div className="stack" data-testid="wg-options">
+          <WidgetKeyField slot="edit" />
+          <WidgetKeyField slot="hide" />
+          <p className="meta">{t('wg.settings.keyHint')}</p>
+          <div className="row"><Btn size="sm" onClick={() => void native.widgetsEdit(true).catch(() => undefined)} disabled={!native.available} data-testid="wg-open-edit">{t('wg.settings.openEdit')}</Btn></div>
+        </div>
+      )}
+      <p className="meta">{t('wg.settings.local')}</p>
+    </Panel>
   );
 }
 

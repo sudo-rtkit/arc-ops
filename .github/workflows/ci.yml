@@ -1,5 +1,5 @@
 # ARC Raiders Companion: tests on every push to main and on pull requests (0.21.0).
-# No secrets, read-only token. The repository is private, so the jobs stay lean:
+# No secrets, read-only token. The repository is public; the jobs stay lean on purpose:
 # one Linux job for the web app (typecheck, Vitest, build, Playwright E2E) and one Windows job for the Rust tests.
 # The NSIS installer is not built here. Local-only player screenshots (tests/fixtures/vision/own/) are not in the
 # repository; the tests that need them skip themselves.

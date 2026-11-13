@@ -264,7 +264,9 @@ export default function BuddyApp() {
       showLine(line('poke'), true);
     }
     sound.current.play(ui.current.overlayOpen ? 'close' : 'open');
-    void native.overlayToggle();
+    /* 0.22.0: se zapnutými widgety klik otevře (nebo zavře) jejich Úpravy; panel Aplikace je pak v liště Úprav */
+    if (v?.widgets) void native.widgetsEdit().catch(() => undefined);
+    else void native.overlayToggle();
   };
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -298,7 +300,7 @@ export default function BuddyApp() {
   return (
     <div className="buddy" onContextMenu={e => e.preventDefault()}>
       {bubble && <div className={'buddy-bubble' + (opsAt.below ? ' below' : '') + (opsAt.right ? ' right' : '')} role="status" data-testid="buddy-bubble">{bubble}</div>}
-      <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={BUDDY_TEXT[uiLang].aria}
+      <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={view.widgets ? BUDDY_TEXT[uiLang].ariaEdit : BUDDY_TEXT[uiLang].aria}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
         <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" />

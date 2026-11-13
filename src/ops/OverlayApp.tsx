@@ -41,7 +41,7 @@ import type { ProgressApply, ProgressSummary } from '../core/progressImport';
 import { emoteMsg } from '../core/opsEmote';
 import { createMirror } from '../store/relay';
 import { setHost } from '../shell/host';
-import { OverlayApps, closeModule, mainRoute, useOvRoute } from './OverlayApps';
+import { OverlayApps, closeModule, mainRoute, openModule, runsInOverlay, useOvRoute } from './OverlayApps';
 import { Toasts } from '../shell/Banners';
 import { RaidFormHost } from '../ui/RaidForm';
 import { ItemCardHost } from '../ui/ItemCard';
@@ -595,7 +595,10 @@ export default function OverlayApp() {
       }),
       /* z Rustu při otevření (jen native:): případně rovnou na výsledek snímku */
       bus.onNative('open', p => {
-        const want = typeof p === 'string' && (VIEWS as string[]).includes(p) ? (p as Tab) : null;
+        /* 0.22.0: z Úprav widgetů rovnou modul panelu Aplikace (apps:<modul>, ověřuje Rust i tady) */
+        const mod = typeof p === 'string' ? /^apps:([a-z]{1,16})$/.exec(p)?.[1] : undefined;
+        if (mod && runsInOverlay(mod)) openModule(mod);
+        const want = mod ? 'apps' : typeof p === 'string' && (VIEWS as string[]).includes(p) ? (p as Tab) : null;
         const b = batchRef.current;
         if (want) setTab(want);
         else if (b && (b.shots.length || b.loot || b.progress || b.emptyAt)) setTab('scan');

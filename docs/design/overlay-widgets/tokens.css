@@ -1,0 +1,5 @@
+/* Design only. Opacity affects fills, NEVER foregrounds or a parent window. */
+@font-face{font-family:Inter;src:url('../overlay/assets/fonts/Inter.ttf')}
+@font-face{font-family:Chakra;src:url('../overlay/assets/fonts/ChakraPetch-SemiBold.ttf')}
+@font-face{font-family:Jet;src:url('../overlay/assets/fonts/JetBrainsMono.ttf')}
+:root{color-scheme:dark;--bg:#141719;--panel:29 34 37;--raised:#272D31;--ink:#F2EEE7;--secondary:#C8C7C2;--muted:#A2A8AA;--accent:#F4AD82;--on-accent:#241810;--success:#91CFAB;--control:#849095;--alpha:.85;--text-floor:.90;--edit-veil:.20;--radius:4px}

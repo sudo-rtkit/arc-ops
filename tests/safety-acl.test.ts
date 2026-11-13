@@ -23,17 +23,22 @@ const MAIN = [
   'allow-launch-info', 'allow-bus-send', 'allow-ops-enable', 'allow-ops-hotkey', 'allow-ops-watch', 'allow-buddy-open', 'allow-buddy-close',
   'allow-overlay-open', 'allow-main-focus', 'allow-capture-now', 'allow-capture-take', 'allow-ops-autocapture', 'allow-ops-autostats',
   'allow-main-mode', 'allow-main-pin', 'allow-main-geometry', 'allow-main-drag', 'allow-main-minimize', 'allow-main-hide', 'allow-main-show',
-  'allow-main-ready', 'allow-app-quit', 'allow-tray-sync',
+  'allow-main-ready', 'allow-app-quit', 'allow-tray-sync', 'allow-widgets-open', 'allow-widgets-close', 'allow-widgets-edit',
 ];
 const BUDDY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-available-monitors', 'core:window:allow-primary-monitor',
-  'allow-bus-send', 'allow-buddy-reveal', 'allow-overlay-toggle', 'allow-win-place', 'allow-win-drag',
+  'allow-bus-send', 'allow-buddy-reveal', 'allow-overlay-toggle', 'allow-win-place', 'allow-win-drag', 'allow-widgets-edit',
 ];
 const OVERLAY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-outer-position', 'core:window:allow-inner-size',
   'core:window:allow-available-monitors', 'core:window:allow-current-monitor', 'core:window:allow-primary-monitor',
   'allow-bus-send', 'allow-overlay-close', 'allow-capture-now', 'allow-open-external', 'allow-win-place',
 ];
+/* 0.22.0: okno widgetů nad hrou: jen události, zprávy hlavnímu oknu, Úpravy, vlastní umístění a panel Aplikace */
+const WIDGETS = [
+  'core:event:allow-listen', 'core:event:allow-unlisten', 'allow-bus-send', 'allow-widgets-edit', 'allow-widgets-fit', 'allow-widgets-app',
+];
+const WINDOWS = ['main', 'buddy', 'overlay', 'widgets'];
 
 /* příkazy z build.rs (manifest) a z generate_handler! v lib.rs */
 const manifest = (() => { const b = read('src-tauri/build.rs'); return [...b.slice(b.indexOf('const COMMANDS'), b.indexOf('];')).matchAll(/"([a-z_]+)"/g)].map(m => m[1]); })();
@@ -54,17 +59,19 @@ function body(file: string, fn: string): string {
 describe('0.16.1: nejmenší oprávnění oken', () => {
   it('capability každého okna je přesně daný seznam', () => {
     const files = readdirSync(join(root, 'src-tauri', 'capabilities')).sort();
-    expect(files).toEqual(['buddy.json', 'main.json', 'overlay.json']);
+    expect(files).toEqual(['buddy.json', 'main.json', 'overlay.json', 'widgets.json']);
     expect(cap('main')).toMatchObject({ identifier: 'main', windows: ['main'] });
     expect(cap('buddy')).toMatchObject({ identifier: 'buddy', windows: ['buddy'] });
     expect(cap('overlay')).toMatchObject({ identifier: 'overlay', windows: ['overlay'] });
+    expect(cap('widgets')).toMatchObject({ identifier: 'widgets', windows: ['widgets'] });
     expect(cap('main').permissions).toEqual(MAIN);
     expect(cap('buddy').permissions).toEqual(BUDDY);
     expect(cap('overlay').permissions).toEqual(OVERLAY);
+    expect(cap('widgets').permissions).toEqual(WIDGETS);
   });
 
   it('žádné okno nemá core:default, emit z JS, tray, menu, obrázky, cesty ani cizí ovládání oken', () => {
-    for (const name of ['main', 'buddy', 'overlay']) {
+    for (const name of WINDOWS) {
       for (const p of cap(name).permissions) {
         expect(/default|allow-emit|core:tray|core:menu|core:image|core:path|core:app|core:webview|allow-set-|allow-show|allow-hide|allow-close|allow-destroy|allow-start-dragging|allow-set-focus/.test(p), `${name}: ${p}`).toBe(false);
         expect(/^(core:(event|window):allow-[a-z-]+|allow-[a-z-]+)$/.test(p), `${name}: ${p}`).toBe(true);
@@ -80,12 +87,14 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     const commands = walk(join(root, 'src-tauri', 'src'), /\.rs$/).flatMap(f => [...readFileSync(f, 'utf8').matchAll(/#\[tauri::command\]\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)/g)].map(m => m[1]));
     expect([...commands].sort()).toEqual([...manifest].sort());
     /* každé allow-* v capabilities odpovídá příkazu z manifestu */
-    const granted = ['main', 'buddy', 'overlay'].flatMap(n => cap(n).permissions).filter(p => p.startsWith('allow-')).map(p => p.slice(6).replace(/-/g, '_'));
+    const granted = WINDOWS.flatMap(n => cap(n).permissions).filter(p => p.startsWith('allow-')).map(p => p.slice(6).replace(/-/g, '_'));
     for (const g of granted) expect(manifest, g).toContain(g);
     /* buddy a overlay nesmí číst stav, snímky ani složku dat, ukládat, ovládat zkratku nebo hlavní okno */
-    for (const n of ['buddy', 'overlay']) {
-      for (const p of cap(n).permissions) expect(/storage|snapshot|import|export|data-dir|launch-info|ops-|buddy-open|buddy-close|capture-take|main-|app-quit|tray-sync|overlay-open/.test(p), `${n}: ${p}`).toBe(false);
+    for (const n of ['buddy', 'overlay', 'widgets']) {
+      for (const p of cap(n).permissions) expect(/storage|snapshot|import|export|data-dir|launch-info|ops-|buddy-open|buddy-close|capture-take|main-|app-quit|tray-sync|overlay-open|widgets-open|widgets-close/.test(p), `${n}: ${p}`).toBe(false);
     }
+    /* 0.22.0: okno widgetů navíc nesnímá, neotevírá odkazy a nemění polohu jiného okna */
+    for (const p of cap('widgets').permissions) expect(/capture|open-external|win-|overlay-|buddy-/.test(p), p).toBe(false);
   });
 
   it('citlivé příkazy kontrolují štítek volajícího okna', () => {
@@ -103,6 +112,12 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     expect(body('src-tauri/src/ops.rs', 'capture_now')).toContain('only(&window, &[MAIN, OVERLAY])?');
     expect(body('src-tauri/src/ops.rs', 'win_place')).toContain('only(&window, &[BUDDY, OVERLAY])?');
     expect(body('src-tauri/src/ops.rs', 'win_drag')).toContain('only(&window, &[BUDDY])?');
+    /* 0.22.0: widgety */
+    for (const fn of ['widgets_open', 'widgets_close']) expect(body('src-tauri/src/ops.rs', fn), fn).toContain('main_only(&window)?');
+    expect(body('src-tauri/src/ops.rs', 'widgets_edit')).toContain('only(&window, &[MAIN, BUDDY, WIDGETS])?');
+    expect(body('src-tauri/src/ops.rs', 'widgets_fit')).toContain('only(&window, &[WIDGETS])?');
+    expect(body('src-tauri/src/ops.rs', 'widgets_app')).toContain('only(&window, &[WIDGETS])?');
+    expect(body('src-tauri/src/ops.rs', 'widgets_app')).toContain('app_tab_ok(t)');
     for (const fn of ['main_mode', 'main_pin', 'main_geometry', 'main_drag', 'main_minimize', 'main_hide', 'main_show', 'main_ready', 'app_quit', 'tray_sync']) {
       expect(body('src-tauri/src/mainwin.rs', fn), fn).toContain('main_only(&window)?');
     }
@@ -183,7 +198,49 @@ describe('0.20.1: zpráva emote', () => {
     expect(rs).not.toContain('"emote"');
     expect(manifest).not.toContain('emote');
     const kinds = [...rs.matchAll(/emit_native\([^,]+,[^,]+,\s*"([a-z-]+)"/g)].map(m => m[1]);
-    expect([...new Set(kinds)].sort()).toEqual(['auto-screen', 'capture-failed', 'capture-ready', 'capture-start', 'game', 'game-visible', 'open', 'overlay', 'win-close', 'win-tray'].sort());
+    expect([...new Set(kinds)].sort()).toEqual(['auto-screen', 'capture-failed', 'capture-ready', 'capture-start', 'game', 'game-visible', 'open', 'overlay', 'widgets-hide', 'widgets-mode', 'win-close', 'win-tray'].sort());
     expect(body('src-tauri/src/ops.rs', 'start_capture_as')).toMatch(/if auto\.is_none\(\) \{\s*emit_native\(&app, MAIN, "capture-start", \(\)\);/);
+  });
+});
+
+/* 0.22.0: widgety nad hrou. Trasy zpráv jen hlavní ↔ widgety, okno widgetů smí poslat jen pozdrav a dvě úpravy
+   z allow-listu, ve Hře propouští myš a nejde aktivovat, rozložení nejsou ve stavu aplikace ani v záloze. */
+describe('0.22.0: okno widgetů', () => {
+  const code = (f: string) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const sources = () => walk(join(root, 'src'), /\.tsx?$/).map(f => [f.slice(root.length).split('\\').join('/'), code(f.slice(root.length))] as const);
+
+  it('trasy zpráv: jen hlavní ↔ widgety (v Rustu pevně, žádná trasa widgety ↔ buddy či overlay)', () => {
+    const route = body('src-tauri/src/bus.rs', 'route_ok');
+    expect(route.match(/\((MAIN|BUDDY|OVERLAY|WIDGETS), (MAIN|BUDDY|OVERLAY|WIDGETS)\)/g)!.sort())
+      .toEqual(['(BUDDY, MAIN)', '(MAIN, BUDDY)', '(MAIN, OVERLAY)', '(MAIN, WIDGETS)', '(OVERLAY, MAIN)', '(WIDGETS, MAIN)'].sort());
+  });
+
+  it('hub přijímá od okna widgetů jen pozdrav a úpravy z allow-listu s mezemi argumentů', () => {
+    const hub = code('src/ops/hub.ts');
+    expect(hub).toContain("if (from !== 'widgets' || !widgetsOn(st())) return;");
+    expect(hub).toContain('applyWidgetAction(app, p)');
+    expect(code('src/store/relay.ts')).toContain("export const WIDGET_ACTIONS = ['questObjective', 'setRaidFound'] as const");
+    /* okno widgetů posílá hlavnímu oknu jen widgetAction (a pozdrav přes startHello) */
+    const sends = sources().filter(([f]) => /src\/ops\/Widget/.test(f)).flatMap(([, s]) => [...s.matchAll(/bus\.send\('(\w+)', '([a-zA-Z-]+)'/g)].map(m => m[1] + ':' + m[2]));
+    expect([...new Set(sends)]).toEqual(['main:widgetAction']);
+  });
+
+  it('Hra: okno propouští myš a nejde aktivovat; Úpravy jen výslovně; po nich zase propouští', () => {
+    const open = body('src-tauri/src/ops.rs', 'widgets_open');
+    for (const s of ['.focusable(false)', '.focused(false)', '.visible(false)', 'set_ignore_cursor_events(true)', 'exclude_from_capture(&w)', 'reveal_no_activate']) expect(open, s).toContain(s);
+    const rs = read('src-tauri/src/ops.rs');
+    const edit = rs.slice(rs.indexOf('fn set_edit'), rs.indexOf('fn widgets_fit'));
+    for (const s of ['set_ignore_cursor_events(false)', 'set_ignore_cursor_events(true)', 'set_focusable(false)']) expect(edit, s).toContain(s);
+    expect(edit).toMatch(/if foreground_pid\(\) == Some\(std::process::id\(\)\) \{\s*restore_focus\(prev, pid\);/);
+    /* Úpravy zapíná jen příkaz widgets_edit a zkratka; Alt+F4 a zavření okna je jen vypínají */
+    const calls = [...rs.slice(0, rs.indexOf('#[cfg(test)]')).matchAll(/set_edit\(((?:[^()]|\([^()]*\))*)\)/g)].map(m => m[1].replace(/\s+/g, ''));
+    expect(calls.sort()).toEqual(['&app,Some(false)', '&app,on', 'app,None', 'w.app_handle(),Some(false)'].sort());
+  });
+
+  it('rozložení: jen v místním úložišti okna widgetů, ne ve stavu, záloze ani hubu', () => {
+    expect(sources().filter(([, s]) => s.includes('writeWidgetPrefs(')).map(([f]) => f).sort()).toEqual(['src/ops/WidgetsApp.tsx', 'src/ops/widgetPrefs.ts']);
+    expect(read('src/core/types.ts')).not.toMatch(/layouts\s*:/);
+    expect(code('src/core/backup.ts')).not.toContain('widget');
+    expect(code('src/ops/hub.ts')).not.toContain('localStorage');
   });
 });

@@ -1,0 +1,110 @@
+[
+  {
+    "name": "raid-1080",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "lobby-1080",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "raid-1440",
+    "width": 2560,
+    "height": 1440,
+    "lang": "cs"
+  },
+  {
+    "name": "lobby-1440",
+    "width": 2560,
+    "height": 1440,
+    "lang": "cs"
+  },
+  {
+    "name": "raid-ultrawide",
+    "width": 3440,
+    "height": 1440,
+    "lang": "cs"
+  },
+  {
+    "name": "lobby-ultrawide",
+    "width": 3440,
+    "height": 1440,
+    "lang": "cs"
+  },
+  {
+    "name": "edit",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "drag",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "settings",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "presets",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "application",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "search",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "hidden",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "hidden-clean",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "catalog",
+    "width": 1920,
+    "height": 2060,
+    "lang": "cs"
+  },
+  {
+    "name": "opacity-30",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "opacity-default",
+    "width": 1920,
+    "height": 1080,
+    "lang": "cs"
+  },
+  {
+    "name": "edit-en",
+    "width": 1920,
+    "height": 1080,
+    "lang": "en"
+  }
+]

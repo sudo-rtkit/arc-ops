@@ -301,7 +301,11 @@ export interface OpsPrefs {
   tutorial: { status: TutorialStatus; step: TutorialStep };
   /* 0.17.0: Ops nahlas radí „Co dál?“ (nejdůležitější tip) v kompaktu a overlayi */
   advisor: boolean;
+  /* 0.22.0: widgety nad hrou (výchozí vypnuto) a jejich dvě volitelné globální zkratky (Úpravy, Skrýt / zobrazit).
+     Mění je jen Nastavení hlavního okna (akce setWidgets, ne setOpsPrefs), overlay je přes relay nezmění. */
+  widgets: WidgetsSwitch;
 }
+export interface WidgetsSwitch { on: boolean; editKey: string; hideKey: string }
 
 /* ----- 0.11.0 (schéma 10): minihry a nátěry Opse; herní postup aplikace, patří do zálohy ----- */
 export interface GamesState {
