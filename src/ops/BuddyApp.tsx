@@ -56,6 +56,8 @@ export default function BuddyApp() {
   const mon = useRef<Mon | null>(null);
   const expected = useRef<{ x: number; y: number } | null>(null);
   const shown = useRef(false);
+  /* 0.22.1: okno je viditelné (průhledné) od vytvoření; Ops se kreslí až po umístění. Mimo Tauri hned. */
+  const [placedOnce, setPlacedOnce] = useState(!isTauri());
   const offset = useRef({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; moving: boolean } | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -206,8 +208,8 @@ export default function BuddyApp() {
       await native.place(L.win);
       const dpr = window.devicePixelRatio || 1;
       setOpsAt({ x: L.ops.x / dpr, y: L.ops.y / dpr, below: L.below, right: L.right });
-      /* bez aktivace (0.13.1); win.show() by oknu vzalo fokus */
-      if (!shown.current) { shown.current = true; await native.buddyReveal().catch(() => undefined); }
+      /* bez aktivace (0.13.1, 0.22.1): okno už je vidět, Rust jen přestane propouštět myš; win.show() by oknu vzalo fokus */
+      if (!shown.current) { shown.current = true; setPlacedOnce(true); await native.buddyReveal().catch(() => undefined); }
     })();
     return () => { dead = true; };
   }, [view, scale, bubble]);
@@ -266,7 +268,8 @@ export default function BuddyApp() {
     sound.current.play(ui.current.overlayOpen ? 'close' : 'open');
     /* 0.22.0: se zapnutými widgety klik otevře (nebo zavře) jejich Úpravy; panel Aplikace je pak v liště Úprav */
     if (v?.widgets) void native.widgetsEdit().catch(() => undefined);
-    else void native.overlayToggle();
+    /* 0.22.1: při hře v popředí Rust klik odmítne (buddy:pass) a okno přepne na propouštění myši */
+    else void native.overlayToggle().catch(() => undefined);
   };
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -298,7 +301,7 @@ export default function BuddyApp() {
 
   if (!view) return null;
   return (
-    <div className="buddy" onContextMenu={e => e.preventDefault()}>
+    <div className="buddy" style={placedOnce ? undefined : { visibility: 'hidden' }} onContextMenu={e => e.preventDefault()}>
       {bubble && <div className={'buddy-bubble' + (opsAt.below ? ' below' : '') + (opsAt.right ? ' right' : '')} role="status" data-testid="buddy-bubble">{bubble}</div>}
       <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={view.widgets ? BUDDY_TEXT[uiLang].ariaEdit : BUDDY_TEXT[uiLang].aria}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}

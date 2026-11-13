@@ -21,7 +21,7 @@ function storage() {
 }
 const native = (): Native => {
   const nop = async () => undefined;
-  return { available: true, enable: nop, setHotkey: nop, watch: nop, buddyOpen: nop, buddyClose: nop, buddyReveal: nop, overlayOpen: nop, overlayClose: nop, overlayToggle: nop, mainFocus: nop, captureNow: nop, place: nop, drag: nop, widgetsOpen: nop, widgetsClose: nop, widgetsEdit: nop, widgetsFit: nop, widgetsApp: nop, autoCapture: nop, autoStats: async () => null, captureTake: async () => new ArrayBuffer(0) };
+  return { available: true, enable: nop, setHotkey: nop, watch: nop, buddyOpen: nop, buddyClose: nop, buddyReveal: nop, overlayOpen: nop, overlayClose: nop, overlayToggle: nop, mainFocus: nop, captureNow: nop, place: nop, drag: nop, widgetsOpen: nop, widgetsClose: nop, widgetsEdit: nop, widgetsFit: nop, widgetsApp: nop, passThrough: nop, autoCapture: nop, autoStats: async () => null, captureTake: async () => new ArrayBuffer(0) };
 };
 async function setup() {
   const st = storage();

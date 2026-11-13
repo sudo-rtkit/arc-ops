@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.22.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.22.1 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.22.1',
+    title: { cs: 'Buddy už hře nebere fokus', en: 'The buddy no longer steals focus from the game' },
+    items: [
+      { text: { cs: 'Oprava: náhodný klik na Opse v rohu obrazovky už hru nepřepne ani neotevře overlay. Když je hra v popředí, buddy propouští kliky do hry.', en: 'Fix: a stray click on Ops in the screen corner no longer takes you out of the game. While the game is in front, the buddy lets clicks through.' }, link: 'opsSettings' },
+      { text: { cs: 'Během hry ovládáš Opse zkratkou (snímek, Úpravy widgetů). Mimo hru jde na buddyho kliknout jako dřív; volba je v Nastavení → Buddy a zkratka.', en: 'During play you control Ops with the hotkey (capture, widget Edit). Outside the game you can click the buddy as before; see Settings → Buddy and hotkey.' } },
+      { text: { cs: 'Úpravy widgetů se samy ukončí, když se vrátíš do hry, a automatické snímání pozná inventář v raidu (jen pro spárování loadoutu s výsledkem, nic nesnímá).', en: 'Widget Edit ends when you return to the game, and automatic capture recognises the in-raid inventory (only to pair loadout and result, no capture).' } },
+    ],
+  },
   {
     version: '0.22.0',
     title: { cs: 'Widgety nad hrou', en: 'Widgets over the game' },

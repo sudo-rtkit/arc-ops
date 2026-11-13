@@ -1249,12 +1249,20 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       });
     },
     /* 0.10.0: povaha, zvuky, dialogy a postup průvodce (pravidla v core/opsPrefs.ts) */
-    setOpsPrefs(patch: Partial<Omit<OpsPrefs, 'tutorial' | 'widgets'>> & { tutorial?: Partial<OpsPrefs['tutorial']> }) {
+    setOpsPrefs(patch: Partial<Omit<OpsPrefs, 'tutorial' | 'widgets' | 'passClicks'>> & { tutorial?: Partial<OpsPrefs['tutorial']> }) {
       change(s => {
-        /* 0.22.0: widgety a jejich zkratky jen přes setWidgets (overlay smí setOpsPrefs přes relay, tohle ne) */
-        const n = normalizeOpsPrefs({ ...s.opsPrefs, ...patch, tutorial: { ...s.opsPrefs.tutorial, ...patch.tutorial }, widgets: s.opsPrefs.widgets });
+        /* 0.22.0: widgety a jejich zkratky jen přes setWidgets (overlay smí setOpsPrefs přes relay, tohle ne);
+           0.22.1: propouštění kliků jen přes setPassClicks */
+        const n = normalizeOpsPrefs({ ...s.opsPrefs, ...patch, tutorial: { ...s.opsPrefs.tutorial, ...patch.tutorial }, widgets: s.opsPrefs.widgets, passClicks: s.opsPrefs.passClicks });
         if (JSON.stringify(n) === JSON.stringify(s.opsPrefs)) return false;
         s.opsPrefs = n;
+      });
+    },
+    /* 0.22.1: „Buddy propouští kliky do hry“ (jen Nastavení hlavního okna; do Rustu ho promítá hub) */
+    setPassClicks(on: boolean) {
+      change(s => {
+        if (s.opsPrefs.passClicks === (on === true)) return false;
+        s.opsPrefs = { ...s.opsPrefs, passClicks: on === true };
       });
     },
     /* 0.22.0: widgety nad hrou a jejich zkratky (Nastavení hlavního okna; zkratky ukládá hub, až je systém přijme) */

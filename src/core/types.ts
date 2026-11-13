@@ -304,6 +304,9 @@ export interface OpsPrefs {
   /* 0.22.0: widgety nad hrou (výchozí vypnuto) a jejich dvě volitelné globální zkratky (Úpravy, Skrýt / zobrazit).
      Mění je jen Nastavení hlavního okna (akce setWidgets, ne setOpsPrefs), overlay je přes relay nezmění. */
   widgets: WidgetsSwitch;
+  /* 0.22.1: buddy propouští kliky do hry, dokud je hra v popředí (výchozí zapnuto). Mění ho jen Nastavení hlavního
+     okna (akce setPassClicks, ne setOpsPrefs), overlay ho přes relay nezmění. */
+  passClicks: boolean;
 }
 export interface WidgetsSwitch { on: boolean; editKey: string; hideKey: string }
 

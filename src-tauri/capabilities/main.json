@@ -31,6 +31,7 @@
     "allow-capture-take",
     "allow-ops-autocapture",
     "allow-ops-autostats",
+    "allow-ops-passthrough",
     "allow-main-mode",
     "allow-main-pin",
     "allow-main-geometry",

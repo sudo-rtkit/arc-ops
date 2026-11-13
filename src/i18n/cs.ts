@@ -1575,6 +1575,8 @@ export const cs = {
   'ops.opacityVal': "{v:raw} %",
   'ops.autoOpen': "Otevřít buddyho, když běží ARC Raiders",
   'ops.autoOpenHint': "Jen podle názvu v seznamu běžících procesů (PioneerGame.exe), kontrola jednou za 10 s. Do procesu hry se nesahá.",
+  'ops.passClicks': "Buddy propouští kliky do hry (doporučeno)",
+  'ops.passClicksHint': "Když je hra v popředí, klik na buddyho projde do hry a hra nikdy neztratí fokus. Během hry ovládáš Opse zkratkou (snímek, Úpravy widgetů a v nich tlačítko Aplikace). Když je v popředí okno aplikace nebo plocha, jde na buddyho kliknout jako dřív.",
   'ops.wardrobe': "Šatník Opse",
   'ops.wardrobeHint': "Ops roste s levelem ve vašem profilu: každý level přidá díl, každých 15 levelů změní podobu. Odemčené díly zůstávají ve sbírce i po poklesu levelu.",
   'ops.form': "Podoba: {name:raw} · level {level:raw}",

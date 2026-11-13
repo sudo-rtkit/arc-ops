@@ -42,9 +42,19 @@ fn strip(w: usize, h: usize, rgba: &[u8]) -> (usize, Vec<u8>) {
 /* Snímky a očekávaná obrazovka (None = žádná známá obrazovka). */
 const CASES: &[(&str, Option<Screen>)] = &[
     ("own-prerade-free-loadout.png", Some(Screen::Loadout)),
+    /* 0.22.1: MANAGE LOADOUT se záložkou CUSTOM LOADOUT (prázdný loadout, vlevo stash) a FREE LOADOUT */
+    ("own-manage-loadout-custom-empty.png", Some(Screen::Loadout)),
+    ("own-manage-loadout-free.png", Some(Screen::Loadout)),
+    /* 0.22.1: inventář V RAIDU: nikdy obrazovka pro snímek (jen signál „v raidu“, viz in_raid) */
+    ("own-inraid-inventory.png", None),
     ("own-after-raid-knocked-out.png", Some(Screen::KnockedOut)),
     ("own-after-raid-survived-findings.png", Some(Screen::Findings)),
     ("return-and-progression/return-findings.png", Some(Screen::Findings)),
+    /* 0.22.1: druhé výsledky raidu (FINDINGS s plným batohem, KNOCKED OUT s prázdným loadoutem) */
+    ("own-after-raid-survived-findings-2.png", Some(Screen::Findings)),
+    ("own-after-raid-knocked-out-2.png", Some(Screen::KnockedOut)),
+    /* 0.22.1: hra v raidu s HUD (kompas, spoluhráči, munice): nic, nikdy snímek ani signál „v raidu“ */
+    ("own-inraid-gameplay-hud.png", None),
     ("own-all-1-top.png", Some(Screen::Stash)),
     ("own-all-2.png", Some(Screen::Stash)),
     ("own-all-3.png", Some(Screen::Stash)),
@@ -158,6 +168,29 @@ fn vlastni_snimky_zmensene_a_posunute() {
         let got = header::classify(&f, header::ALL_BITS).map(|x| x.0);
         println!("720p {rel}: {got:?}");
         assert_eq!(got, *want, "720p {rel}");
+    }
+    if seen == 0 {
+        println!("vlastní snímky chybí, test přeskočen");
+    }
+}
+
+/* 0.22.1: inventář v raidu: in_raid jen na snímku z raidu (i zmenšeném), nikdy na obrazovce pro snímek */
+#[test]
+fn vlastni_snimky_inventar_v_raidu() {
+    let mut seen = 0;
+    for (rel, want) in CASES {
+        let Some((w, h, rgba)) = load(rel) else { continue };
+        seen += 1;
+        let (rows, px) = strip(w, h, &rgba);
+        let f = Frame { w, h: rows, screen_h: h, rgba: &px };
+        let raid = header::in_raid(&f);
+        let scores: Vec<String> = header::IN_RAID.iter().map(|p| format!("{p}={:.2}", header::probe(&f, p))).collect();
+        println!("{rel}: in_raid={raid} ({})", scores.join(" "));
+        assert_eq!(raid, *rel == "own-inraid-inventory.png", "{rel}");
+        if raid {
+            assert_eq!(*want, None, "{rel}");
+            assert_eq!(header::classify(&f, header::ALL_BITS), None, "{rel}");
+        }
     }
     if seen == 0 {
         println!("vlastní snímky chybí, test přeskočen");

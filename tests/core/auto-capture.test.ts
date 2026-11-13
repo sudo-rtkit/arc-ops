@@ -64,6 +64,17 @@ describe('průběh raidu (stavový automat)', () => {
     /* nečinný stav na obrazovky nereaguje */
     expect(lifeStep(emptyRaidLife(), { type: 'screen', at: T0, screen: null }).life).toEqual(emptyRaidLife());
   });
+  /* 0.22.1: inventář v raidu (signál z Rustu) posune loadout rovnou do „v raidu“; jinak nic nemění */
+  it('inventář v raidu: po loadoutu hned v raidu, bez loadoutu ani v raidu nic', () => {
+    const lo = lifeStep(emptyRaidLife(), { type: 'loadout', at: T0, loadout: snap() }).life;
+    const r = lifeStep(lo, { type: 'inRaid', at: T0 + 5_000 });
+    expect(r.life).toEqual({ phase: 'inRaid', loadout: snap(), quietSince: T0 + 5_000 });
+    expect(r.pair).toBeUndefined();
+    expect(lifeStep(r.life, { type: 'inRaid', at: T0 + 9_000 }).life).toEqual(r.life);
+    expect(lifeStep(emptyRaidLife(), { type: 'inRaid', at: T0 }).life).toEqual(emptyRaidLife());
+    /* výsledek pak spáruje loadout */
+    expect(lifeStep(r.life, { type: 'result', at: T0 + 20 * 60_000 }).pair).toEqual({ loadout: snap(), stale: false });
+  });
   it('restart: uložený průběh se načte a nesmysl se zahodí', () => {
     const life: RaidLife = { phase: 'inRaid', loadout: snap(), quietSince: T0 };
     expect(normalizeRaidLife(JSON.parse(JSON.stringify(life)))).toEqual(life);
@@ -295,7 +306,7 @@ function fakeNative(): Native {
   const ok = async () => undefined;
   return {
     available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok,
-    mainFocus: ok, captureNow: ok, place: ok, drag: ok, widgetsOpen: ok, widgetsClose: ok, widgetsEdit: ok, widgetsFit: ok, widgetsApp: ok, captureTake: async () => new ArrayBuffer(0), autoCapture: ok, autoStats: async () => null,
+    mainFocus: ok, captureNow: ok, place: ok, drag: ok, widgetsOpen: ok, widgetsClose: ok, widgetsEdit: ok, widgetsFit: ok, widgetsApp: ok, passThrough: ok, captureTake: async () => new ArrayBuffer(0), autoCapture: ok, autoStats: async () => null,
   };
 }
 function nullBus(): Bus {

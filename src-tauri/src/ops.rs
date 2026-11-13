@@ -25,6 +25,17 @@
 //!   v Nastavení): okno přestane propouštět myš a dostane fokus; po Hotovo / Esc se vše vrátí a fokus dostane okno,
 //!   které bylo v popředí předtím (jako u overlaye), ale jen když fokus pořád patří této aplikaci. Malé okno Opse
 //!   (buddy) zůstává jediným místem, které ve Hře přijme klik. Žádné nové API pro procesy, paměť ani vstup.
+//! - 0.22.1: buddy nikdy nevezme hře fokus. Okno buddyho nejde aktivovat (`focusable(false)`, WS_EX_NOACTIVATE) a ve
+//!   výchozím stavu propouští myš do hry (`set_ignore_cursor_events(true)`), dokud je v popředí hra (`buddy_pass_through`,
+//!   přepíná hlídací smyčka `ops_watch` podle okna v popředí; volba v Nastavení `ops_passthrough`). Klik, tažení
+//!   a Úpravy z buddyho se při hře v popředí odmítnou (`buddy_click_ok`); Úpravy widgetů skončí, když se hráč vrátí
+//!   do hry (`edit_must_end`). Ovládání během hry jde přes zkratku. Jen okenní API: žádný háček myši, žádné vkládání
+//!   vstupu, žádné čtení polohy kurzoru ani stavu kláves.
+//! - 0.22.1: okna buddyho a widgetů vznikají rovnou viditelná s `focused(false)`: tao je ukáže při vytvoření přes
+//!   SW_SHOWNOACTIVATE. Dřívější „ukázání bez aktivace“ (SW_SHOWNOACTIVATE a pak `show()`) aktivovalo: tao u okna,
+//!   které pokládá za skryté, odebere WS_VISIBLE a zavolá SW_SHOW, takže okno vzalo popředí, kdykoli ho aplikace
+//!   směla vzít. Buddy je do umístění průhledný a propouští myš (`buddy_ready`); `show()` se na buddyho ani widgety
+//!   nevolá nikde.
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -79,6 +90,13 @@ pub struct OpsState {
     edit_focus: Mutex<(isize, u32)>,
     edit_key: Mutex<Option<Shortcut>>,
     hide_key: Mutex<Option<Shortcut>>,
+    /* 0.22.1: hráč vypnul „Buddy propouští kliky do hry“ (výchozí false = propouští), buddy teď propouští myš
+       a od kdy běží Úpravy widgetů */
+    pass_off: AtomicBool,
+    buddy_pass: AtomicBool,
+    /* 0.22.1: buddy už je umístěný (buddy_reveal); do té doby propouští myš */
+    buddy_ready: AtomicBool,
+    edit_since: Mutex<Option<Instant>>,
 }
 
 /// Měření automatického snímání (0.20.0): doba jednoho kroku (snímek pásu + porovnání) a velikost pásu v paměti.
@@ -294,9 +312,17 @@ pub async fn buddy_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>)
         .maximizable(false)
         .minimizable(false)
         .focused(false)
-        .visible(false)
+        /* 0.22.1: klik na buddyho nikdy neaktivuje jeho okno (WS_EX_NOACTIVATE), hra si fokus nechá */
+        .focusable(false)
+        /* 0.22.1: viditelné hned při vytvoření (tao ho ukáže přes SW_SHOWNOACTIVATE, nic se neaktivuje). Do umístění
+           je obsah průhledný (BuddyApp nic nekreslí) a okno propouští myš; pozdější show() by okno aktivovalo. */
+        .visible(true)
         .build()
         .map_err(|e| e.to_string())?;
+    let st = app.state::<OpsState>();
+    st.buddy_ready.store(false, Ordering::SeqCst);
+    let _ = w.set_ignore_cursor_events(true);
+    st.buddy_pass.store(true, Ordering::SeqCst);
     exclude_from_capture(&w);
     Ok(())
 }
@@ -312,20 +338,18 @@ pub async fn buddy_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>
     Ok(())
 }
 
-/// Buddy se ukáže sám, až si spočítá velikost a polohu (0.13.1): bez aktivace, takže nevezme fokus hře ani
-/// hlavnímu oknu. Smí ho volat jen okno buddyho.
+/// Buddy si spočítal velikost a polohu (0.13.1) a ukáže se. 0.22.1: okno je viditelné od vytvoření (bez aktivace),
+/// tady se jen přestane propouštět myš, pokud v popředí není hra; nic se neukazuje ani neaktivuje.
+/// Smí ho volat jen okno buddyho.
 #[tauri::command]
 pub async fn buddy_reveal<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     if window.label() != BUDDY {
         return Err("Jen buddy".into());
     }
-    #[cfg(windows)]
-    {
-        if win::reveal_no_activate(&window) {
-            return Ok(());
-        }
-    }
-    window.show().map_err(|e| e.to_string())
+    let app = window.app_handle();
+    app.state::<OpsState>().buddy_ready.store(true, Ordering::SeqCst);
+    refresh_buddy_pass(app);
+    Ok(())
 }
 
 /* Overlay uprostřed monitoru, na kterém je buddy (jinak hlavního monitoru). */
@@ -421,6 +445,7 @@ pub async fn overlay_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<
 #[tauri::command]
 pub async fn overlay_toggle<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
     only(&window, &[BUDDY])?;
+    buddy_click_guard(&app)?;
     let open = app.get_webview_window(OVERLAY).map(|w| w.is_visible().unwrap_or(false)).unwrap_or(false);
     if open {
         hide_overlay(&app);
@@ -520,20 +545,15 @@ pub async fn widgets_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R
         .minimizable(false)
         .focused(false)
         .focusable(false)
-        .visible(false)
+        /* 0.22.1: viditelné hned při vytvoření (SW_SHOWNOACTIVATE v tao); pozdější show() by okno aktivovalo */
+        .visible(true)
         .build()
         .map_err(|e| e.to_string())?;
     app.state::<OpsState>().edit.store(false, Ordering::SeqCst);
     w.set_ignore_cursor_events(true).map_err(|e| e.to_string())?;
     exclude_from_capture(&w);
     fit_widgets(&app, &w);
-    #[cfg(windows)]
-    {
-        if win::reveal_no_activate(&w) {
-            return Ok(());
-        }
-    }
-    w.show().map_err(|e| e.to_string())
+    Ok(())
 }
 
 /// Zavře okno widgetů (hlavní okno: vypnutí widgetů nebo schování Opse). Rozpracované Úpravy se nejdřív ukončí.
@@ -555,6 +575,9 @@ pub async fn widgets_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<
 #[tauri::command]
 pub async fn widgets_edit<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, on: Option<bool>) -> Result<(), String> {
     only(&window, &[MAIN, BUDDY, WIDGETS])?;
+    if window.label() == BUDDY {
+        buddy_click_guard(&app)?;
+    }
     set_edit(&app, on)
 }
 
@@ -578,6 +601,9 @@ fn set_edit<R: Runtime>(app: &AppHandle<R>, want: Option<bool>) -> Result<(), St
             *p = prev;
         }
         st.edit.store(true, Ordering::SeqCst);
+        if let Ok(mut t) = st.edit_since.lock() {
+            *t = Some(Instant::now());
+        }
         fit_widgets(app, &w);
         w.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
         let _ = w.set_focusable(true);
@@ -648,6 +674,7 @@ pub async fn win_place<R: Runtime>(window: WebviewWindow<R>, x: i32, y: i32, w: 
 #[tauri::command]
 pub fn win_drag<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
     only(&window, &[BUDDY])?;
+    buddy_click_guard(window.app_handle())?;
     window.start_dragging().map_err(|e| e.to_string())
 }
 
@@ -771,7 +798,7 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
         /* 0.20.0: automatické snímání ve stejné smyčce (žádné další vlákno ani smyčka) */
         let mut auto = AutoGate::default();
         let mut auto_at: Option<Instant> = None;
-        let mut auto_seen: Option<Option<header::Screen>> = None;
+        let mut auto_seen: Option<Option<&'static str>> = None;
         loop {
             let st = app.state::<OpsState>();
             if st.watch_gen.load(Ordering::SeqCst) != gen || !st.enabled.load(Ordering::SeqCst) {
@@ -793,17 +820,26 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
             if let Some(visible) = gate.update(shown, fg, now) {
                 emit_native(&app, MAIN, "game-visible", visible);
             }
+            /* 0.22.1: buddy propouští myš, dokud je v popředí hra; Úpravy widgetů skončí, když se hráč vrátí do hry
+               (jinak by okno přes celý monitor bralo hře kliky). Jen okenní API, nic se neaktivuje. */
+            apply_buddy_pass(&app, fg);
+            let since = st.edit_since.lock().map(|t| *t).unwrap_or(None);
+            if edit_must_end(st.edit.load(Ordering::SeqCst), fg, since, now) {
+                let _ = set_edit(&app, Some(false));
+            }
             /* 0.20.0: pás s nadpisy jen při zapnutém automatickém snímání a hře v popředí (vidět, ne minimalizovaná) */
             if auto_due(st.auto_on.load(Ordering::SeqCst), shown, fg, auto_at, now) {
                 auto_at = Some(now);
                 let mask = st.auto_mask.load(Ordering::SeqCst);
                 let t0 = Instant::now();
-                let (seen, bytes) = match capture_header_strip() {
+                /* 0.22.1: bez známé obrazovky ještě kontrola inventáře v raidu (jen signál pro průběh raidu, žádný snímek) */
+                let (seen, raid, bytes) = match capture_header_strip() {
                     Ok((w, h, screen_h, rgba)) => {
                         let f = header::Frame { w: w as usize, h: h as usize, screen_h: screen_h as usize, rgba: &rgba };
-                        (header::classify(&f, mask).map(|x| x.0), rgba.len() as u64)
+                        let seen = header::classify(&f, mask).map(|x| x.0);
+                        (seen, seen.is_none() && header::in_raid(&f), rgba.len() as u64)
                     }
-                    Err(_) => (None, 0),
+                    Err(_) => (None, false, 0),
                 };
                 let us = t0.elapsed().as_micros() as u64;
                 let fire = auto.update(seen, now);
@@ -813,14 +849,15 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
                     s.last_us = us;
                     s.max_us = s.max_us.max(us);
                     s.strip_bytes = bytes;
-                    s.screen = seen.map(|x| x.id());
+                    s.screen = auto_label(seen, raid);
                     if fire.is_some() {
                         s.captures += 1;
                     }
                 }
-                if auto_seen != Some(seen) {
-                    auto_seen = Some(seen);
-                    emit_native(&app, MAIN, "auto-screen", seen.map(|x| x.id()));
+                let label = auto_label(seen, raid);
+                if auto_seen != Some(label) {
+                    auto_seen = Some(label);
+                    emit_native(&app, MAIN, "auto-screen", label);
                 }
                 if let Some(screen) = fire {
                     start_capture_as(app.clone(), Some(screen.id()));
@@ -830,6 +867,76 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
         }
     });
     Ok(())
+}
+
+/* ----- 0.22.1: buddy propouští kliky do hry ----- */
+
+/// Zapne nebo vypne „Buddy propouští kliky do hry“ (jen hlavní okno, výchozí zapnuto). Okno buddyho se hned
+/// nastaví podle okna v popředí; dál ho přepíná hlídací smyčka `ops_watch`.
+#[tauri::command]
+pub async fn ops_passthrough<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, on: bool) -> Result<(), String> {
+    main_only(&window)?;
+    app.state::<OpsState>().pass_off.store(!on, Ordering::SeqCst);
+    refresh_buddy_pass(&app);
+    Ok(())
+}
+
+/// Má buddy propouštět myš do hry? Při hře v popředí podle volby, nad vlastním oknem, jiným programem nebo
+/// plochou ne (buddy jde kliknout jako dřív). Krátce žádné okno v popředí (přepínání oken) nic nemění.
+pub fn buddy_pass_through(pref_on: bool, fg: Foreground, prev: bool) -> bool {
+    match fg {
+        Foreground::Game => pref_on,
+        Foreground::None => pref_on && prev,
+        Foreground::Own | Foreground::Other => false,
+    }
+}
+
+/// Smí klik (tažení, overlay, Úpravy) z buddyho něco udělat? Ne, když je v popředí hra a buddy má propouštět kliky:
+/// klik, který k buddymu dorazil dřív, než se okno přeplo, tak hře nevezme fokus.
+pub fn buddy_click_ok(pref_on: bool, fg: Foreground) -> bool {
+    !(pref_on && fg == Foreground::Game)
+}
+
+/// Úpravy widgetů běží chvíli po zapnutí bez kontroly (zkratka nebo klik převádí fokus).
+pub const EDIT_GRACE: Duration = Duration::from_secs(1);
+
+/// Skončit Úpravy widgetů? Ano, když je v popředí hra (hráč se do ní vrátil) a Úpravy běží aspoň EDIT_GRACE.
+pub fn edit_must_end(editing: bool, fg: Foreground, since: Option<Instant>, now: Instant) -> bool {
+    editing && fg == Foreground::Game && since.map_or(true, |t| now.saturating_duration_since(t) >= EDIT_GRACE)
+}
+
+/* Okno v popředí teď (jen čtení: okno v popředí a názvy procesů). */
+fn foreground_now() -> Foreground {
+    let pids = game_pids();
+    classify_foreground(foreground_pid(), std::process::id(), &pids)
+}
+
+/* Nastaví propouštění myši oknem buddyho podle okna v popředí (jen při změně). */
+fn apply_buddy_pass<R: Runtime>(app: &AppHandle<R>, fg: Foreground) {
+    let Some(w) = app.get_webview_window(BUDDY) else { return };
+    let st = app.state::<OpsState>();
+    let prev = st.buddy_pass.load(Ordering::SeqCst);
+    /* neumístěný buddy propouští myš vždy */
+    let want = !st.buddy_ready.load(Ordering::SeqCst) || buddy_pass_through(!st.pass_off.load(Ordering::SeqCst), fg, prev);
+    if want != prev && w.set_ignore_cursor_events(want).is_ok() {
+        st.buddy_pass.store(want, Ordering::SeqCst);
+    }
+}
+
+fn refresh_buddy_pass<R: Runtime>(app: &AppHandle<R>) {
+    if app.get_webview_window(BUDDY).is_some() {
+        apply_buddy_pass(app, foreground_now());
+    }
+}
+
+/* Klik z buddyho při hře v popředí: nic neotevřít ani netáhnout, jen okno přepnout na propouštění myši. */
+fn buddy_click_guard<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let fg = foreground_now();
+    if buddy_click_ok(!app.state::<OpsState>().pass_off.load(Ordering::SeqCst), fg) {
+        return Ok(());
+    }
+    apply_buddy_pass(app, fg);
+    Err("buddy:pass".into())
 }
 
 /* ----- 0.20.0: automatické snímání obrazovek mimo raid ----- */
@@ -856,6 +963,17 @@ pub async fn ops_autostats<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<
     let s = st.auto_stats.lock().map_err(|_| "auto:failed")?.clone();
     Ok(s)
 }
+
+/// Co automatické snímání hlásí hlavnímu oknu: známá obrazovka, jinak „inRaid“ (inventář v raidu), jinak nic.
+/// „inRaid“ jen posune průběh raidu, plný snímek spouští jen `AutoGate` podle obrazovky (0.22.1).
+pub fn auto_label(seen: Option<header::Screen>, in_raid: bool) -> Option<&'static str> {
+    match seen {
+        Some(s) => Some(s.id()),
+        None if in_raid => Some(IN_RAID_ID),
+        None => None,
+    }
+}
+pub const IN_RAID_ID: &str = "inRaid";
 
 /// Je čas na další pás s nadpisy? Jen při zapnutém snímání, viditelné hře v popředí a nejdřív AUTO_EVERY po minulém.
 pub fn auto_due(on: bool, game_shown: bool, fg: Foreground, last: Option<Instant>, now: Instant) -> bool {
@@ -1009,7 +1127,26 @@ pub mod header {
         Geo { name: "skill-title", anchor: L, x: 136, y: 16, w: 116, h: 32, src: "return-and-progression/skill-tree.png" },
         /* za SKILL TREE je tma (detail stanice tam má „— LEVEL 01“ a záložky) */
         Geo { name: "skill-end", anchor: L, x: 258, y: 16, w: 160, h: 32, src: "return-and-progression/skill-tree.png" },
+        /* 0.22.1: inventář V RAIDU: zvýrazněná záložka INVENTORY vlevo od středu, nadpis LOADOUT pod ní (jinde než na
+           MANAGE LOADOUT i na výsledku raidu) a za záložkou šedé CRAFTING MAP LOGBOOK SYSTEM (šedá není světlé písmo,
+           sonda tedy hlídá, že tam žádné světlé písmo není). Jen signál „v raidu“ (IN_RAID), nikdy obrazovka pro
+           snímek: v DEFS není a Screen ho nezná. */
+        Geo { name: "raid-pill", anchor: C, x: 654, y: 20, w: 152, h: 48, src: "own-inraid-inventory.png" },
+        Geo { name: "raid-loadout", anchor: C, x: 726, y: 166, w: 124, h: 30, src: "own-inraid-inventory.png" },
+        Geo { name: "raid-tabs", anchor: C, x: 812, y: 24, w: 444, h: 40, src: "own-inraid-inventory.png" },
     ];
+
+    /// 0.22.1: sondy inventáře v raidu. Shoda všech = hráč je v raidu. Nikdy nespustí plný snímek (fair play: snímá se
+    /// jen mimo raid), jen posune průběh raidu do fáze „v raidu“ (core/raidLife.ts).
+    pub const IN_RAID: &[&str] = &["raid-pill", "raid-loadout", "raid-tabs"];
+
+    /// Je v pásu inventář v raidu? Jen čtení pixelů pásu, který už automatické snímání má.
+    pub fn in_raid(f: &Frame) -> bool {
+        if f.w == 0 || f.h == 0 || f.screen_h == 0 || f.rgba.len() < f.w * f.h * 4 {
+            return false;
+        }
+        IN_RAID.iter().all(|p| probe(f, p) >= THRESH)
+    }
 
     /// Obrazovka a její sondy (`!` = záporná sonda). Pořadí rozhoduje: konkrétnější obrazovka je dřív.
     pub struct Def {
@@ -1532,19 +1669,6 @@ mod win {
         }
         out
     }
-
-    /// Buddy se poprvé ukáže bez aktivace. Tauri si pak okno označí za viditelné; SW_SHOW na už viditelném
-    /// okně nic nedělá, takže se nic neaktivuje.
-    pub fn reveal_no_activate<R: tauri::Runtime>(w: &tauri::WebviewWindow<R>) -> bool {
-        let Ok(h) = w.hwnd() else { return false };
-        let raw = h.0 as isize;
-        let w2 = w.clone();
-        w.run_on_main_thread(move || {
-            show_no_activate(raw, false);
-            let _ = w2.show();
-        })
-        .is_ok()
-    }
 }
 
 #[cfg(windows)]
@@ -1636,6 +1760,53 @@ fn process_names() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /* 0.22.1: buddy propouští kliky do hry, jen když je v popředí hra (a volba je zapnutá) */
+    #[test]
+    fn buddy_propousti_kliky_jen_pri_hre_v_popredi() {
+        use Foreground::*;
+        for prev in [false, true] {
+            assert!(buddy_pass_through(true, Game, prev));
+            assert!(!buddy_pass_through(false, Game, prev));
+            for fg in [Own, Other] {
+                assert!(!buddy_pass_through(true, fg, prev));
+                assert!(!buddy_pass_through(false, fg, prev));
+            }
+            /* krátce žádné okno: beze změny, s vypnutou volbou nikdy */
+            assert_eq!(buddy_pass_through(true, None, prev), prev);
+            assert!(!buddy_pass_through(false, None, prev));
+        }
+        /* zařazení okna v popředí podle procesu: hra / vlastní okno / jiný program */
+        assert!(buddy_pass_through(true, classify_foreground(Some(77), 10, &[77]), false));
+        assert!(!buddy_pass_through(true, classify_foreground(Some(10), 10, &[77]), false));
+        assert!(!buddy_pass_through(true, classify_foreground(Some(5), 10, &[77]), false));
+    }
+
+    #[test]
+    fn klik_z_buddyho_pri_hre_v_popredi_se_odmitne() {
+        use Foreground::*;
+        assert!(!buddy_click_ok(true, Game));
+        assert!(buddy_click_ok(false, Game));
+        for fg in [Own, Other, None] {
+            assert!(buddy_click_ok(true, fg));
+            assert!(buddy_click_ok(false, fg));
+        }
+    }
+
+    #[test]
+    fn upravy_widgetu_skonci_po_navratu_do_hry() {
+        use Foreground::*;
+        let t0 = Instant::now();
+        let late = t0 + EDIT_GRACE;
+        assert!(edit_must_end(true, Game, Some(t0), late));
+        assert!(edit_must_end(true, Game, Option::None, t0));
+        /* hned po zapnutí (fokus se ještě převádí) ne */
+        assert!(!edit_must_end(true, Game, Some(t0), t0 + Duration::from_millis(300)));
+        for fg in [Own, Other, None] {
+            assert!(!edit_must_end(true, fg, Some(t0), late));
+        }
+        assert!(!edit_must_end(false, Game, Some(t0), late));
+    }
 
     #[test]
     fn zkratka_vyzaduje_modifikator_nebo_f_klavesu() {
@@ -1918,6 +2089,41 @@ mod tests {
         let px = synth(w, screen_h, probes, 7);
         let f = header::Frame { w, h: header::strip_rows(screen_h as u32) as usize, screen_h, rgba: &px };
         header::classify(&f, mask).map(|x| x.0)
+    }
+
+    /* 0.22.1: inventář v raidu je jen signál „v raidu“: nikdy obrazovka pro plný snímek */
+    #[test]
+    fn inventar_v_raidu_nikdy_nespusti_snimek() {
+        for (w, h) in [(1920, 1080), (2560, 1440), (3840, 2160), (1280, 720), (3440, 1440)] {
+            let px = synth(w, h, header::IN_RAID, 7);
+            let f = header::Frame { w, h: header::strip_rows(h as u32) as usize, screen_h: h, rgba: &px };
+            assert!(header::in_raid(&f), "{w}×{h}");
+            /* žádná obrazovka, ani s každým bitem zvlášť */
+            assert_eq!(header::classify(&f, header::ALL_BITS), None, "{w}×{h}");
+            for s in header::ALL {
+                assert_eq!(header::classify(&f, s.bit()), None, "{w}×{h} {s:?}");
+            }
+            /* AutoGate: v raidu se nikdy nepořídí plný snímek, ani po dlouhé době */
+            let mut gate = AutoGate::default();
+            let t0 = Instant::now();
+            for i in 0..50 {
+                let seen = header::classify(&f, header::ALL_BITS).map(|x| x.0);
+                assert_eq!(gate.update(seen, t0 + Duration::from_secs(2 * i)), None);
+            }
+            assert_eq!(auto_label(None, true), Some("inRaid"));
+        }
+        /* pás každé obrazovky pro snímek není inventář v raidu */
+        for d in header::DEFS {
+            let pos: Vec<&str> = d.probes.iter().filter(|p| !p.starts_with('!')).copied().collect();
+            let px = synth(1920, 1080, &pos, 7);
+            let f = header::Frame { w: 1920, h: header::strip_rows(1080) as usize, screen_h: 1080, rgba: &px };
+            assert!(!header::in_raid(&f), "{:?}", d.screen);
+        }
+        /* „inRaid“ není id žádné obrazovky, takže ho výběr obrazovek ani hlavní okno nevezmou za obrazovku */
+        assert!(header::Screen::from_id(IN_RAID_ID).is_none());
+        assert!(header::IN_RAID.iter().all(|p| !header::DEFS.iter().any(|d| d.probes.iter().any(|q| q.trim_start_matches('!') == *p))));
+        assert_eq!(auto_label(Some(Screen::Loadout), true), Some("loadout"));
+        assert_eq!(auto_label(None, false), None);
     }
 
     #[test]

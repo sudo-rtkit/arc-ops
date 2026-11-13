@@ -33,6 +33,8 @@ export interface Native {
   widgetsEdit(on?: boolean): Promise<void>;
   widgetsFit(): Promise<void>;
   widgetsApp(tab?: string): Promise<void>;
+  /* 0.22.1: buddy propouští kliky do hry, dokud je v popředí hra (jen hlavní okno; přepíná Rust podle okna v popředí) */
+  passThrough(on: boolean): Promise<void>;
 }
 export type HotkeySlot = 'capture' | 'edit' | 'hide';
 /* Měření automatického snímání z Rustu (doba kroku v µs na hodinách, velikost pásu v B). */
@@ -66,6 +68,7 @@ const tauriNative: Native = {
   widgetsEdit: on => call('widgets_edit', { on: on ?? null }),
   widgetsFit: () => call('widgets_fit'),
   widgetsApp: tab => call('widgets_app', { tab: tab ?? null }),
+  passThrough: on => call('ops_passthrough', { on }),
 };
 
 const none = async () => undefined;
@@ -75,7 +78,7 @@ export const browserNative: Native = {
   overlayOpen: none, overlayClose: none, overlayToggle: none, mainFocus: none, captureNow: none, place: none, drag: none,
   captureTake: async () => { throw new Error('capture:unsupported'); },
   autoCapture: none, autoStats: async () => null,
-  widgetsOpen: none, widgetsClose: none, widgetsEdit: none, widgetsFit: none, widgetsApp: none,
+  widgetsOpen: none, widgetsClose: none, widgetsEdit: none, widgetsFit: none, widgetsApp: none, passThrough: none,
 };
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);

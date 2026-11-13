@@ -254,6 +254,7 @@ pub fn run() {
             ops::capture_take,
             ops::ops_autocapture,
             ops::ops_autostats,
+            ops::ops_passthrough,
             ops::win_place,
             ops::win_drag,
             ops::widgets_open,

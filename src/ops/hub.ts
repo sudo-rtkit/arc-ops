@@ -37,7 +37,7 @@ import type { Native } from './native';
 import { applyRelay, applyWidgetAction, type RelayAck } from '../store/relay';
 import { readAutoCapture } from '../core/opsCapture';
 import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator, type RustScreen } from '../core/autoCapture';
-import { loadoutSnap } from '../core/raidLife';
+import { IN_RAID_SIGNAL, loadoutSnap } from '../core/raidLife';
 import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
 
 /* auto (0.21.0): snímek z automatického snímání (původ hodnot po zápisu), jinak ze zkratky */
@@ -109,6 +109,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let appliedAuto = 'off';
   let appliedWatch = false;
   let appliedHotkey = '';
+  /* 0.22.1: propouštění kliků buddyho, jak ho hub naposledy poslal do Rustu (null = po zapnutí ještě ne) */
+  let appliedPass: boolean | null = null;
   let prevLevel: number | null = null;
   let lastBuddy = '';
   let overlayKnown = false;
@@ -253,16 +255,18 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   /* ----- přepínač a okna ----- */
   /* 0.20.0: automatické snímání a hlídání hry. Hlídací smyčka v Rustu běží, když je zapnuté automatické zobrazení
-     buddyho NEBO automatické snímání (jedna smyčka pro obojí). */
+     buddyho NEBO automatické snímání (jedna smyčka pro obojí). 0.22.1: NEBO propouštění kliků buddyho do hry (smyčka
+     podle okna v popředí přepíná, jestli buddy propouští myš; jen čtení okna v popředí a názvů procesů). */
   const autoKey = (s: AppState) => { const on = autoActive(s); return on ? 'on:' + screenBits(s.autoCapture.screens) : 'off'; };
   function syncAuto(s: AppState) {
-    const key = autoKey(s), watch = s.buddy.autoOpen || autoActive(s), bits = screenBits(s.autoCapture.screens);
+    const key = autoKey(s), watch = s.buddy.autoOpen || autoActive(s) || s.opsPrefs.passClicks, bits = screenBits(s.autoCapture.screens);
     if (key !== appliedAuto) {
       appliedAuto = key;
       const on = key !== 'off';
       run(() => native.autoCapture(on, on ? bits : 0));
     }
     if (watch !== appliedWatch) { appliedWatch = watch; run(() => native.watch(watch)); }
+    if (s.opsPrefs.passClicks !== appliedPass) { const pass = s.opsPrefs.passClicks; appliedPass = pass; run(() => native.passThrough(pass)); }
   }
   function syncNative(s: AppState) {
     const b = s.buddy;
@@ -271,8 +275,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       appliedHotkey = b.hotkey;
       if (b.enabled) {
         const hotkey = b.hotkey, auto = b.autoOpen;
-        /* Rust po zapnutí nesnímá ani nehlídá; posílá se jen zapnuté */
-        appliedAuto = 'off'; appliedWatch = false;
+        /* Rust po zapnutí nesnímá ani nehlídá; posílá se jen zapnuté (propouštění kliků vždy) */
+        appliedAuto = 'off'; appliedWatch = false; appliedPass = null;
         run(async () => {
           await native.enable(true);
           if (hotkey) await native.setHotkey(hotkey).catch(() => app.notify(t('ops.hotkey.lost'), 'warning'));
@@ -281,7 +285,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
         syncAuto(s);
         syncWidgetKeys(s);
       } else {
-        appliedAuto = 'off'; appliedWatch = false;
+        appliedAuto = 'off'; appliedWatch = false; appliedPass = null;
         batch = emptyBatch();
         overlayKnown = false;
         /* Rust při vypnutí zruší všechna okna i zkratky */
@@ -666,6 +670,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }));
     /* 0.20.0: obrazovka v pásu s nadpisy se změnila (null = žádná známá, např. v raidu) */
     offs.push(bus.onNative('auto-screen', p => {
+      /* 0.22.1: inventář v raidu jen posune průběh raidu (žádný snímek, žádná obrazovka) */
+      if (p === IN_RAID_SIGNAL && autoActive(st())) { app.actions.lifeEvent({ type: 'inRaid', at: now() }); return; }
       if ((p === null || isRustScreen(p)) && autoActive(st())) app.actions.lifeEvent({ type: 'screen', at: now(), screen: p });
     }));
     offs.push(bus.onNative('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));

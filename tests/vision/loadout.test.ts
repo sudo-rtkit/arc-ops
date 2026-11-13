@@ -81,4 +81,45 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
     expect(r.equip.map(e => e.state)).toEqual(EQUIP_SLOTS.map(() => 'empty'));
     expect(readAutoCapture(img, 'knockedOut')).toEqual({ kind: 'result', outcome: 'knockedOut', read: null });
   });
+  /* 0.22.1: další vlastní snímky (jen lokálně) */
+  it.skipIf(!has('own-manage-loadout-free.png'))('MANAGE LOADOUT, záložka FREE LOADOUT: stejné čtení jako dřívější snímek', () => {
+    const r = readLoadout(load('own-manage-loadout-free.png'))!;
+    expect([r.kind, r.value, r.backpackMax, r.quickUseMax]).toEqual(['free', 660, 14, 4]);
+    expect(r.equip.map(e => `${e.slot}:${e.state}`)).toEqual(['augment:item', 'shield:random', 'weapon1:random', 'weapon2:random']);
+  });
+  it.skipIf(!has('own-manage-loadout-custom-empty.png'))('MANAGE LOADOUT, záložka CUSTOM LOADOUT s prázdným loadoutem: vlastní, hodnota 0, výbava prázdná', () => {
+    const r = readLoadout(load('own-manage-loadout-custom-empty.png'))!;
+    expect([r.kind, r.value]).toEqual(['custom', 0]);
+    expect(r.equip.map(e => e.state)).toEqual(EQUIP_SLOTS.map(() => 'empty'));
+    /* známá mez: batoh 0/20 a quick use 0/5 vlastního loadoutu (s místy AUGMENTED SLOTS a SAFE POCKET) čtečka
+       nezměří a prázdná místa „+“ vezme za jeden neznámý předmět; výsledek pak jde celý ke kontrole (nic se nehádá) */
+    const s = loadoutSnap(r, [], ctx(), 1);
+    expect(s.fields.filter(f => f.state === 'item').every(f => f.name === null && f.conf === 'unknown')).toBe(true);
+    expect(packKnown(s)).toBe(false);
+  });
+  it.skipIf(!has('own-after-raid-survived-findings-2.png'))('druhý výsledek FINDINGS: hodnota 18 608, batoh 12/14, quick use 4/4, štít Light Shield', () => {
+    const img = load('own-after-raid-survived-findings-2.png');
+    const r = readLoadout(img)!;
+    expect([r.value, r.backpackMax, r.quickUseMax]).toEqual([18608, 14, 4]);
+    expect(r.equip.map(e => e.state)).toEqual(['item', 'item', 'item', 'empty']);
+    const s = loadoutSnap(r, [], ctx(), 1);
+    expect(s.fields.find(f => f.slot === 'shield')).toMatchObject({ name: 'Light Shield', conf: 'high' });
+    /* zbraň (Ferro) se podle katalogu nepozná: zůstane neznámá, nic se nehádá */
+    expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ state: 'item', name: null, conf: 'unknown' });
+    const res = readAutoCapture(img, 'findings');
+    expect(res).toMatchObject({ kind: 'result', outcome: 'survived' });
+    const pack = s.fields.filter(f => f.slot === 'backpack' || f.slot === 'quickUse');
+    expect(pack.filter(f => f.slot === 'backpack')).toHaveLength(12);
+    expect(pack.filter(f => f.slot === 'quickUse')).toHaveLength(4);
+    /* 14 z 16 obsazených políček pojmenovaných s jistotou */
+    expect(pack.filter(f => f.conf === 'high' && f.name).length).toBeGreaterThanOrEqual(14);
+    expect(pack.find(f => f.name === 'Heavy Ammo')?.qty).toBe(27);
+  });
+  it.skipIf(!has('own-after-raid-knocked-out-2.png'))('druhý výsledek KNOCKED OUT: prázdný loadout, hodnota 0', () => {
+    const img = load('own-after-raid-knocked-out-2.png');
+    const r = readLoadout(img)!;
+    expect(r.value).toBe(0);
+    expect(r.equip.map(e => e.state)).toEqual(EQUIP_SLOTS.map(() => 'empty'));
+    expect(readAutoCapture(img, 'knockedOut')).toEqual({ kind: 'result', outcome: 'knockedOut', read: null });
+  });
 });

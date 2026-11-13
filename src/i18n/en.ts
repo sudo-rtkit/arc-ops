@@ -1575,6 +1575,8 @@ export const en: Dict = {
   'ops.opacityVal': "{v:raw}%",
   'ops.autoOpen': "Open the buddy while ARC Raiders is running",
   'ops.autoOpenHint': "Only by the name in the list of running processes (PioneerGame.exe), checked every 10 s. The game process is never touched.",
+  'ops.passClicks': "Buddy lets clicks through to the game (recommended)",
+  'ops.passClicksHint': "While the game is in the foreground, a click on the buddy goes to the game and the game never loses focus. During play you control Ops with the hotkey (capture, widget Edit and its App button). With the app window or the desktop in front, you can click the buddy as before.",
   'ops.wardrobe': "Ops wardrobe",
   'ops.wardrobeHint': "Ops grows with the level in your profile: every level adds a part, every 15 levels it changes form. Unlocked parts stay in the collection even if the level drops.",
   'ops.form': "Form: {name:raw} · level {level:raw}",

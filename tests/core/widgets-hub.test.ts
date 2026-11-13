@@ -23,7 +23,7 @@ function fakeNative(): Native & { calls: string[] } {
     enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
     overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
     captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'),
-    widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
+    widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), passThrough: rec('passThrough'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
   };
 }
 async function makeApp(stored?: unknown): Promise<App> {

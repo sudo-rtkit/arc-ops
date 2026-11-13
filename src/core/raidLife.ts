@@ -44,6 +44,8 @@ export const LOADOUT_STALE_MS = 3 * 3600_000;
 export type LifeEvent =
   | { type: 'loadout'; at: number; loadout: LoadoutSnap }
   | { type: 'screen'; at: number; screen: RustScreen | null }
+  /* 0.22.1: pás s nadpisy ukázal inventář V RAIDU (signál z Rustu „inRaid“, nikdy plný snímek) */
+  | { type: 'inRaid'; at: number }
   | { type: 'result'; at: number }
   | { type: 'disable'; at: number };
 /* Výsledek kroku. pair = loadout ke spárování s výsledkem (jen u 'result'); stale = loadout byl, ale je starý. */
@@ -57,6 +59,10 @@ export function lifeStep(life: RaidLife, ev: LifeEvent): LifeStep {
       return { life: { phase: 'loadout', loadout: ev.loadout, quietSince: 0 } };
     case 'disable':
       return { life: emptyRaidLife() };
+    case 'inRaid':
+      /* inventář v raidu: po loadoutu hned „v raidu“ (bez čekání na ticho); bez loadoutu nic (není co párovat) */
+      if (life.phase !== 'loadout') return { life };
+      return { life: { ...life, phase: 'inRaid', quietSince: life.quietSince || ev.at } };
     case 'result': {
       const lo = life.loadout;
       const stale = !!lo && ev.at - lo.at > LOADOUT_STALE_MS;
@@ -135,6 +141,8 @@ export function normalizeRaidLife(raw: unknown): RaidLife {
   return { phase, loadout, quietSince: clampInt(raw.quietSince || 0, 0, 9e15) };
 }
 export const isLifeScreen = (v: unknown): v is RustScreen | null => v === null || isRustScreen(v);
+/* 0.22.1: signál inventáře v raidu z automatického snímání (není obrazovka a nespouští snímek) */
+export const IN_RAID_SIGNAL = 'inRaid';
 
 /* ----- návrh záznamu raidu z výsledku ----- */
 export type RaidOutcome = 'survived' | 'knockedOut';

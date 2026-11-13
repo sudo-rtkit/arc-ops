@@ -42,7 +42,7 @@ function fakeNative(): Native & { calls: string[] } {
     calls, available: true,
     enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
     overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
+    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), passThrough: rec('passThrough'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
   };
 }
 async function setup() {
@@ -261,11 +261,12 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     buddy.on('view', v => views.push(v));
     app.actions.setBuddy({ enabled: true });
     await hub.idle();
-    expect(native.calls).toEqual(['enable(true)', 'buddyOpen']);
+    /* 0.22.1: hlídání okna v popředí běží kvůli propouštění kliků buddyho do hry (výchozí zapnuto) */
+    expect(native.calls).toEqual(['enable(true)', 'buddyOpen', 'watch(true)', 'passThrough(true)']);
     expect(views).toHaveLength(1);
     app.actions.setBuddy({ autoOpen: true });
     await hub.idle();
-    expect(native.calls.slice(2)).toEqual(['watch(true)', 'buddyClose']);
+    expect(native.calls.slice(4)).toEqual(['buddyClose']);
     app.actions.setBuddy({ enabled: false });
     await hub.idle();
     expect(native.calls.at(-1)).toBe('enable(false)');

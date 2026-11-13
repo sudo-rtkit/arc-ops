@@ -31,6 +31,7 @@ const COMMANDS: &[&str] = &[
     "capture_take",
     "ops_autocapture",
     "ops_autostats",
+    "ops_passthrough",
     "win_place",
     "win_drag",
     "widgets_open",

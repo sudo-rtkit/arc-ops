@@ -52,6 +52,7 @@ export const RELAY_ACTIONS = [
    - nastavení tohoto počítače z Nastavení (buddy a zkratka, okno, jazyk, automatické snímky);
    - 0.19.0: zavření karty „Co je nového“ (ukazuje se jen v hlavním okně);
    - 0.22.0: widgety nad hrou a jejich globální zkratky (nastavení tohoto počítače, jen Nastavení hlavního okna);
+   - 0.22.1: buddy propouští kliky do hry (nastavení tohoto počítače, jen Nastavení hlavního okna);
    - 0.20.0: automatické snímání a hlavní vypínač napojení na hru (nastavení tohoto počítače), kroky průběhu raidu
      a automatický zápis (jen hub v hlavním okně, ze snímku). */
 const none = () => undefined;
@@ -59,7 +60,7 @@ const later = <T>(v: T) => () => Promise.resolve(v);
 export const BLOCKED_ACTIONS = {
   importFromScreens: later(null), importRaidLoot: later({ ok: false as const, reason: 'notReady' as const }), importProgress: later(null),
   mapEdit: none, setMapImage: none,
-  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none,
+  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none, setPassClicks: none,
   setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),

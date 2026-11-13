@@ -87,9 +87,20 @@ Recognition lives in `src/core/vision/`; reviewed changes in `visionImport.ts` /
 
 Digit/letter/head/body glyph generators live in `tests/vision/`. Some generators and local regression tests need private player samples: do not publish those samples. `tests/fixtures/vision/own/` is local-only; tests skip when required samples are unavailable. Use synthetic screen builders for public tests and demo data for published app screenshots.
 
+## Manual smoke test (Windows release build)
+
+Run it before a release that touches native windows. Never use the real game or the owner's real data without a byte-identical backup.
+
+1. Back up `%APPDATA%\cz.arcops.companion` (for example `robocopy /MIR` to a scratch folder and compare SHA-256 of every file afterwards). Restore it byte-identical at the end.
+2. Stand in for the game with a dummy foreground window whose process is named `PioneerGame.exe` (for example a small borderless full-screen WinForms window compiled with the .NET Framework `csc.exe` to `PioneerGame.exe` in a scratch folder). Check with `tasklist` that the real game is not running.
+3. Start the release build with Ops enabled (Settings → Buddy and hotkey) and “Buddy lets clicks through to the game (recommended)” on.
+4. Focus checks (0.22.1): with the dummy game in front, the Ops window has `WS_EX_NOACTIVATE`, `WS_EX_TRANSPARENT` and `WS_EX_LAYERED`; `WindowFromPoint` at the Ops centre returns the dummy game; a real click there keeps the dummy game as the foreground window and opens nothing. With the app window or the desktop in front, `WS_EX_TRANSPARENT` is gone and `WindowFromPoint` returns Ops; a click opens the field console. Turning the setting off makes Ops clickable over the game but still non-activating. Repeat the foreground-window checks for the widget window in Play (always transparent and non-activating) and after leaving Edit by switching back to the game. Regression check for the reveal bug: with the app's main window in front, make the game window appear (Ops is then created and placed); the main window must stay the foreground window, never Ops or the widget window. If synthetic input is blocked in your shell (an injected click never reaches the dummy and `GetLastInputInfo` does not reset), rely on the window styles and `WindowFromPoint`, which decide where a real click goes, and do the real click by hand.
+5. Hotkeys still work during play (capture, widget Edit, Hide / show).
+6. Quit the app, restore the data folder and verify the hashes.
+
 ## Native privacy boundary
 
-No game memory reads, injection, game-file modification or game input. Optional buddy automation checks process names and foreground/window visibility. Capture operates on monitor pixels and discards images after recognition. External data-source links are opened only by explicit user action. Installer detection closes Companion only, not the game.
+No game memory reads, injection, game-file modification or game input. Optional buddy automation checks process names and foreground/window visibility. Since 0.22.1 the Ops window is non-activating and lets clicks through while the game is in the foreground; only window APIs are used (no hooks, no input injection, no cursor or key-state reads). Capture operates on monitor pixels and discards images after recognition. External data-source links are opened only by explicit user action. Installer detection closes Companion only, not the game.
 
 Never use the owner's native data directory for demos, captures or tests. Use fresh browser contexts with explicit localStorage seeds. Keep screenshots free of game art and private information.
 

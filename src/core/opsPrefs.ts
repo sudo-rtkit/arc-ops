@@ -15,7 +15,7 @@ export const VOLUME_DEFAULT = 25;
 
 export const emptyOpsPrefs = (): OpsPrefs => ({
   personality: 'friendly', sound: true, volume: VOLUME_DEFAULT, dialogs: true, tutorial: { status: 'new', step: 'welcome' }, advisor: true,
-  widgets: { on: false, editKey: '', hideKey: '' },
+  widgets: { on: false, editKey: '', hideKey: '' }, passClicks: true,
 });
 
 /* 0.22.0: přepínač widgetů a jejich zkratky. Zkratka musí projít stejnou kontrolou jako zkratka snímku; dvě stejné
@@ -37,6 +37,8 @@ export function normalizeOpsPrefs(raw: unknown): OpsPrefs {
   /* 0.17.0: rada „Co dál?“ nahlas; ve starším nastavení chybí a je zapnutá */
   if (typeof r.advisor === 'boolean') d.advisor = r.advisor;
   d.widgets = normalizeWidgetsSwitch(r.widgets);
+  /* 0.22.1: ve starším nastavení chybí a je zapnuté (vypnout jde jen výslovně) */
+  d.passClicks = r.passClicks !== false;
   const t = isObj(r.tutorial) ? r.tutorial : {};
   if (STATUSES.includes(t.status as TutorialStatus)) d.tutorial.status = t.status as TutorialStatus;
   if (TUTORIAL_STEPS.includes(t.step as TutorialStep)) d.tutorial.step = t.step as TutorialStep;

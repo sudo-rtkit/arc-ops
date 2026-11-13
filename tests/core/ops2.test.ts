@@ -234,7 +234,7 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   });
   it('normalizace: neplatné hodnoty se zahodí, hlasitost 0–100', () => {
     expect(normalizeOpsPrefs({ personality: 'rude', sound: 'yes', volume: 400, dialogs: false, tutorial: { status: 'x', step: 'tour-quests' } }))
-      .toEqual({ personality: 'friendly', sound: true, volume: 100, dialogs: false, tutorial: { status: 'new', step: 'tour-quests' }, advisor: true, widgets: { on: false, editKey: '', hideKey: '' } });
+      .toEqual({ personality: 'friendly', sound: true, volume: 100, dialogs: false, tutorial: { status: 'new', step: 'tour-quests' }, advisor: true, widgets: { on: false, editKey: '', hideKey: '' }, passClicks: true });
     expect(normalizeOpsPrefs({ personality: 'cheeky', volume: -3 })).toMatchObject({ personality: 'cheeky', volume: 0 });
   });
   it('akce a záloha: import ani obnova nemění povahu, zvuky a průvodce tohoto počítače', async () => {
@@ -244,7 +244,7 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
     expect(here).toMatchObject({ personality: 'cheeky', volume: 60, tutorial: { status: 'active', step: 'tour-quests' } });
     const other = defaultState(NOW);
     other.profile.level = 50;
-    other.opsPrefs = { personality: 'plain', sound: false, volume: 0, dialogs: false, tutorial: { status: 'done', step: 'end' }, advisor: false, widgets: { on: true, editKey: 'Ctrl+Alt+KeyE', hideKey: '' } };
+    other.opsPrefs = { personality: 'plain', sound: false, volume: 0, dialogs: false, tutorial: { status: 'done', step: 'end' }, advisor: false, widgets: { on: true, editKey: 'Ctrl+Alt+KeyE', hideKey: '' }, passClicks: false };
     const file = parseBackup(makeBackup(other, new Date(NOW)), NOW);
     if ('error' in file) throw new Error(file.error);
     expect(await app.actions.importState(file.state, '{}', 'app')).toBe(true);
@@ -260,7 +260,7 @@ describe('hub 0.10.0: odchod před zavřením a stav pro okna', () => {
     return {
       calls, available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), passThrough: rec('passThrough'), autoCapture: rec('autoCapture'), autoStats: async () => null, captureTake: async () => new ArrayBuffer(0),
     };
   }
   it('skrytí buddyho: nejdřív dismiss, okno se zavře až po odchodu; povaha a zvuky jdou do view', async () => {

@@ -20,7 +20,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 function fakeNative(): Native {
   const ok = async () => undefined;
-  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, place: ok, drag: ok, widgetsOpen: ok, widgetsClose: ok, widgetsEdit: ok, widgetsFit: ok, widgetsApp: ok, autoCapture: ok, autoStats: async () => null, captureTake: async () => new ArrayBuffer(0) };
+  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, place: ok, drag: ok, widgetsOpen: ok, widgetsClose: ok, widgetsEdit: ok, widgetsFit: ok, widgetsApp: ok, passThrough: ok, autoCapture: ok, autoStats: async () => null, captureTake: async () => new ArrayBuffer(0) };
 }
 async function mainApp(stored: unknown = { schema: 14, buddy: { enabled: true } }) {
   const kv = memoryKV();
@@ -63,7 +63,7 @@ describe('0.16.0: akce store pro overlay', () => {
     expect([...relay].filter(n => blocked.has(n))).toEqual([]);
     expect([...relay, ...blocked].filter(n => !names.includes(n))).toEqual([]);
     /* nastavení počítače, soubory a úložiště nikdy z overlaye */
-    for (const n of ['setBuddy', 'setMainWindow', 'importState', 'exportBackup', 'resetAll', 'resetModule', 'restoreSnapshot', 'mapEdit', 'setMapImage', 'importFromScreens', 'importRaidLoot', 'importProgress']) expect(blocked.has(n), n).toBe(true);
+    for (const n of ['setBuddy', 'setMainWindow', 'importState', 'exportBackup', 'resetAll', 'resetModule', 'restoreSnapshot', 'mapEdit', 'setMapImage', 'importFromScreens', 'importRaidLoot', 'importProgress', 'setWidgets', 'setPassClicks']) expect(blocked.has(n), n).toBe(true);
   });
 
   it('id: zaznamenaná id se přehrají ve stejném pořadí, jen platná, jinak nová', () => {

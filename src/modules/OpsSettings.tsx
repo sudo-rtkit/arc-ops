@@ -118,6 +118,7 @@ export function OpsPanel() {
   const b = useAppState().buddy;
   /* 0.20.0: hlavní vypínač napojení na hru (Nastavení → Napojení na hru) */
   const gameOff = useAppState().gameLink.off;
+  const passClicks = useAppState().opsPrefs.passClicks;
   const kind = useApp(x => x.storageKind);
   const [opacity, setOpacity] = useState(b.opacity);
   useEffect(() => setOpacity(b.opacity), [b.opacity]);
@@ -143,6 +144,9 @@ export function OpsPanel() {
           </div>
           <label className="toggle"><input type="checkbox" data-testid="ops-autoopen" checked={b.autoOpen} disabled={gameOff} onChange={e => actions.setBuddy({ autoOpen: e.target.checked })} />{t('ops.autoOpen')}</label>
           <p className="meta">{t('ops.autoOpenHint')}</p>
+          {/* 0.22.1: buddy propouští kliky do hry (výchozí zapnuto); ovládání během hry přes zkratku */}
+          <label className="toggle"><input type="checkbox" data-testid="ops-passclicks" checked={passClicks} onChange={e => actions.setPassClicks(e.target.checked)} />{t('ops.passClicks')}</label>
+          <p className="meta">{t('ops.passClicksHint')}</p>
         </div>
       )}
     </Panel>

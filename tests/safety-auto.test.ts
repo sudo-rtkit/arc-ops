@@ -114,6 +114,9 @@ describe('0.20.0: automatické snímání jen s opt-in a při hře v popředí',
     const native = fakeNative(calls);
     const hub = createOpsHub({ app, bus: nullBus(), native, now: () => 1_000, pushMs: 0 });
     hub.start();
+    /* 0.22.1: s propouštěním kliků buddyho běží hlídání okna v popředí vždy (snímání v Rustu ale zůstane vypnuté);
+       tady se hlídání sleduje jen kvůli snímání */
+    app.actions.setPassClicks(false);
     app.actions.setBuddy({ enabled: true });
     await hub.idle();
     expect(calls.filter(c => c.startsWith('autoCapture') || c.startsWith('watch'))).toEqual([]);
@@ -161,7 +164,7 @@ function fakeNative(calls: string[]): Native {
   return {
     available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'),
     buddyReveal: rec('buddyReveal'), overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'),
-    mainFocus: rec('mainFocus'), captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'),
+    mainFocus: rec('mainFocus'), captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), widgetsOpen: rec('widgetsOpen'), widgetsClose: rec('widgetsClose'), widgetsEdit: rec('widgetsEdit'), widgetsFit: rec('widgetsFit'), widgetsApp: rec('widgetsApp'), passThrough: rec('passThrough'),
     captureTake: async () => new ArrayBuffer(0), autoCapture: rec('autoCapture'), autoStats: async () => null,
   };
 }
