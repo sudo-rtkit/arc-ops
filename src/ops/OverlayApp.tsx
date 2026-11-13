@@ -2,7 +2,7 @@
    aplikace: přehled, dostupné úkoly, nákupy a výsledek snímku ke schválení (0.8.1: stash a loot po raidu odděleně). Stav je kopie z hlavního okna
    (store tohoto okna se nikdy nespustí, takže nic neukládá); zápisy jdou do hlavního okna jako akce. */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { LayoutGrid, X } from 'lucide-react';
+import { LayoutGrid, Search as SearchIcon, X } from 'lucide-react';
 import { app, derivedOf, useAppState, useDerived } from '../store';
 import { createBus } from './bus';
 import { startHello } from './handshake';
@@ -41,6 +41,12 @@ import { setHost } from '../shell/host';
 import { OverlayApps, closeModule, mainRoute, useOvRoute } from './OverlayApps';
 import { Toasts } from '../shell/Banners';
 import { RaidFormHost } from '../ui/RaidForm';
+import { ItemCardHost } from '../ui/ItemCard';
+import { SearchHost, useSearchShortcut } from '../ui/SearchPalette';
+import { useUi } from '../store/ui';
+
+/* 0.18.0: Ctrl+K i v overlayi (klávesa přijde jen oknu s fokusem; overlay sám fokus nikdy nebere) */
+const ovSearchOn = () => true;
 
 const bus = createBus('overlay');
 const native = createNative();
@@ -615,6 +621,7 @@ export default function OverlayApp() {
     window.addEventListener('keydown', onKey);
     return () => { stopHello(); offs.forEach(f => f()); window.removeEventListener('keydown', onKey); };
   }, []);
+  useSearchShortcut(ovSearchOn);
   useEffect(() => { if (view) setOpacity(view.state.buddy.opacity); }, [view?.state.buddy.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view?.batch.shots.length) setTab('scan'); }, [view?.batch.shots.length]);
   /* odkaz nebo výběr modulu (#modul) otevře Aplikaci */
@@ -675,6 +682,10 @@ export default function OverlayApp() {
           onClick={() => { if (tab === 'apps') closeModule(); setTab('apps'); }}>
           <LayoutGrid size={16} aria-hidden="true" />{t('ops.ov.tab.apps')}
         </button>
+        <button type="button" className="ov-appentry ov-searchentry" aria-label={t('search.field')} title={t('search.field')} aria-keyshortcuts="Control+K" data-testid="ov-search"
+          onClick={() => useUi.getState().openSearch('')}>
+          <SearchIcon size={16} aria-hidden="true" /><kbd aria-hidden="true">Ctrl K</kbd>
+        </button>
       </nav>
       <main className="ov-content" role={tab === 'apps' ? 'region' : 'tabpanel'} id="ov-panel" aria-labelledby={'ov-tab-' + tab}>
         {tab === 'overview' && <Overview batch={view.batch} go={setTab} />}
@@ -697,6 +708,8 @@ export default function OverlayApp() {
         </label>
       </footer>
       {tab === 'apps' && route.module && <RaidFormHost />}
+      <ItemCardHost />
+      <SearchHost />
       <Toasts />
     </div>
   );

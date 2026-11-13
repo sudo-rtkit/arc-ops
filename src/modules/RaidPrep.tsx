@@ -10,6 +10,7 @@ import { actions, app, navigate, useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
 import { Badge, Btn, Check, Empty, PageHead, Panel, Select, cx } from '../ui/components';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 import type { Key } from '../i18n';
 import { fmt, fmtDateTime } from '../ui/format';
 import { dayKey } from '../core/util';
@@ -95,7 +96,7 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
                   <thead><tr><th>{t('raid.list.item')}</th><th className="num">{t('raid.eval.col.found')}</th><th className="num">{t('raid.eval.col.missing')}</th><th>{t('raid.list.area')}</th></tr></thead>
                   <tbody>{ev.rows.map(r => (
                     <tr key={r.mat} data-mat={r.mat} className={r.missing === 0 ? 'rp-done' : undefined}>
-                      <td><b>{r.mat}</b></td>
+                      <td><ItemLink name={r.mat}><b>{r.mat}</b></ItemLink></td>
                       <td className="num mono">{fmt(r.found)} / {fmt(r.need)}</td>
                       <td className="num mono">{r.missing ? fmt(r.missing) + '×' : '✓'}</td>
                       <td><AreaBadges areas={r.areas} /></td>
@@ -233,7 +234,7 @@ export default function RaidPrep() {
               <thead><tr><th>{t('raid.list.item')}</th><th className="num">{t('raid.list.missing')}</th><th>{t('raid.list.why')}</th><th>{t('raid.list.area')}</th></tr></thead>
               <tbody>{rows.map(r => (
                 <tr key={r.mat} data-mat={r.mat}>
-                  <td><b>{r.mat}</b><small className="meta"> {t('raid.list.have', { have: r.have, need: r.need })}</small></td>
+                  <td><ItemLink name={r.mat}><b>{r.mat}</b></ItemLink><small className="meta"> {t('raid.list.have', { have: r.have, need: r.need })}</small></td>
                   <td className="num mono">{fmt(r.missing)}×</td>
                   <td className="wrap">{r.reasons.map(x => `${fmt(x.qty)}× ${x.label}`).join(', ')}</td>
                   <td><AreaBadges areas={r.areas} /></td>

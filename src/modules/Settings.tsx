@@ -204,6 +204,9 @@ function DangerZone() {
   );
 }
 
+/* Kotva sekce pro hledání (#settings/<sekce>); nulová výška, nic nemění na vzhledu. */
+const Anchor = ({ id }: { id: string }) => <span id={'settings-' + id} className="settings-anchor" aria-hidden="true" />;
+
 export default function Settings({ sub }: { sub: string }) {
   const s = useAppState();
   const t = useT();
@@ -224,21 +227,30 @@ export default function Settings({ sub }: { sub: string }) {
     }
     await actions.exportBackup(backupFileName(new Date(), t.lang), images);
   };
-  /* 0.11.0: odkaz z Miniher (#settings/wardrobe) otevře šatník */
-  useEffect(() => { if (sub === 'wardrobe') document.getElementById('wardrobe')?.scrollIntoView({ block: 'start' }); }, [sub]);
+  /* 0.11.0: odkaz z Miniher (#settings/wardrobe) otevře šatník; 0.18.0: hledání otevře každou sekci (#settings/<sekce>) */
+  useEffect(() => {
+    if (!sub || sub === 'import') return;
+    const el = document.getElementById(sub === 'wardrobe' ? 'wardrobe' : 'settings-' + sub);
+    el?.scrollIntoView({ block: 'start' });
+  }, [sub]);
   return (
     <div className="page">
       <PageHead title="Settings & Backup" sub={t('settings.sub')} />
+      <Anchor id="lang" />
       <Panel title={t('settings.lang')}>
         <div className="seg" role="group" aria-label={t('settings.lang')}>
           {LANGS.map(l => <button key={l} type="button" lang={l} aria-pressed={s.settings.lang === l} onClick={() => actions.setLang(l)}>{LANG_NAMES[l]}</button>)}
         </div>
         <p className="meta">{t('settings.langHint')}</p>
       </Panel>
+      <Anchor id="window" />
       <WindowPanel />
+      <Anchor id="ops" />
       <OpsPanel />
+      <Anchor id="voice" />
       <OpsVoicePanel />
       <WardrobePanel />
+      <Anchor id="data" />
       <Panel title="Data">
         <dl className="dl">
           <dt>{t('settings.dir')}</dt>
@@ -259,6 +271,7 @@ export default function Settings({ sub }: { sub: string }) {
         <label className="toggle"><input type="checkbox" checked={s.settings.autoSnapshot} onChange={e => actions.setAutoSnapshot(e.target.checked)} />{t('settings.autoSnap')}</label>
         {kind === 'browser' && <p className="meta">{t('settings.browserHint')}</p>}
       </Panel>
+      <Anchor id="backup" />
       <Panel title={t('settings.exportImport')}>
         <p className="secondary-text">{t('settings.exportHint')}</p>
         <div className="row">
@@ -269,7 +282,9 @@ export default function Settings({ sub }: { sub: string }) {
         <label className="toggle"><input type="checkbox" checked={withImages} onChange={e => setWithImages(e.target.checked)} data-testid="backup-images" />{t('backup.images')}</label>
         <p className="meta">{t('backup.imagesHint')}</p>
       </Panel>
+      <Anchor id="snapshots" />
       <Snapshots />
+      <Anchor id="links" />
       <Panel title={t('settings.links')}>
         <p className="meta">{t('settings.linksHint')}</p>
         <div className="stack-sm">
@@ -277,6 +292,7 @@ export default function Settings({ sub }: { sub: string }) {
           {MAPS.map(m => <ExtLink key={m.id} url={m.live}>{t('settings.liveMap', { name: m.name })}</ExtLink>)}
         </div>
       </Panel>
+      <Anchor id="sources" />
       <Panel title={t('settings.sources')}>
         <p data-testid="data-sources">{t('settings.sourcesText')}</p>
         <div className="stack-sm"><ExtLink url={METAFORGE_URL}>{t('settings.sourcesLink')}</ExtLink></div>
@@ -286,11 +302,13 @@ export default function Settings({ sub }: { sub: string }) {
         <p className="meta">{t('settings.sourcesArcData', { quests: AT_QUESTS.length, modules: AT_HIDEOUT.length, projects: AT_PROJECTS.length, date: AT_DATE })}</p>
         <p className="meta" data-testid="data-sources-items">{t('settings.sourcesItems', { items: ITEM_DATA.length, offers: TRADER_OFFERS.length, date: ITEMS_DATE, weapons: WEAPON_STATS.length })}</p>
       </Panel>
+      <Anchor id="about" />
       <Panel title={t('settings.about')}>
         <p>{t('settings.version', { v: '0.9' })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
       </Panel>
+      <Anchor id="danger" />
       <DangerZone />
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>

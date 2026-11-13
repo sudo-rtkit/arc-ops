@@ -474,3 +474,70 @@ details.data-table[open] summary { margin-bottom: var(--space-2); }
 .tour.tour--compact canvas { margin: -6px 0 -10px; }
 .tour.tour--compact .tour-bubble { box-shadow: none; }
 .tour.tour--compact .tour-line { font-size: 12.5px; margin: 4px 0 8px; }
+
+/* ===== 0.18.0: hledání všude (Ctrl+K) a karta předmětu ===== */
+.nav-search { flex: none; padding: var(--space-2) var(--space-2) 0; }
+.nav-search-field {
+  position: relative; display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2) 0 10px;
+  border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-inset); color: var(--text-muted); cursor: text;
+}
+.nav-search-field:hover { border-color: var(--border-control); }
+.nav-search-field:focus-within { border-color: var(--accent); }
+.nav-search-input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text-primary); font: var(--weight-medium) var(--font-size-sm)/var(--line-sm) var(--font-ui); outline: none; cursor: text; }
+.nav-search-input::placeholder { color: var(--text-muted); }
+.nav-search-input::-webkit-search-cancel-button { display: none; }
+.nav-search-field kbd, .sp-foot kbd, .ov-searchentry kbd {
+  font: 500 10px/1 var(--font-mono); padding: 3px 5px; border: var(--line-thin) solid var(--border-control); border-radius: var(--space-half);
+  background: var(--bg-raised); color: var(--text-secondary); white-space: nowrap;
+}
+.compact .nav-search { padding-bottom: 0; }
+
+.sp-backdrop {
+  position: fixed; inset: 0; background: var(--backdrop); z-index: var(--z-backdrop); display: flex; justify-content: center; align-items: flex-start;
+  padding: 10vh var(--space-4) var(--space-4); animation: fade var(--t-dialog);
+}
+.sp {
+  width: 640px; max-width: calc(100vw - 32px); max-height: min(560px, calc(100vh - 12vh - 24px)); display: flex; flex-direction: column;
+  background: var(--bg-raised); border: var(--line-thin) solid var(--border-control); border-radius: var(--radius-dialog); box-shadow: var(--shadow-dialog); z-index: var(--z-dialog);
+}
+.sp-head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--line-thin) solid var(--border-subtle); color: var(--text-muted); }
+.sp-input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: var(--text-primary); font: var(--weight-medium) var(--font-size-lg)/var(--line-md, 24px) var(--font-ui); }
+.sp-input::placeholder { color: var(--text-muted); }
+.sp-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
+.sp-group + .sp-group { margin-top: var(--space-2); }
+.sp-group-head {
+  display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-2);
+  font: var(--weight-semibold) var(--font-size-xs)/var(--line-xs) var(--font-ui); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--text-muted);
+}
+.sp-clear { text-transform: none; letter-spacing: 0; font-size: var(--font-size-xs); }
+.sp-opt { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-control); cursor: pointer; color: var(--text-primary); }
+.sp-opt.on { background: var(--bg-panel); box-shadow: inset var(--line-indicator) 0 0 var(--accent); }
+.sp-title { font-weight: var(--weight-semibold); flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-sub { flex: 1; min-width: 0; color: var(--text-muted); font-size: var(--font-size-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-kind { flex: none; color: var(--text-muted); font-size: var(--font-size-xs); }
+.sp-empty { padding: var(--space-4) var(--space-2); color: var(--text-muted); }
+.sp-foot { display: flex; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-top: var(--line-thin) solid var(--border-subtle); color: var(--text-muted); font-size: var(--font-size-xs); }
+.sp-foot kbd + kbd { margin-left: 2px; }
+
+.item-link { font: inherit; color: inherit; text-align: left; }
+.item-link:hover, .item-link:focus-visible { color: var(--accent-hover); }
+.item-link b { font-weight: inherit; }
+td .item-link b, li .item-link b { font-weight: var(--weight-semibold); }
+.item-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.ic-kicker { margin-top: calc(-1 * var(--space-2)); }
+.ic-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; }
+.ic-fact dt { font: var(--weight-semibold) var(--font-size-xs)/var(--line-xs) var(--font-ui); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--text-muted); }
+.ic-fact dd { margin: 0; }
+.ic-rarity { color: var(--rar, var(--text-primary)); font-weight: var(--weight-semibold); }
+.ic-verdict { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--bg-panel); }
+.ic-verdict .btn { align-self: flex-start; }
+.ic-lines { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.ic-sec { display: flex; flex-direction: column; gap: var(--space-2); }
+.ic-sec h3 { font-size: var(--font-size-md); }
+.ic-needs, .ic-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ic-need { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-1) 0; border-bottom: var(--line-thin) solid var(--border-subtle); }
+.ic-need.later { color: var(--text-secondary); }
+.ic-plan { padding: var(--space-2) var(--space-3); border-left: var(--line-indicator) solid var(--accent); background: var(--bg-panel); display: flex; flex-direction: column; gap: var(--space-1); }
+.settings-anchor { display: block; height: 0; margin-bottom: calc(-1 * var(--gap)); scroll-margin-top: var(--space-4); }
+.search-hit { outline: 2px solid var(--accent); outline-offset: 2px; transition: outline-color var(--t-fast); }
+.item-card:focus { outline: none; }

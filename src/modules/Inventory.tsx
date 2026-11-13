@@ -16,6 +16,7 @@ import Equipment from './Equipment';
 import Cleanup from './Cleanup';
 import { AdviceCell } from '../ui/Advice';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 
 type Tab = 'stock' | 'equipment' | 'cleanup' | 'import' | 'shopping' | 'hunt' | 'planner';
 type Show = 'all' | 'have' | 'needed' | 'missing' | 'surplus';
@@ -58,7 +59,7 @@ function ShoppingTable({ rows }: { rows: ShoppingRow[] }) {
         <thead><tr><th>{t('inv.material')}</th><th className="num">{t('inv.have')}</th><th className="num">{t('inv.need')}</th><th className="num">{t('inv.missing')}</th><th>{t('inv.source')}</th><th>{t('inv.for')}</th></tr></thead>
         <tbody>{rows.map(x => (
           <tr key={x.mat}>
-            <td><b>{x.mat}</b> {x.arc && <Badge>{t('inv.arcPart')}</Badge>}</td>
+            <td><ItemLink name={x.mat}><b>{x.mat}</b></ItemLink> {x.arc && <Badge>{t('inv.arcPart')}</Badge>}</td>
             <td className="num"><Stepper label={t('ws.have', { name: x.mat })} value={x.have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(x.mat, v)} /></td>
             <td className="num">{fmt(x.need)}</td>
             <td className={cx('num', x.missing ? 'amber' : 'success')}>{x.missing ? fmt(x.missing) : <><span className="sr-only">{t('inv.nothing')} </span>✓</>}</td>
@@ -113,7 +114,7 @@ function Stock() {
               const missing = sh ? sh.missing : 0;
               return (
                 <tr key={m.name}>
-                  <td><b className="wrap">{m.name}</b> {m.custom && <Badge tone="accent">{t('origin.vlastni')}</Badge>}</td>
+                  <td><ItemLink name={m.name}><b className="wrap">{m.name}</b></ItemLink> {m.custom && <Badge tone="accent">{t('origin.vlastni')}</Badge>}</td>
                   <td>{categoryLabel(m.category, t.lang)}</td>
                   <td className="num"><Stepper label={t('ws.have', { name: m.name })} value={have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m.name, v)} /></td>
                   <td className="num">{sh ? fmt(sh.need) : <span className="muted">0</span>}</td>

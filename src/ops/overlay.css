@@ -303,3 +303,5 @@ button, input { font: inherit; color: inherit; }
 /* 0.17.0: skrytí tipu „Co dál?“ v přehledu */
 .ov-x { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: 4px; background: none; border: 1px solid transparent; border-radius: 2px; color: var(--ov-muted, currentColor); cursor: pointer; }
 .ov-x:hover, .ov-x:focus-visible { border-color: currentColor; }
+/* 0.18.0: hledání všude vedle Aplikace */
+.ov-tabs .ov-searchentry { margin-left: 0; padding: 0 10px; }

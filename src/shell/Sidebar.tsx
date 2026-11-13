@@ -5,6 +5,7 @@ import { MODULES, moduleName } from './modules';
 import { cx } from '../ui/components';
 import { useT } from '../i18n/react';
 import { useUi } from '../store/ui';
+import { SidebarSearch } from '../ui/SearchPalette';
 
 type Tip = { text: string; x: number; y: number } | null;
 
@@ -52,6 +53,7 @@ export function Sidebar({ active, compact, canCollapse, onToggle }: { active: st
         <BrandMark />
         <span className="brand-text"><b>ARC OPS</b><span>RAIDERS COMPANION</span></span>
       </a>
+      <SidebarSearch compact={compact} />
       <nav className="nav" onScroll={tip.hide}>
         {main.map(m => {
           const head = m.group !== lastGroup;

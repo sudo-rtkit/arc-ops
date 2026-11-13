@@ -265,9 +265,13 @@ export default function Compact() {
                     const word = t(`ops.rarity.${r.rarity}` as Key);
                     return (
                       <li key={r.mat} className="cw-mat" data-mat={r.mat} data-rarity={r.rarity} title={word} aria-label={t('compact.matAria', { name: r.mat, rarity: word, have: r.have, need: r.need })}>
-                        <i className={cx('cw-rarity', 'r-' + r.rarity)} aria-hidden="true" />
-                        <span className="cw-item" aria-hidden="true">{r.mat}<small>{word}</small></span>
-                        <span className="mono cw-qty" aria-hidden="true">{fmt(r.have)} <em>/ {fmt(r.need)}</em></span>
+                        {/* 0.18.0: karta předmětu se otevře v plné aplikaci */}
+                        <button type="button" className="cw-mat-open" aria-label={t('compact.cardOpen', { name: r.mat })} title={t('compact.cardOpen', { name: r.mat })} data-testid="compact-card"
+                          onClick={() => void expandTo('inventory', undefined, () => useUi.getState().openItemCard(r.mat))}>
+                          <i className={cx('cw-rarity', 'r-' + r.rarity)} aria-hidden="true" />
+                          <span className="cw-item" aria-hidden="true">{r.mat}<small>{word}</small></span>
+                          <span className="mono cw-qty" aria-hidden="true">{fmt(r.have)} <em>/ {fmt(r.need)}</em></span>
+                        </button>
                       </li>
                     );
                   })}</ul>

@@ -8,6 +8,7 @@ import { haveOfState } from '../core/advice';
 import { fmt } from '../ui/format';
 import TierList from './TierList';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 
 type Tab = 'recycle' | 'blueprints' | 'traders' | 'tiers';
 const LIMIT = 60;
@@ -40,7 +41,7 @@ function Recycling() {
                 const have = haveOf(x.name);
                 return (
                   <tr key={x.name} className={cx(have > 0 && 'selected')} data-owned={have > 0 ? 'yes' : 'no'}>
-                    <td><b className="wrap">{x.name}</b> <span className="meta">{x.type}</span></td>
+                    <td><ItemLink name={x.name}><b className="wrap">{x.name}</b></ItemLink> <span className="meta">{x.type}</span></td>
                     <td className="num">{fmt(x.qty)}</td>
                     <td className="num">{have > 0 ? <Badge tone="success">{fmt(have)}</Badge> : <span className="muted">0</span>}</td>
                     <td className="num">{x.value ? fmt(x.value) : <span className="muted">—</span>}</td>
@@ -65,7 +66,7 @@ function Recycling() {
                 const have = haveOf(r.n);
                 return (
                   <tr key={r.n} className={cx(have > 0 && 'selected')}>
-                    <td><b className="wrap">{r.n}</b> <span className="meta">{r.ty}</span></td>
+                    <td><ItemLink name={r.n}><b className="wrap">{r.n}</b></ItemLink> <span className="meta">{r.ty}</span></td>
                     <td className="num">{have > 0 ? <Badge tone="success">{fmt(have)}</Badge> : <span className="muted">0</span>}</td>
                     <td className="wrap">{(r.r ?? []).map(([n, qn], i) => <span key={n}>{i > 0 && ', '}<button type="button" className="link-btn" onClick={() => setMat(n)}>{fmt(qn)}× {n}</button></span>)}</td>
                     <td className="num">{r.v ? fmt(r.v) : <span className="muted">—</span>}</td>
@@ -106,7 +107,7 @@ function Blueprints() {
                 <tr key={b.n} data-blueprint={b.n} className={cx(!!s.blueprints[b.n] && 'selected')}>
                   <td><label className="toggle"><input type="checkbox" checked={!!s.blueprints[b.n]} onChange={e => actions.blueprintSet(b.n, e.target.checked)} aria-label={t('bp.learned', { name: b.n })} /><b className="wrap">{b.n}</b></label>
                     {inStash > 0 && <> <Badge tone="amber">{t('bp.inStash', { n: inStash })}</Badge></>}</td>
-                  <td>{blueprintTarget(b.n)}</td>
+                  <td><ItemLink name={blueprintTarget(b.n)} /></td>
                   <td className="num">{b.v ? fmt(b.v) : <span className="muted">—</span>}</td>
                 </tr>
               );
@@ -140,7 +141,7 @@ function Traders() {
               return (
                 <tr key={`${o.trader}-${o.item}-${i}`}>
                   <td>{o.trader}</td>
-                  <td><b className="wrap">{o.item}</b></td>
+                  <td><ItemLink name={o.item}><b className="wrap">{o.item}</b></ItemLink></td>
                   <td className="num">{coins !== null ? fmt(coins) : qtyList(o.cost)}</td>
                   <td className="num">{fmt(o.qty ?? 1)}</td>
                   <td className="num">{o.limit ? t('tr.limitVal', { n: o.limit, h: o.refreshH ?? 24 }) : <span className="muted">{t('tr.noLimit')}</span>}</td>

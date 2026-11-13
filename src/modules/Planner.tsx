@@ -11,6 +11,7 @@ import { sourceLabel } from '../core/gametext';
 import { LIMITS } from '../core/state';
 import type { ItemQty, PlannerItem } from '../core/types';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 
 function ItemDialog({ item, onClose }: { item: PlannerItem | null; onClose: () => void }) {
   const d = useDerived();
@@ -106,7 +107,7 @@ export default function Planner() {
             <thead><tr><th>{t('inv.material')}</th><th className="num">{t('inv.have')}</th><th className="num">{t('plan.needCol')}</th><th className="num">{t('inv.missing')}</th><th>{t('inv.source')}</th><th>{t('plan.forNoDup')}</th></tr></thead>
             <tbody>{rows.map(r => (
               <tr key={r.mat}>
-                <td><b>{r.mat}</b> {r.arc && <Badge>{t('inv.arcPart')}</Badge>} {r.contention && <Badge tone="amber">{t('plan.contention')}</Badge>}</td>
+                <td><ItemLink name={r.mat}><b>{r.mat}</b></ItemLink> {r.arc && <Badge>{t('inv.arcPart')}</Badge>} {r.contention && <Badge tone="amber">{t('plan.contention')}</Badge>}</td>
                 <td className="num"><Stepper label={t('ws.have', { name: r.mat })} value={r.have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(r.mat, v)} /></td>
                 <td className="num">{fmt(r.need)}</td>
                 <td className={cx('num', r.missing ? 'amber' : 'success')}>{r.missing ? fmt(r.missing) : <><span className="sr-only">{t('inv.nothing')} </span>✓</>}</td>

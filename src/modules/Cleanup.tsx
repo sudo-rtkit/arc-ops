@@ -9,6 +9,7 @@ import { cleanupRows, cleanupSummary, type CleanupSort } from '../core/advice';
 import { ITEMS_DATE } from '../core/itemdb';
 import { fmt } from '../ui/format';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 
 export default function Cleanup() {
   const d = useDerived();
@@ -31,7 +32,7 @@ export default function Cleanup() {
             </tr></thead>
             <tbody>{rows.map(a => (
               <tr key={a.key} data-item={a.key} data-advice={a.rest}>
-                <td><b className="wrap">{a.name}</b></td>
+                <td><ItemLink name={a.name}><b className="wrap">{a.name}</b></ItemLink></td>
                 <td className="num">{fmt(a.count)}</td>
                 <td className="num">{a.keep ? <span title={a.reasons.map(r => r.label).join(', ')}>{fmt(a.keep)}</span> : <span className="muted">0</span>}</td>
                 <td className="wrap"><Badge tone={ADVICE_TONE[a.rest]}>{t(adviceKey(a.rest))}</Badge> <span className="meta">{restText(a, t)}</span></td>

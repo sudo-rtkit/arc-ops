@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.17.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.18.0 · Windows · Offline · MIT · Česky a anglicky**
 
 Osobní operační centrum pro hráče ARC Raiders. Zásoba, vylepšení dílny, cíle úkolů a plány skillů na jednom místě. To nejdůležitější si nech v kompaktním okně nebo ve volitelné polní konzoli Opse. Údaje ze snímků se čtou lokálně a před zápisem je vždy zkontroluješ. Mezi raidy si odpočiň u miniher s Bedňákem. Bez přihlášení, předplatného a cloudové synchronizace.
 
@@ -31,6 +31,10 @@ Všechny obrázky ukazují demo data z prohlížečového sestavení, bez herní
 ### Co dál?
 
 Karta **Co dál?** na Dashboardu seřadí další nejlepší kroky z tvých dat: vylepšení, které jde postavit, raid k vyhodnocení, připnutý úkol připravený k odevzdání, volné skill body, nedokončené Weekly Trials, plnou bednu, starou zálohu nebo cíl s blížícím se termínem. Každý tip říká proč, jedním klikem otevře správný modul a jde skrýt, dokud se jeho podmínka nezmění, nebo odložit o den. Nejdůležitější tip je i v kompaktním okně a v polní konzoli a Ops ho řekne ve zvolené povaze, když s nimi pracuješ, nikdy nad hrou.
+
+### Hledat všude a „Proč to potřebuju?“
+
+**Ctrl+K** (nebo pole v postranním panelu) najde předmět, úkol, stanici, skill, build, mapu, modul, sekci nastavení nebo tip, česky i anglicky, bez ohledu na diakritiku a drobné překlepy. Předmět otevře svou kartu: vzácnost, hodnotu, hmotnost a stack, tvoji zásobu, kde je potřeba (úkoly, stanice, projekty, tvoje cíle, aktivní plán raidu) a kolik ještě chybí, co z něj recyklací vznikne a z čeho vzniká on, kde ho hledat a které tvoje body na mapě sedí, a radu nechat / recyklovat / prodat i s důvodem. Stejnou kartu otevřou názvy předmětů v celé aplikaci, v hlavním okně i v polní konzoli.
 
 ### Bedňák / Ops
 

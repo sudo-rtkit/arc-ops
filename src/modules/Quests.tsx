@@ -1,7 +1,7 @@
 /* Quests: úkoly obchodníků z veřejných dat ARC Tracker s ručním zaškrtnutím splněných a (0.10.2) jednotlivých cílů. Předměty k donesení u
    dostupných úkolů jdou do nákupního seznamu a Planneru (počítá jádro, viz core/quests.ts). Záložka Projekty je
    jen přehled fází projektů sezóny. Texty úkolů jsou ve zdroji anglicky. */
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
 import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
@@ -9,6 +9,7 @@ import { PROJECTS, QUESTS, locText, objectiveProgress, questById, questName, que
 import type { Qty } from '../core/data/arctracker';
 import { stockOf } from '../core/compact';
 import { mapName } from './shared';
+import { ItemLink } from '../ui/ItemCard';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 
@@ -17,18 +18,19 @@ const TONE: Record<QuestStatus, 'success' | 'accent' | undefined> = { done: 'suc
 const qtyText = (xs: Qty[]) => xs.map(([n, q]) => (q > 1 ? `${q}× ${n}` : n)).join(', ');
 
 /* Seznam předmětů s počtem; u předmětů k donesení i kolik je v zásobě. */
-function Items({ list, inventory }: { list: Qty[]; inventory?: Record<string, number> }) {
+function Items({ list, inventory, link }: { list: Qty[]; inventory?: Record<string, number>; link?: boolean }) {
   const t = useT();
   if (!list.length) return <span className="muted">{t('quests.none')}</span>;
   return (
     <ul className="quest-items">{list.map(([n, q]) => {
       const have = inventory ? inventory[n] || 0 : null;
-      return <li key={n}><span className="mono">{q}×</span> {n}{have !== null && <span className={cx('meta', have >= q ? 'success' : 'amber')}> · {t('quests.haveNeed', { have, need: q })}</span>}</li>;
+      return <li key={n}><span className="mono">{q}×</span> {link ? <ItemLink name={n} /> : n}{have !== null && <span className={cx('meta', have >= q ? 'success' : 'amber')}> · {t('quests.haveNeed', { have, need: q })}</span>}</li>;
     })}</ul>
   );
 }
 
-function QuestList() {
+/* focus (0.18.0) = id úkolu z cesty #quests/q=<id> (hledání, karta předmětu): otevře jeho detail */
+function QuestList({ focus }: { focus: string }) {
   const s = useAppState();
   const t = useT();
   /* 0.13.1: zásoba i s Vybavením (klíč nebo předmět k použití) */
@@ -37,6 +39,12 @@ function QuestList() {
   const [trader, setTrader] = useState('');
   const [show, setShow] = useState<Show>('all');
   const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focus || !questById(focus)) return;
+    setOpen(focus); setQ(''); setTrader(''); setShow('all');
+    const h = setTimeout(() => document.querySelector(`[data-quest="${CSS.escape(focus)}"]`)?.scrollIntoView?.({ block: 'center' }), 30);
+    return () => clearTimeout(h);
+  }, [focus]);
   const done = s.quests.done;
   const pinned = s.quests.pinned;
   const objs = s.quests.objectives;
@@ -106,8 +114,8 @@ function QuestList() {
                               <span className={cx(on && 'muted')}>{txt}</span></label></li>;
                           })}</ol>
                           <p className="meta">{t('quests.objHint')}</p></div>
-                        <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={stock} /></div>
-                        {x.questItems.length > 0 && <div><h4>{t('quests.questItems')}</h4><Items list={x.questItems} /></div>}
+                        <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={stock} link /></div>
+                        {x.questItems.length > 0 && <div><h4>{t('quests.questItems')}</h4><Items list={x.questItems} link /></div>}
                         <div><h4>{t('quests.rewards')}</h4><Items list={x.rewards} />{x.xp > 0 && <span className="meta">{t('quests.xp', { xp: x.xp })}</span>}</div>
                         {x.prev.length > 0 && <div><h4>{t('quests.prev')}</h4><ul className="quest-items">{x.prev.map(p => { const pq = questById(p); return <li key={p}>{pq ? questName(pq, lang) : p}{pq && done[p] ? ' ✓' : ''}</li>; })}</ul></div>}
                       </div>
@@ -140,7 +148,7 @@ function Projects() {
             {p.phases.map(ph => (
               <div key={ph.phase} className={cx('project-phase', ph.phase <= (s.projects[p.id] || 0) && 'done')}>
                 <b>{t('projects.phase', { n: ph.phase, name: locText(ph.name, t.lang) })}</b>
-                {ph.req.length > 0 && <div><span className="meta">{t('projects.req')}</span><Items list={ph.req} inventory={stock} /></div>}
+                {ph.req.length > 0 && <div><span className="meta">{t('projects.req')}</span><Items list={ph.req} inventory={stock} link /></div>}
                 {ph.tasks.length > 0 && <div><span className="meta">{t('projects.tasks')}</span><ul className="quest-items">{ph.tasks.map((x, i) => <li key={i}>{locText(x, t.lang)}</li>)}</ul></div>}
                 {ph.rewards.length > 0 && <div><span className="meta">{t('projects.rewards')}:</span> <span className="meta">{qtyText(ph.rewards)}</span></div>}
               </div>
@@ -160,7 +168,7 @@ export default function Quests({ sub }: { sub: string }) {
       <PageHead title="Quests" sub={t('quests.sub')} />
       <Tabs label="Quests" value={tab} onChange={v => navigate('quests', v === 'quests' ? '' : v)}
         tabs={[{ id: 'quests', label: t('quests.tab.quests') }, { id: 'projects', label: t('quests.tab.projects') }]} />
-      {tab === 'quests' ? <QuestList /> : <Projects />}
+      {tab === 'quests' ? <QuestList focus={sub.startsWith('q=') ? sub.slice(2) : ''} /> : <Projects />}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { ITEM_CATEGORIES, ITEM_TIERS, itemKey, type ItemCategory, type ItemStock
 import { catalogItems, itemCategoryOf } from '../core/catalog';
 import { fmt } from '../ui/format';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 import type { Key } from '../i18n';
 
 export const catKey = (c: ItemCategory): Key => `equip.cat.${c}` as Key;
@@ -93,7 +94,7 @@ export default function Equipment() {
                       const label = x.tier ? `${x.name} ${x.tier}` : x.name;
                       return (
                         <tr key={x.key} data-item={x.key}>
-                          <td><b className="wrap">{x.name}</b></td>
+                          <td><ItemLink name={x.key}><b className="wrap">{x.name}</b></ItemLink></td>
                           <td>{x.tier ? <Badge>{x.tier}</Badge> : <span className="muted">—</span>}</td>
                           <td className="num"><Stepper label={t('equip.countAria', { name: label })} value={x.count} min={1} max={LIMITS.inventory[1]} onChange={v => actions.itemSetCount(x.key, v)} /></td>
                           <td className="advice-cell"><AdviceCell advice={d.advice.get(x.key)} label={label} /></td>

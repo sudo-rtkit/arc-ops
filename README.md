@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.17.0](https://img.shields.io/badge/version-0.17.0-F4AD82?style=flat-square)
+![Version 0.18.0](https://img.shields.io/badge/version-0.18.0-F4AD82?style=flat-square)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
 ![Czech and English](https://img.shields.io/badge/languages-CS%20%2F%20EN-C6AFF1?style=flat-square)
@@ -40,6 +40,10 @@ All views below use **demo data** from the browser build. The desktop app provid
 ### What next?
 
 The Dashboard's **What next?** card ranks your next best actions from your own data, Blitz-style: an upgrade you can build now, a raid to evaluate, a pinned quest ready to hand in, free skill points, unfinished Weekly Trials, a full stash, an old backup or a goal that is due. Each tip says why, opens the right module in one click and can be hidden until its condition changes or snoozed for a day. The top tip also shows in the compact window and the field console, and Ops says it in your chosen personality while you use them, never over the game.
+
+### Search everywhere and “Why do I need this?”
+
+Press **Ctrl+K** (or use the sidebar search) to find any item, quest, station, skill, build, map, module, setting or tip, in Czech or English, accents and small typos forgiven. An item opens its card: rarity, value, weight and stack, your stock, where it is needed (quests, stations, projects, your goals, the active raid plan) with what is still missing, what it recycles into and what recycles into it, where to look and which of your map points match, and the keep / recycle / sell verdict with its reason. Item names across the app open the same card, in the main window and in the field console.
 
 ### Meet Bedňák, callsign Ops
 

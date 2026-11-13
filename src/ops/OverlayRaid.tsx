@@ -16,6 +16,7 @@ import { emptyMapNotes } from '../core/state';
 import { findName, highlightPois, lookupAdvice, lookupNames, neededAreas, questsOnMap, raidList } from '../core/raidPrep';
 import { evaluateRaid, nextRaid, savedRaid } from '../core/raidEval';
 import { AreaBadge, AreaBadges, MapBackdrop, PoiIcon, areaColor, frameOf, pinLabel, poiNumber, useMapImage } from '../ui/MapView';
+import { verdictText } from '../ui/Advice';
 
 const MINI = { w: 420, h: 310 };
 
@@ -110,17 +111,7 @@ export function OvRaid({ bus }: { bus: Bus }) {
   const areas = [...neededAreas(rows).keys()];
   const hl = mapNotes.pois.map((p, i) => ({ p, i, h: highlights.get(p.id) })).filter(x => x.h);
   const kindKey = (k: string) => `ops.ov.r.kind.${k}` as Key;
-  const reasonOf = () => {
-    if (!verdict) return '';
-    if (verdict.kind === 'keep') {
-      if (verdict.override) return t('ops.ov.r.why.override');
-      const lbl = verdict.reasons.slice(0, 2).map(r => r.label).join(', ');
-      return verdict.missing > 0 ? t('ops.ov.r.why.keep', { count: verdict.missing, for: lbl }) : t('ops.ov.r.why.keepAll', { for: lbl });
-    }
-    if (verdict.kind === 'recycle') return t('ops.ov.r.why.recycle', { mats: verdict.recycle.slice(0, 3).join(', ') });
-    if (verdict.kind === 'sell') return verdict.need > 0 ? t('ops.ov.r.why.enough', { have: verdict.have, need: verdict.need, value: verdict.value ?? 0 }) : t('ops.ov.r.why.sell', { value: verdict.value ?? 0 });
-    return t('ops.ov.r.why.unknown');
-  };
+  const reasonOf = () => (verdict ? verdictText(verdict, t) : '');
   return (
     <div className="ovr" data-testid="ov-raid">
       <div className="ovr-left">

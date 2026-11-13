@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Check as CheckIcon, CircleAlert, FlaskConical, GitCompare, Lock, Minus, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { Badge, Btn, ConfirmButton, Dialog, ExtLink, IconBtn, PageHead, Panel, Select, Stepper, Tabs, cx } from '../ui/components';
@@ -34,7 +34,7 @@ function Node({ s, have, target, next, bad, readOnly }: { s: Skill; have: number
   const blk = addBlock(st.skills.current, s.id, st.profile);
   const locked = !!blk && have === 0 && blk !== t('skill.block.noPoint');
   return (
-    <div className={cx('node', have > 0 && 'has', full && 'full', next && 'next', bad && 'invalid', locked && 'locked')} style={{ ['--bc' as string]: branchVar(s.b) }}>
+    <div className={cx('node', have > 0 && 'has', full && 'full', next && 'next', bad && 'invalid', locked && 'locked')} style={{ ['--bc' as string]: branchVar(s.b) }} data-node={s.id}>
       <div className="node-head">
         <span className="node-name">{s.name}</span>
         <span className="node-pts mono">{have}/{s.max}{st.skills.showPlan && target > have && <em title={t('skill.planTarget')}> → {target}</em>}</span>
@@ -422,6 +422,20 @@ export default function SkillTree({ sub }: { sub: string }) {
   const st = useAppState();
   const d = useDerived();
   const [tab, setTab] = useState<Tab>(sub === 'builds' || sub === 'plan' ? sub : 'tree');
+  /* 0.18.0: odkaz z hledání (#skills/builds, #skills/skill=<id>) přepne záložku a ukáže skill */
+  useEffect(() => {
+    if (sub === 'builds' || sub === 'plan') { setTab(sub); return; }
+    if (!sub.startsWith('skill=')) return;
+    setTab('tree');
+    const id = sub.slice(6);
+    const h = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-node="${CSS.escape(id)}"]`);
+      el?.scrollIntoView?.({ block: 'center' });
+      el?.classList.add('search-hit');
+      setTimeout(() => el?.classList.remove('search-hit'), 2400);
+    }, 40);
+    return () => clearTimeout(h);
+  }, [sub]);
   const t = useT();
   const cur = st.skills.current;
   const free = d.budget - d.used;

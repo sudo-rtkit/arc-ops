@@ -32,6 +32,12 @@ import { Tutorial } from './shell/Tutorial';
 import { windowCtl } from './shell/windowCtl';
 import { windowShortcut } from './core/mainWindow';
 import { app as appStore } from './store';
+import { ItemCardHost } from './ui/ItemCard';
+import { SearchHost, useSearchShortcut } from './ui/SearchPalette';
+
+/* 0.18.0: Ctrl+K (místní zkratka okna); z kompaktu nejdřív přepne do plné aplikace */
+const searchEnabled = () => appStore.store.getState().ready;
+const searchBefore = async () => { if (appStore.store.getState().state.mainWindow.mode === 'compact') await windowCtl.setMode('full'); };
 
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   dashboard: Dashboard, profile: Profile, skills: SkillTree, workshop: Workshop, inventory: Inventory, quests: Quests, maps: Maps,
@@ -67,6 +73,7 @@ export default function App() {
   const ready = useApp(s => s.ready);
   const compactMode = useApp(s => s.ready && s.state.mainWindow.mode === 'compact');
   useWindowShortcuts();
+  useSearchShortcut(searchEnabled, searchBefore);
   if (compactMode) return <><Compact /><CloseDialog /></>;
   if (!ready && window.innerWidth <= 480) return <div className="cw" role="status" aria-busy="true" />;
   return <FullApp />;
@@ -102,6 +109,8 @@ function FullApp() {
         </main>
       </div>
       {ready && <RaidFormHost />}
+      {ready && <ItemCardHost />}
+      {ready && <SearchHost />}
       {ready && <Tutorial compact={false} />}
       <Toasts />
       <CloseDialog />

@@ -6,6 +6,7 @@ import { Badge, IconBtn, type Tone } from './components';
 import { fmt } from './format';
 import { useT } from '../i18n/react';
 import type { Advice, AdviceKind } from '../core/advice';
+import type { Verdict } from '../core/raidPrep';
 import type { Key } from '../i18n';
 
 export const ADVICE_TONE: Record<AdviceKind, Tone> = { keep: 'success', recycle: 'amber', sell: 'accent', unknown: 'muted' };
@@ -32,6 +33,18 @@ export function adviceLines(a: Advice, t: T): string[] {
   if (a.kind !== 'keep') out.push(rest);
   else if (a.surplus > 0) out.push(t('advice.surplus', { n: a.surplus, action: rest }));
   return out;
+}
+
+/* Zdůvodnění rady k nalezenému kusu (příprava na raid, overlay Raid, karta předmětu bez zásoby). */
+export function verdictText(v: Verdict, t: T): string {
+  if (v.kind === 'keep') {
+    if (v.override) return t('ops.ov.r.why.override');
+    const lbl = v.reasons.slice(0, 2).map(r => r.label).join(', ');
+    return v.missing > 0 ? t('ops.ov.r.why.keep', { count: v.missing, for: lbl }) : t('ops.ov.r.why.keepAll', { for: lbl });
+  }
+  if (v.kind === 'recycle') return t('ops.ov.r.why.recycle', { mats: v.recycle.slice(0, 3).join(', ') });
+  if (v.kind === 'sell') return v.need > 0 ? t('ops.ov.r.why.enough', { have: v.have, need: v.need, value: v.value ?? 0 }) : t('ops.ov.r.why.sell', { value: v.value ?? 0 });
+  return t('ops.ov.r.why.unknown');
 }
 
 export function AdviceCell({ advice: a, label }: { advice: Advice | undefined; label: string }) {

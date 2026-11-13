@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowUpCircle, Check as CheckIcon, Lock, Pencil, Plus, Trash2, Undo2, Wrench } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { Badge, Btn, Confirm, Dialog, IconBtn, PageHead, Panel, Progress, Stepper, cx } from '../ui/components';
@@ -11,6 +11,7 @@ import { AT_DATE } from '../core/data/arctracker';
 import type { Recipe, Station } from '../core/types';
 import { LIMITS } from '../core/state';
 import { useT } from '../i18n/react';
+import { ItemLink } from '../ui/ItemCard';
 
 function RecipeEditor({ station, level, onClose }: { station: Station; level: number; onClose: () => void }) {
   const t = useT();
@@ -56,7 +57,7 @@ function StationCard({ st }: { st: Station }) {
   const edited = mats && !!s.gameData.recipes[recipeKey(st.id, nxt)];
   const note = mats ? stationNote(st, nxt, t.lang) : undefined;
   return (
-    <article className={cx('panel station', !mats && 'maxed', can && 'ready')} aria-label={st.name}>
+    <article className={cx('panel station', !mats && 'maxed', can && 'ready')} aria-label={st.name} data-station={st.id}>
       <div className="panel-head">
         <h2>{st.name}</h2>
         <span className="mono">{lvl} <span className="muted">/ {st.max}</span></span>
@@ -77,7 +78,7 @@ function StationCard({ st }: { st: Station }) {
                 const have = s.inventory[m] || 0;
                 return (
                   <li key={m} className={cx(have >= n && 'ok')}>
-                    <span className="grow wrap">{m}<small>{sourceLabel(m, d.sources[m] || 'Loot', t.lang)}</small></span>
+                    <span className="grow wrap"><ItemLink name={m} /><small>{sourceLabel(m, d.sources[m] || 'Loot', t.lang)}</small></span>
                     <Stepper label={t('ws.have', { name: m })} value={have} min={LIMITS.inventory[0]} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m, v)} />
                     <span className={cx('mono need', have >= n ? 'success' : 'amber')}>/ {n}</span>
                   </li>
@@ -105,8 +106,19 @@ function StationCard({ st }: { st: Station }) {
   );
 }
 
-export default function Workshop() {
+export default function Workshop({ sub = '' }: { sub?: string }) {
   const s = useAppState();
+  /* 0.18.0: #workshop/<id stanice> (hledání, karta předmětu) ukáže kartu stanice */
+  useEffect(() => {
+    if (!sub) return;
+    const h = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-station="${CSS.escape(sub)}"]`);
+      el?.scrollIntoView?.({ block: 'center' });
+      el?.classList.add('search-hit');
+      setTimeout(() => el?.classList.remove('search-hit'), 2400);
+    }, 40);
+    return () => clearTimeout(h);
+  }, [sub]);
   const d = useDerived();
   const t = useT();
   const texts = gameTexts(t.lang);

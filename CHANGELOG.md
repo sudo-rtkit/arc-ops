@@ -4,6 +4,28 @@ Condensed from the existing Czech README. Versions below describe shipped behavi
 
 The [original Czech technical release notes](docs/history/README-0.13.1.cs.md) are preserved in full, including the intermediate 0.12.1 buddy fix later extended by 0.13.1. Release notes describe implemented versions; they do not imply an installer has been uploaded to GitHub Releases.
 
+## 0.18.0 — Search everywhere (Ctrl+K) and the item card: “Why do I need this?”
+
+- **Item card** (`src/core/itemCard.ts`, `src/ui/ItemCard.tsx`): one view for any item, built only from existing logic (no second calculation):
+  - name, rarity, type, value, weight and stack from the catalogue and the item data; your stock (Inventory and Equipment);
+  - **where it is needed now**, with counts and how many you have towards each: the same need list as the keep/sell/recycle advice and Cleanup (next station levels, Planner targets and crafting, your goals, available quest deliveries, running projects, unlearned blueprints), so the total matches Inventory; items found during an available quest are listed but not counted;
+  - **later**: further station levels, locked quests and later phases of running projects (shown, not counted);
+  - the **active raid plan** row (need, have, missing, marked as found);
+  - recycle outputs, what recycles into it (top 8 by yield), trader offers;
+  - loot area types from the catalogue and **your own map points** with a matching area type;
+  - the **keep / recycle / sell verdict** with its reasons: for items you have, exactly the Inventory advice (with the “always keep” toggle); for items you have none of, the raid-prep verdict for a found piece.
+  - Unknown data stays unknown: missing rarity, value, weight, stack or area type is shown as “unknown”, salvage outputs are not in the data and say so, and an item outside the data says that its details come only from your own data.
+  - Each need links to its source (quest detail, Workshop station, Planner, goals, blueprints, Raid Prep, map).
+- **Item names open the card** in Inventory (stock, equipment, shopping list, Cleanup, Material Planner), Workshop recipes, Raid Prep (list and evaluation), Item Database (recycling both ways, blueprint targets, traders) and quest/project requirements. It works in the main window, in the overlay (full modules) and from the compact window's shopping list, which opens the card in the full app.
+- **Search everywhere:** a command palette on **Ctrl+K** (a local window shortcut, no new global hotkey) and a search field in the sidebar header. It searches items, quests, projects, stations, skills and builds (catalogue and your own), maps, ARC, modules, Settings sections and the “What next?” tips.
+  - Fuzzy and diacritics-insensitive, in Czech and English names at once (e.g. `priprava` finds Raid Prep, `silent thief` finds “Tichý zloděj” in Czech): exact name, name start, word starts, substring, letters in order (`adv mech`) and one or two typos (`wirse`, `baterry`). Every word of the query must match.
+  - Results are grouped (best group first) and keyboard-navigable (↑/↓, Enter, Esc). Enter opens the target: the item card, the quest with its detail open (`#quests/q=<id>`), a station in Workshop, a skill in the tree, the Builds tab, a map, a module, a Settings section or the tip's own target.
+  - In the overlay: a Search button next to App and Ctrl+K while the overlay has focus; modules open in the App tab, Esc closes only the palette or the card. The palette moves focus only when its window already has focus; nothing activates a window.
+  - In the compact window Ctrl+K switches to the full app and opens the palette.
+  - **Recent searches** are per PC (`localStorage`, `arcops:search:recent`, at most 8) and are not part of the state or backups; they can be cleared from the palette.
+- No schema change (15). No new permissions, commands, events, bus routes or relayed actions; the card's “always keep” toggle uses the existing `adviceKeep` relay.
+- Tests: unit tests for search ranking (diacritics, CS/EN names, typos, grouping, recents) and the item card aggregation on real items (Wires: After Rain Comes now and Clamoring for Attention later; Metal Parts: Gunsmith 1; Acoustic Guitar recycling; Wires loot areas and map points; raid plan; an unknown item; consistency with the Inventory advice); E2E for Ctrl+K → item → card with “Where it is needed”, quest detail from the card, recents, sidebar field, Inventory link, compact “open in app” and search in the overlay, in CS and EN.
+
 ## 0.17.0 — Ops as an advisor: “What next?”
 
 - **One advisor engine** (`src/core/advisor.ts`) turns your current state into a ranked list of next best actions. Each tip has a priority with a readable reason (“Why: …”), a short CS/EN title and detail, a target (a module, or an action carried out there: start a plan, evaluate the raid, save a backup) and a condition key. Rules only fire when your own data supports them; nothing is guessed:
