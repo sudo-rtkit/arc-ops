@@ -37,11 +37,12 @@ import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator
 import { loadoutSnap } from '../core/raidLife';
 import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
 
-export interface Shot { id: number; at: number; read: ScreenRead }
+/* auto (0.21.0): snímek z automatického snímání (původ hodnot po zápisu), jinak ze zkratky */
+export interface Shot { id: number; at: number; read: ScreenRead; auto?: true }
 /* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
 export interface LootShot extends Shot { sig: string }
 /* Snímek obrazovky postupu (0.10.1). */
-export interface ProgressShot { id: number; at: number; read: ProgressRead }
+export interface ProgressShot { id: number; at: number; read: ProgressRead; auto?: true }
 export interface BatchView {
   /* stránky stashe */
   shots: Shot[];
@@ -314,8 +315,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   }
   function ingest(r: ReturnType<typeof readCapture>, silent: boolean): 'empty' | 'read' | 'loot' | 'progress' {
     const status = silent ? () => undefined : say;
+    const auto = silent ? { auto: true as const } : {};
     if (r.kind === 'progress') {
-      batch = { ...batch, progress: { id: nextShot++, at: now(), read: r.progress }, last: 'progress', emptyAt: 0, rejected: '', failed: '' };
+      batch = { ...batch, progress: { id: nextShot++, at: now(), read: r.progress, ...auto }, last: 'progress', emptyAt: 0, rejected: '', failed: '' };
       const p = proposeProgress(r.progress, st(), getLang());
       const what = t(`progress.screen.${p.kind === 'stations' ? (p.source === 'overview' ? 'workshop' : 'station') : p.kind}` as Key);
       status(proposalChanges(p) ? 'inspect' : 'talk', line(proposalChanges(p) ? 'progress.read' : 'progress.same', { what }));
@@ -331,7 +333,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const s = st();
     if (r.screen === 'loot') {
       const sig = lootSignature(r.read);
-      batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
+      batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig, ...auto }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
       const a = analyzeLoot(r.read, s.vision.learned, matchCtx(s));
       if (raidWithSig(s, sig)) status('annoyed', line('loot.dup'));
       else if (a.empty) status('shrug', line('loot.empty'));
@@ -339,7 +341,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       pushOverlay(true);
       return 'loot';
     }
-    const shots = [...batch.shots, { id: nextShot++, at: now(), read: r.read }].slice(-BATCH_MAX);
+    const shots = [...batch.shots, { id: nextShot++, at: now(), read: r.read, ...auto }].slice(-BATCH_MAX);
     batch = { ...batch, shots, last: 'stash', emptyAt: 0, rejected: '', failed: '' };
     const mats = getMaterials(s).map(m => m.name);
     const a = analyzeShots(shots.map(x => x.read), s.vision.learned, matchContext(mats, [...new Set(Object.values(s.items).map(x => x.name))]));
@@ -411,7 +413,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   async function importShots(input: VisionApply): Promise<VisionSummary | null> {
     status('carry');
-    const sum = await app.actions.importFromScreens(input);
+    /* 0.21.0: původ hodnot: jen automatické stránky = automatické snímání, jinak zkratka */
+    const via = batch.shots.length > 0 && batch.shots.every(x => x.auto) ? 'auto-capture' : 'screenshot-hotkey';
+    const sum = await app.actions.importFromScreens(input, via);
     if (sum) { clearBatch(); status('success', line('scan.written', { count: sum.materials + sum.items })); }
     else status('error', null);
     bus.send('overlay', 'imported', { summary: sum });
@@ -426,7 +430,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     if (!shot || shot.id !== shotId) res = { ok: false, reason: 'empty' };
     else {
       status('carry');
-      res = await app.actions.importRaidLoot(input, shot.sig);
+      res = await app.actions.importRaidLoot(input, shot.sig, shot.auto ? 'auto-capture' : 'screenshot-hotkey');
       if (res.ok) {
         if (batch.loot?.id === shotId) clearLoot();
         /* 0.15.0: při aktivním plánu shrne Ops vyhodnocení plánu (jen čtení), jinak potvrdí zápis */
@@ -444,7 +448,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     let sum: ProgressSummary | null = null;
     if (batch.progress && batch.progress.id === shotId) {
       status('carry');
-      sum = await app.actions.importProgress(input);
+      sum = await app.actions.importProgress(input, batch.progress.auto ? 'auto-capture' : 'screenshot-hotkey');
       if (sum) { if (batch.progress?.id === shotId) clearProgress(); status('success', line('progress.written', { count: sum.fields })); }
       else status('error', null);
     }

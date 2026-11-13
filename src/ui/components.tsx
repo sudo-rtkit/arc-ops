@@ -141,15 +141,20 @@ export function Stepper({ value, onChange, min, max, label, step = 1, wide, hide
   );
 }
 
-export function NumberField({ label, value, onCommit, min, max, hint, decimals, suffix }: {
+export function NumberField({ label, value, onCommit, min, max, hint, decimals, suffix, extra }: {
   label: string; value: number; onCommit: (n: number) => void; min: number; max: number; hint?: ReactNode; decimals?: boolean; suffix?: string;
+  /* 0.21.0: vedle popisku (mimo něj, ať nemění název pole), např. tečka původu hodnoty */
+  extra?: ReactNode;
 }) {
   const d = useNumberDraft(value, min, max, onCommit, decimals);
   const id = useId();
   const t = useT();
   return (
     <div className="field">
-      <label htmlFor={id} className="field-label">{label}{suffix && <span className="muted"> ({suffix})</span>}</label>
+      {(() => {
+        const lab = <label htmlFor={id} className="field-label">{label}{suffix && <span className="muted"> ({suffix})</span>}</label>;
+        return extra ? <div className="field-head">{lab}{extra}</div> : lab;
+      })()}
       <input id={id} className="input num-input" inputMode="decimal" value={d.shown} aria-describedby={d.clamped || hint ? id + '-h' : undefined}
         onChange={e => d.setDraft(e.target.value)} onBlur={d.commit} onKeyDown={d.onKeyDown} />
       {d.clamped ? <span id={id + '-h'} className="hint">{t('stepper.clamped', { min, max })}</span> : hint && <span id={id + '-h'} className="hint">{hint}</span>}

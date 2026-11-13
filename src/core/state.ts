@@ -26,6 +26,7 @@ import { emptyAdvisor, normalizeAdvisor } from './advisor';
 import { emptyWhatsNew, normalizeWhatsNew } from './whatsnew';
 import { emptyAutoCapture, emptyGameLink, normalizeAutoCapture, normalizeAutoLog, normalizeGameLink, normalizeReview } from './autoCapture';
 import { emptyRaidLife, normalizeRaidAuto, normalizeRaidLife } from './raidLife';
+import { emptyProvenance, normalizeProvenance, seedMigration } from './provenance';
 import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -34,7 +35,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 17 as const;
+export const SCHEMA = 18 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -102,6 +103,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     raidLife: emptyRaidLife(),
     review: [],
     autoLog: [],
+    provenance: emptyProvenance(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -490,5 +492,9 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */
-  return migrateMaterialNames(out);
+  const res = migrateMaterialNames(out);
+  /* schéma 18 (0.21.0): původ hodnot. Starší stav ho nemá: zadané hodnoty dostanou zdroj „migration“ (čas jen tam,
+     kde ho stav zná). Až po přejmenování materiálů, ať klíče sedí. */
+  res.provenance = isObj(r.provenance) ? normalizeProvenance(r.provenance) : seedMigration(res);
+  return res;
 }

@@ -217,7 +217,7 @@ export default function ScreenImport() {
     const sum = await actions.importFromScreens({
       rows: writeRows, coins: coinsOn && coins !== null ? coins : null, zeroMissing: zeroOn && canZero, canZero, profile: a.profile,
       slots: { used: a.headerSlots, max: a.headerSlotsMax },
-    });
+    }, 'screenshot-file');
     setWriting(false);
     if (sum) { setDone(sum); clear(); }
   };

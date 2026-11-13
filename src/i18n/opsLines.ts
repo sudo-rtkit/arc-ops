@@ -463,6 +463,11 @@ const cs = {
     friendly: [{ one: "Co dál? {count} údaj ke kontrole. Jen potvrdit a hotovo.", few: "Co dál? {count} údaje ke kontrole. Jen potvrdit a hotovo.", other: "Co dál? {count} údajů ke kontrole. Jen potvrdit a hotovo." }, "Pár věcí jsem si nebyl jistý. Mrkneš na ně v Deníku?"],
     cheeky: [{ one: "{count} údaj ke kontrole. Já hádat nebudu.", few: "{count} údaje ke kontrole. Já hádat nebudu.", other: "{count} údajů ke kontrole. Já hádat nebudu." }, "Tohle jsem si nebyl jistý. Radši se zeptám, než něco vymyslím."],
   },
+  'advisor.rescan': {
+    plain: [{ one: "Zásoba se nezměnila {count} den. Nafoť STASH.", few: "Zásoba se nezměnila {count} dny. Nafoť STASH.", other: "Zásoba se nezměnila {count} dní. Nafoť STASH." }, "Počty v zásobě jsou staré. Aktualizuj je snímkem STASH."],
+    friendly: [{ one: "Co dál? Zásoba je stará {count} den. Jeden snímek STASH a máme čerstvá čísla.", few: "Co dál? Zásoba je stará {count} dny. Jeden snímek STASH a máme čerstvá čísla.", other: "Co dál? Zásoba je stará {count} dní. Jeden snímek STASH a máme čerstvá čísla." }, "Tvoje cíle počítají se starými počty. Nafotíme STASH?"],
+    cheeky: [{ one: "Zásoba stará {count} den. Já si to pamatuju, ale bedna se mohla změnit.", few: "Zásoba stará {count} dny. Já si to pamatuju, ale bedna se mohla změnit.", other: "Zásoba stará {count} dní. Já si to pamatuju, ale bedna se mohla změnit." }, "Počítám s čísly z pravěku. Ukaž mi STASH."],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -910,6 +915,11 @@ const en: Record<LineKey, LineVariants> = {
     plain: [{ one: "{count} field from an automatic entry waits for review.", other: "{count} fields from an automatic entry wait for review." }, "Confirm the uncertain fields in the Raid Journal."],
     friendly: [{ one: "What next? {count} field to review. Just confirm it and done.", other: "What next? {count} fields to review. Just confirm them and done." }, "I was not sure about a few things. Take a look in the Journal?"],
     cheeky: [{ one: "{count} field to review. I am not going to guess.", other: "{count} fields to review. I am not going to guess." }, "I was not sure about this. Better to ask than to make something up."],
+  },
+  'advisor.rescan': {
+    plain: [{ one: "Your stock has not changed for {count} day. Snap your STASH.", other: "Your stock has not changed for {count} days. Snap your STASH." }, "Your stock counts are old. Update them with a STASH screenshot."],
+    friendly: [{ one: "What next? Your stock is {count} day old. One STASH screenshot and the numbers are fresh.", other: "What next? Your stock is {count} days old. One STASH screenshot and the numbers are fresh." }, "Your goals count with old numbers. Shall we snap the STASH?"],
+    cheeky: [{ one: "Stock {count} day old. I remember it, but your stash may have moved on.", other: "Stock {count} days old. I remember it, but your stash may have moved on." }, "I am counting with prehistoric numbers. Show me the STASH."],
   },
 };
 

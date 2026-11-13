@@ -3,6 +3,7 @@ import type { Lang } from '../i18n';
 import type { WhatsNewState } from './whatsnew';
 import type { AutoCaptureState, AutoWrite, GameLinkState, ReviewItem } from './autoCapture';
 import type { RaidAuto, RaidLife } from './raidLife';
+import type { ProvenanceState } from './provenance';
 export type { Lang };
 
 export type BranchId = 'c' | 'm' | 's';
@@ -350,7 +351,7 @@ export interface AdvisorState {
 }
 
 export interface AppState {
-  schema: 17;
+  schema: 18;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -404,6 +405,8 @@ export interface AppState {
   raidLife: RaidLife;
   review: ReviewItem[];
   autoLog: AutoWrite[];
+  /* 0.21.0 (schéma 18): původ hodnot (zdroj, čas, jistota, ověření); ve starším stavu chybí a doplní se „migration“ */
+  provenance: ProvenanceState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

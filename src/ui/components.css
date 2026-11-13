@@ -571,3 +571,14 @@ td .item-link b, li .item-link b { font-weight: var(--weight-semibold); }
 .review-item.muted { opacity: .6; }
 .review-item .table input.input { width: 100%; min-width: 120px; }
 .review-item .table input.num { width: 80px; }
+
+/* 0.21.0: původ hodnoty (tečka s popiskem) */
+.with-prov { display: inline-flex; align-items: center; gap: 6px; }
+.field-head { display: flex; align-items: center; gap: 6px; }
+.prov-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; vertical-align: middle; margin-left: 4px; cursor: help; background: var(--text-muted); opacity: .55; }
+.with-prov .prov-dot, .field-head .prov-dot { margin-left: 0; }
+.prov-dot.prov-shot { background: var(--accent); opacity: .9; }
+.prov-dot.prov-other { background: transparent; border: 1px solid var(--text-muted); opacity: .8; }
+.prov-dot.prov-unverified { background: var(--amber); opacity: 1; }
+.prov-dot.prov-default { background: transparent; border: 1px dashed var(--text-muted); opacity: .5; }
+.prov-log { margin: 0; padding-left: 18px; display: grid; gap: 2px; }

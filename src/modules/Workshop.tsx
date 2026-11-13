@@ -12,6 +12,8 @@ import type { Recipe, Station } from '../core/types';
 import { LIMITS } from '../core/state';
 import { useT } from '../i18n/react';
 import { ItemLink } from '../ui/ItemCard';
+import { ProvDot } from '../ui/Provenance';
+import { provOf } from '../core/provenance';
 
 function RecipeEditor({ station, level, onClose }: { station: Station; level: number; onClose: () => void }) {
   const t = useT();
@@ -60,7 +62,7 @@ function StationCard({ st }: { st: Station }) {
     <article className={cx('panel station', !mats && 'maxed', can && 'ready')} aria-label={st.name} data-station={st.id}>
       <div className="panel-head">
         <h2>{st.name}</h2>
-        <span className="mono">{lvl} <span className="muted">/ {st.max}</span></span>
+        <span className="mono with-prov">{lvl} <span className="muted">/ {st.max}</span><ProvDot rec={provOf(s, 'stations', st.id)} showDefault /></span>
       </div>
       <div className="panel-body">
         <div className="row between"><span className="meta">{stationRole(st, t.lang)}</span>

@@ -43,6 +43,8 @@ import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, v
 import type { BuddyState } from '../core/types';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
+import { MANUAL, clearDomains, stampChanges, stampImport, visionConf, type ProvCtx, type ProvDomain, type ProvSource } from '../core/provenance';
+import { itemKey } from '../core/types';
 
 /* Úprava vestavěného záznamu (ARC, zbraně): klíč s hodnotou undefined vrací pole na vestavěný základ.
    Prázdná úprava se smaže, takže se záznam neoznačí jako upravený. Vrací false, když se nic nezměnilo. */
@@ -96,6 +98,27 @@ const PROFILE_LIMITS: Record<ProfileField, readonly [number, number]> = {
 export const profileLimit = (f: ProfileField) => PROFILE_LIMITS[f];
 
 export type App = ReturnType<typeof createApp>;
+/* 0.21.0: odkud je snímek obrazovky (původ hodnot). Neznámá hodnota = soubor. */
+export type ShotVia = Extract<ProvSource, 'screenshot-hotkey' | 'screenshot-file' | 'auto-capture'>;
+const shotVia = (v: unknown): ShotVia => (v === 'screenshot-hotkey' || v === 'auto-capture' ? v : 'screenshot-file');
+/* Automatický zápis raidu: záznam čeká na potvrzení hráčem (fronta „Ke kontrole“, ruční úprava); kolo navíc je jen
+   jeho důsledek a nepotvrzené se neukazuje. */
+const AUTO_CTX: ProvCtx = { src: 'auto-capture', ver: true, unverified: ['raids'] };
+/* Jistota hodnot z tabulky STASH: nejnižší jistota řádků se stejným cílem (materiál podle názvu, předmět podle klíče). */
+function visionConfOf(input: VisionApply): ProvCtx['conf'] {
+  const inv = new Map<string, number | undefined>(), items = new Map<string, number | undefined>();
+  const put = (m: Map<string, number | undefined>, k: string, c: number | undefined) => {
+    const cur = m.get(k);
+    m.set(k, m.has(k) ? (cur === undefined || c === undefined ? undefined : Math.min(cur, c)) : c);
+  };
+  for (const r of Array.isArray(input?.rows) ? input.rows : []) {
+    const tg = r.target, name = tg.kind === 'skip' ? '' : text(tg.name, 80).trim();
+    if (!name) continue;
+    const c = visionConf(r.group);
+    if (tg.kind === 'item') put(items, itemKey(name, r.group.tier ?? undefined), c); else put(inv, name, c);
+  }
+  return (d, k) => (d === 'inv' ? inv.get(k) : d === 'items' ? items.get(k) : undefined);
+}
 /* Výsledek zápisu lootu ze snímku FINDINGS (0.8.1). */
 export type RaidLootResult = ({ ok: true } & RaidLootDone) | { ok: false; reason: RaidLootRefusal | 'notReady' | 'busy' | 'snapshot' };
 
@@ -223,11 +246,15 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   /* 0.16.0: zrcadlo (okno overlaye). Akce mění jen kopii stavu v tomto okně, aby modul hned viděl výsledek;
      nic se neukládá ani nekontroluje týden (store zrcadla není ready). Platí jen hlavní okno, viz store/relay.ts. */
   let mirror = false;
-  function change(fn: (s: AppState) => void | false): boolean {
+  /* 0.21.0: ctx = původ změněných hodnot (zdroj, ověření, jistota). Bez něj ruční úprava. Zdroj a čas určuje store
+     (hlavní okno), ne overlay: relay posílá jen jméno akce a data, ne původ. */
+  function change(fn: (s: AppState) => void | false, ctx: ProvCtx = MANUAL): boolean {
     if (!get().ready && !mirror) return false;
     if (!mirror) checkWeek();
-    const s = structuredClone(get().state);
+    const before = get().state;
+    const s = structuredClone(before);
     if (fn(s) === false) return false;
+    stampChanges(before, s, ctx, now());
     syncGoals(s, now());
     syncBuddy(s.buddy, s.profile.level);
     s.meta.updatedAt = now();
@@ -481,18 +508,20 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     itemDelete(key: string) { change(s => { if (!s.items[key]) return false; delete s.items[key]; }); },
 
     /* rozpoznávání ze snímků: před zápisem vždy snímek stavu (druh import); když se nepodaří, nic se nezapíše. */
-    async importFromScreens(input: VisionApply): Promise<VisionSummary | null> {
+    /* 0.21.0: via = odkud snímek je (soubor v aplikaci, zkratka, automatické snímání); hodnoty potvrdil hráč
+       v tabulce, jistota řádku podle rozpoznání (provenance.visionConf). */
+    async importFromScreens(input: VisionApply, via: ShotVia = 'screenshot-file'): Promise<VisionSummary | null> {
       if (!get().ready) return null;
       await doSave();
       if (!(await snapshot('import', 'pred importem ze snimku'))) return null;
       let sum: VisionSummary | null = null;
-      change(s => { sum = applyVisionImport(s, input, now()); });
+      change(s => { sum = applyVisionImport(s, input, now()); }, { src: shotVia(via), ver: true, conf: visionConfOf(input) });
       await doSave();
       return sum;
     },
     /* Loot ze snímku FINDINGS do raidu (0.8.1): kontrola (opakovaný snímek, výbava, nahrazení), snímek stavu,
        teprve potom zápis. Když se snímek stavu nepodaří, nic se nezapíše. Mince se nemění. */
-    async importRaidLoot(input: RaidLootInput, sig: string): Promise<RaidLootResult> {
+    async importRaidLoot(input: RaidLootInput, sig: string, via: ShotVia = 'screenshot-hotkey'): Promise<RaidLootResult> {
       if (!get().ready) return { ok: false, reason: 'notReady' };
       if (lootBusy) return { ok: false, reason: 'busy' };
       const first = checkRaidLoot(st(), input, sig);
@@ -507,19 +536,19 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
           late = checkRaidLoot(s, input, sig);
           if (late) return false;
           done = applyRaidLoot(s, input, sig, now(), id);
-        });
+        }, { src: shotVia(via), ver: true });
         await doSave();
         return done ? { ok: true, ...(done as RaidLootDone) } : { ok: false, reason: late ?? 'notReady' };
       } finally { lootBusy = false; }
     },
     /* Postup ze snímku (0.10.1): profil, úrovně stanic, ranky skillů z tooltipu, úkol (jen zrušení chybného
        „splněno“ a připnutí). Před zápisem snímek stavu; když se nepodaří, nic se nezapíše. */
-    async importProgress(input: ProgressApply): Promise<ProgressSummary | null> {
+    async importProgress(input: ProgressApply, via: ShotVia = 'screenshot-file'): Promise<ProgressSummary | null> {
       if (!get().ready) return null;
       await doSave();
       if (!(await snapshot('import', 'pred importem postupu ze snimku'))) return null;
       let sum: ProgressSummary = { fields: 0 };
-      change(s => { sum = applyProgress(s, input, PIN_MAX); if (!sum.fields) return false; });
+      change(s => { sum = applyProgress(s, input, PIN_MAX); if (!sum.fields) return false; }, { src: shotVia(via), ver: true });
       await doSave();
       return sum;
     },
@@ -1138,7 +1167,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         const w: AutoWrite = { id: writeId, at: cap.at, raidId, survived: r.ok, items: d.items, review: d.review.length, undone: false, seen: false };
         s.autoLog = [...s.autoLog, w].slice(-AUTO_LOG_MAX);
         ok = true;
-      });
+      }, AUTO_CTX);
       await doSave();
       return ok ? { raidId, writeId } : null;
     },
@@ -1325,6 +1354,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       next.games = mergeGames(st().games, nextIn.games);
       /* 0.13.0: rozehrané kolo tohoto počítače má přednost; záloha doplní jen hry bez uloženého kola */
       next.gameRounds = mergeRounds(st().gameRounds, nextIn.gameRounds);
+      /* 0.21.0: hodnoty ze zálohy mají původ „import zálohy“ (původní zdroj zůstane jako předchozí) */
+      next.provenance = structuredClone(nextIn.provenance);
+      stampImport(next, now());
       const ok = await replaceState(next, 'import', kind === 'diary' ? 'pred importem deniku' : 'pred importem', raw);
       if (ok) notify(t(kind === 'diary' ? 'notice.importedDiary' : 'notice.importedBackup'));
       return ok;
@@ -1354,6 +1386,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         case 'games': s.games = d.games; s.gameRounds = d.gameRounds; break;
         case 'routes': Object.assign(s.gameData, { routes: {}, routesCustom: [], routesHidden: {}, sell: {}, sellCustom: [], sellHidden: {} }); break;
       }
+      /* 0.21.0: původ vynulovaných hodnot se zahodí (bez záznamu = výchozí hodnota) */
+      const provReset: Partial<Record<ResetModule, ProvDomain[]>> = { profile: ['profile'], skills: ['skills'], workshop: ['stations'], quests: ['quests', 'objectives'], inventory: ['inv', 'items'], raids: ['raids'] };
+      clearDomains(s, provReset[mod] ?? []);
       const ok = await replaceState(s, 'reset', 'pred resetem ' + mod);
       if (ok) notify(t('notice.moduleReset', { name: RESET_MODULES.some(m => m.id === mod) ? resetName(mod) : mod }));
       return ok;

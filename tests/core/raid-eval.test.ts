@@ -181,8 +181,8 @@ describe('schéma 14: migrace, záloha a normalizace', () => {
       raidPlan: { goals: { quests: ['ss10y'] }, map: 'buried', loadout: '', route: '', startedAt: 7, sig: '', found: ['Wires'] },
     };
     const s = normalize(old, NOW);
-    expect(SCHEMA).toBe(17);
-    expect(s.schema).toBe(17);
+    expect(SCHEMA).toBe(18);
+    expect(s.schema).toBe(18);
     expect(s.raids[0]).toMatchObject({ id: 'r1', coins: 100, loot: [{ name: 'Wires', qty: 2 }] });
     expect(s.raids[0].plan).toBeUndefined();
     expect(s.raidPlan).toMatchObject({ map: 'buried', startedAt: 7, found: ['Wires'], snap: null, open: [] });

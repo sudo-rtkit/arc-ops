@@ -54,7 +54,7 @@ export function ProgressShot({ focus }: { focus?: boolean }) {
 
   const write = async (input: ProgressApply) => {
     setWriting(true);
-    const sum = await actions.importProgress(input);
+    const sum = await actions.importProgress(input, 'screenshot-file');
     setWriting(false);
     if (sum) { setDone(sum.fields); setShot(null); }
   };

@@ -181,8 +181,8 @@ describe('schéma 5: migrace a záloha', () => {
   };
   it('stav schématu 4 se načte beze ztrát a dostane výchozí nová pole', () => {
     const s = normalize(S4, 10);
-    expect(SCHEMA).toBe(17);
-    expect(s.schema).toBe(17);
+    expect(SCHEMA).toBe(18);
+    expect(s.schema).toBe(18);
     expect(s.inventory).toEqual({ 'Metal Parts': 4 });
     expect(s.quests.done).toEqual({ a: 5 });
     expect(s.settings.lang).toBe('en');
@@ -201,7 +201,7 @@ describe('schéma 5: migrace a záloha', () => {
     s.tierList.items.B = ['Spectrometer'];
     s.projects = { souls_offering_project: 2 };
     const file = JSON.parse(makeBackup(s, new Date(0)));
-    expect(file.schema).toBe(17);
+    expect(file.schema).toBe(18);
     expect(file.state.tierList.weapons.S).toEqual(['anvil']);
     const back = parseBackup(JSON.stringify(file), 10);
     expect('state' in back && back.state).toEqual(s);

@@ -2,6 +2,7 @@
    úkolů, workshopu, přípravy na raid, recyklace a typů míst); tady je jen zobrazení. Karta je boční dialog nad
    aktuálním modulem: v hlavním okně i v overlayi (plné moduly), z kompaktu se otevře v aplikaci. Odkaz na zdroj
    potřeby kartu zavře a otevře modul (v overlayi v záložce Aplikace). Neznámé údaje se ukážou jako neznámé. */
+import { provText } from './Provenance';
 import { useMemo, type ReactNode } from 'react';
 import { ArrowRight, Map as MapIcon, Pin, PinOff } from 'lucide-react';
 import { actions, navigate, useAppState } from '../store';
@@ -94,6 +95,7 @@ function CardBody({ c, onGo }: { c: ItemCardData; onGo: (r: CardNeed['route']) =
         <Fact id="weight" label={t('icard.weight')}>{c.weight !== null ? t('icard.kg', { n: fmtDec(c.weight, 2) }) : <Unknown />}</Fact>
         <Fact id="stack" label={t('icard.stack')}>{c.stack !== null ? fmt(c.stack) : <Unknown />}</Fact>
         <Fact id="have" label={t('icard.have')}><b className="mono" data-testid="item-card-have">{fmt(c.have)}</b></Fact>
+        {c.origin && <Fact id="origin" label={t('prov.label')}><span className="meta" data-testid="item-card-origin">{provText(t, c.origin)}</span></Fact>}
         {c.source && <Fact id="source" label={t('inv.source')}>{sourceLabel(c.name, c.source, t.lang)}</Fact>}
         {c.needsBlueprint && <Fact id="bp" label={t('icard.blueprint')}>{t('icard.blueprintNeeded')}</Fact>}
         {c.blueprint.is && <Fact id="learned" label={t('icard.blueprint')}>{c.blueprint.learned ? t('icard.bpLearned') : t('icard.bpNotLearned')}</Fact>}

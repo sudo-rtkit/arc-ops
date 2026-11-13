@@ -30,6 +30,20 @@ pnpm tauri build     # Windows NSIS installer, CS/EN installer languages
 
 Do native/window tests with the game closed. Never focus or send input to the game for automation. Browser tests do not validate Windows foreground handling, native hotkeys, acrylic or anti-cheat compatibility.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on pull requests (read-only token, no secrets; a newer run cancels the older one for the same branch or pull request):
+
+| Job | Runner | Steps |
+|---|---|---|
+| Web | `ubuntu-latest` | `pnpm install --frozen-lockfile` (pnpm store cached), `tsc --noEmit`, `pnpm test`, `pnpm build`, `playwright install --with-deps chromium` (browser cache), `pnpm e2e` |
+| Rust | `windows-latest` | stable toolchain, `Swatinem/rust-cache`, placeholder `dist/index.html`, `cargo test --locked` in `src-tauri` |
+
+- **Browser:** locally `playwright.config.ts` uses the installed Microsoft Edge (`channel: 'msedge'`). With `CI` set it uses Playwright's Chromium, retries a failing test once, writes the HTML report to `playwright-report/` and keeps traces; the job uploads the report and `test-results/` as the `playwright-report` artifact on failure. Reproduce locally with `pnpm exec playwright install chromium`, then `CI=1 pnpm e2e` (or `PW_CHANNEL=chromium pnpm e2e` without the CI behaviour).
+- **Rust:** the job does not need Node. `tauri::generate_context!` only needs `../dist` to exist at compile time, so the job writes a placeholder page. The Windows-only code in `ops.rs` compiles there. The NSIS installer is built locally only (`pnpm tauri build`).
+- **Local-only fixtures:** the player's screenshots in `tests/fixtures/vision/own/` are git-ignored. Vitest, Playwright and the Rust header tests that need them skip themselves when the files are missing, so CI runs the same suites minus those cases.
+- **Keep it green:** a new test must not depend on Edge, Windows paths, the local time zone (dates in tests are built from local `Date` parts) or files outside the repository. Pushing a change to the workflow file needs a token with the `workflow` scope.
+
 ## Architecture
 
 | Directory | Responsibility |
@@ -49,6 +63,8 @@ Keep core independent. Modules read state and call actions, rather than writing 
 Post-raid evaluation (0.15.0) lives in `src/core/raidEval.ts` and reuses raid prep (`raidList`, `scoreMaps`, `validGoals`) goal by goal; it never writes. The store only attaches its result to a raid entry (`addRaid(..., { withPlan })`, `attachRaidPlan`). Plan history statistics are `planMapStats` in `src/core/runs.ts`; the overlay saves through the hub action `raidPlanSave`.
 
 The overlay's **App** entry (0.16.0, `src/ops/OverlayApps.tsx`; a button after the tablist, not a tab, so the tab order stays fixed) renders the real modules from the registry, lazily loaded. The main window stays the only writer: the overlay store is a *mirror* (`app.setMirror()`, never `ready`, never saves). `src/store/relay.ts` wraps the overlay's actions: each call runs on the local copy for immediate feedback and is sent to the main window (`action` on the bus) with its arguments and the ids it generated (`recordIds`). The hub accepts only names in `RELAY_ACTIONS`, decodes plain data (size and depth limits), replays the ids (`replayIds`) so new records share ids, applies the same store action and acknowledges in the next state push. The overlay rebases unacknowledged calls on every pushed state and drops them after 5 s, so an acknowledged overlay state is exactly the main window's. Every store action must be listed in `RELAY_ACTIONS` or `BLOCKED_ACTIONS` (a test enforces this). Modules must not import `src/ops/mainHub.ts`, `src/shell/windowCtl.ts` or the Settings modules; use `src/shell/host.ts` (`hostSound`, `inOverlay`, `openInApp`) and `src/ui/InAppOnly.tsx` for parts that need files or the main window. A test walks the overlay import graph. The panel's size and position are per-PC (`localStorage` key `arcops:overlay:panel`, `src/ops/ovPanel.ts`), not in the state or backups.
+
+Provenance (0.21.0, schema 18): `src/core/provenance.ts` keeps `state.provenance` (per area a map key → latest record `{ src, at, conf?, ver, prev? }`, plus a short log). `change(fn, ctx)` in `src/store/app.ts` diffs the tracked areas before and after each action (`stampChanges`) and stamps what changed; the default context is a manual, confirmed edit, and imports pass `{ src, ver, conf }`. Do not write provenance from modules or trust a source from action arguments; the store (main window) decides. To track a new value, extend `domainValues`; `seedMigration` follows automatically. UI: `ProvDot` and `ProvenancePanel` in `src/ui/Provenance.tsx`.
 
 Search everywhere and the item card (0.18.0): `src/core/search.ts` builds the index (items, quests, projects, stations, skills, builds, maps, ARC, tips; modules and Settings sections are passed in from the UI) and ranks results (`fold` = lower case without diacritics, CS and EN names in one entry). `src/core/itemCard.ts` composes the card from the advice need list (`collectNeedList` + `needIndex`), `raidList`, recycling, loot areas and map points; it never computes needs on its own. The UI is `src/ui/SearchPalette.tsx` (Ctrl+K via `useSearchShortcut`, sidebar field, recents in `localStorage` key `arcops:search:recent`) and `src/ui/ItemCard.tsx` (`ItemLink`, `ItemCardHost`), opened through `useUi` (`openSearch`, `openItemCard`). Deep links: `#quests/q=<id>`, `#workshop/<station>`, `#skills/skill=<id>`, `#settings/<section>`.
 

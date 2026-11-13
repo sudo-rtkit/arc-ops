@@ -12,6 +12,8 @@ import { mapName } from './shared';
 import { ItemLink } from '../ui/ItemCard';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
+import { ProvDot } from '../ui/Provenance';
+import { provOf } from '../core/provenance';
 
 type Show = 'all' | QuestStatus;
 const TONE: Record<QuestStatus, 'success' | 'accent' | undefined> = { done: 'success', active: 'accent', locked: undefined };
@@ -89,7 +91,7 @@ function QuestList({ focus }: { focus: string }) {
                   <tr data-quest={x.id} data-status={st} className={cx(st === 'done' && 'muted', isOpen && 'selected')}>
                     <td><input type="checkbox" aria-label={t('quests.doneAria', { name })} checked={st === 'done'} onChange={e => toggle(x.id, e.target.checked)} /></td>
                     <td>
-                      <b className="wrap">{name}</b> <Badge tone={TONE[st]}>{t(`quests.status.${st}` as Key)}</Badge>
+                      <b className="wrap">{name}</b> <Badge tone={TONE[st]}>{t(`quests.status.${st}` as Key)}</Badge>{st === 'done' && <> <ProvDot rec={provOf(s, 'quests', x.id)} /></>}
                       {x.research && <> <Badge>{t('quests.research')}</Badge></>}
                       {st !== 'done' && pinned.includes(x.id) && <> <Badge tone="accent">{t('quests.pinnedBadge')}</Badge></>}
                       <br /><span className="meta">{[...x.maps.map(mapName), x.xp ? t('quests.xp', { xp: x.xp }) : ''].filter(Boolean).join(' · ')}</span>
@@ -111,7 +113,7 @@ function QuestList({ focus }: { focus: string }) {
                             const txt = locText(o, lang), on = ticked.includes(i);
                             return <li key={i} data-objective={i} data-done={String(on)}><label className="quest-objective">
                               <input type="checkbox" checked={on} aria-label={t('quests.objAria', { text: txt })} onChange={e => actions.questObjective(x.id, i, e.target.checked)} />
-                              <span className={cx(on && 'muted')}>{txt}</span></label></li>;
+                              <span className={cx(on && 'muted')}>{txt}</span></label> <ProvDot rec={provOf(s, 'objectives', `${x.id}:${i}`)} /></li>;
                           })}</ol>
                           <p className="meta">{t('quests.objHint')}</p></div>
                         <div><h4>{t('quests.deliver')}</h4><Items list={x.deliver} inventory={stock} link /></div>

@@ -13,6 +13,8 @@ import { gameTexts, skillDesc, tierNames } from '../core/gametext';
 import type { BranchId, BuildTag, CatalogBuild, Points, Skill } from '../core/types';
 import { branchVar } from './shared';
 import { useT } from '../i18n/react';
+import { ProvDot } from '../ui/Provenance';
+import { provOf } from '../core/provenance';
 
 type Tab = 'tree' | 'plan' | 'builds';
 
@@ -37,7 +39,7 @@ function Node({ s, have, target, next, bad, readOnly }: { s: Skill; have: number
     <div className={cx('node', have > 0 && 'has', full && 'full', next && 'next', bad && 'invalid', locked && 'locked')} style={{ ['--bc' as string]: branchVar(s.b) }} data-node={s.id}>
       <div className="node-head">
         <span className="node-name">{s.name}</span>
-        <span className="node-pts mono">{have}/{s.max}{st.skills.showPlan && target > have && <em title={t('skill.planTarget')}> → {target}</em>}</span>
+        <span className="node-pts mono">{have}/{s.max}{st.skills.showPlan && target > have && <em title={t('skill.planTarget')}> → {target}</em>}<ProvDot rec={provOf(st, 'skills', s.id)} /></span>
       </div>
       <p className="node-desc">{skillDesc(s, t.lang)}</p>
       {bad && <p className="node-warn"><CircleAlert size={14} aria-hidden="true" />{bad}</p>}

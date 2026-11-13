@@ -7,7 +7,9 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.20.1 · Windows · Offline · MIT · Česky a anglicky**
+**0.21.0 · Windows · Offline · MIT · Česky a anglicky**
+
+[![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
 Osobní operační centrum pro hráče ARC Raiders. Zásoba, vylepšení dílny, cíle úkolů a plány skillů na jednom místě. To nejdůležitější si nech v kompaktním okně nebo ve volitelné polní konzoli Opse. Údaje ze snímků se čtou lokálně a před zápisem je vždy zkontroluješ. Mezi raidy si odpočiň u miniher s Bedňákem. Bez přihlášení, předplatného a cloudové synchronizace.
 
@@ -57,6 +59,8 @@ Ctrl+K funguje při fokusu aplikace nebo konzole; je to zkratka daného okna. Ka
 ### Bedňák / Ops
 
 Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi povahami. Kliknutím otevřeš konzoli s profilem, úkoly, zásobou, dílnou, skilly, nákupy a revizí snímku a aktivním plánem raidu. Tlačítko **Aplikace** otevře nad hrou ve větším panelu kterýkoli plný modul (skill tree, recepty, databázi předmětů, mapy, deník, statistiky, minihry…); nastavení a zálohy zůstávají v hlavním okně. Výchozí stav buddyho je **vypnuto**.
+
+**Odkud je každá hodnota.** Malá tečka vedle počtu v zásobě, pole profilu, úrovně stanice, ranku skillu nebo cíle úkolu po najetí myší ukáže původ: ručně, ze snímku (soubor nebo zkratka), z automatického snímání nebo z importu zálohy, kdy, s jakou jistotou rozpoznání a jestli jsi hodnotu potvrdil. Nastavení → Původ dat to shrne po oblastech i s posledními zápisy a karta předmětu má řádek „Původ“. Když se zásoba přes týden nezměnila a máš otevřené cíle, „Co dál?“ navrhne snímek STASH.
 
 **Automatické snímání obrazovek mimo raid (volitelné, výchozí vypnuto, čeká na ověření u Embarku).** Když ho v Nastavení zapneš (po krátkém vysvětlení), Ops hlídá jen při hře v popředí: asi každé 2 s zkopíruje malý pruh s nadpisem obrazovky a teprve u známé obrazovky menu (příprava loadoutu, výsledek raidu a obrazovky, které vybereš) pořídí jeden plný snímek. Snímky zůstávají jen v paměti a po přečtení se zahodí. Z loadoutu a výsledku připraví zápis do Deníku raidů: jisté údaje zapíše se snímkem stavu a tlačítkem Zpět, nejisté čekají ve frontě „Ke kontrole“. Pozastavit jde v kompaktním okně i v nabídce ikony v oznamovací oblasti a „Vypnout všechna napojení na hru“ vypne najednou buddyho nad hrou, zkratku snímku i automatické snímání. Exkluzivní celá obrazovka může dávat černé snímky, doporučený je režim okna bez okraje. Zapínáš na vlastní uvážení.
 

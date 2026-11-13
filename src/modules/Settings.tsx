@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ProvenancePanel } from '../ui/Provenance';
 import { Camera, Copy, Download, FolderOpen, History, RotateCcw, Sparkles, Trash2, Upload } from 'lucide-react';
 import { actions, app, useApp, useAppState } from '../store';
 import { RESET_MODULES, resetImpact, resetName, type ResetModule } from '../store/app';
@@ -279,6 +280,7 @@ export default function Settings({ sub }: { sub: string }) {
         {kind === 'browser' && <p className="meta">{t('settings.browserHint')}</p>}
       </Panel>
       <Anchor id="backup" />
+      <ProvenancePanel />
       <Panel title={t('settings.exportImport')}>
         <p className="secondary-text">{t('settings.exportHint')}</p>
         <div className="row">

@@ -111,7 +111,13 @@ test('export a import vrátí stejný stav', async ({ page }) => {
   /* 0.17.0: export zálohy zapíše svůj čas (rádce „Co dál?“); ostatní stav se importem vrátí beze změny */
   expect(after.advisor.backupAt).toBeGreaterThan(0);
   expect(before.advisor.backupAt).toBe(0);
-  const strip = (s: Record<string, unknown>) => ({ ...s, meta: undefined, profileLog: undefined, advisor: { ...(s.advisor as object), backupAt: 0 } });
+  /* 0.21.0: import zálohy označí hodnoty původem „import zálohy“; původní zdroj zůstane jako předchozí */
+  type Rec = { src: string; prev?: { src: string } };
+  const coins = (after.provenance.recs.profile as Record<string, Rec>).coins;
+  expect(coins.src).toBe('backup-import');
+  expect(coins.prev?.src).toBe('manual');
+  expect(Object.keys(after.provenance.recs.inv).sort()).toEqual(Object.keys(before.provenance.recs.inv).sort());
+  const strip = (s: Record<string, unknown>) => ({ ...s, meta: undefined, profileLog: undefined, provenance: undefined, advisor: { ...(s.advisor as object), backupAt: 0 } });
   expect(strip(after)).toEqual(strip(before));
 });
 

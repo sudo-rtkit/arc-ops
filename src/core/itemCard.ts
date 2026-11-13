@@ -10,6 +10,7 @@
    - rada nech / recykluj / prodej: v zásobě stejná rada jako Inventory (advise), jinak rada přípravy na raid pro
      nalezený kus (lookupAdvice).
    Co data neznají, zůstane null / prázdné a UI to ukáže jako neznámé; nic se nedomýšlí. */
+import { latestRec, type ProvDomain, type ProvRec } from './provenance';
 import type { AppState, Lang } from './types';
 import { catalogByName, type CatalogItem } from './catalog';
 import { itemData, recycleOutputs, recycleSources, TRADER_OFFERS, weaponStats, isBlueprint, type RecycleSource, type TraderOffer } from './itemdb';
@@ -51,6 +52,8 @@ export interface ItemCardData {
   need: number; missing: number;
   needs: CardNeed[];
   plan: { need: number; have: number; missing: number; found: boolean; reasons: { label: string; qty: number }[] } | null;
+  /* 0.21.0: původ počtu ve skrýši (nejnovější záznam materiálu nebo předmětu); null = výchozí, nikdy nezadané */
+  origin: ProvRec | null;
   recycle: Qty[];
   recycleFrom: RecycleSource[];
   areas: LootArea[];
@@ -162,6 +165,7 @@ export function itemCard(s: AppState, nameIn: string, lang: Lang, today: string)
     needsBlueprint: data ? !!data.bp : null,
     blueprint: { is: isBlueprint(name), learned: !!s.blueprints[data?.n ?? name] },
     have, stock,
+    origin: latestRec(s, [{ d: 'inv', key: stockKey }, ...stock.map(x => ({ d: (s.inventory[x.key] ? 'inv' : 'items') as ProvDomain, key: x.key }))]),
     need, missing: Math.max(0, need - have),
     needs: out.sort((a, b) => Number(a.when === 'later') - Number(b.when === 'later') || Number(!!a.questItem) - Number(!!b.questItem)),
     plan,

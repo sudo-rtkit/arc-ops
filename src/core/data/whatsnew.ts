@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.20.1 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.21.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.21.0',
+    title: { cs: 'Původ dat u každé hodnoty', en: 'The origin of every value' },
+    items: [
+      { text: { cs: 'Tečka u počtu, levelu, stanice, skillu či cíle úkolu ukáže původ hodnoty: ručně, ze snímku nebo ze zálohy, kdy, s jakou jistotou a zda je potvrzená.', en: 'A dot next to a count, level, station, skill or objective shows where the value came from (manual, screenshot or backup), when, how sure, and if confirmed.' }, link: 'profile' },
+      { text: { cs: 'Přehled původu dat a poslední zápisy najdeš v Nastavení; karta předmětu má řádek „Původ“.', en: 'Settings show an overview of data origin and recent writes; the item card has an “Origin” line.' }, link: 'itemCard' },
+      { text: { cs: 'Rádce „Co dál?“ připomene snímek STASH, když se zásoba přes týden nezměnila a máš otevřené cíle.', en: 'The “What next?” advisor suggests a STASH screenshot when your stock has not changed for over a week and you have open goals.' }, link: 'advisor' },
+    ],
+  },
   {
     version: '0.20.1',
     title: { cs: 'Ops tiše mrkne při automatickém snímku', en: 'Ops blinks quietly on automatic capture' },

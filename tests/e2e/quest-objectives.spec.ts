@@ -44,7 +44,7 @@ for (const lang of ['cs', 'en'] as const) {
     await boxes.nth(2).check();
     await expect(row.getByTestId('quest-obj-progress')).toHaveText(L.p2);
     await expect.poll(async () => (await stateOf(page)).quests.objectives).toEqual({ [SHORING]: [0, 2] });
-    expect((await stateOf(page)).schema).toBe(17);
+    expect((await stateOf(page)).schema).toBe(18);
 
     /* po načtení stránky zůstane */
     await page.reload();

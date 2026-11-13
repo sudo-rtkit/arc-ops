@@ -11,7 +11,9 @@
    - cleanup: Úklid má co prodat nebo recyklovat a uvolní políčka;
    - backup: poslední záloha je stará, nebo o žádné záloze aplikace neví (jen u hráče s daty);
    - goal: otevřený cíl s termínem do GOAL_SOON_DAYS dní, nebo po termínu;
-   - review (0.20.0): fronta „Ke kontrole“ z automatického snímání není prázdná.
+   - review (0.20.0): fronta „Ke kontrole“ z automatického snímání není prázdná;
+   - rescan (0.21.0): zásoba (materiály a vybavení) se podle původu hodnot neměnila déle než RESCAN_DAYS dní a hráč má
+     otevřené cíle nebo cíle v Material Planneru; bez známého času zápisu (jen migrace) se tip neukáže.
    Texty jsou odkazy do slovníku (MsgRef), hlášky Opse odkazy do OPS_LINES (LineRef), takže se vykreslí v aktuálním
    jazyce a povaze okna, které je ukáže. Skrytí (dismiss) platí, dokud se nezmění klíč podmínky (key); odložení
    (snooze) do daného času. */
@@ -30,10 +32,11 @@ import { planRaid, savedRaid } from './raidEval';
 import { STATIONS } from './data/stations';
 import { MAPS } from './data/maps';
 import { line, type LineRef } from './opsVoice';
+import { latestAt } from './provenance';
 import { msg, type MsgRef } from '../i18n';
 
-export type AdvisorRule = 'upgrade' | 'evaluate' | 'stale' | 'prep' | 'skills' | 'trials' | 'deliver' | 'stash' | 'cleanup' | 'backup' | 'goal' | 'review';
-export const ADVISOR_RULES: readonly AdvisorRule[] = ['upgrade', 'evaluate', 'stale', 'prep', 'skills', 'trials', 'deliver', 'stash', 'cleanup', 'backup', 'goal', 'review'];
+export type AdvisorRule = 'upgrade' | 'evaluate' | 'stale' | 'prep' | 'skills' | 'trials' | 'deliver' | 'stash' | 'cleanup' | 'backup' | 'goal' | 'review' | 'rescan';
+export const ADVISOR_RULES: readonly AdvisorRule[] = ['upgrade', 'evaluate', 'stale', 'prep', 'skills', 'trials', 'deliver', 'stash', 'cleanup', 'backup', 'goal', 'review', 'rescan'];
 /* Kam tip vede: modul (#modul/podsekce), nebo akce, která se provede v modulu (spustit plán, vyhodnotit raid,
    uložit zálohu). Zálohu umí jen hlavní okno (overlay ji otevře v aplikaci). */
 export type AdvisorAction = 'startPlan' | 'evaluateRaid' | 'backup';
@@ -63,6 +66,8 @@ export const BACKUP_OLD_DAYS = 14;
 export const BACKUP_NEW_DAYS = 7;
 export const GOAL_SOON_DAYS = 3;
 export const SNOOZE_DAYS_MAX = 30;
+/* 0.21.0: zásoba starší než tolik dní (podle původu hodnot) při otevřených cílech = nabídnout snímek STASH */
+export const RESCAN_DAYS = 7;
 /* nejvýš tolik záznamů skrytí a odložení (nejstarší se odmažou) */
 export const ADVISOR_MAX = 300;
 const DAY = 86_400_000;
@@ -244,6 +249,23 @@ export function advisorTips(s: AppState, now: number, lang: Lang, opts: AdvisorO
       target: { kind: 'route', route: 'journal' }, key: hashKey(s.review.map(x => x.id).join('|')),
       line: line('advisor.review', { count: review }),
     });
+  }
+
+  /* ----- 0.21.0: stará zásoba při otevřených cílech ----- */
+  const stockAt = latestAt(s, ['inv', 'items']);
+  const hasStock = Object.keys(s.inventory).length > 0 || Object.keys(s.items).length > 0;
+  const wantsStock = s.goals.some(g => !isDone(g)) || Object.keys(s.planner.stations).length > 0;
+  if (stockAt > 0 && hasStock && wantsStock) {
+    const days = Math.floor((now - stockAt) / DAY);
+    if (days > RESCAN_DAYS) {
+      out.push({
+        id: 'rescan', rule: 'rescan', score: 45 + Math.min(15, days - RESCAN_DAYS), tone: 'amber',
+        reason: msg('advisor.why.rescan'),
+        title: msg('advisor.rescan.title', { count: days }), detail: msg('advisor.rescan.detail'),
+        target: { kind: 'route', route: 'inventory/import' }, key: String(stockAt),
+        line: line('advisor.rescan', { count: days }),
+      });
+    }
   }
 
   /* ----- záloha ----- */

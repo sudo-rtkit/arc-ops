@@ -17,6 +17,8 @@ import Cleanup from './Cleanup';
 import { AdviceCell } from '../ui/Advice';
 import { useT } from '../i18n/react';
 import { ItemLink } from '../ui/ItemCard';
+import { ProvDot } from '../ui/Provenance';
+import { provOf } from '../core/provenance';
 
 type Tab = 'stock' | 'equipment' | 'cleanup' | 'import' | 'shopping' | 'hunt' | 'planner';
 type Show = 'all' | 'have' | 'needed' | 'missing' | 'surplus';
@@ -116,7 +118,7 @@ function Stock() {
                 <tr key={m.name}>
                   <td><ItemLink name={m.name}><b className="wrap">{m.name}</b></ItemLink> {m.custom && <Badge tone="accent">{t('origin.vlastni')}</Badge>}</td>
                   <td>{categoryLabel(m.category, t.lang)}</td>
-                  <td className="num"><Stepper label={t('ws.have', { name: m.name })} value={have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m.name, v)} /></td>
+                  <td className="num"><span className="with-prov"><Stepper label={t('ws.have', { name: m.name })} value={have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m.name, v)} /><ProvDot rec={provOf(s, 'inv', m.name)} /></span></td>
                   <td className="num">{sh ? fmt(sh.need) : <span className="muted">0</span>}</td>
                   <td className={cx('num', missing > 0 && 'amber')}>{missing > 0 ? fmt(missing) : <span className="muted">0</span>}</td>
                   <td className="wrap">{sourceLabel(m.name, m.source, t.lang)}</td>
