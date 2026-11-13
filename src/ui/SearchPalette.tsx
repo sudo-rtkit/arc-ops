@@ -20,7 +20,7 @@ export const SETTINGS_SECTIONS: { id: string; key: Key | null; extra?: Key[] }[]
   { id: 'lang', key: 'settings.lang' }, { id: 'window', key: 'win.title' }, { id: 'ops', key: 'ops.title' }, { id: 'voice', key: 'opsVoice.title' },
   { id: 'wardrobe', key: 'ops.wardrobe' }, { id: 'data', key: null, extra: ['settings.dir'] }, { id: 'backup', key: 'settings.exportImport' },
   { id: 'snapshots', key: 'snap.title' }, { id: 'links', key: 'settings.links' }, { id: 'sources', key: 'settings.sources' },
-  { id: 'about', key: 'settings.about' }, { id: 'danger', key: 'danger.title' },
+  { id: 'about', key: 'settings.about', extra: ['settings.whatsNew'] }, { id: 'danger', key: 'danger.title' },
 ];
 
 const readRecent = (): string[] => { try { return parseRecent(localStorage.getItem(RECENT_KEY)); } catch { return []; } };

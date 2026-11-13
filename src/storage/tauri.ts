@@ -1,7 +1,7 @@
 /* Úložiště přes vlastní příkazy Rust backendu. UI nikdy nepředává cestu k souboru: dialogy otevírá Rust. */
 import { invoke } from '@tauri-apps/api/core';
 import type { LoadResult, SnapshotInfo, SnapshotKind, StorageAdapter } from './adapter';
-import { t } from '../i18n';
+import { t } from '../i18n/core';
 
 export const isTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 

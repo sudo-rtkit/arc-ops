@@ -416,10 +416,10 @@ describe('Ops: hlášky, zvuky a nabídka minihry', () => {
 
 describe('schéma 11 a store', () => {
   it('stav schématu 9 se načte beze ztrát a dostane prázdné minihry s původním vzhledem', () => {
-    expect(SCHEMA).toBe(15);
+    expect(SCHEMA).toBe(16);
     const old = { schema: 9, profile: { level: 12 }, inventory: { Fabric: 3 }, buddy: { outfit: { hat: null } }, quests: { done: {}, pinned: [], objectives: { a: [1] } } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(15);
+    expect(s.schema).toBe(16);
     expect(s.games).toEqual(emptyGames());
     expect(s.profile.level).toBe(12);
     expect(s.inventory).toEqual({ Fabric: 3 });
@@ -427,7 +427,7 @@ describe('schéma 11 a store', () => {
   it('stav a záloha schématu 10 (0.11.0) se načtou beze ztrát; hack začne od nuly', () => {
     const games10 = { tetris: { played: 4, best: 31000, bestPct: 96 }, quiz: { played: 3, best: 9, streak: 5, bestStreak: 12 }, paints: ['olive', 'rust', 'night'], paint: 'night' };
     const s = normalize({ schema: 10, profile: { level: 33 }, inventory: { Fabric: 9 }, games: games10 }, NOW);
-    expect(s.schema).toBe(15);
+    expect(s.schema).toBe(16);
     expect(s.games).toEqual({ ...games10, hack: { played: 0, bestPct: 0, perfect: 0 } });
     expect(s.inventory).toEqual({ Fabric: 9 });
     expect(s.profile.level).toBe(33);
@@ -436,15 +436,15 @@ describe('schéma 11 a store', () => {
     expect(p.state.games).toEqual({ ...games10, hack: { played: 0, bestPct: 0, perfect: 0 } });
     expect(p.state.inventory).toEqual({ Fabric: 9 });
   });
-  it('záloha nese minihry a nátěry a vrátí je beze změny; schéma 16 je novější verze', () => {
+  it('záloha nese minihry a nátěry a vrátí je beze změny; schéma 17 je novější verze', () => {
     const s = defaultState(NOW);
     s.games = normalizeGames({ tetris: { played: 2, best: 30000, bestPct: 95 }, quiz: { played: 1, best: 8, streak: 3, bestStreak: 8 }, hack: { played: 3, bestPct: 100, perfect: 1 }, paints: ['olive', 'arctic', 'circuit', 'uplink'], paint: 'uplink' });
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(15);
+    expect(file.schema).toBe(16);
     expect(file.state.games).toEqual(s.games);
     const p = parseBackup(makeBackup(s), NOW);
     expect('error' in p ? p.error : p.state).toEqual(s);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 16, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 17, state: {} }), NOW)).toHaveProperty('error');
   });
   it('finishGame mění jen minihry; nátěr jde vybrat jen odemčený', async () => {
     const { app, state } = await makeApp({ schema: 9, profile: { level: 30, coins: 1234 }, inventory: { 'Metal Parts': 7 } });

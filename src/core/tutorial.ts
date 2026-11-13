@@ -5,6 +5,7 @@
 import type { OpsAnim } from './ops';
 import type { LineKey } from '../i18n/opsLines';
 import type { OpsPrefs, TutorialStep } from './types';
+import { TUTORIAL_STEPS } from './opsPrefs';
 
 export type ReplyId = 'start' | 'know' | 'shot' | 'manual' | 'backup' | 'later' | 'done' | 'setKey' | 'next' | 'show' | 'skipTour' | 'tryCompact' | 'settings' | 'finish' | 'resume';
 export interface Reply { id: ReplyId; primary?: boolean; disabled?: boolean }
@@ -29,6 +30,11 @@ export const STEPS: Record<TutorialStep, StepDef> = {
   'tour-workshop': { id: 'tour-workshop', line: 'tut.workshop', gesture: 'point-left', target: 'workshop', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
   'tour-quests': { id: 'tour-quests', line: 'tut.quests', gesture: 'point-left', target: 'quests', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
   'tour-builds': { id: 'tour-builds', line: 'tut.builds', gesture: 'point-left', target: 'skills', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
+  /* 0.19.0: novější funkce, každá jednou větou; „Přeskočit prohlídku“ jde i tady */
+  'tour-advisor': { id: 'tour-advisor', line: 'tut.advisor', gesture: 'point-left', target: 'dashboard', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
+  'tour-raid': { id: 'tour-raid', line: 'tut.raid', gesture: 'point-left', target: 'raid', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
+  'tour-map': { id: 'tour-map', line: 'tut.map', gesture: 'point-left', target: 'maps', replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
+  'tour-search': { id: 'tour-search', line: 'tut.search', gesture: 'point-up', target: null, replies: [{ id: 'next', primary: true }, { id: 'show' }, { id: 'skipTour' }] },
   'tour-compact': { id: 'tour-compact', line: 'tut.compact', gesture: 'point-up', target: null, replies: [{ id: 'next', primary: true }, { id: 'tryCompact' }] },
   buddy: { id: 'buddy', line: 'tut.buddy', gesture: 'point-down', target: 'settings', replies: [{ id: 'next', primary: true }, { id: 'settings' }] },
   end: { id: 'end', line: 'tut.end', gesture: 'success', target: null, replies: [{ id: 'finish', primary: true }] },
@@ -37,7 +43,13 @@ export const STEPS: Record<TutorialStep, StepDef> = {
 /* Modul, který odpověď „ukázat“ otevře (podsekce za lomítkem). */
 const SHOW: Partial<Record<TutorialStep, string>> = {
   'tour-inventory': 'inventory', 'tour-workshop': 'workshop', 'tour-quests': 'quests', 'tour-builds': 'skills/builds',
+  'tour-advisor': 'dashboard', 'tour-raid': 'raid', 'tour-map': 'maps',
 };
+/* Pořadí prohlídky (odpověď „Dál“). */
+const TOUR: TutorialStep[] = ['tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds', 'tour-advisor', 'tour-raid', 'tour-map', 'tour-search', 'tour-compact'];
+/* Kroky do počítadla „Krok n z m“ (ruční vyplnění profilu a načtení ze snímku jsou jen odbočky kroku profilu). */
+export const COUNTED_STEPS: readonly TutorialStep[] = TUTORIAL_STEPS.filter(x => x !== 'profile-manual' && x !== 'profile-shot');
+export const stepNumber = (step: TutorialStep): number => COUNTED_STEPS.indexOf(step === 'profile-manual' || step === 'profile-shot' ? 'profile' : step) + 1;
 
 export interface TutorialEffect {
   /* nový stav průvodce (beze změny = undefined) */
@@ -46,6 +58,8 @@ export interface TutorialEffect {
   navigate?: string;
   /* přepnout okno do kompaktního režimu */
   compact?: boolean;
+  /* 0.19.0: otevřít hledání (Ctrl+K) */
+  search?: boolean;
 }
 
 const at = (step: TutorialStep): OpsPrefs['tutorial'] => ({ status: 'active', step });
@@ -72,10 +86,10 @@ export function reply(step: TutorialStep, id: ReplyId): TutorialEffect {
       if (id === 'next') return { tutorial: at('tour-inventory') };
       if (id === 'setKey') return { navigate: 'settings' };
       return {};
-    case 'tour-inventory': case 'tour-workshop': case 'tour-quests': case 'tour-builds': {
-      const order: TutorialStep[] = ['tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds', 'tour-compact'];
-      if (id === 'next') return { tutorial: at(order[order.indexOf(step) + 1]) };
-      if (id === 'show') return { navigate: SHOW[step] };
+    case 'tour-inventory': case 'tour-workshop': case 'tour-quests': case 'tour-builds':
+    case 'tour-advisor': case 'tour-raid': case 'tour-map': case 'tour-search': {
+      if (id === 'next') return { tutorial: at(TOUR[TOUR.indexOf(step) + 1]) };
+      if (id === 'show') return step === 'tour-search' ? { search: true } : { navigate: SHOW[step] };
       if (id === 'skipTour') return { tutorial: at('buddy') };
       return {};
     }

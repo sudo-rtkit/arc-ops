@@ -19,8 +19,9 @@ import { formForLevel, partName, sleepAfterMs, type OpsAnim } from '../core/ops'
 import { BUDDY_TOUCH_MS, type SoundId } from '../core/opsSound';
 import { bubbleMs, createMemo, line, lineGesture, sayLine, type LineRef } from '../core/opsVoice';
 import { isTauri } from '../storage/tauri';
-import { setLang } from '../i18n';
-import { useT } from '../i18n/react';
+import { setLang } from '../i18n/core';
+import { useLang } from '../i18n/react';
+import { BUDDY_TEXT } from '../i18n/buddyText';
 
 const bus = createBus('buddy');
 const native = createNative();
@@ -42,7 +43,7 @@ type Mon = Awaited<ReturnType<Win['availableMonitors']>>[number];
 const rectOf = (m: Mon): Rect => ({ x: m.position.x, y: m.position.y, w: m.size.width, h: m.size.height });
 
 export default function BuddyApp() {
-  const t = useT();
+  const uiLang = useLang();
   const [view, setView] = useState<BuddyView | null>(null);
   const [bubble, setBubble] = useState<string | null>(null);
   const [opsAt, setOpsAt] = useState({ x: 0, y: 0, below: false, right: false });
@@ -281,7 +282,7 @@ export default function BuddyApp() {
   return (
     <div className="buddy" onContextMenu={e => e.preventDefault()}>
       {bubble && <div className={'buddy-bubble' + (opsAt.below ? ' below' : '') + (opsAt.right ? ' right' : '')} role="status" data-testid="buddy-bubble">{bubble}</div>}
-      <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={t('ops.buddyAria')}
+      <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={BUDDY_TEXT[uiLang].aria}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
         <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" />

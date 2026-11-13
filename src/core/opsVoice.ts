@@ -1,7 +1,7 @@
 /* Hlas Opse (0.10.0): výběr hlášky podle povahy a jazyka, střídání variant bez okamžitého opakování a gesto,
    které se k hlášce hodí (povaha mění text a případně gesto, nikdy identitu robota). Čisté funkce bez DOM. */
 import { OPS_LINES, type LineKey } from '../i18n/opsLines';
-import { interpolate, plural, type Lang, type Params } from '../i18n';
+import { interpolate, plural, type Lang, type Params } from '../i18n/core';
 import type { OpsPersonality } from './types';
 import type { OpsAnim } from './ops';
 import type { CompactUpgrade } from './compact';

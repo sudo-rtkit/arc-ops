@@ -5,7 +5,9 @@ import { clampInt, isObj } from './util';
 
 export const PERSONALITIES: readonly OpsPersonality[] = ['plain', 'friendly', 'cheeky'];
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
-  'welcome', 'profile', 'profile-manual', 'profile-shot', 'capture', 'tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds', 'tour-compact', 'buddy', 'end',
+  'welcome', 'profile', 'profile-manual', 'profile-shot', 'capture', 'tour-inventory', 'tour-workshop', 'tour-quests', 'tour-builds',
+  /* 0.19.0: novější funkce (rádce, příprava na raid a záložka Raid v overlayi, mapa ze snímku, Ctrl+K a karta předmětu) */
+  'tour-advisor', 'tour-raid', 'tour-map', 'tour-search', 'tour-compact', 'buddy', 'end',
 ];
 const STATUSES: readonly TutorialStatus[] = ['new', 'active', 'done', 'skipped'];
 export const VOLUME_DEFAULT = 25;

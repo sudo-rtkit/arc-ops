@@ -11,9 +11,9 @@ import { OpsCanvas } from '../ops/OpsCanvas';
 import { hub } from '../ops/mainHub';
 import { hotkeyFrom, hotkeyLabel } from '../ops/hotkey';
 import { MODE_KEY, PIN_KEY } from '../core/mainWindow';
-import { PERSONALITIES, TUTORIAL_STEPS } from '../core/opsPrefs';
+import { PERSONALITIES } from '../core/opsPrefs';
 import { line, sayLine } from '../core/opsVoice';
-import { restart } from '../core/tutorial';
+import { COUNTED_STEPS, restart, stepNumber } from '../core/tutorial';
 import { mainSound } from '../ops/mainHub';
 import { useUi } from '../store/ui';
 import { DEFAULT_PAINT, PAINTS } from '../core/paints';
@@ -151,7 +151,8 @@ export function OpsVoicePanel() {
   useEffect(() => setVolume(p.volume), [p.volume]);
   const sample = useMemo(() => sayLine(SAMPLE, p.personality, t.lang), [p.personality, t.lang]);
   const commit = () => { if (volume !== p.volume) actions.setOpsPrefs({ volume }); };
-  const n = TUTORIAL_STEPS.filter(x => x !== 'profile-manual').indexOf(p.tutorial.step === 'profile-manual' ? 'profile' : p.tutorial.step) + 1;
+  /* 0.19.0: stejné počítadlo jako karta průvodce (dřív tu odbočka „ze snímku“ posouvala čísla o jedna) */
+  const n = stepNumber(p.tutorial.step);
   return (
     <Panel title={t('opsVoice.title')}>
       <div className="stack" data-testid="ops-voice">
@@ -179,7 +180,7 @@ export function OpsVoicePanel() {
         <p className="meta">{t('opsVoice.advisorHint')}</p>
         <div className="field">
           <span className="field-label">{t('opsVoice.tutorial')}</span>
-          <p className="meta" data-testid="tour-status">{p.tutorial.status === 'active' ? t('opsVoice.tour.active', { n, total: TUTORIAL_STEPS.length - 1 }) : t(`opsVoice.tour.${p.tutorial.status}` as Key)}</p>
+          <p className="meta" data-testid="tour-status">{p.tutorial.status === 'active' ? t('opsVoice.tour.active', { n, total: COUNTED_STEPS.length }) : t(`opsVoice.tour.${p.tutorial.status}` as Key)}</p>
           <div className="row"><Btn size="sm" icon={RotateCcw} data-testid="tour-restart" onClick={() => { useUi.setState({ tourHidden: false }); actions.setOpsPrefs({ tutorial: restart() }); }}>{t('opsVoice.tourRestart')}</Btn></div>
         </div>
       </div>

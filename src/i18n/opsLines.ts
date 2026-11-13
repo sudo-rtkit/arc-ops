@@ -3,7 +3,7 @@
    (src/core/opsVoice.ts). Drzost je jen hravá: nikdy urážlivá ani vulgární, žádné narážky na skutečné hráče.
    Parametry jako ve slovníku: {count} číslo, {name:raw} text beze změny. Plurály { one, few, other }.
    Tón inspirovaný ukecanými roboty, ale vlastní texty (žádné hlášky cizích postav). Hlídá tests/i18n/ops-lines.test.ts. */
-import type { Lang, Msg } from './index';
+import type { Lang, Msg } from './core';
 import type { OpsPersonality } from '../core/types';
 
 export type LineVariants = Record<OpsPersonality, Msg[]>;
@@ -236,6 +236,27 @@ const cs = {
     plain: ['Buildy: v Skill Tree je katalog buildů a porovnání s tvým stromem.', 'Skill Tree obsahuje buildy a plán bodů.'],
     friendly: ['V Skill Tree najdeš buildy. Porovnej je se svým stromem.', 'Buildy! Vyber si plán a já ukážu další bod.'],
     cheeky: ['Buildy. Konečně důvod přestat klikat body náhodně.', 'Skill Tree. Tady se rozhoduje, jestli budeš rychlý, nebo jen hlasitý.'],
+  },
+  /* 0.19.0: průvodce představí i novější funkce */
+  'tut.advisor': {
+    plain: ["„Co dál?“ na Dashboardu: seřazené další kroky i s důvodem.", "Dashboard ukazuje „Co dál?“: nejdůležitější tipy s důvodem."],
+    friendly: ["Nevíš, co dál? Na Dashboardu ti v kartě „Co dál?“ poradím i s důvodem.", "Karta „Co dál?“ na Dashboardu: moje rady, seřazené podle důležitosti."],
+    cheeky: ["„Co dál?“ na Dashboardu. Já radím, ty sklízíš slávu.", "Ztracený? Karta „Co dál?“ ví, co dělat. Teda já vím."],
+  },
+  'tut.raid': {
+    plain: ["Příprava na raid: co hledat, kam jít a co si vzít. Seznam je i v overlayi v záložce Raid.", "Před raidem otevři Přípravu na raid. Během hry ji máš v overlayi v záložce Raid."],
+    friendly: ["Před raidem mrkni do Přípravy na raid. Řeknu ti, co hledat a kam jít. Nad hrou to máš v záložce Raid.", "Příprava na raid ti sestaví seznam na cestu. V overlayi ho najdeš pod záložkou Raid."],
+    cheeky: ["Příprava na raid: nákupní seznam, jen se u toho střílí. V overlayi pod záložkou Raid.", "Jít do raidu bez plánu? Odvážné. Příprava na raid to spraví, i v overlayi."],
+  },
+  'tut.map': {
+    plain: ["Mapy: přidej vlastní snímek herní mapy a dostaneš interaktivní mapu s body.", "V Mapách si z vlastního snímku mapy uděláš interaktivní mapu."],
+    friendly: ["V Mapách stačí vložit snímek herní mapy a máš interaktivní mapu se svými body.", "Vyfoť si mapu ve hře a vlož ji do Map. Body si pak zapíšeš přímo na ni."],
+    cheeky: ["Mapy: vlož svůj snímek mapy. Žádné cizí mapy, jen tvoje umělecké dílo.", "Snímek mapy do Map a máš mapu s body. Kartograf Ops ke službám."],
+  },
+  'tut.search': {
+    plain: ["Ctrl+K hledá všude. Klikni na předmět a jeho karta ukáže, proč ho potřebuješ.", "Hledání: Ctrl+K. Karta předmětu ukáže, kde je potřeba a jestli ho nechat."],
+    friendly: ["Hledáš něco? Ctrl+K najde předměty, úkoly i stanice. Karta předmětu ti řekne, proč ho potřebuješ.", "Zkus Ctrl+K. A klikni na předmět: karta řekne, jestli ho nechat, recyklovat nebo prodat."],
+    cheeky: ["Ctrl+K najde všechno. Kromě tvých ztracených ponožek.", "Ctrl+K a karta předmětu: konec otázky „k čemu mi tohle je?“."],
   },
   'tut.compact': {
     plain: ['Kompaktní režim: malé okno s levelem, úkoly a nákupy. Ctrl+Shift+M.', 'Ctrl+Shift+M přepne do kompaktu, menšího okna vedle hry.'],
@@ -660,6 +681,26 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['Builds: Skill Tree has a build catalog and a comparison with your tree.', 'Skill Tree holds builds and the point plan.'],
     friendly: ['In Skill Tree you will find builds. Compare them with your tree.', 'Builds! Pick a plan and I will show the next point.'],
     cheeky: ['Builds. Finally a reason to stop clicking points at random.', 'Skill Tree. Where you decide whether to be fast or just loud.'],
+  },
+  'tut.advisor': {
+    plain: ["\"What next?\" on the Dashboard: your next steps, ranked, with a reason.", "The Dashboard shows \"What next?\": the top tips with a reason."],
+    friendly: ["Not sure what to do next? The \"What next?\" card on the Dashboard tells you, and why.", "\"What next?\" on the Dashboard: my tips, ranked by importance."],
+    cheeky: ["\"What next?\" on the Dashboard. I advise, you take the credit.", "Lost? The \"What next?\" card knows what to do. Well, I do."],
+  },
+  'tut.raid': {
+    plain: ["Raid prep: what to look for, where to go and what to bring. The list is also in the overlay Raid tab.", "Open Raid prep before a raid. In game, it is in the overlay Raid tab."],
+    friendly: ["Check Raid prep before a raid. I tell you what to look for and where to go. Over the game it is in the Raid tab.", "Raid prep builds your list for the trip. Find it in the overlay under the Raid tab."],
+    cheeky: ["Raid prep: a shopping list, just with more shooting. In the overlay under the Raid tab.", "Raiding without a plan? Bold. Raid prep fixes that, in the overlay too."],
+  },
+  'tut.map': {
+    plain: ["Maps: add your own screenshot of the in-game map to get an interactive map with points.", "In Maps, your own map screenshot becomes an interactive map."],
+    friendly: ["In Maps, just add a screenshot of the in-game map and you get an interactive map with your points.", "Screenshot the map in game and add it to Maps. Then mark your points right on it."],
+    cheeky: ["Maps: add your own map screenshot. No borrowed maps, only your masterpiece.", "Map screenshot into Maps and you have a map with points. Cartographer Ops at your service."],
+  },
+  'tut.search': {
+    plain: ["Ctrl+K searches everywhere. Click an item and its card shows why you need it.", "Search: Ctrl+K. The item card shows where it is needed and whether to keep it."],
+    friendly: ["Looking for something? Ctrl+K finds items, quests and stations. The item card tells you why you need it.", "Try Ctrl+K. And click an item: its card says whether to keep, recycle or sell it."],
+    cheeky: ["Ctrl+K finds everything. Except your lost socks.", "Ctrl+K and the item card: the end of \"what is this even for?\"."],
   },
   'tut.compact': {
     plain: ['Compact mode: a small window with level, quests and shopping. Ctrl+Shift+M.', 'Ctrl+Shift+M switches to compact, a smaller window next to the game.'],

@@ -541,3 +541,25 @@ td .item-link b, li .item-link b { font-weight: var(--weight-semibold); }
 .settings-anchor { display: block; height: 0; margin-bottom: calc(-1 * var(--gap)); scroll-margin-top: var(--space-4); }
 .search-hit { outline: 2px solid var(--accent); outline-offset: 2px; transition: outline-color var(--t-fast); }
 .item-card:focus { outline: none; }
+
+/* ----- 0.19.0: „Co je nového“ (karta nahoře v obsahu, není modální) ----- */
+.whatsnew-wrap { max-width: var(--page-max-w); margin: 0 auto; padding: var(--content-pad) var(--content-pad) 0; }
+.whatsnew { border-color: var(--accent); }
+.whatsnew:focus { outline: none; }
+.whatsnew:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.whatsnew .panel-head h2 { display: inline-flex; align-items: center; gap: 8px; }
+.whatsnew .panel-head h2 svg { color: var(--accent); }
+.whatsnew .panel-head .meta { flex: 1; min-width: 0; }
+.whatsnew-release + .whatsnew-release { margin-top: var(--space-3); }
+.whatsnew-release h3 { font-size: var(--font-size-md); margin-bottom: 6px; }
+.whatsnew-v { color: var(--accent); font-size: 12px; letter-spacing: .08em; margin-right: 6px; }
+.whatsnew-release ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.whatsnew-release li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding-left: 14px; position: relative; color: var(--text-secondary); }
+.whatsnew-release li::before { content: ''; position: absolute; left: 2px; top: .6em; width: 5px; height: 5px; background: var(--accent); }
+.whatsnew-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; background: none; border: 0; color: var(--accent); font: inherit; font-weight: var(--weight-medium, 500); cursor: pointer; white-space: nowrap; }
+.whatsnew-link:hover { text-decoration: underline; }
+.whatsnew-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.whatsnew-older { margin-top: var(--space-3); }
+.whatsnew-older summary { cursor: pointer; color: var(--text-secondary); }
+.whatsnew-older[open] summary { margin-bottom: var(--space-2); }
+.whatsnew-foot { margin-top: var(--space-3); justify-content: space-between; align-items: center; }

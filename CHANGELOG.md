@@ -4,6 +4,33 @@ Condensed from the existing Czech README. Versions below describe shipped behavi
 
 The [original Czech technical release notes](docs/history/README-0.13.1.cs.md) are preserved in full, including the intermediate 0.12.1 buddy fix later extended by 0.13.1. Release notes describe implemented versions; they do not imply an installer has been uploaded to GitHub Releases.
 
+## 0.19.0 — Polish: “What's new”, a refreshed guide and a faster start
+
+- **“What's new” after an update** (`src/core/whatsnew.ts`, data in `src/core/data/whatsnew.ts`, card in `src/shell/WhatsNew.tsx`). When the app version is newer than the last version this PC has seen, a non-modal card at the top of the main window lists short CS/EN highlights of every version since then (newest open, older ones folded under “Older versions”). It never takes focus and never blocks the module below it; it waits while the first-run guide is on screen.
+  - Highlights link to their module: Raid prep, Maps, “What next?”, Search (opens Ctrl+K), Item Database (item card), Buddy and overlay settings (overlay App), Minigames, Quests, Profile. Following a link or “Got it”/× closes the card for good.
+  - **Settings → About** shows the real app version and a “What's new” button that reopens the card with all versions 0.10.0–0.19.0 (searchable with Ctrl+K too).
+  - The highlights are a small structured data file; CHANGELOG.md is never read at runtime. A test keeps the newest entry equal to the version in `package.json`, `tauri.conf.json` and `Cargo.toml`.
+  - **Schema 16:** `whatsNew.seen`, the last version this PC has seen. It belongs to this PC like the Ops preferences: importing a backup, restoring a snapshot or resetting never changes it. A fresh install starts at the current version (no card; the first-run guide handles it). An older state without the field gets the last version that wrote its schema (schema 15 → 0.18.0, 14 → 0.16.1, 13 → 0.14.0, …, below 8 → 0.9.0), so you only see what is new to you. Same version or going back to an older version shows nothing; closing the card stores the newer of the two versions, so a downgrade and re-upgrade does not repeat it. Newer schema 17 is rejected.
+- **First-run guide** gets four short steps after the builds step: the “What next?” advisor, Raid prep with the overlay Raid tab, the interactive map from your own screenshot, and Ctrl+K search with the item card (“Show me” opens the palette). Every step can still skip the rest of the tour. Players who already finished or skipped the guide are not sent through it again; they get the What's new card instead.
+- **Faster start, smaller windows.** All modules except the Dashboard now load on first use in the main window (`React.lazy`, the module registry is unchanged) and are prefetched when the app is idle, so the first switch does not wait; a small “Loading module…” state covers the gap. If a module fails to open, only that page shows a message; the rest of the window keeps working. The overlay already loaded full modules lazily and keeps its loading state. The i18n core (`src/i18n/core.ts`) no longer carries the dictionaries: the buddy window, which only needs Ops lines and one label, no longer loads both 135 KB dictionaries.
+
+  | Loaded at start (JS) | 0.18.0 | 0.19.0 |
+  | --- | --- | --- |
+  | Main window | 1,985 KB (588 KB gzip) | 1,709 KB (509 KB gzip) |
+  | Buddy | 791 KB (233 KB gzip) | 526 KB (151 KB gzip) |
+  | Overlay | 1,687 KB (497 KB gzip) | 1,700 KB (503 KB gzip) |
+
+  Measured with `node scripts/bundle-size.mjs` after `pnpm build` (entry script plus modulepreload). The rest of the main and overlay start-up is React, the item catalogue and both dictionaries.
+- **Rough edges fixed:**
+  - Settings → About said “ARC Raiders Companion 0.9”; it now shows the real version.
+  - The guide's progress in Settings (“step n of 11”) disagreed with the guide card (“of 10”) and counted the screenshot branch as an extra step; both now use one counter.
+  - Searching for “What's new” or “Co je nového” finds Settings → About.
+  - “Show me” on the search step works from the compact window too (switches to the full app first).
+  - Switching to a module for the first time shows a module loading state instead of the generic “Loading local data…”.
+  - The sidebar could miss a window resize that happened during start-up and stay expanded (or collapsed) at the wrong width; it now re-reads the width once it listens.
+- No new permissions, commands, events, bus routes or relayed actions. Closing the card (`whatsNewSeen`) is a main-window-only action: the overlay relay blocks it like the other per-PC settings.
+- Tests: unit tests for the version logic (first install, upgrade by several versions, same version, downgrade, unknown values, schema migration, backup import/reset not changing it, relay block) and the guide counter; new E2E tests in CS and EN for the card after a simulated upgrade, opening a highlight link, reopening from Settings, fresh install and same version (no card), closing with ×, and the new guide steps.
+
 ## 0.18.0 — Search everywhere (Ctrl+K) and the item card: “Why do I need this?”
 
 - **Item card** (`src/core/itemCard.ts`, `src/ui/ItemCard.tsx`): one view for any item, built only from existing logic (no second calculation):

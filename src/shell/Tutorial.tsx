@@ -14,7 +14,7 @@ import { mainSound } from '../ops/mainHub';
 import { hotkeyLabel } from '../ops/hotkey';
 import { resolveOutfit } from '../core/ops';
 import { line, type LineRef } from '../core/opsVoice';
-import { STEPS, isResume, reply, skip, tutorialShown, type ReplyId } from '../core/tutorial';
+import { COUNTED_STEPS, STEPS, isResume, reply, skip, stepNumber, tutorialShown, type ReplyId } from '../core/tutorial';
 import { TUTORIAL_STEPS } from '../core/opsPrefs';
 import { expandTo, windowCtl } from './windowCtl';
 import { cx } from '../ui/components';
@@ -25,8 +25,6 @@ const autoStart = (): boolean => {
   const w = window as unknown as { __arcopsTutorial?: boolean };
   return !navigator.webdriver || w.__arcopsTutorial === true;
 };
-/* kroky do počítadla (ruční vyplnění profilu a načtení ze snímku jsou jen odbočky) */
-const COUNTED = TUTORIAL_STEPS.filter(x => x !== 'profile-manual' && x !== 'profile-shot');
 /* ptát se na pokračování jen jednou za relaci */
 let resumeAsked = false;
 
@@ -84,9 +82,10 @@ export function Tutorial({ compact }: { compact: boolean }) {
     if (e.tutorial) actions.setOpsPrefs({ tutorial: e.tutorial });
     if (e.navigate) go(e.navigate);
     if (e.compact) void windowCtl.setMode('compact');
+    if (e.search) { if (compact) void windowCtl.setMode('full').then(() => useUi.getState().openSearch()); else useUi.getState().openSearch(); }
   };
   const replies = resume ? [{ id: 'resume' as const, primary: true }] : def.replies;
-  const n = COUNTED.indexOf(tut.step === 'profile-manual' || tut.step === 'profile-shot' ? 'profile' : tut.step) + 1;
+  const n = stepNumber(tut.step);
 
   return (
     <aside ref={card} className={cx('tour', compact && 'tour--compact')} aria-label={t('tut.label')} data-testid="tour" data-step={resume ? 'resume' : tut.step}>
@@ -94,7 +93,7 @@ export function Tutorial({ compact }: { compact: boolean }) {
         restAnim={sp.talking ? 'talk' : 'idle'} />
       <div className="tour-bubble">
         <div className="tour-head">
-          <span className="tour-step mono">{t('tut.step', { n, total: COUNTED.length })}</span>
+          <span className="tour-step mono">{t('tut.step', { n, total: COUNTED_STEPS.length })}</span>
           <button type="button" className="tour-x" aria-label={t('tut.hide')} title={t('tut.hide')} onClick={() => useUi.setState({ tourHidden: true })}><X size={15} aria-hidden="true" /></button>
         </div>
         <p className="tour-line" role="status" data-testid="tour-line">{sp.text}</p>

@@ -26,6 +26,8 @@ function watchErrors(page: Page): string[] {
 /* Vložení obrázku událostí paste (stejně jako Ctrl+V se snímkem ve schránce). */
 async function pasteImage(page: Page, file: string) {
   const b64 = readFileSync(file).toString('base64');
+  /* 0.19.0: modul se načítá líně; vložení poslouchá až připojený import */
+  await expect(page.getByTestId('scan-drop')).toBeVisible();
   await page.evaluate(async (data) => {
     const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
     const dt = new DataTransfer();
@@ -83,7 +85,7 @@ test.describe('Ze snímku (čeština)', () => {
     await expect(page.locator('.scan-table')).toHaveCount(0);
 
     const st = await stateOf(page);
-    expect(st.schema).toBe(15);
+    expect(st.schema).toBe(16);
     expect(st.inventory['Magnetic Accelerator']).toBe(8);
     expect(st.inventory['Testovací díl']).toBe(19);
     expect(st.gameData.materialsCustom.map((m: { name: string }) => m.name)).toContain('Testovací díl');
@@ -128,6 +130,7 @@ test.describe('Ze snímku (čeština)', () => {
 
   test('snímek bez inventory: hláška a nic se nezapíše', async ({ page }) => {
     await page.goto('/#inventory/import');
+    await expect(page.getByTestId('scan-drop')).toBeVisible();
     /* obrázek 64×36 jedné barvy */
     await page.evaluate(async () => {
       const c = document.createElement('canvas'); c.width = 64; c.height = 36;

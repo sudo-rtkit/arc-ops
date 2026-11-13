@@ -181,6 +181,15 @@ describe('průvodce prvním spuštěním', () => {
     expect(go('show')).toEqual({ navigate: 'inventory' });
     go('next'); go('next'); go('next'); expect(st.step).toBe('tour-builds');
     expect(go('show')).toEqual({ navigate: 'skills/builds' });
+    /* 0.19.0: rádce, příprava na raid, mapa ze snímku a hledání */
+    go('next'); expect(st.step).toBe('tour-advisor');
+    expect(go('show')).toEqual({ navigate: 'dashboard' });
+    go('next'); expect(st.step).toBe('tour-raid');
+    expect(go('show')).toEqual({ navigate: 'raid' });
+    go('next'); expect(st.step).toBe('tour-map');
+    expect(go('show')).toEqual({ navigate: 'maps' });
+    go('next'); expect(st.step).toBe('tour-search');
+    expect(go('show')).toEqual({ search: true });
     go('next'); expect(st.step).toBe('tour-compact');
     expect(go('tryCompact')).toEqual({ compact: true });
     go('next'); expect(st.step).toBe('buddy');
@@ -190,6 +199,7 @@ describe('průvodce prvním spuštěním', () => {
     for (const step of TUTORIAL_STEPS) expect(skip(step)).toEqual({ status: 'skipped', step });
     expect(reply('welcome', 'know').tutorial?.status).toBe('skipped');
     expect(reply('tour-workshop', 'skipTour').tutorial?.step).toBe('buddy');
+    for (const step of ['tour-advisor', 'tour-raid', 'tour-map', 'tour-search'] as const) expect(reply(step, 'skipTour').tutorial?.step).toBe('buddy');
     expect(STEPS.profile.replies.find(r => r.id === 'shot')?.disabled).toBeFalsy();
     expect(reply('profile', 'shot')).toEqual({ tutorial: { status: 'active', step: 'profile-shot' }, navigate: 'profile/shot' });
     expect(reply('profile-shot', 'done').tutorial?.step).toBe('capture');
@@ -213,8 +223,8 @@ describe('schéma 8: povaha, zvuky a průvodce', () => {
   it('starší stav (schéma 7) se načte beze ztráty a dostane výchozí hodnoty', () => {
     const s7 = { schema: 7, profile: { level: 33, coins: 1200 }, inventory: { 'Metal Parts': 5 }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' }, unlocked: ['antenna-1', 'antenna-2'] }, mainWindow: { mode: 'compact' } };
     const s = normalize(s7, NOW);
-    expect(SCHEMA).toBe(15);
-    expect(s.schema).toBe(15);
+    expect(SCHEMA).toBe(16);
+    expect(s.schema).toBe(16);
     expect(s.profile).toMatchObject({ level: 33, coins: 1200 });
     expect(s.inventory).toEqual({ 'Metal Parts': 5 });
     expect(s.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, outfit: { antenna: 'antenna-2' } });

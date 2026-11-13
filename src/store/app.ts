@@ -28,6 +28,7 @@ import { applyProgress, type ProgressApply, type ProgressSummary } from '../core
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs } from '../core/opsPrefs';
+import { markSeen } from '../core/whatsnew';
 import { applyGameResult, applyQuizAnswer, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
 import { answerQuiz, discardRound, finishRound, mergeRounds, saveRound, type GameId } from '../core/gameRounds';
 import type { GameRounds, SavedQuiz } from '../core/types';
@@ -287,6 +288,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     n.opsPrefs = structuredClone(st().opsPrefs);
     /* 0.17.0: poslední záloha je fakt o tomto počítači; starší záloha ani reset ji nevrátí do minulosti */
     n.advisor.backupAt = Math.max(n.advisor.backupAt, st().advisor.backupAt);
+    /* 0.19.0: poslední viděná verze („Co je nového“) patří tomuto počítači; záloha ji nemění */
+    n.whatsNew = structuredClone(st().whatsNew);
     const roll = rollTrials(n);
     const s = roll ? roll.state : n;
     syncGoals(s, now());
@@ -1083,6 +1086,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     advisorDismiss(id: string, key: string) { change(s => { if (!dismissTip(s.advisor, String(id), String(key), now())) return false; }); },
     advisorSnooze(id: string, days: number) { change(s => { if (!snoozeTip(s.advisor, String(id), clampInt(days, 1, SNOOZE_DAYS_MAX), now())) return false; }); },
     advisorRestore(id: string) { change(s => { if (!restoreTip(s.advisor, String(id))) return false; }); },
+    /* 0.19.0: karta „Co je nového“ zavřená; seen = max(seen, aktuální verze) */
+    whatsNewSeen() { change(s => { const n = markSeen(s.whatsNew); if (!n) return false; s.whatsNew = n; }); },
     advisorRestoreAll() { change(s => { if (!restoreAllTips(s.advisor)) return false; }); },
     /* šatník: 'auto' = podle levelu, null = bez dílu, jinak díl ze sbírky */
     setBuddyOutfit(slot: string, value: string | null) {

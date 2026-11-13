@@ -121,6 +121,8 @@ test('Statistics: dvojice hlavních grafů je pod sebou při 1280 a vedle sebe p
   const strokes = await page.locator('.chart-box svg line').evaluateAll(ls => [...new Set(ls.map(l => l.getAttribute('stroke')))]);
   expect(strokes).toEqual(['var(--chart-grid)']);
   await page.goto('/#maps');
+  /* 0.19.0: modul Maps se načítá líně */
+  await expect(page.locator('svg[aria-label^="Odemykání map"]')).toBeVisible();
   const axis = await page.locator('svg[aria-label^="Odemykání map"] line').evaluateAll(ls => ls.map(l => l.getAttribute('stroke')));
   expect(axis.filter(s => s === 'var(--chart-grid)').length).toBeGreaterThan(0);
   expect(axis.filter(s => s === 'var(--border-subtle)')).toEqual([]);

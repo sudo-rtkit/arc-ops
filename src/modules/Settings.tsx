@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Camera, Copy, Download, FolderOpen, History, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Camera, Copy, Download, FolderOpen, History, RotateCcw, Sparkles, Trash2, Upload } from 'lucide-react';
 import { actions, app, useApp, useAppState } from '../store';
 import { RESET_MODULES, resetImpact, resetName, type ResetModule } from '../store/app';
 import { Badge, Btn, Confirm, ConfirmButton, Dialog, Empty, ExtLink, FieldError, PageHead, Panel, Select } from '../ui/components';
@@ -22,6 +22,8 @@ import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
 import { OpsPanel, OpsVoicePanel, WardrobePanel } from './OpsSettings';
 import { WindowPanel } from './WindowSettings';
+import { APP_VERSION } from '../core/whatsnew';
+import { openWhatsNew } from '../shell/WhatsNew';
 
 /* Odkazy na zdroje herních dat (uvedení zdroje). Otevřou se jen na kliknutí; aplikace z nich nic nestahuje. */
 const METAFORGE_URL = 'https://metaforge.app/arc-raiders';
@@ -304,9 +306,10 @@ export default function Settings({ sub }: { sub: string }) {
       </Panel>
       <Anchor id="about" />
       <Panel title={t('settings.about')}>
-        <p>{t('settings.version', { v: '0.9' })}</p>
+        <p data-testid="app-version">{t('settings.version', { v: APP_VERSION })}</p>
         <p className="secondary-text">{t('settings.aboutText')}</p>
         <p className="meta">{t('settings.dataText', { badge: t('origin.reserse') })}</p>
+        <div className="row"><Btn size="sm" icon={Sparkles} onClick={openWhatsNew} data-testid="whatsnew-reopen">{t('settings.whatsNew')}</Btn></div>
       </Panel>
       <Anchor id="danger" />
       <DangerZone />

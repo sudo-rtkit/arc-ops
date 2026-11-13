@@ -1,5 +1,6 @@
 /* Typy herních dat a uživatelského stavu. Jádro nezná React ani úložiště. */
 import type { Lang } from '../i18n';
+import type { WhatsNewState } from './whatsnew';
 export type { Lang };
 
 export type BranchId = 'c' | 'm' | 's';
@@ -282,7 +283,7 @@ export interface MainWindowPrefs {
 /* ----- 0.10.0: povaha, zvuky a průvodce Opse; patří tomuto počítači (import zálohy je nemění) ----- */
 /* Věcný / Kamarádský / Drzý */
 export type OpsPersonality = 'plain' | 'friendly' | 'cheeky';
-export type TutorialStep = 'welcome' | 'profile' | 'profile-manual' | 'profile-shot' | 'capture' | 'tour-inventory' | 'tour-workshop' | 'tour-quests' | 'tour-builds' | 'tour-compact' | 'buddy' | 'end';
+export type TutorialStep = 'welcome' | 'profile' | 'profile-manual' | 'profile-shot' | 'capture' | 'tour-inventory' | 'tour-workshop' | 'tour-quests' | 'tour-builds' | 'tour-advisor' | 'tour-raid' | 'tour-map' | 'tour-search' | 'tour-compact' | 'buddy' | 'end';
 /* new = ještě neběžel (spustí se sám), active = rozběhnutý (po přerušení pokračuje), done / skipped = konec */
 export type TutorialStatus = 'new' | 'active' | 'done' | 'skipped';
 export interface OpsPrefs {
@@ -345,7 +346,7 @@ export interface AdvisorState {
 }
 
 export interface AppState {
-  schema: 15;
+  schema: 16;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];
@@ -390,6 +391,8 @@ export interface AppState {
   raidPlan: RaidPlan | null;
   /* 0.17.0 (schéma 15): skryté a odložené tipy rádce, čas poslední zálohy */
   advisor: AdvisorState;
+  /* 0.19.0 (schéma 16): poslední verze aplikace, kterou tento počítač viděl („Co je nového“); patří tomuto počítači */
+  whatsNew: WhatsNewState;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

@@ -24,6 +24,8 @@ interface UiStore {
   search: { open: boolean; query: string; n: number };
   openSearch: (query?: string) => void;
   closeSearch: () => void;
+  /* 0.19.0: karta „Co je nového“ otevřená z Nastavení (všechny verze); po aktualizaci se ukáže i bez toho */
+  whatsNewOpen: boolean;
 }
 
 export const useUi = create<UiStore>((set, get) => ({
@@ -45,6 +47,7 @@ export const useUi = create<UiStore>((set, get) => ({
   search: { open: false, query: '', n: 0 },
   openSearch: (query = '') => set({ search: { open: true, query: query.slice(0, 120), n: get().search.n + 1 } }),
   closeSearch: () => set({ search: { ...get().search, open: false } }),
+  whatsNewOpen: false,
 }));
 
 export const elapsed = (t: UiStore['timer'], now = Date.now()): number => t.acc + (t.running ? now - t.start : 0);

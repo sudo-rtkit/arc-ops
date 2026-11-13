@@ -72,7 +72,7 @@ for (const lang of ['cs', 'en'] as const) {
     await card.getByRole('button', { name: L.hide(L.goal) }).click();
     await expect(card.locator('[data-tip="goal:g1"]')).toHaveCount(0);
     await expect.poll(async () => (await stateOf(page))?.advisor?.dismissed).toEqual({ 'goal:g1': `${today()}:soon` });
-    expect((await stateOf(page)).schema).toBe(15);
+    expect((await stateOf(page)).schema).toBe(16);
     /* odložení o den */
     await card.getByRole('button', { name: L.snooze(L.skills) }).click();
     await expect(card.locator('[data-tip="skills"]')).toHaveCount(0);

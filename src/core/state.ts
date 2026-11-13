@@ -23,6 +23,7 @@ import { migrateMaterialNames } from './materialRename';
 import { normalizePlanRecord, normalizeRaidPlan } from './raidPrep';
 import { isLootArea, isPoiType } from './lootAreas';
 import { emptyAdvisor, normalizeAdvisor } from './advisor';
+import { emptyWhatsNew, normalizeWhatsNew } from './whatsnew';
 import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
@@ -31,7 +32,7 @@ import { RAID_TYPE_IDS } from './runs';
 import { nextStepsText, raidCheckText } from './gametext';
 import { isLang, t, tl, type Lang } from '../i18n';
 
-export const SCHEMA = 15 as const;
+export const SCHEMA = 16 as const;
 
 export const LIMITS = {
   level: [0, 75], coins: [0, 1e10], xp: [0, 1e9], xpNext: [0, 1e9], rounds: [0, 100000],
@@ -93,6 +94,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     gameRounds: emptyRounds(),
     raidPlan: null,
     advisor: emptyAdvisor(),
+    whatsNew: emptyWhatsNew(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -465,6 +467,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   /* schéma 15 (0.17.0): skryté a odložené tipy rádce a čas poslední zálohy; ve starším stavu chybí a začnou prázdné.
      Obsazenost bedny ze snímku STASH (vision.stash) doplní normalizeVision (starší stav = neznámá). */
   out.advisor = normalizeAdvisor(r.advisor);
+  /* schéma 16 (0.19.0): poslední viděná verze („Co je nového“); ve starším stavu chybí a odhadne se podle schématu */
+  out.whatsNew = normalizeWhatsNew(r.whatsNew, r.schema);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */
