@@ -55,3 +55,27 @@ Neplánujeme: SQLite a účet/cloud sync (zatím netřeba), marketplace a LFG, m
    (nástroje jen pro čtení), odpovědi s uvedením, z čeho vychází; akce jen po potvrzení; při hře v popředí neběží.
    Začátek jako volitelná cloudová varianta (vypnuto, vlastní klíč, jasně řečeno, co se posílá), lokální model
    později. Navazuje na rádce „Co dál?“ a na původ dat z 0.21.0.
+   Tři části z dokumentu uživatele, každá nad už existujícím deterministickým základem:
+   - **Intelligent Inventory** (P2): nad kartou předmětu, radami nechat/prodat/recyklovat a Úklidem;
+     AI vysvětlí a odpoví („proč si mám nechat Wires?“, „co prodat, když potřebuju místo?“).
+   - **AI Raid Planner** (P2): nad Přípravou na raid a vyhodnocením; AI navrhne varianty a vysvětlí rizika
+     a náklady loadoutu, čísla počítá Příprava na raid.
+   - **Personal AI Analyst** (P3): nad Statistikami, historií raidů a mapami; trendy a vysvětlení
+     („proč se mi na Dam nedaří?“), vždy s uvedením dat a velikosti vzorku.
+
+## Architektura (cílová)
+
+```
+ARC Raiders (obrazovky mimo raid)      Herní data (MetaForge, ARC Tracker; při vývoji)
+        │                                         │
+Vision Engine (rozpoznání + jistota)              │        Ruční zadání, import zálohy
+        │                                         │                 │
+Kontrola: jisté se zapíše se snímkem stavu, nejisté do fronty „Ke kontrole“, vše jde vrátit
+        │
+ARC OPS data (stav hráče + původ každé hodnoty: zdroj, čas, jistota, ověřeno hráčem)
+        │
+Deterministický engine (Planner, Příprava na raid, rady ke skrýši, rádce „Co dál?“, statistiky)
+        │                                   │
+Moduly: Inventář · Plánování · Statistiky   AI Agent (volitelný): jen čte přes nástroje enginu,
+(fungují bez AI)                            vysvětluje a odpovídá; akce jen po potvrzení hráče
+```
