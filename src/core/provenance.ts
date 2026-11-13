@@ -170,10 +170,14 @@ export function stampChanges(before: AppState, after: AppState, ctx: ProvCtx, no
 /* Starší stav (bez původu): zadané hodnoty dostanou zdroj „migration“. Čas jen tam, kde ho stav zná. */
 export function seedMigration(s: AppState): ProvenanceState {
   const p = emptyProvenance();
+  /* Čas raidu přes mapu (lineárně), ne hledáním v poli pro každé id: podvržená záloha se statisíci raidy by
+     jinak zablokovala okno kvadratickou prací ještě před náhledem importu. */
+  const raidTs = new Map<string, number>();
+  for (const r of s.raids) if (!raidTs.has(r.id)) raidTs.set(r.id, r.ts);
   const known = (d: ProvDomain, k: string): number => {
     if (d === 'quests') return clampInt(s.quests.done[k] || 0, 0, 9e15);
     if (d === 'stash') return s.vision.stash?.at ?? 0;
-    if (d === 'raids') return s.raids.find(r => r.id === k)?.ts ?? 0;
+    if (d === 'raids') return raidTs.get(k) ?? 0;
     return 0;
   };
   for (const d of PROV_DOMAINS) {

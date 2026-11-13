@@ -413,3 +413,20 @@ describe('karta předmětu: původ počtu', () => {
     expect(itemCard(state(), 'Metal Parts', 'cs', '2026-11-13').origin).toEqual({ src: 'manual', at: T0, ver: true });
   });
 });
+
+describe('původ: odolnost proti podvržené záloze (Codex Security, CWE-407)', () => {
+  it('záloha se statisíci raidy bez původu se zpracuje lineárně, ne kvadraticky', () => {
+    const N = 300_000;
+    const raids = Array.from({ length: N }, (_, i) => ({ id: 'r' + i, ts: 1_000 + i }));
+    const file = JSON.stringify({ app: 'arc-raiders-companion', schema: SCHEMA, state: { raids } });
+    const t = Date.now();
+    const p = parseBackup(file, T0);
+    expect(Date.now() - t).toBeLessThan(15_000);
+    expect('error' in p).toBe(false);
+    if ('error' in p) return;
+    const recs = p.state.provenance.recs.raids;
+    expect(Object.keys(recs).length).toBe(PROV_MAX);
+    expect(Object.values(recs).every(r => r.src === 'migration')).toBe(true);
+    expect(recs['r' + (N - 1)]?.at).toBe(1_000 + N - 1);
+  }, 30_000);
+});
