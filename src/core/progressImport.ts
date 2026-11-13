@@ -24,7 +24,7 @@ import { LIMITS } from './state';
 import { nameDistance } from './catalog';
 import { getMaterials, getStations } from './gamedata';
 import { catalogItems } from './catalog';
-import { clampInt } from './util';
+import { clampInt, safeEntries } from './util';
 
 export type Conf = 'high' | 'medium' | 'unknown';
 export interface PField<T> { value: T | null; conf: Conf; raw: string }
@@ -234,7 +234,7 @@ export interface ProgressSummary { fields: number }
 export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): ProgressSummary {
   let fields = 0;
   const lim: Record<string, readonly [number, number]> = { level: LIMITS.level, xp: LIMITS.xp, xpNext: LIMITS.xpNext, coins: LIMITS.coins };
-  for (const [k, v] of Object.entries(input.profile ?? {})) {
+  for (const [k, v] of safeEntries(input.profile)) {
     if (!(k in lim) || !Number.isFinite(v)) continue;
     const n = clampInt(v, lim[k][0], lim[k][1]);
     if (n !== v) continue;
@@ -242,12 +242,12 @@ export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): Pr
     if (s.profile[key] !== n) { s.profile[key] = n; fields++; }
   }
   const stations = getStations(s.gameData);
-  for (const [id, v] of Object.entries(input.stations ?? {})) {
+  for (const [id, v] of safeEntries(input.stations)) {
     const st = stations.find(x => x.id === id);
     if (!st || !Number.isInteger(v) || v < st.min || v > st.max) continue;
     if (s.stations[id] !== v) { s.stations[id] = v; fields++; }
   }
-  for (const [id, v] of Object.entries(input.skills ?? {})) {
+  for (const [id, v] of safeEntries(input.skills)) {
     const sk = SKILLS.find(x => x.id === id);
     if (!sk || !Number.isInteger(v) || v < 0 || v > sk.max) continue;
     if ((s.skills.current[id] || 0) !== v) { if (v) s.skills.current[id] = v; else delete s.skills.current[id]; fields++; }
@@ -261,7 +261,7 @@ export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): Pr
     if (next !== s.quests.objectives) { s.quests.objectives = next; fields++; }
   }
   const mats = input.inventory && Object.keys(input.inventory).length ? new Set(getMaterials(s).map(x => x.name)) : null;
-  for (const [name, v] of Object.entries(input.inventory ?? {})) {
+  for (const [name, v] of safeEntries(input.inventory)) {
     if (!mats?.has(name) || !Number.isInteger(v) || v < LIMITS.inventory[0] || v > LIMITS.inventory[1]) continue;
     if ((s.inventory[name] || 0) === v) continue;
     if (v) s.inventory[name] = v; else delete s.inventory[name];
@@ -328,7 +328,7 @@ export function normalizeProgressApply(raw: unknown): ProgressApply | null {
   const nums = (x: unknown, keys?: string[]): Record<string, number> => {
     const out: Record<string, number> = {};
     if (!x || typeof x !== 'object' || Array.isArray(x)) return out;
-    for (const [k, v] of Object.entries(x as Record<string, unknown>).slice(0, 64)) {
+    for (const [k, v] of safeEntries(x).slice(0, 64)) {
       if (typeof v !== 'number' || !Number.isFinite(v) || k.length > 80) continue;
       if (keys && !keys.includes(k)) continue;
       out[k] = v;

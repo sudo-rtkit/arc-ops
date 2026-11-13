@@ -191,10 +191,25 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     expect(p.state.raidPlan).toEqual(s.raidPlan);
     expect(p.state.maps.buried).toEqual(s.maps.buried);
     expect(p.mapImages).toBeUndefined();
-    const img = { mapId: 'buried', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', w: 10, h: 5 };
+    /* hlavička PNG (podpis + IHDR) s danými rozměry */
+    const png = (w: number, h: number) => {
+      const b = new Uint8Array(33);
+      b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+      new DataView(b.buffer).setUint32(16, w);
+      new DataView(b.buffer).setUint32(20, h);
+      return 'data:image/png;base64,' + Buffer.from(b).toString('base64');
+    };
+    const img = { mapId: 'buried', dataUrl: png(10, 5), w: 10, h: 5 };
     const withImg = parseBackup(makeBackup(s, new Date(NOW), [img]), NOW);
     expect('error' in withImg ? null : withImg.mapImages).toEqual([img]);
-    expect(backupImages([img, { ...img, mapId: 'mars' }, { ...img, mapId: 'dam', dataUrl: 'javascript:alert(1)' }, { ...img, mapId: 'stella', w: 0 }])).toEqual([img]);
+    expect(backupImages([img, { ...img, mapId: 'mars' }, { ...img, mapId: 'dam', dataUrl: 'javascript:alert(1)' }])).toEqual([img]);
+    /* 0.16.1: rozměry z hlavičky, ne z údajů zálohy; obrázek nad rozpočtem, bez hlavičky nebo s jiným typem se zahodí */
+    expect(backupImages([{ ...img, w: 0, h: 99999 }])).toEqual([img]);
+    expect(backupImages([{ ...img, dataUrl: png(16000, 16000) }])).toEqual([]);
+    expect(backupImages([{ ...img, dataUrl: png(8192, 8192) }])).toEqual([]);
+    expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }])).toEqual([]);
+    expect(backupImages([{ ...img, dataUrl: png(10, 5).replace('image/png', 'image/webp') }])).toEqual([]);
+    expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,' + 'A'.repeat(17 * 1024 * 1024) }])).toEqual([]);
     expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 15, state: {} }), NOW)).toHaveProperty('error');
   });
 });

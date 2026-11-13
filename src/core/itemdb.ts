@@ -4,7 +4,7 @@
 import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS, type ItemDataRow, type TraderOffer } from './data/itemdata';
 import { WEAPON_STATS, type WeaponStatRow } from './data/weaponStats';
 import type { Qty } from './data/arctracker';
-import { isObj } from './util';
+import { isObj, safeEntries } from './util';
 
 export { ITEMS_DATE, ITEM_DATA, TRADER_OFFERS };
 export type { ItemDataRow, TraderOffer, WeaponStatRow };
@@ -53,7 +53,7 @@ export const blueprintTarget = (bp: string): string => bp.replace(/\s+Blueprint$
 export function normalizeBlueprints(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!isObj(raw)) return out;
-  for (const [k, v] of Object.entries(raw).slice(0, 2000)) {
+  for (const [k, v] of safeEntries(raw).slice(0, 2000)) {
     const n = Math.round(Number(v));
     if (k.trim() && k.length <= 120 && Number.isFinite(n) && n > 0) out[k] = Math.min(n, 9e15);
   }

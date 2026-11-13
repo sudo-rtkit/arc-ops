@@ -1,5 +1,6 @@
-/* 0.16.0: velikost a poloha okna overlaye pro velký panel (Aplikace). V Tauri jen setSize a setPosition (oprávnění
-   overlaye v capabilities/ops.json se nemění); okno se neaktivuje, takže to fokus nebere. Mimo Tauri (vývoj
+/* 0.16.0: velikost a poloha okna overlaye pro velký panel (Aplikace). Okno se neaktivuje, takže to fokus nebere.
+   0.16.1: změna jde přes příkaz win_place (Rust mění jen volající okno, overlay tak nedosáhne na jiné okno);
+   čtení polohy, velikosti a monitorů přes oprávnění v capabilities/overlay.json. Mimo Tauri (vývoj
    v prohlížeči, E2E) se okno nemění: panel jen počítá virtuální obdélník, aby šla vyzkoušet pravidla a uložení. */
 import { isTauri } from '../storage/tauri';
 import type { Rect } from './layout';
@@ -20,7 +21,7 @@ const screenOf = (m: Mon): Screen => {
 };
 
 function tauriWindow(): PanelWindow {
-  const api = Promise.all([import('@tauri-apps/api/window'), import('@tauri-apps/api/dpi')]);
+  const api = Promise.all([import('@tauri-apps/api/window')]);
   return {
     real: true,
     async get() {
@@ -30,10 +31,8 @@ function tauriWindow(): PanelWindow {
       return { x: p.x, y: p.y, w: s.width, h: s.height };
     },
     async set(r) {
-      const [m, d] = await api;
-      const w = m.getCurrentWindow();
-      await w.setSize(new d.PhysicalSize(r.w, r.h));
-      await w.setPosition(new d.PhysicalPosition(r.x, r.y));
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('win_place', { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
     },
     async screens() {
       const [m] = await api;

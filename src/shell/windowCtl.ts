@@ -57,8 +57,9 @@ const trayMenu = (): TrayMenu => {
 /* Spouští main.tsx: posluchače událostí z Rustu, sladění okna s uloženým stavem a nabídka oznamovací oblasti. */
 export function startWindowCtl(): void {
   const bus = createBus('main');
-  bus.on('win-close', () => { void windowCtl.requestClose(true); });
-  bus.on('win-tray', p => {
+  /* 0.16.1: jen z Rustu (native:), jiné okno je podvrhnout nemůže */
+  bus.onNative('win-close', () => { void windowCtl.requestClose(true); });
+  bus.onNative('win-tray', p => {
     if (p === 'full' || p === 'compact') void windowCtl.setMode(p);
     else if (p === 'buddy') hub.setBuddyVisible(!hub.buddyVisible());
     else if (p === 'quit') void windowCtl.quit();

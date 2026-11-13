@@ -23,6 +23,8 @@ const SYS_EN: [string, string][] = [
   ['Neplatný název snímku', 'Invalid snapshot name'],
   ['Snímek nejde přečíst', 'The snapshot cannot be read'],
   ['Snímek neexistuje', 'The snapshot does not exist'],
+  ['Stav je příliš velký', 'The state is too large'],
+  ['Příkaz není pro toto okno povolený', 'The command is not allowed for this window'],
 ];
 
 export function sysError(msg: string, lang: Lang): string {

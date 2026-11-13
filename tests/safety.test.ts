@@ -42,7 +42,10 @@ describe('bezpečnost zdrojového kódu', () => {
     expect(conf.plugins?.updater).toBeUndefined();
   });
   it('oprávnění okna jsou jen základní', () => {
-    const cap = JSON.parse(readFileSync(join(root, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
-    expect(cap.permissions).toEqual(['core:default', 'core:window:allow-destroy']);
+    /* 0.16.1: místo core:default jen poslech událostí a vlastní příkazy (úplný seznam hlídá tests/safety-acl.test.ts) */
+    const cap = JSON.parse(readFileSync(join(root, 'src-tauri', 'capabilities', 'main.json'), 'utf8'));
+    expect(cap.windows).toEqual(['main']);
+    const core = (cap.permissions as string[]).filter(p => p.startsWith('core:'));
+    expect(core).toEqual(['core:event:allow-listen', 'core:event:allow-unlisten']);
   });
 });

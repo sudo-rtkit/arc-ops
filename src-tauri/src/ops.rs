@@ -19,7 +19,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::plugin::TauriPlugin;
-use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+use crate::bus::{emit_native, only};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 pub const BUDDY: &str = "buddy";
@@ -49,8 +51,9 @@ pub struct OpsState {
     capture: Mutex<Option<Captured>>,
     hotkey: Mutex<Option<Shortcut>>,
     watch_gen: AtomicU64,
-    /* okno v popředí před otevřením overlaye (HWND jako číslo), aby se mu po zavření vrátil fokus */
-    prev_focus: Mutex<isize>,
+    /* okno v popředí před otevřením overlaye (HWND jako číslo a id jeho procesu), aby se mu po zavření vrátil
+       fokus; 0.16.1: id procesu brání vrátit fokus cizímu oknu, které mezitím dostalo stejný HWND */
+    prev_focus: Mutex<(isize, u32)>,
 }
 
 #[derive(Serialize, Clone)]
@@ -299,8 +302,8 @@ fn show_overlay<R: Runtime>(app: &AppHandle<R>, tab: Option<String>) -> Result<(
     }
     w.show().map_err(|e| e.to_string())?;
     let _ = w.set_focus();
-    let _ = w.emit_to(OVERLAY, "ops:open", tab.unwrap_or_default());
-    let _ = app.emit_to(MAIN, "ops:overlay", true);
+    emit_native(app, OVERLAY, "open", tab.unwrap_or_default());
+    emit_native(app, MAIN, "overlay", true);
     Ok(())
 }
 
@@ -308,25 +311,35 @@ fn hide_overlay<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.get_webview_window(OVERLAY) {
         if w.is_visible().unwrap_or(false) {
             let _ = w.hide();
-            let prev = app.state::<OpsState>().prev_focus.lock().map(|p| *p).unwrap_or(0);
-            restore_focus(prev);
-            let _ = app.emit_to(MAIN, "ops:overlay", false);
+            let (prev, pid) = app.state::<OpsState>().prev_focus.lock().map(|p| *p).unwrap_or((0, 0));
+            restore_focus(prev, pid);
+            emit_native(app, MAIN, "overlay", false);
         }
     }
 }
 
+// 0.16.1: každý příkaz jen pro okna, která ho používají (stejně jako capabilities/<okno>.json).
+
+/// Otevře overlay (hlavní okno: snímek z tlačítka v okně aplikace).
 #[tauri::command]
-pub async fn overlay_open<R: Runtime>(app: AppHandle<R>, tab: Option<String>) -> Result<(), String> {
+pub async fn overlay_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, tab: Option<String>) -> Result<(), String> {
+    main_only(&window)?;
+    let tab = tab.filter(|t| t.len() <= 16 && t.bytes().all(|b| b.is_ascii_lowercase()));
     show_overlay(&app, tab)
 }
 
+/// Zavře overlay (tlačítko a Esc v overlayi).
 #[tauri::command]
-pub async fn overlay_close<R: Runtime>(app: AppHandle<R>) {
+pub async fn overlay_close<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[OVERLAY])?;
     hide_overlay(&app);
+    Ok(())
 }
 
+/// Klik na buddyho: overlay otevře nebo zavře.
 #[tauri::command]
-pub async fn overlay_toggle<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+pub async fn overlay_toggle<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[BUDDY])?;
     let open = app.get_webview_window(OVERLAY).map(|w| w.is_visible().unwrap_or(false)).unwrap_or(false);
     if open {
         hide_overlay(&app);
@@ -336,21 +349,51 @@ pub async fn overlay_toggle<R: Runtime>(app: AppHandle<R>) -> Result<(), String>
     }
 }
 
-/* Z overlaye „Otevřít v aplikaci“: hlavní okno do popředí. */
+/* Z overlaye „Otevřít v aplikaci“: hlavní okno do popředí. Volá ho hub v hlavním okně po ověření cesty. */
 #[tauri::command]
-pub async fn main_focus<R: Runtime>(app: AppHandle<R>) {
+pub async fn main_focus<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    main_only(&window)?;
     hide_overlay(&app);
     if let Some(w) = app.get_webview_window(MAIN) {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
     }
+    Ok(())
+}
+
+/* ----- poloha a tažení vlastního okna (0.16.1) ----- */
+
+/// Rozumný obdélník okna ve fyzických px (buddy i overlay; plocha nejvýš ±100 000 px).
+pub fn place_ok(x: i32, y: i32, w: u32, h: u32) -> bool {
+    let side = 16..=16384;
+    let pos = -100_000..=100_000;
+    side.contains(&w) && side.contains(&h) && pos.contains(&x) && pos.contains(&y)
+}
+
+/// Velikost a poloha okna, které příkaz volá (buddy a overlay). Na jiné okno nedosáhne; okno se neaktivuje.
+#[tauri::command]
+pub async fn win_place<R: Runtime>(window: WebviewWindow<R>, x: i32, y: i32, w: u32, h: u32) -> Result<(), String> {
+    only(&window, &[BUDDY, OVERLAY])?;
+    if !place_ok(x, y, w, h) {
+        return Err("win:invalid".into());
+    }
+    window.set_size(PhysicalSize::new(w, h)).map_err(|e| e.to_string())?;
+    window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())
+}
+
+/// Tažení buddyho myší (jen vlastní okno buddyho).
+#[tauri::command]
+pub fn win_drag<R: Runtime>(window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[BUDDY])?;
+    window.start_dragging().map_err(|e| e.to_string())
 }
 
 /* ----- snímek ----- */
 
 #[tauri::command]
-pub async fn capture_now<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+pub async fn capture_now<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[MAIN, OVERLAY])?;
     if !enabled(&app) {
         return Err("ops:off".into());
     }
@@ -363,7 +406,7 @@ fn start_capture<R: Runtime>(app: AppHandle<R>) {
     if st.busy.swap(true, Ordering::SeqCst) {
         return;
     }
-    let _ = app.emit_to(MAIN, "ops:capture-start", ());
+    emit_native(&app, MAIN, "capture-start", ());
     std::thread::spawn(move || {
         let st = app.state::<OpsState>();
         let result = capture_foreground_monitor();
@@ -374,7 +417,7 @@ fn start_capture<R: Runtime>(app: AppHandle<R>) {
                     *c = Some(Captured { id, rgba });
                 }
                 st.busy.store(false, Ordering::SeqCst);
-                let _ = app.emit_to(MAIN, "ops:capture-ready", CaptureReady { id, width, height });
+                emit_native(&app, MAIN, "capture-ready", CaptureReady { id, width, height });
                 /* Nevyzvednutý snímek se zahodí. */
                 let app2 = app.clone();
                 std::thread::spawn(move || {
@@ -388,22 +431,25 @@ fn start_capture<R: Runtime>(app: AppHandle<R>) {
             }
             Err(e) => {
                 st.busy.store(false, Ordering::SeqCst);
-                let _ = app.emit_to(MAIN, "ops:capture-failed", e);
+                emit_native(&app, MAIN, "capture-failed", e);
             }
         }
     });
 }
 
 /// Hlavní okno si snímek vyzvedne jako binární data (RGBA). Snímek se tím tady smaže.
+/// 0.16.1: s jiným id se čekající (novější) snímek nesmaže.
 #[tauri::command]
 pub async fn capture_take<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, id: u64) -> Result<tauri::ipc::Response, String> {
     main_only(&window)?;
     let st = app.state::<OpsState>();
     let mut c = st.capture.lock().map_err(|_| "capture:failed")?;
-    match c.take() {
-        Some(x) if x.id == id => Ok(tauri::ipc::Response::new(x.rgba)),
-        _ => Err("capture:gone".into()),
-    }
+    take_if(&mut c, id).map(|x| tauri::ipc::Response::new(x.rgba)).ok_or_else(|| "capture:gone".into())
+}
+
+/// Vyzvedne čekající snímek jen při shodě id; jinak ho nechá na místě.
+fn take_if(c: &mut Option<Captured>, id: u64) -> Option<Captured> {
+    if c.as_ref().map(|x| x.id) == Some(id) { c.take() } else { None }
 }
 
 /* ----- hlídání spuštěné hry (jen názvy procesů) ----- */
@@ -464,7 +510,7 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
                 let running = any_game(&process_names());
                 if last != Some(running) {
                     last = Some(running);
-                    let _ = app.emit_to(MAIN, "ops:game", running);
+                    emit_native(&app, MAIN, "game", running);
                 }
                 pids = if running { game_pids() } else { Vec::new() };
             }
@@ -472,7 +518,7 @@ pub async fn ops_watch<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, 
             let shown = !pids.is_empty() && game_window_shown(&pids);
             let fg = classify_foreground(foreground_pid(), own, &pids);
             if let Some(visible) = gate.update(shown, fg, now) {
-                let _ = app.emit_to(MAIN, "ops:game-visible", visible);
+                emit_native(&app, MAIN, "game-visible", visible);
             }
             std::thread::sleep(WATCH_TICK);
         }
@@ -663,18 +709,32 @@ mod win {
         rc == 0 && value == 1
     }
 
-    pub fn foreground() -> isize {
-        unsafe { GetForegroundWindow() as isize }
+    /// Okno v popředí (HWND jako číslo) a id procesu, kterému patří (jen čtení).
+    pub fn foreground() -> (isize, u32) {
+        unsafe {
+            let h = GetForegroundWindow();
+            let mut pid = 0;
+            if !h.is_null() {
+                GetWindowThreadProcessId(h, &mut pid);
+            }
+            (h as isize, pid)
+        }
     }
 
     /// Vrátí fokus oknu, které bylo v popředí před otevřením overlaye. Žádný vstup se neposílá.
-    pub fn restore_focus(prev: isize) {
-        if prev == 0 {
+    /// 0.16.1: jen když okno pořád existuje a patří stejnému procesu (HWND zavřeného okna může dostat jiné okno).
+    pub fn restore_focus(prev: isize, pid: u32) {
+        if prev == 0 || pid == 0 {
             return;
         }
         unsafe {
             let h = prev as HWND;
-            if IsWindow(h) != 0 {
+            if IsWindow(h) == 0 {
+                return;
+            }
+            let mut now_pid = 0;
+            GetWindowThreadProcessId(h, &mut now_pid);
+            if super::same_owner(pid, now_pid) {
                 SetForegroundWindow(h);
             }
         }
@@ -810,11 +870,16 @@ fn capture_foreground_monitor() -> Result<(u32, u32, Vec<u8>), String> {
 #[cfg(not(windows))]
 fn exclude_from_capture<R: Runtime>(_w: &WebviewWindow<R>) {}
 #[cfg(not(windows))]
-fn foreground() -> isize {
-    0
+fn foreground() -> (isize, u32) {
+    (0, 0)
 }
 #[cfg(not(windows))]
-fn restore_focus(_prev: isize) {}
+fn restore_focus(_prev: isize, _pid: u32) {}
+
+/// Patří okno pořád stejnému procesu jako při uložení? (0 = neznámý proces, fokus se nevrací.)
+pub fn same_owner(saved_pid: u32, now_pid: u32) -> bool {
+    saved_pid != 0 && saved_pid == now_pid
+}
 #[cfg(not(windows))]
 fn foreground_pid() -> Option<u32> {
     None
@@ -951,6 +1016,34 @@ mod tests {
         assert_eq!(g.update(true, Foreground::Game, ms(t0, 850)), Some(true));
         let mut g = BuddyGate::default();
         assert_eq!(g.update(false, Foreground::Game, t0), Some(false));
+    }
+
+    #[test]
+    fn snimek_s_jinym_id_zustane() {
+        let mut c = Some(Captured { id: 7, rgba: vec![1, 2, 3, 4] });
+        assert!(take_if(&mut c, 6).is_none());
+        assert!(c.is_some(), "starší id nesmí smazat novější snímek");
+        assert_eq!(take_if(&mut c, 7).map(|x| x.rgba), Some(vec![1, 2, 3, 4]));
+        assert!(c.is_none());
+        assert!(take_if(&mut c, 7).is_none());
+    }
+
+    #[test]
+    fn fokus_jen_stejnemu_procesu() {
+        assert!(same_owner(1234, 1234));
+        assert!(!same_owner(1234, 999));
+        assert!(!same_owner(0, 0));
+        assert!(!same_owner(1234, 0));
+    }
+
+    #[test]
+    fn poloha_okna_v_mezich() {
+        assert!(place_ok(0, 0, 96, 96));
+        assert!(place_ok(-3840, -200, 1100, 760));
+        assert!(!place_ok(0, 0, 0, 96));
+        assert!(!place_ok(0, 0, 96, 20000));
+        assert!(!place_ok(i32::MIN, 0, 96, 96));
+        assert!(!place_ok(0, 200_000, 96, 96));
     }
 
     #[cfg(windows)]

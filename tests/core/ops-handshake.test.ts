@@ -20,7 +20,7 @@ function fakeNative(): Native & { calls: string[] } {
     calls, available: true,
     enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
     overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-    captureNow: rec('captureNow'), captureTake: async () => new ArrayBuffer(0),
+    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new ArrayBuffer(0),
   };
 }
 

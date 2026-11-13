@@ -1,9 +1,13 @@
 /* Dekódování obrázku, který hráč sám vložil (Ctrl+V, přetažení, výběr souboru), na RGBA buffer pro rozpoznávání.
-   Obrázek zůstává jen v paměti stránky: neukládá se ani neodesílá. */
+   Obrázek zůstává jen v paměti stránky: neukládá se ani neodesílá.
+   0.16.1: rozměry se přečtou z hlavičky ještě před dekódováním (core/imageSize.ts). Obrázek nad rozpočtem
+   (8192 px na stranu, 40 MP) nebo v neznámém formátu se odmítne bez dekódování, takže malý soubor s obřími
+   rozměry nezabere gigabajty paměti. */
 import type { RgbaImage } from '../core/vision/image';
+import { MAX_SIDE_PX, imageSize, withinBudget } from '../core/imageSize';
 
 export const MAX_IMAGE_BYTES = 40 * 1024 * 1024;
-export const MAX_IMAGE_SIDE = 8192;
+export const MAX_IMAGE_SIDE = MAX_SIDE_PX;
 
 export type DecodeError = 'notImage' | 'tooBig' | 'decode';
 export interface Decoded { img: RgbaImage; bitmap: ImageBitmap }
@@ -11,9 +15,14 @@ export interface Decoded { img: RgbaImage; bitmap: ImageBitmap }
 export async function decodeImage(file: Blob): Promise<Decoded | DecodeError> {
   if (file.type && !file.type.startsWith('image/')) return 'notImage';
   if (file.size > MAX_IMAGE_BYTES) return 'tooBig';
+  let head: Uint8Array;
+  try { head = new Uint8Array(await file.arrayBuffer()); } catch { return 'decode'; }
+  const size = imageSize(head);
+  if (!size) return 'decode';
+  if (!withinBudget(size.w, size.h)) return 'tooBig';
   let bitmap: ImageBitmap;
   try { bitmap = await createImageBitmap(file); } catch { return 'decode'; }
-  if (bitmap.width > MAX_IMAGE_SIDE || bitmap.height > MAX_IMAGE_SIDE) { bitmap.close(); return 'tooBig'; }
+  if (!withinBudget(bitmap.width, bitmap.height)) { bitmap.close(); return 'tooBig'; }
   const c = document.createElement('canvas');
   c.width = bitmap.width; c.height = bitmap.height;
   const ctx = c.getContext('2d', { willReadFrequently: true });

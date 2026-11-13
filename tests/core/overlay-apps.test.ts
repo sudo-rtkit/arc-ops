@@ -20,7 +20,7 @@ const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 function fakeNative(): Native {
   const ok = async () => undefined;
-  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, captureTake: async () => new ArrayBuffer(0) };
+  return { available: true, enable: ok, setHotkey: ok, watch: ok, buddyOpen: ok, buddyClose: ok, buddyReveal: ok, overlayOpen: ok, overlayClose: ok, overlayToggle: ok, mainFocus: ok, captureNow: ok, place: ok, drag: ok, captureTake: async () => new ArrayBuffer(0) };
 }
 async function mainApp(stored: unknown = { schema: 14, buddy: { enabled: true } }) {
   const kv = memoryKV();
@@ -90,6 +90,12 @@ describe('0.16.0: akce store pro overlay', () => {
     expect(() => encodeArgs([() => 1])).toThrow();
     expect(() => encodeArgs([new Map()])).toThrow();
     expect(decodeArgs({ __proto__x: 1, ['__proto__']: { polluted: 1 } })).not.toHaveProperty('polluted');
+    /* 0.16.1: klíče z JSON.parse (vlastní klíč __proto__) prototyp nevymění; constructor ani prototype neprojdou */
+    const evil = decodeArgs(JSON.parse('{"__proto__":{"polluted":1},"constructor":{"x":1},"prototype":1,"ok":2}')) as Record<string, unknown>;
+    expect(Object.getPrototypeOf(evil)).toBe(Object.prototype);
+    expect(Object.keys(evil)).toEqual(['ok']);
+    expect((evil as { polluted?: unknown }).polluted).toBeUndefined();
+    expect(() => decodeArgs({ [String.fromCharCode(0) + 'n']: 'constructor' })).not.toThrow();
   });
 });
 
@@ -189,6 +195,12 @@ describe('0.16.0: zrcadlo overlaye a hlavní okno jako jediný zapisovatel', () 
       { name: 'setMapNotes', args: ['dam', 'x'.repeat(300 * 1024)] },
       { name: 'toggleCheck', args: 'a' },
       { name: 'toggleCheck', args: [1, 2, 3, 4, 5, 6, 7] },
+      /* 0.16.1: jména z prototypu, nebezpečné klíče a příliš velké hodnoty */
+      { name: '__proto__', args: [] },
+      { name: 'toString', args: [] },
+      { name: 'hasOwnProperty', args: ['setProfile'] },
+      { name: 'setMapNotes', args: ['dam', 'x'.repeat(70 * 1024)] },
+      { name: 'toggleCheck', args: [Array.from({ length: 5001 }, () => 0)] },
     ]) expect(applyRelay(main, { session: 'sess01', seq: 2, ids: [], ...call }), call.name).toEqual({ ack: { session: 'sess01', seq: 2 }, applied: false });
     expect(JSON.stringify(main.store.getState().state)).toBe(before);
   });

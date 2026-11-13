@@ -123,9 +123,15 @@ describe('bezpečnost milníku 5', () => {
   });
 
   it('okna buddy a overlay mají jen základní oprávnění; žádná okna nesmí zkratky ani shell z JS', () => {
-    const cap = JSON.parse(read('src-tauri/capabilities/ops.json'));
-    expect(cap.windows).toEqual(['buddy', 'overlay']);
-    expect(cap.permissions).toEqual(['core:default', 'core:window:allow-start-dragging', 'core:window:allow-set-size', 'core:window:allow-set-position', 'core:window:allow-show']);
+    /* 0.16.1: každé okno má vlastní capability bez core:default; poloha, velikost a tažení jdou přes příkazy, které
+       mění jen volající okno (úplné seznamy hlídá tests/safety-acl.test.ts) */
+    const buddy = JSON.parse(read('src-tauri/capabilities/buddy.json'));
+    const overlay = JSON.parse(read('src-tauri/capabilities/overlay.json'));
+    expect(buddy.windows).toEqual(['buddy']);
+    expect(overlay.windows).toEqual(['overlay']);
+    for (const cap of [buddy, overlay]) {
+      for (const p of cap.permissions as string[]) expect(/^core:(default|tray|menu|image|path|app|webview)|allow-set-|allow-show|allow-start-dragging|allow-emit|allow-storage|allow-snapshot|allow-capture-take|allow-ops-/.test(p), p).toBe(false);
+    }
     for (const f of readdirSync(join(root, 'src-tauri', 'capabilities'))) {
       const txt = read('src-tauri/capabilities/' + f);
       expect(/global-shortcut|shell:|http:|fs:/.test(txt), f).toBe(false);

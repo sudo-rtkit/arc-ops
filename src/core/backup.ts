@@ -1,10 +1,11 @@
 /* Export zálohy a rozpoznání importu (záloha aplikace, nebo záloha starého deníku). */
 import type { AppState } from './types';
-import { isObj } from './util';
+import { isObj, safeJsonParse } from './util';
 import { normalize, SCHEMA } from './state';
 import { importV1, isDiaryV1, type ImportReport } from './importV1';
 import { tl, type Lang } from '../i18n';
 import { MAPS } from './data/maps';
+import { dataUrlSize, withinBudget } from './imageSize';
 
 export const APP_ID = 'arc-raiders-companion';
 
@@ -18,14 +19,26 @@ export function makeBackup(state: AppState, now: Date = new Date(), mapImages: B
   return JSON.stringify(file, null, 1);
 }
 
-/* Snímky map ze zálohy: jen známé mapy, obrázková data URL (PNG, JPEG, WebP) a kladné rozměry. */
+/* Snímky map ze zálohy: jen známé mapy a obrázková data URL (PNG, JPEG, WebP).
+   0.16.1: nejvýš MAX_BACKUP_IMAGE_CHARS znaků na snímek; typ a rozměry se čtou z hlavičky obrázku (údaje w/h
+   v záloze se nepoužijí) a obrázek nad rozpočtem (core/imageSize.ts) se zahodí bez dekódování. Před uložením
+   jde každý snímek ještě stejnou cestou jako vlastní import (ui/mapImport.ts restoreImage: zmenšení na 4096 px). */
 const IMG_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+export const MAX_BACKUP_IMAGE_CHARS = 16 * 1024 * 1024;
 export function backupImages(raw: unknown): BackupImage[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
-  return raw.filter(isObj).filter(x => typeof x.mapId === 'string' && MAPS.some(m => m.id === x.mapId) && !seen.has(x.mapId as string)
-    && typeof x.dataUrl === 'string' && IMG_RE.test(x.dataUrl) && Number(x.w) > 0 && Number(x.h) > 0 && !!seen.add(x.mapId as string))
-    .map(x => ({ mapId: String(x.mapId), dataUrl: String(x.dataUrl), w: Math.round(Number(x.w)), h: Math.round(Number(x.h)) }));
+  const out: BackupImage[] = [];
+  for (const x of raw.slice(0, MAPS.length * 2)) {
+    if (!isObj(x) || typeof x.mapId !== 'string' || !MAPS.some(m => m.id === x.mapId) || seen.has(x.mapId)) continue;
+    if (typeof x.dataUrl !== 'string' || x.dataUrl.length > MAX_BACKUP_IMAGE_CHARS) continue;
+    const kind = IMG_RE.exec(x.dataUrl)?.[1];
+    const size = kind ? dataUrlSize(x.dataUrl) : null;
+    if (!size || size.kind !== kind || !withinBudget(size.w, size.h)) continue;
+    seen.add(x.mapId);
+    out.push({ mapId: x.mapId, dataUrl: x.dataUrl, w: size.w, h: size.h });
+  }
+  return out;
 }
 
 /* Název souboru zálohy v jazyce UI (bez diakritiky): arc-companion-zaloha-… / arc-companion-backup-… */
@@ -47,7 +60,8 @@ export const backupErrorText = (err: string, lang: Lang): string =>
 /* lang = jazyk pro zálohu bez uložené volby jazyka (starší zálohy a deník v1 převezmou aktuální jazyk). */
 export function parseBackup(textIn: string, now: number = Date.now(), lang: Lang = 'cs'): ParsedBackup {
   let raw: unknown;
-  try { raw = JSON.parse(String(textIn).replace(/^﻿/, '')); } catch { return { error: ERR_INVALID }; }
+  /* 0.16.1: __proto__, constructor a prototype se zahodí už při čtení (žádná výměna prototypu záznamů) */
+  try { raw = safeJsonParse(String(textIn).replace(/^﻿/, '')); } catch { return { error: ERR_INVALID }; }
   if (!isObj(raw)) return { error: ERR_INVALID };
   if (raw.app === APP_ID) {
     if (typeof raw.schema !== 'number' || raw.schema > SCHEMA) return { error: typeof raw.schema === 'number' ? ERR_NEWER : ERR_INVALID };

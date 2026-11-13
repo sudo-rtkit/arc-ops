@@ -7,7 +7,7 @@ import M from './data/ops2.json';
 import CORNER from './data/ops2-corner.json';
 import DETAIL from './data/ops2-detail.json';
 import type { BuddyState, Lang } from './types';
-import { clampInt, isObj, text } from './util';
+import { clampInt, isObj, safeEntries, text } from './util';
 
 export const OPS_ANIMS = [
   'idle', 'talk', 'greet', 'point-left', 'point-right', 'point-up', 'point-down', 'scanning', 'thinking', 'success', 'level-up',
@@ -146,7 +146,7 @@ export function normalizeBuddy(raw: unknown): BuddyState {
     else if (typeof v === 'string' && PARTS.get(v)?.slot === slot) b.outfit[slot] = v;
   }
   const pos = isObj(r.positions) ? r.positions : {};
-  for (const [k, v] of Object.entries(pos).slice(0, 16)) {
+  for (const [k, v] of safeEntries(pos).slice(0, 16)) {
     if (!isObj(v)) continue;
     const n = (x: unknown) => (Number.isFinite(Number(x)) ? clampInt(x, -20000, 20000) : 0);
     b.positions[text(k, 120)] = { x: n(v.x), y: n(v.y) };

@@ -350,7 +350,7 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
       calls, available: true,
       enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new Uint8Array(64 * 64 * 4).buffer,
     };
   }
 
@@ -374,14 +374,14 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
     const before = JSON.stringify(app.store.getState().state.inventory);
     expect(await hub.captureFromApp()).toBe(true);
     expect(native.calls).toContain('captureNow');
-    buses('buddy').send('main', 'capture-ready', { id: 1, width: 64, height: 64 });
+    buses('buddy').native('main', 'capture-ready', { id: 1, width: 64, height: 64 });
     await vi.advanceTimersByTimeAsync(10);
     expect(app.store.getState().notices.at(-1)?.tone).toBe('warning');
     expect(native.calls.some(c => c.startsWith('overlayOpen'))).toBe(false);
     expect(JSON.stringify(app.store.getState().state.inventory)).toBe(before);
     /* snímek ze zkratky (bez tlačítka) okno nehlásí */
     const n = app.store.getState().notices.length;
-    buses('buddy').send('main', 'capture-ready', { id: 2, width: 64, height: 64 });
+    buses('buddy').native('main', 'capture-ready', { id: 2, width: 64, height: 64 });
     await vi.advanceTimersByTimeAsync(10);
     expect(app.store.getState().notices.length).toBe(n);
     hub.stop();

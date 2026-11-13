@@ -572,15 +572,16 @@ export default function OverlayApp() {
 
   useEffect(() => {
     const offs = [
-      bus.on('state', p => {
+      bus.on('state', (p, from) => {
+        if (from !== 'main' || !p || typeof p !== 'object') return;
         const v = p as OverlayView;
         mirror.receive(v.state, v.relay);
         batchRef.current = v.batch;
         gotState.current = true;
         setView(v);
       }),
-      /* z Rustu při otevření: případně rovnou na výsledek snímku */
-      bus.on('open', p => {
+      /* z Rustu při otevření (jen native:): případně rovnou na výsledek snímku */
+      bus.onNative('open', p => {
         const want = typeof p === 'string' && (VIEWS as string[]).includes(p) ? (p as Tab) : null;
         const b = batchRef.current;
         if (want) setTab(want);

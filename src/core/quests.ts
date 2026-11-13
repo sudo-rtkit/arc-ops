@@ -3,6 +3,7 @@
    Čisté funkce; stav splnění drží store (state.quests.done: id → čas zaškrtnutí). */
 import { AT_PROJECTS, AT_QUESTS, type AtQuest, type Loc } from './data/arctracker';
 import type { Lang, Recipe } from './types';
+import { safeEntries } from './util';
 
 export const QUESTS: AtQuest[] = AT_QUESTS;
 export const PROJECTS = AT_PROJECTS;
@@ -47,7 +48,7 @@ export function setQuestDone(done: Record<string, number>, id: string, value: bo
 export function normalizeQuestDone(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 2000)) {
+  for (const [k, v] of safeEntries(raw).slice(0, 2000)) {
     const n = Math.round(Number(v));
     if (k && k.length <= 80 && Number.isFinite(n) && n > 0) out[k] = Math.min(n, 9e15);
   }
@@ -65,7 +66,7 @@ const cleanIdx = (xs: unknown[], max: number): number[] =>
 export function normalizeQuestObjectives(raw: unknown): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 2000)) {
+  for (const [k, v] of safeEntries(raw).slice(0, 2000)) {
     if (!k || k.length > 80 || !Array.isArray(v)) continue;
     const q = BY_ID.get(k);
     const list = cleanIdx(v.slice(0, OBJ_MAX * 2), q ? q.objectives.length : OBJ_MAX);
@@ -119,7 +120,7 @@ export const projectById = (id: string) => PROJECTS.find(p => p.id === id);
 export function normalizeProjects(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 200)) {
+  for (const [k, v] of safeEntries(raw).slice(0, 200)) {
     const p = projectById(k);
     const n = Math.round(Number(v));
     if (p && Number.isFinite(n) && n > 0) out[k] = Math.min(n, p.phases.length);

@@ -6,7 +6,7 @@ import { Badge, Btn, Confirm, ConfirmButton, Dialog, Empty, ExtLink, FieldError,
 import { fmtBytes, fmtDateTime } from '../ui/format';
 import { backupErrorText, backupFileName, parseBackup, type BackupImage, type ParsedBackup } from '../core/backup';
 import { allMapImages, putMapImage } from '../storage/mapImages';
-import { backupCopy } from '../ui/mapImport';
+import { backupCopy, restoreImage } from '../ui/mapImport';
 import type { SnapshotInfo } from '../storage/adapter';
 import type { AppState } from '../core/types';
 import { DOC_URL } from '../core/data/checklists';
@@ -74,8 +74,14 @@ function ImportDialog({ onClose, initialText }: { onClose: () => void; initialTe
           const ok = await actions.importState(p.state, st.raw, p.kind);
           /* 0.14.0: snímky map ze zálohy (jen když je záloha obsahuje) se uloží do tohoto zařízení */
           if (ok && p.mapImages?.length) {
-            let n = 0;
-            for (const im of p.mapImages) { try { await putMapImage({ ...im, at: Date.now() }); n++; } catch { /* další snímek */ } }
+            let n = 0, skipped = 0;
+            /* 0.16.1: stejná kontrola a zmenšení jako vlastní import; rozměry ze skutečného obrázku */
+            for (const im of p.mapImages) {
+              const r = await restoreImage(im.dataUrl);
+              if (typeof r === 'string') { skipped++; continue; }
+              try { await putMapImage({ mapId: im.mapId, dataUrl: r.dataUrl, w: r.w, h: r.h, at: Date.now() }); n++; } catch { /* další snímek */ }
+            }
+            if (skipped) app.notify(t('backup.imagesSkipped', { count: skipped }), 'warning');
             if (n) app.notify(t('backup.imagesRestored', { count: n }));
           }
           setBusy(false);

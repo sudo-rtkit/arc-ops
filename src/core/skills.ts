@@ -3,6 +3,7 @@ import type { BranchId, CatalogBuild, PlanStep, Points, ReachStep, SavedBuild } 
 import { BRANCHES, PLANS, SKILL, SKILLS } from './data/skills';
 import { BUILD_CATALOG } from './data/builds';
 import { getLang, t } from '../i18n';
+import { safeEntries } from './util';
 
 export interface BudgetSource { level: number; expBonus: number }
 
@@ -198,7 +199,7 @@ export function fitsPoints(cur: Points, target: Points): boolean {
 export function cleanPoints(raw: unknown): Points {
   const out: Points = {};
   if (!raw || typeof raw !== 'object') return out;
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [k, v] of safeEntries(raw)) {
     const s = SKILL[k];
     if (!s) continue;
     const n = Math.min(s.max, Math.max(0, Math.round(Number(v)) || 0));

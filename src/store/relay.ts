@@ -13,7 +13,7 @@
    Bez Reactu a DOM, takže jde testovat v Node. */
 import type { App } from './app';
 import type { AppState } from '../core/types';
-import { isObj, recordIds, replayIds } from '../core/util';
+import { isObj, recordIds, replayIds, UNSAFE_KEYS } from '../core/util';
 
 type Actions = App['actions'];
 type ActionName = keyof Actions;
@@ -56,6 +56,7 @@ export const BLOCKED_ACTIONS = {
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),
 } satisfies Partial<Record<ActionName, () => unknown>>;
 
+/* Set (ne objekt), takže jméno jako 'constructor' nebo '__proto__' nikdy neprojde přes prototyp. */
 const RELAY = new Set<string>(RELAY_ACTIONS);
 export const isRelayAction = (name: unknown): name is (typeof RELAY_ACTIONS)[number] => typeof name === 'string' && RELAY.has(name);
 
@@ -65,6 +66,9 @@ const NUM = '\u0000n';
 const MAX_DEPTH = 12;
 /* Nejvýš tolik znaků v JSON jedné akce (raid s lootem, build, poznámka mapy se vejdou). */
 export const RELAY_MAX_CHARS = 256 * 1024;
+/* 0.16.1: meze jednotlivých hodnot v argumentech (nejdelší text v modulech je 8000 znaků, seznamy pár set). */
+export const RELAY_MAX_STRING = 64 * 1024;
+export const RELAY_MAX_ITEMS = 5000;
 
 export class RelayArgError extends Error {}
 export function encodeArgs(v: unknown, depth = 0): unknown {
@@ -84,15 +88,17 @@ export function encodeArgs(v: unknown, depth = 0): unknown {
 const SPECIAL: Record<string, number> = { NaN: NaN, Infinity: Infinity, '-Infinity': -Infinity };
 export function decodeArgs(v: unknown, depth = 0): unknown {
   if (depth > MAX_DEPTH) throw new RelayArgError('depth');
-  if (v === null || typeof v === 'string' || typeof v === 'boolean') return v;
-  if (typeof v === 'number') return v;
-  if (Array.isArray(v)) return v.map(x => decodeArgs(x, depth + 1));
+  if (typeof v === 'string') { if (v.length > RELAY_MAX_STRING) throw new RelayArgError('string'); return v; }
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') { if (!Number.isFinite(v)) throw new RelayArgError('number'); return v; }
+  if (Array.isArray(v)) { if (v.length > RELAY_MAX_ITEMS) throw new RelayArgError('items'); return v.map(x => decodeArgs(x, depth + 1)); }
   if (isObj(v)) {
     const keys = Object.keys(v);
+    if (keys.length > RELAY_MAX_ITEMS) throw new RelayArgError('items');
     if (keys.length === 1 && keys[0] === UNDEF) return undefined;
-    if (keys.length === 1 && keys[0] === NUM && typeof v[NUM] === 'string' && v[NUM] in SPECIAL) return SPECIAL[v[NUM] as string];
+    if (keys.length === 1 && keys[0] === NUM && typeof v[NUM] === 'string' && Object.hasOwn(SPECIAL, v[NUM] as string)) return SPECIAL[v[NUM] as string];
     const o: Record<string, unknown> = {};
-    for (const k of keys) { if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue; o[k] = decodeArgs(v[k], depth + 1); }
+    for (const k of keys) { if (UNSAFE_KEYS.has(k) || k.length > 200) continue; o[k] = decodeArgs(v[k], depth + 1); }
     return o;
   }
   throw new RelayArgError(typeof v);
@@ -116,10 +122,12 @@ export function applyRelay(app: App, raw: unknown): RelayResult | null {
     if (JSON.stringify(m.args).length > RELAY_MAX_CHARS) return { ack, applied: false };
     args = decodeArgs(m.args) as unknown[];
   } catch { return { ack, applied: false }; }
+  /* jen vlastní funkce objektu akcí (ne zděděná vlastnost) */
+  const fn = Object.hasOwn(app.actions, m.name) ? (app.actions[m.name] as unknown) : null;
+  if (typeof fn !== 'function') return { ack, applied: false };
   const before = app.store.getState().state;
   try {
-    const fn = app.actions[m.name] as (...a: unknown[]) => unknown;
-    replayIds(m.ids, () => fn(...args));
+    replayIds(m.ids, () => (fn as (...a: unknown[]) => unknown)(...args));
   } catch { return { ack, applied: false }; }
   return { ack, applied: app.store.getState().state !== before };
 }

@@ -1,6 +1,9 @@
 /* Import vlastního snímku mapy (0.14.0): soubor, schránka nebo přetažení. Jen PNG, JPEG a WebP. Obrázek se
    přečte lokálně (FileReader), nic se neposílá ven. Velký snímek se před uložením zmenší, aby se vešel do paměti
-   a místního úložiště; poměr stran zůstane a zmenšení se ukáže před potvrzením. */
+   a místního úložiště; poměr stran zůstane a zmenšení se ukáže před potvrzením.
+   0.16.1: rozměry se nejdřív přečtou z hlavičky (core/imageSize.ts); obrázek nad rozpočtem (8192 px na stranu,
+   40 MP) se odmítne bez dekódování. Stejnou cestou jdou i snímky map ze zálohy (restoreImage). */
+import { dataUrlBytes, imageSize, mimeOf, withinBudget } from '../core/imageSize';
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 /* Nejdelší strana uloženého snímku a největší velikost obrázku bez přepočtu. */
@@ -44,14 +47,28 @@ export async function importImage(b: Blob): Promise<ImportedImage | ImportError>
   if (!IMAGE_TYPES.includes(b.type)) return 'type';
   if (b.size > MAX_FILE) return 'big';
   try {
+    const size = imageSize(new Uint8Array(await b.arrayBuffer()));
+    if (!size || mimeOf(size.kind) !== b.type) return size ? 'type' : 'read';
+    if (!withinBudget(size.w, size.h)) return 'big';
     const url = await readDataUrl(b);
     const img = await loadImage(url);
     const origW = img.naturalWidth, origH = img.naturalHeight;
     if (!origW || !origH) return 'read';
+    if (!withinBudget(origW, origH)) return 'big';
     if (Math.max(origW, origH) <= MAX_SIDE && url.length <= MAX_BYTES) return { dataUrl: url, w: origW, h: origH, origW, origH, scaled: false };
     const s = scaleImage(img, MAX_SIDE);
     return { ...s, origW, origH, scaled: true };
   } catch { return 'read'; }
+}
+
+/* Snímek mapy ze zálohy (0.16.1): stejná kontrola a zmenšení jako vlastní import; rozměry jdou ze skutečného
+   obrázku, ne z údajů v záloze. */
+export async function restoreImage(dataUrl: string): Promise<ImportedImage | ImportError> {
+  const m = /^data:(image\/(?:png|jpeg|webp));base64,/.exec(dataUrl);
+  if (!m) return 'type';
+  const bytes = dataUrlBytes(dataUrl);
+  if (!bytes) return 'read';
+  return importImage(new Blob([bytes], { type: m[1] }));
 }
 
 /* Kopie snímku do zálohy: menší WebP, když je originál velký (záloha se musí vejít do limitu importu). */

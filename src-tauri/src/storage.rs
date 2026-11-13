@@ -14,7 +14,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const KEEP_AUTO: usize = 30;
 pub const KEEP_OTHER: usize = 30;
 pub const KINDS: [&str; 5] = ["auto", "manual", "import", "restore", "reset"];
+/// Největší soubor stavu, snímku nebo zálohy, který se načte. 0.16.1: stejný limit platí i pro zápis, takže větší
+/// stav se odmítne už při uložení (s varováním v UI) a při dalším startu se tiše nevrátí starší `.bak`.
 pub const MAX_FILE: u64 = 20 * 1024 * 1024;
+/// Kolik původních textů importovaných záloh se drží ve složce `imports/` (stejně jako prohlížečová verze).
+pub const KEEP_IMPORTS: usize = 10;
+/// Chyba při překročení limitu (začátek textu překládá src/i18n/system.ts).
+pub const ERR_TOO_BIG: &str = "Stav je příliš velký (víc než 20 MB)";
+
+fn check_size(content: &str) -> Result<(), String> {
+    if content.len() as u64 > MAX_FILE { Err(ERR_TOO_BIG.into()) } else { Ok(()) }
+}
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -56,6 +66,38 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
         let _ = fs::remove_file(&tmp);
         format!("Přejmenování selhalo: {e}")
     })
+}
+
+/// Zápis do souboru, který vybral uživatel (export zálohy, 0.16.1): dočasný soubor má jedinečný název
+/// `<název>.<pid>-<čas>-<n>.tmp` a vzniká přes create_new, takže cizí soubor ve složce nikdy nepřepíše.
+/// Pak se atomicky přejmenuje na cílový název.
+pub fn atomic_write_unique(path: &Path, content: &str) -> Result<(), String> {
+    let dir = path.parent().ok_or("Neplatná cesta")?;
+    let name = path.file_name().ok_or("Neplatná cesta")?.to_string_lossy().into_owned();
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let mut last = String::new();
+    for n in 0..16u32 {
+        let tmp = dir.join(format!("{name}.{}-{stamp}-{n}.tmp", std::process::id()));
+        let mut f = match fs::OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => {
+                last = e.to_string();
+                break;
+            }
+        };
+        let written = f.write_all(content.as_bytes()).and_then(|_| f.sync_all());
+        drop(f);
+        if let Err(e) = written {
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("Zápis selhal: {e}"));
+        }
+        return fs::rename(&tmp, path).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            format!("Přejmenování selhalo: {e}")
+        });
+    }
+    Err(format!("Nelze zapsat dočasný soubor: {last}"))
 }
 
 pub struct Storage {
@@ -129,6 +171,7 @@ impl Storage {
 
     /// Předchozí platný stav se zkopíruje do .bak, nový se zapíše atomicky.
     pub fn save(&self, content: &str) -> Result<(), String> {
+        check_size(content)?;
         if !is_json(content) {
             return Err("Stav není platný JSON".into());
         }
@@ -145,6 +188,7 @@ impl Storage {
         if !KINDS.contains(&kind) {
             return Err("Neplatný typ snímku".into());
         }
+        check_size(content)?;
         if !is_json(content) {
             return Err("Snímek není platný JSON".into());
         }
@@ -204,9 +248,36 @@ impl Storage {
         fs::remove_file(self.snaps().join(name)).map_err(|e| format!("Snímek nejde smazat: {e}"))
     }
 
+    /// Původní text importované zálohy (pojistka). 0.16.1: nejvýš MAX_FILE a jen KEEP_IMPORTS nejnovějších.
     pub fn save_import_raw(&self, content: &str) -> Result<(), String> {
-        let path = self.imports().join(format!("import-{}.txt", now_ms()));
-        atomic_write(&path, content)
+        check_size(content)?;
+        let mut ts = now_ms();
+        while self.imports().join(format!("import-{ts}.txt")).exists() {
+            ts += 1;
+        }
+        atomic_write(&self.imports().join(format!("import-{ts}.txt")), content)?;
+        self.prune_imports();
+        Ok(())
+    }
+
+    /// Smaže starší původní texty importů, nechá KEEP_IMPORTS nejnovějších. Jiné soubory ve složce nechá být.
+    fn prune_imports(&self) {
+        let Ok(rd) = fs::read_dir(self.imports()) else { return };
+        let mut list: Vec<(u64, PathBuf)> = rd
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().into_owned();
+                let ts = name.strip_prefix("import-")?.strip_suffix(".txt")?;
+                if ts.is_empty() || ts.len() > 16 || !ts.bytes().all(|b| b.is_ascii_digit()) {
+                    return None;
+                }
+                Some((ts.parse().ok()?, e.path()))
+            })
+            .collect();
+        list.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, p) in list.into_iter().skip(KEEP_IMPORTS) {
+            let _ = fs::remove_file(p);
+        }
     }
 }
 
@@ -353,6 +424,62 @@ mod tests {
         assert!(parse_snapshot_name("1762700000000-auto.json").is_some());
         assert!(parse_snapshot_name("5-manual-pred-upravou.json").is_some());
         assert!(s.create_snapshot("evil", "x", "{}").is_err());
+    }
+
+    #[test]
+    fn prilis_velky_stav_se_neulozi() {
+        let s = Storage::new(temp_dir("big"));
+        s.save(r#"{"v":1}"#).unwrap();
+        let big = format!("{{\"x\":\"{}\"}}", "a".repeat(MAX_FILE as usize));
+        assert_eq!(s.save(&big), Err(ERR_TOO_BIG.to_string()));
+        assert!(s.create_snapshot("manual", "x", &big).is_err());
+        assert!(s.save_import_raw(&big).is_err());
+        /* uložený stav zůstal a načte se bez varování (žádný tichý návrat na .bak) */
+        let r = s.load();
+        assert_eq!(r.source, "state");
+        assert_eq!(r.content.as_deref(), Some(r#"{"v":1}"#));
+        assert_eq!(r.warning, None);
+        /* přesně na limitu projde */
+        let pad = MAX_FILE as usize - r#"{"x":""}"#.len();
+        let edge = format!("{{\"x\":\"{}\"}}", "a".repeat(pad));
+        assert_eq!(edge.len() as u64, MAX_FILE);
+        s.save(&edge).unwrap();
+        assert_eq!(s.load().source, "state");
+    }
+
+    #[test]
+    fn importy_jen_deset_nejnovejsich() {
+        let s = Storage::new(temp_dir("imports"));
+        fs::create_dir_all(s.imports()).unwrap();
+        fs::write(s.imports().join("poznamka.txt"), "cizí").unwrap();
+        for i in 0..14 {
+            s.save_import_raw(&format!("{{\"i\":{i}}}")).unwrap();
+        }
+        let mut names: Vec<String> = fs::read_dir(s.imports()).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        names.sort();
+        assert_eq!(names.iter().filter(|n| n.starts_with("import-")).count(), KEEP_IMPORTS);
+        assert!(names.contains(&"poznamka.txt".to_string()));
+        let texts: Vec<String> = names.iter().filter(|n| n.starts_with("import-")).map(|n| fs::read_to_string(s.imports().join(n)).unwrap()).collect();
+        for i in 4..14 {
+            assert!(texts.contains(&format!("{{\"i\":{i}}}")), "{i}");
+        }
+    }
+
+    #[test]
+    fn export_neprepise_cizi_tmp() {
+        let d = temp_dir("export");
+        let target = d.join("zaloha.json");
+        fs::write(d.join("zaloha.tmp"), "cizí soubor").unwrap();
+        fs::write(d.join("zaloha.json.tmp"), "jiný cizí soubor").unwrap();
+        atomic_write_unique(&target, r#"{"ok":1}"#).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), r#"{"ok":1}"#);
+        assert_eq!(fs::read_to_string(d.join("zaloha.tmp")).unwrap(), "cizí soubor");
+        assert_eq!(fs::read_to_string(d.join("zaloha.json.tmp")).unwrap(), "jiný cizí soubor");
+        /* přepis existující zálohy a žádný zbylý dočasný soubor */
+        atomic_write_unique(&target, r#"{"ok":2}"#).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), r#"{"ok":2}"#);
+        let left: Vec<_> = fs::read_dir(&d).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        assert_eq!(left.len(), 3, "{left:?}");
     }
 
     #[test]

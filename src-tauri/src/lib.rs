@@ -3,6 +3,7 @@
 //! Buddy, overlay, zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
 //! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
+mod bus;
 mod mainwin;
 mod ops;
 mod storage;
@@ -24,8 +25,9 @@ struct LaunchInfo {
 }
 
 #[tauri::command]
-fn launch_info(info: State<'_, LaunchInfo>) -> LaunchInfo {
-    *info
+fn launch_info(window: WebviewWindow, info: State<'_, LaunchInfo>) -> Result<LaunchInfo, String> {
+    main_window(&window)?;
+    Ok(*info)
 }
 
 fn with<T>(st: &State<'_, AppStorage>, f: impl FnOnce(&Storage) -> Result<T, String>) -> Result<T, String> {
@@ -33,13 +35,15 @@ fn with<T>(st: &State<'_, AppStorage>, f: impl FnOnce(&Storage) -> Result<T, Str
     f(&guard)
 }
 
-/* Ukládá jen hlavní okno: buddy a overlay mají jen kopii stavu, takže nemůže vzniknout dvojí zápis. */
+/* Ukládá jen hlavní okno: buddy a overlay mají jen kopii stavu, takže nemůže vzniknout dvojí zápis.
+   0.16.1: i čtení stavu, snímků a složky dat jen hlavní okno (obrana do hloubky vedle capabilities/main.json). */
 fn main_window(w: &WebviewWindow) -> Result<(), String> {
     if w.label() == "main" { Ok(()) } else { Err("Ukládat smí jen hlavní okno".into()) }
 }
 
 #[tauri::command]
-fn storage_load(st: State<'_, AppStorage>) -> Result<LoadResult, String> {
+fn storage_load(window: WebviewWindow, st: State<'_, AppStorage>) -> Result<LoadResult, String> {
+    main_window(&window)?;
     with(&st, |s| Ok(s.load()))
 }
 
@@ -56,12 +60,14 @@ fn snapshot_create(window: WebviewWindow, st: State<'_, AppStorage>, kind: Strin
 }
 
 #[tauri::command]
-fn snapshot_list(st: State<'_, AppStorage>) -> Result<Vec<SnapshotInfo>, String> {
+fn snapshot_list(window: WebviewWindow, st: State<'_, AppStorage>) -> Result<Vec<SnapshotInfo>, String> {
+    main_window(&window)?;
     with(&st, |s| s.list_snapshots())
 }
 
 #[tauri::command]
-fn snapshot_read(st: State<'_, AppStorage>, name: String) -> Result<String, String> {
+fn snapshot_read(window: WebviewWindow, st: State<'_, AppStorage>, name: String) -> Result<String, String> {
+    main_window(&window)?;
     with(&st, |s| s.read_snapshot(&name))
 }
 
@@ -106,7 +112,8 @@ async fn export_backup(
         .blocking_save_file();
     let Some(path) = picked else { return Ok(false) };
     let path: PathBuf = path.into_path().map_err(|e| format!("Neplatná cesta: {e}"))?;
-    storage::atomic_write(&path, &content)?;
+    /* 0.16.1: dočasný soubor s jedinečným názvem (cizí <název>.tmp ve vybrané složce se nepřepíše) */
+    storage::atomic_write_unique(&path, &content)?;
     Ok(true)
 }
 
@@ -131,20 +138,24 @@ async fn import_backup(app: tauri::AppHandle, window: WebviewWindow, title: Opti
 }
 
 #[tauri::command]
-fn data_dir(st: State<'_, AppStorage>) -> Result<String, String> {
+fn data_dir(window: WebviewWindow, st: State<'_, AppStorage>) -> Result<String, String> {
+    main_window(&window)?;
     with(&st, |s| Ok(s.dir.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
-fn open_data_dir(app: tauri::AppHandle, st: State<'_, AppStorage>) -> Result<(), String> {
+fn open_data_dir(app: tauri::AppHandle, window: WebviewWindow, st: State<'_, AppStorage>) -> Result<(), String> {
+    main_window(&window)?;
     let dir = with(&st, |s| Ok(s.dir.clone()))?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
 
-/// Otevře odkaz ve výchozím prohlížeči. Povoleny jsou jen adresy https.
+/// Otevře odkaz ve výchozím prohlížeči. Povoleny jsou jen adresy https a jen z hlavního okna nebo overlaye
+/// (odkaz v modulu, na který hráč klikl).
 #[tauri::command]
-fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
+fn open_external(app: tauri::AppHandle, window: WebviewWindow, url: String) -> Result<(), String> {
+    bus::only(&window, &[bus::MAIN, bus::OVERLAY])?;
     if !url.starts_with("https://") || url.len() > 2000 || url.chars().any(|c| c.is_whitespace() || c == '"') {
         return Err("Odkaz není povolený".into());
     }
@@ -228,6 +239,7 @@ pub fn run() {
             open_data_dir,
             open_external,
             launch_info,
+            bus::bus_send,
             ops::ops_enable,
             ops::ops_hotkey,
             ops::ops_watch,
@@ -240,6 +252,8 @@ pub fn run() {
             ops::main_focus,
             ops::capture_now,
             ops::capture_take,
+            ops::win_place,
+            ops::win_drag,
             mainwin::main_mode,
             mainwin::main_pin,
             mainwin::main_geometry,

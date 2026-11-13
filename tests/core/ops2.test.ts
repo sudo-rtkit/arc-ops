@@ -250,7 +250,7 @@ describe('hub 0.10.0: odchod před zavřením a stav pro okna', () => {
     return {
       calls, available: true, enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
       overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-      captureNow: rec('captureNow'), captureTake: async () => new ArrayBuffer(0),
+      captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new ArrayBuffer(0),
     };
   }
   it('skrytí buddyho: nejdřív dismiss, okno se zavře až po odchodu; povaha a zvuky jdou do view', async () => {

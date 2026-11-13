@@ -11,7 +11,7 @@ import { nextNeeds } from './workshop';
 import { planRequirements, type ReqKind } from './planner';
 import { projectNeeds, questNeeds } from './quests';
 import { isBlueprint, itemData, slotsFor } from './itemdb';
-import { isObj } from './util';
+import { isObj, safeEntries } from './util';
 import { t } from '../i18n';
 
 export type AdviceKind = 'keep' | 'recycle' | 'sell' | 'unknown';
@@ -150,6 +150,6 @@ export const emptyAdvice = () => ({ keep: {} as Record<string, true> });
 export function normalizeAdvice(raw: unknown): { keep: Record<string, true> } {
   const keep: Record<string, true> = {};
   const k = isObj(raw) && isObj(raw.keep) ? raw.keep : {};
-  for (const [name, v] of Object.entries(k).slice(0, 5000)) if (v === true && name.trim() && name.length <= 130) keep[name] = true;
+  for (const [name, v] of safeEntries(k).slice(0, 5000)) if (v === true && name.trim() && name.length <= 130) keep[name] = true;
   return { keep };
 }

@@ -42,7 +42,7 @@ function fakeNative(): Native & { calls: string[] } {
     calls, available: true,
     enable: rec('enable'), setHotkey: rec('setHotkey'), watch: rec('watch'), buddyOpen: rec('buddyOpen'), buddyClose: rec('buddyClose'), buddyReveal: rec('buddyReveal'),
     overlayOpen: rec('overlayOpen'), overlayClose: rec('overlayClose'), overlayToggle: rec('overlayToggle'), mainFocus: rec('mainFocus'),
-    captureNow: rec('captureNow'), captureTake: async () => new ArrayBuffer(0),
+    captureNow: rec('captureNow'), place: rec('place'), drag: rec('drag'), captureTake: async () => new ArrayBuffer(0),
   };
 }
 async function setup() {
@@ -211,21 +211,46 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     app.actions.setBuddy({ enabled: true, autoOpen: true });
     await hub.idle();
     native.calls.length = 0;
-    buddy.send('main', 'game', true);
+    buddy.native('main', 'game', true);
     await hub.idle();
     expect(native.calls).toEqual([]);
     for (const visible of [true, false, true]) {
-      buddy.send('main', 'game-visible', visible);
+      buddy.native('main', 'game-visible', visible);
       await hub.idle();
       expect(native.calls.at(-1)).toBe(visible ? 'buddyOpen' : 'buddyClose');
     }
     hub.setBuddyVisible(false);
     await hub.idle();
     native.calls.length = 0;
-    buddy.send('main', 'game-visible', false);
-    buddy.send('main', 'game-visible', true);
+    buddy.native('main', 'game-visible', false);
+    buddy.native('main', 'game-visible', true);
     await hub.idle();
     expect(native.calls).toEqual([]);
+  });
+
+  it('0.16.1: události z Rustu nejde podvrhnout zprávou z jiného okna', async () => {
+    const { app, native, hub, buddy, overlay } = await setup();
+    app.actions.setBuddy({ enabled: true, autoOpen: true });
+    await hub.idle();
+    native.calls.length = 0;
+    for (const w of [buddy, overlay]) {
+      w.send('main', 'game-visible', true);
+      w.send('main', 'capture-ready', { id: 1, width: 64, height: 64 });
+      w.send('main', 'win-tray', 'quit');
+      w.send('main', 'overlay', true);
+    }
+    await hub.idle();
+    expect(native.calls).toEqual([]);
+    /* zprávy overlaye od buddyho (a naopak) se zahodí */
+    const level = app.store.getState().state.profile.level;
+    buddy.send('main', 'edit', { op: 'profile', field: 'level', value: level + 5 });
+    buddy.send('main', 'hello', { from: 'overlay' });
+    overlay.send('main', 'moved', { monitor: 'x', x: 1, y: 2 });
+    await hub.idle();
+    expect(app.store.getState().state.profile.level).toBe(level);
+    expect(app.store.getState().state.buddy.positions).toEqual({});
+    overlay.send('main', 'edit', { op: 'profile', field: 'level', value: level + 5 });
+    expect(app.store.getState().state.profile.level).toBe(level + 5);
   });
 
   it('výchozí stav vypnuto: žádné okno, zkratka ani hlídání; zapnutí a vypnutí se promítne do Rustu', async () => {

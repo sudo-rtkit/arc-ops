@@ -35,8 +35,8 @@ let greeted = false;
 type Win = Awaited<ReturnType<typeof winApi>>;
 const winApi = async () => {
   const m = await import('@tauri-apps/api/window');
-  const d = await import('@tauri-apps/api/dpi');
-  return { win: m.getCurrentWindow(), availableMonitors: m.availableMonitors, primaryMonitor: m.primaryMonitor, PhysicalSize: d.PhysicalSize, PhysicalPosition: d.PhysicalPosition };
+  /* 0.16.1: velikost, poloha a tažení jen přes native.place a native.drag (Rust mění jen toto okno) */
+  return { win: m.getCurrentWindow(), availableMonitors: m.availableMonitors, primaryMonitor: m.primaryMonitor };
 };
 type Mon = Awaited<ReturnType<Win['availableMonitors']>>[number];
 const rectOf = (m: Mon): Rect => ({ x: m.position.x, y: m.position.y, w: m.size.width, h: m.size.height });
@@ -186,12 +186,11 @@ export default function BuddyApp() {
       if (dead) return;
       offset.current = L.ops;
       expected.current = { x: L.win.x, y: L.win.y };
-      await a.win.setSize(new a.PhysicalSize(L.win.w, L.win.h));
-      await a.win.setPosition(new a.PhysicalPosition(L.win.x, L.win.y));
+      await native.place(L.win);
       const dpr = window.devicePixelRatio || 1;
       setOpsAt({ x: L.ops.x / dpr, y: L.ops.y / dpr, below: L.below, right: L.right });
       /* bez aktivace (0.13.1); win.show() by oknu vzalo fokus */
-      if (!shown.current) { shown.current = true; await native.buddyReveal().catch(() => a.win.show()); }
+      if (!shown.current) { shown.current = true; await native.buddyReveal().catch(() => undefined); }
     })();
     return () => { dead = true; };
   }, [view, scale, bubble]);
@@ -265,7 +264,7 @@ export default function BuddyApp() {
     setBubble(null);
     ops.current?.rest('idle');
     ops.current?.play('drag');
-    void api.current?.win.startDragging();
+    void native.drag().catch(() => undefined);
     /* tažení bez pohybu okna: po chvíli zpět do klidu */
     if (moveTimer.current) clearTimeout(moveTimer.current);
     moveTimer.current = setTimeout(() => { if (drag.current === d) { drag.current = null; if (ops.current?.anim() === 'drag') ops.current.play('idle'); } }, 1500);

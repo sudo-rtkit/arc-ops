@@ -41,6 +41,36 @@ export function replayIds<T>(ids: readonly unknown[], fn: () => T): T {
 
 export const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/* 0.16.1: klíče, které v prostém objektu mění prototyp nebo se tváří jako vestavěné vlastnosti. JSON.parse je
+   nechává jako vlastní klíče a přiřazení out['__proto__'] = {...} by objektu vyměnilo prototyp. */
+export const UNSAFE_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+export const safeKey = (k: string): boolean => !UNSAFE_KEYS.has(k);
+/* Object.entries bez nebezpečných klíčů; cokoli jiného než objekt (i null) dá prázdný seznam. */
+export function safeEntries<T>(v: Record<string, T> | null | undefined): [string, T][];
+export function safeEntries(v: unknown): [string, unknown][];
+export function safeEntries(v: unknown): [string, unknown][] {
+  return v && typeof v === 'object' ? Object.entries(v as Record<string, unknown>).filter(([k]) => safeKey(k)) : [];
+}
+/* 0.16.1: největší stav, snímek nebo záloha v bajtech UTF-8; stejný limit hlídá Rust (storage.rs MAX_FILE). */
+export const MAX_STATE_BYTES = 20 * 1024 * 1024;
+/* Délka textu v bajtech UTF-8 (bez kopie textu). */
+export function utf8Bytes(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c < 0xdc00 && i + 1 < s.length) { const d = s.charCodeAt(i + 1); if (d >= 0xdc00 && d < 0xe000) { n += 4; i++; } else n += 3; }
+    else n += 3;
+  }
+  return n;
+}
+/* Vejde se text do limitu stavu? */
+export const fitsState = (s: string): boolean => s.length * 3 <= MAX_STATE_BYTES || (s.length <= MAX_STATE_BYTES && utf8Bytes(s) <= MAX_STATE_BYTES);
+
+/* JSON.parse, který nebezpečné klíče rovnou zahodí (stav, záloha, snímek). */
+export const safeJsonParse = (text: string): unknown => JSON.parse(text, (k, v) => (UNSAFE_KEYS.has(k) ? undefined : v));
+
 /* Číslo týdne podle ISO 8601, např. 2026-W46. */
 export function isoWeek(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));

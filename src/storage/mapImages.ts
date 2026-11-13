@@ -3,6 +3,8 @@
    a sdílí ho hlavní okno i overlay (stejný původ). Nic se neposílá ven. Do zálohy jdou jen volitelně.
    Bez IndexedDB (soukromý režim, chyba) se drží jen v paměti do zavření okna. */
 
+import { dataUrlSize, withinBudget } from '../core/imageSize';
+
 export interface MapImageRec { mapId: string; dataUrl: string; w: number; h: number; at: number }
 
 const DB = 'arcops-maps';
@@ -19,6 +21,13 @@ export const isImageRec = (v: unknown): v is MapImageRec => {
   const r = v as MapImageRec | null;
   return !!r && typeof r.mapId === 'string' && typeof r.dataUrl === 'string' && IMAGE_URL_RE.test(r.dataUrl.slice(0, 64) + 'A') &&
     Number.isFinite(r.w) && Number.isFinite(r.h) && r.w > 0 && r.h > 0;
+};
+
+/* 0.16.1: obrázek, jehož hlavičku nejde přečíst nebo je nad rozpočtem (core/imageSize.ts), se neuloží ani
+   nezobrazí (i starší záznam z dřívější zálohy), takže otevření mapy nikdy nedekóduje obří obrázek. */
+const fitsBudget = (r: MapImageRec): boolean => {
+  const size = dataUrlSize(r.dataUrl);
+  return !!size && withinBudget(size.w, size.h);
 };
 
 let dbp: Promise<IDBDatabase | null> | null = null;
@@ -53,12 +62,13 @@ const changed = (mapId: string) => { listeners.forEach(f => f(mapId)); channel?.
 export async function getMapImage(mapId: string): Promise<MapImageRec | null> {
   try {
     const r = await tx<MapImageRec>('readonly', s => s.get(mapId) as IDBRequest<MapImageRec>);
-    if (r && isImageRec(r)) return r;
+    if (r && isImageRec(r)) return fitsBudget(r) ? r : null;
   } catch { /* spadne na paměť */ }
-  return memory.get(mapId) ?? null;
+  const m = memory.get(mapId);
+  return m && fitsBudget(m) ? m : null;
 }
 export async function putMapImage(rec: MapImageRec): Promise<void> {
-  if (!isImageRec(rec)) throw new Error('image');
+  if (!isImageRec(rec) || !fitsBudget(rec)) throw new Error('image');
   memory.set(rec.mapId, rec);
   try { await tx('readwrite', s => s.put(rec)); } catch { /* zůstane v paměti */ }
   changed(rec.mapId);
@@ -72,7 +82,7 @@ export async function allMapImages(): Promise<MapImageRec[]> {
   let list: MapImageRec[] = [];
   try { list = ((await tx<MapImageRec[]>('readonly', s => s.getAll() as IDBRequest<MapImageRec[]>)) ?? []).filter(isImageRec); } catch { list = []; }
   const ids = new Set(list.map(r => r.mapId));
-  return [...list, ...[...memory.values()].filter(r => !ids.has(r.mapId))];
+  return [...list, ...[...memory.values()].filter(r => !ids.has(r.mapId))].filter(fitsBudget);
 }
 export async function clearMapImages(): Promise<void> {
   const ids = [...new Set([...memory.keys(), ...(await allMapImages()).map(r => r.mapId)])];

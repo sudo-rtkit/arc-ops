@@ -17,7 +17,8 @@ describe('buddy podle okna v popředí (0.13.1)', () => {
     expect(watch).toMatch(/now\.duration_since\(t\) >= WATCH_EVERY/);
     expect(watch).toContain('classify_foreground(foreground_pid(), own, &pids)');
     expect(watch).toContain('gate.update(shown, fg, now)');
-    expect(watch).toContain('"ops:game-visible"');
+    /* 0.16.1: událost jen z Rustu (native:), z JS ji poslat nejde */
+    expect(watch).toContain('emit_native(&app, MAIN, "game-visible", visible)');
     expect(code).toMatch(/const HIDE_AFTER: Duration = Duration::from_millis\((3|4|5)\d\d\);/);
   });
 

@@ -350,13 +350,14 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
         if (EDIT_PROFILE.includes(o.field as ProfileField) && typeof o.value === 'number' && Number.isFinite(o.value)) app.actions.setProfile(o.field as ProfileField, o.value);
         return;
       case 'station':
-        if (typeof o.id !== 'string' || !(o.id in st().stations)) return;
+        /* 0.16.1: Object.hasOwn místo `in` (constructor, toString… nejsou stanice) */
+        if (typeof o.id !== 'string' || !Object.hasOwn(st().stations, o.id)) return;
         if (dir === 1) app.actions.levelUp(o.id); else if (dir === -1) app.actions.levelDown(o.id);
         return;
       case 'inv': {
         if (typeof o.name !== 'string' || typeof o.value !== 'number' || !Number.isFinite(o.value)) return;
         const name = o.name;
-        if (!(name in st().inventory) && !getMaterials(st()).some(m => m.name === name)) return;
+        if (!Object.hasOwn(st().inventory, name) && !getMaterials(st()).some(m => m.name === name)) return;
         app.actions.invSet(name, o.value);
         return;
       }
@@ -396,69 +397,77 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       prevLevel = s.profile.level;
     };
     /* Nejdřív posluchače (hello, akce oken, události z Rustu), pak teprve stav: nativní volání, která otevírají
-       okna, čekají ve frontě na bus.ready(), takže první hello od nového okna už má kdo přijmout (0.8.0). */
-    offs.push(bus.on('hello', p => {
+       okna, čekají ve frontě na bus.ready(), takže první hello od nového okna už má kdo přijmout (0.8.0).
+       0.16.1: každá zpráva jen od okna, které ji smí poslat (odesílatele ověřuje Rust, viz bus.ts);
+       události z Rustu jdou přes onNative a z jiného okna je podvrhnout nejde. */
+    const fromOverlay = (fn: (p: unknown) => void) => (p: unknown, from: string | null) => { if (from === 'overlay') fn(p); };
+    const fromBuddy = (fn: (p: unknown) => void) => (p: unknown, from: string | null) => { if (from === 'buddy') fn(p); };
+    offs.push(bus.on('hello', (p, sender) => {
       const from = (p as { from?: string } | null)?.from;
+      if (from !== sender) return;
       if (!st().buddy.enabled) return;
       if (from === 'buddy') pushBuddy(true);
       if (from === 'overlay') { overlayKnown = true; pushOverlay(true); }
     }));
-    offs.push(bus.on('import', p => { const input = (p as { input?: VisionApply } | null)?.input; if (input && Array.isArray(input.rows)) void importShots(input); }));
-    offs.push(bus.on('questSet', p => {
+    offs.push(bus.on('import', fromOverlay(p => { const input = (p as { input?: VisionApply } | null)?.input; if (input && Array.isArray(input.rows)) void importShots(input); })));
+    offs.push(bus.on('questSet', fromOverlay(p => {
       const q = p as { id?: unknown; done?: unknown } | null;
       if (q && typeof q.id === 'string' && typeof q.done === 'boolean') app.actions.questSet(q.id, q.done);
-    }));
+    })));
     /* 0.14.0: zaškrtnutí „mám“ v záložce Raid; jen orientační, inventář se nemění */
-    offs.push(bus.on('raidFound', p => {
+    offs.push(bus.on('raidFound', fromOverlay(p => {
       const o = p as { mat?: unknown; on?: unknown } | null;
       if (o && typeof o.mat === 'string' && typeof o.on === 'boolean') app.actions.setRaidFound(o.mat, o.on);
-    }));
+    })));
     /* 0.15.0: „Uložit do deníku“ z vyhodnocení v overlayi: aktivní plán k záznamu raidu (inventář se nemění) */
-    offs.push(bus.on('raidPlanSave', p => {
+    offs.push(bus.on('raidPlanSave', fromOverlay(p => {
       const id = (p as { raidId?: unknown } | null)?.raidId;
       if (typeof id === 'string' && id.length <= 24 && st().raids.some(r => r.id === id)) app.actions.attachRaidPlan(id);
-    }));
+    })));
     /* 0.10.1: rychlé úpravy z modulů overlaye; jen známé operace a hodnoty, provede je stejná akce store */
-    offs.push(bus.on('edit', p => applyEdit(p)));
+    offs.push(bus.on('edit', fromOverlay(p => applyEdit(p))));
     /* 0.16.0: akce plného modulu v overlayi. Hlavní okno je jediný zapisovatel: jen akce ze seznamu, ověřené
        argumenty, stejná akce store. Stav se vrátí vždy (i bez změny), s potvrzením, aby overlay zahodil svou kopii. */
-    offs.push(bus.on('action', p => {
+    offs.push(bus.on('action', fromOverlay(p => {
       if (!st().buddy.enabled) return;
       const r = applyRelay(app, p);
       if (!r) return;
       relayAck = r.ack;
       pushOverlay();
-    }));
-    offs.push(bus.on('opacity', p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); }));
-    offs.push(bus.on('batchClear', () => { clearBatch(); pushOverlay(true); }));
-    offs.push(bus.on('lootImport', p => { const x = lootInput(p); if (x) void importLoot(x.shotId, x.input); }));
-    offs.push(bus.on('lootClear', () => { clearLoot(); pushOverlay(true); }));
-    offs.push(bus.on('progressImport', p => {
+    })));
+    offs.push(bus.on('opacity', fromOverlay(p => { const v = Number((p as { value?: unknown } | null)?.value); if (Number.isFinite(v)) app.actions.setBuddy({ opacity: v }); })));
+    offs.push(bus.on('batchClear', fromOverlay(() => { clearBatch(); pushOverlay(true); })));
+    offs.push(bus.on('lootImport', fromOverlay(p => { const x = lootInput(p); if (x) void importLoot(x.shotId, x.input); })));
+    offs.push(bus.on('lootClear', fromOverlay(() => { clearLoot(); pushOverlay(true); })));
+    offs.push(bus.on('progressImport', fromOverlay(p => {
       const o = p as { shotId?: unknown; input?: unknown } | null;
       const input = normalizeProgressApply(o?.input);
       if (o && Number.isFinite(o.shotId) && input) void importProgress(Number(o.shotId), input);
-    }));
-    offs.push(bus.on('progressClear', () => { clearProgress(); pushOverlay(true); }));
-    offs.push(bus.on('moved', p => {
+    })));
+    offs.push(bus.on('progressClear', fromOverlay(() => { clearProgress(); pushOverlay(true); })));
+    offs.push(bus.on('moved', fromBuddy(p => {
       const m = p as { monitor?: unknown; x?: unknown; y?: unknown } | null;
-      if (m && typeof m.monitor === 'string' && Number.isFinite(m.x) && Number.isFinite(m.y)) app.actions.setBuddyPosition(m.monitor, Number(m.x), Number(m.y));
-    }));
-    offs.push(bus.on('open', p => {
+      if (m && typeof m.monitor === 'string' && m.monitor.length <= 200 && Number.isFinite(m.x) && Number.isFinite(m.y)) app.actions.setBuddyPosition(m.monitor, Number(m.x), Number(m.y));
+    })));
+    offs.push(bus.on('open', fromOverlay(p => {
       const route = (p as { route?: unknown } | null)?.route;
-      if (typeof route === 'string' && /^[a-z]+(\/[a-z-]+)?$/.test(route)) { navigate?.(route); void native.mainFocus(); }
+      if (typeof route === 'string' && route.length <= 60 && /^[a-z]+(\/[a-z-]+)?$/.test(route)) { navigate?.(route); void native.mainFocus(); }
+    })));
+    /* události z Rustu (jen onNative) */
+    offs.push(bus.onNative('capture-start', () => status('scanning')));
+    /* overlay otevřený/zavřený */
+    offs.push(bus.onNative('overlay', p => { overlayOpen = p === true; bus.send('buddy', 'ui', ui()); }));
+    offs.push(bus.onNative('capture-ready', p => {
+      const c = p as { id: number; width: number; height: number } | null;
+      if (c && Number.isSafeInteger(c.id) && Number.isSafeInteger(c.width) && Number.isSafeInteger(c.height)) void takeCapture(c);
     }));
-    /* události z Rustu */
-    offs.push(bus.on('capture-start', () => status('scanning')));
-    /* overlay otevřený/zavřený (z Rustu) */
-    offs.push(bus.on('overlay', p => { overlayOpen = p === true; bus.send('buddy', 'ui', ui()); }));
-    offs.push(bus.on('capture-ready', p => { const c = p as { id: number; width: number; height: number }; if (c && Number.isFinite(c.id)) void takeCapture(c); }));
-    offs.push(bus.on('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));
-    offs.push(bus.on('game', p => {
+    offs.push(bus.onNative('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));
+    offs.push(bus.onNative('game', p => {
       gameRunning = p === true;
       gameKnown = true;
       if (st().buddy.enabled) pushBuddy();
     }));
-    offs.push(bus.on('game-visible', p => {
+    offs.push(bus.onNative('game-visible', p => {
       gameVisible = p === true;
       const b = st().buddy;
       if (!b.enabled || !b.autoOpen || buddyHidden) return;

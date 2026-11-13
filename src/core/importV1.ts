@@ -1,7 +1,7 @@
 /* Import zálohy z původního deníku (formát v1). normalizeV1 je věrný převod funkce normalize z deníku;
    importV1 ji použije a výsledek rozdělí do schématu 2. Záloha bez pole „plan“ (starší verze deníku) dostane Solo Looter. */
 import type { AppState, Raid, ReportRow } from './types';
-import { clampInt, isObj } from './util';
+import { clampInt, isObj, safeEntries } from './util';
 import { SKILL, PLANS } from './data/skills';
 import { STATIONS } from './data/stations';
 import { MAPS } from './data/maps';
@@ -53,7 +53,7 @@ export function normalizeV1(raw: any): DiaryV1 {
   }
   if (r.skills && typeof r.skills === 'object') {
     const cur: Record<string, number> = {};
-    for (const [k, v] of Object.entries(r.skills.cur || {})) {
+    for (const [k, v] of safeEntries(r.skills.cur)) {
       if (SKILL[k]) { const n = clampInt(v, 0, SKILL[k].max); if (n > 0) cur[k] = n; }
     }
     out.skills.cur = cur;
@@ -66,10 +66,10 @@ export function normalizeV1(raw: any): DiaryV1 {
     }
   }
   if (r.inv && typeof r.inv === 'object') {
-    for (const [k, v] of Object.entries(r.inv)) { const n = clampInt(v, 0, 99999); if (n > 0) out.inv[String(k).slice(0, 80)] = n; }
+    for (const [k, v] of safeEntries(r.inv)) { const n = clampInt(v, 0, 99999); if (n > 0) out.inv[String(k).slice(0, 80)] = n; }
   }
   if (r.steps && typeof r.steps === 'object') {
-    for (const [k, v] of Object.entries(r.steps)) if (v === true && Number(k) >= 0 && Number(k) < NEXT_STEPS.length) out.steps[k] = true;
+    for (const [k, v] of safeEntries(r.steps)) if (v === true && Number(k) >= 0 && Number(k) < NEXT_STEPS.length) out.steps[k] = true;
   }
   if (Array.isArray(r.runs)) {
     out.runs = r.runs.filter((x: any) => x && typeof x === 'object').slice(-400).map((x: any) => ({
@@ -88,7 +88,7 @@ export function normalizeV1(raw: any): DiaryV1 {
     out.trials.names = [0, 1, 2, 3, 4].map(i => String((r.trials.names || [])[i] || '').slice(0, 80));
   }
   if (r.raid && typeof r.raid === 'object') {
-    for (const [k, v] of Object.entries(r.raid)) if (v === true && Number(k) >= 0 && Number(k) < RAID_CHECK.length) out.raid[k] = true;
+    for (const [k, v] of safeEntries(r.raid)) if (v === true && Number(k) >= 0 && Number(k) < RAID_CHECK.length) out.raid[k] = true;
   }
   out.amplified = clampInt(r.amplified || 0, 0, 99);
   out.updated = clampInt(r.updated || 0, 0, 9e15);

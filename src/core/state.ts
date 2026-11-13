@@ -22,7 +22,7 @@ import { emptyRounds, normalizeRounds } from './gameRounds';
 import { migrateMaterialNames } from './materialRename';
 import { normalizePlanRecord, normalizeRaidPlan } from './raidPrep';
 import { isLootArea, isPoiType } from './lootAreas';
-import { clampInt, clampNum, isObj, text, uid } from './util';
+import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
 import { MAPS } from './data/maps';
@@ -101,7 +101,7 @@ const lim = (v: unknown, key: keyof typeof LIMITS, fallback = 0): number =>
 const trueMap = (raw: unknown, ok: (k: string) => boolean = () => true, max = 5000): Record<string, true> => {
   const out: Record<string, true> = {};
   if (!isObj(raw)) return out;
-  for (const [k, v] of Object.entries(raw).slice(0, max)) if (v === true && ok(k)) out[text(k, 120)] = true;
+  for (const [k, v] of safeEntries(raw).slice(0, max)) if (v === true && ok(k)) out[text(k, 120)] = true;
   return out;
 };
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -208,7 +208,7 @@ function normalizeMapImage(raw: unknown): MapNotes['img'] {
 
 function normalizeMapNotes(raw: unknown): Record<string, MapNotes> {
   const out: Record<string, MapNotes> = {};
-  for (const [k, v] of Object.entries(objOf(raw))) {
+  for (const [k, v] of safeEntries(raw)) {
     if (!MAP_IDS.includes(k) || !isObj(v)) continue;
     out[k] = {
       notes: text(v.notes, 8000),
@@ -231,7 +231,7 @@ function normalizeBuilds(raw: unknown): SavedBuild[] {
 
 const strRecord = (raw: unknown, max: number): Record<string, string> => {
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(objOf(raw)).slice(0, 1000)) { const t = text(v, max); if (t) out[text(k, 80)] = t; }
+  for (const [k, v] of safeEntries(raw).slice(0, 1000)) { const t = text(v, max); if (t) out[text(k, 80)] = t; }
   return out;
 };
 
@@ -254,7 +254,7 @@ function normalizeWeapon(x: Record<string, unknown>): Weapon {
 /* Částečné úpravy vestavěného záznamu: necháme jen textová a známá pole. */
 function partial<T extends object>(raw: unknown, keys: (keyof T)[]): Record<string, Partial<T>> {
   const out: Record<string, Partial<T>> = {};
-  for (const [id, v] of Object.entries(objOf(raw)).slice(0, 500)) {
+  for (const [id, v] of safeEntries(raw).slice(0, 500)) {
     if (!isObj(v)) continue;
     const p: Record<string, unknown> = {};
     for (const k of keys) {
@@ -271,7 +271,7 @@ function partial<T extends object>(raw: unknown, keys: (keyof T)[]): Record<stri
 }
 function normalizeRecipes(raw: unknown): Record<string, Recipe> {
   const out: Record<string, Recipe> = {};
-  for (const [k, v] of Object.entries(objOf(raw)).slice(0, 200)) {
+  for (const [k, v] of safeEntries(raw).slice(0, 200)) {
     const [st, lvl] = k.split(':');
     const station = STATIONS.find(s => s.id === st);
     if (!station || !(Number(lvl) >= 1 && Number(lvl) <= station.max) || !Array.isArray(v)) continue;
@@ -296,7 +296,7 @@ function normalizeSell(x: Record<string, unknown>): SellItem {
 }
 function routeOverrides(raw: unknown): Record<string, Partial<Route>> {
   const out: Record<string, Partial<Route>> = {};
-  for (const [id, v] of Object.entries(objOf(raw)).slice(0, 200)) {
+  for (const [id, v] of safeEntries(raw).slice(0, 200)) {
     if (!isObj(v)) continue;
     const p: Partial<Route> = {};
     for (const k of ['name', 'risk', 'loadout', 'yield', 'phase'] as const) if (v[k] !== undefined) p[k] = text(v[k], k === 'loadout' ? 200 : 80);
@@ -308,7 +308,7 @@ function routeOverrides(raw: unknown): Record<string, Partial<Route>> {
 }
 function sellOverrides(raw: unknown): Record<string, Partial<SellItem>> {
   const out: Record<string, Partial<SellItem>> = {};
-  for (const [id, v] of Object.entries(objOf(raw)).slice(0, 200)) {
+  for (const [id, v] of safeEntries(raw).slice(0, 200)) {
     if (!isObj(v)) continue;
     const p: Partial<SellItem> = {};
     if (v.name !== undefined) p.name = text(v.name, 120);
@@ -328,7 +328,7 @@ export function normalizeGameData(raw: unknown): GameDataEdits {
   const arcKeys: (keyof ArcUnit)[] = ['name', 'type', 'category', 'difficulty', 'danger', 'traits', 'weakness', 'weaknessVerified', 'tactic', 'gear', 'drops'];
   const wKeys: (keyof Weapon)[] = ['name', 'tier', 'antiArc', 'category', 'ammo', 'info'];
   const mats: Record<string, { category?: string; source?: string }> = {};
-  for (const [k, v] of Object.entries(objOf(g.materials)).slice(0, 1000)) {
+  for (const [k, v] of safeEntries(g.materials).slice(0, 1000)) {
     if (!isObj(v)) continue;
     const e: { category?: string; source?: string } = {};
     if (v.category !== undefined) e.category = text(v.category, 60);
@@ -393,7 +393,7 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   const st = objOf(r.stations);
   for (const s of STATIONS) if (st[s.id] !== undefined) out.stations[s.id] = clampInt(st[s.id], s.min, s.max);
 
-  for (const [k, v] of Object.entries(objOf(r.inventory))) { const n = lim(v, 'inventory'); if (n > 0) out.inventory[text(k, 80)] = n; }
+  for (const [k, v] of safeEntries(r.inventory).slice(0, 5000)) { const n = lim(v, 'inventory'); if (n > 0) out.inventory[text(k, 80)] = n; }
 
   out.steps = r.steps === undefined ? d.steps : normalizeSteps(r.steps, stateLang);
 
@@ -415,7 +415,7 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
 
   out.maps = normalizeMapNotes(r.maps);
   out.arcNotes = strRecord(r.arcNotes, 4000);
-  for (const [k, v] of Object.entries(objOf(r.weaponNotes)).slice(0, 500)) {
+  for (const [k, v] of safeEntries(r.weaponNotes).slice(0, 500)) {
     if (!isObj(v)) continue;
     const n: WeaponNote = { tier: ['S', 'A', 'B', 'C'].includes(String(v.tier)) ? String(v.tier) : '', note: text(v.note, 2000) };
     if (n.tier || n.note) out.weaponNotes[text(k, 40)] = n;

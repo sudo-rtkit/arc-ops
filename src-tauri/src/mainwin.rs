@@ -18,7 +18,7 @@ use std::time::Duration;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, WebviewWindowBuilder};
 
 use crate::ops;
 
@@ -406,7 +406,7 @@ pub fn on_close_requested<R: Runtime>(w: &tauri::Window<R>, api: &tauri::CloseRe
         return;
     }
     api.prevent_close();
-    let _ = w.app_handle().emit_to(MAIN, "ops:win-close", ());
+    crate::bus::emit_native(w.app_handle(), MAIN, "win-close", ());
 }
 
 /* ----- oznamovací oblast ----- */
@@ -488,7 +488,7 @@ pub fn refresh_tray_icon<R: Runtime>(app: &AppHandle<R>) {
 }
 
 fn emit_tray<R: Runtime>(app: &AppHandle<R>, action: &str) {
-    let _ = app.emit_to(MAIN, "ops:win-tray", action);
+    crate::bus::emit_native(app, MAIN, "win-tray", action);
 }
 
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {

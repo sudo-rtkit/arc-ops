@@ -25,6 +25,8 @@ const WARN_KEY: Partial<Record<ImportWarning, Key>> = {
   countUnreadable: 'scan.warn.countUnreadable', noOverlap: 'scan.warn.noOverlap', differentState: 'scan.warn.differentState',
   headerUnreadable: 'scan.warn.headerUnreadable', occluded: 'scan.warn.occluded',
 };
+/* Nejvýš tolik snímků najednou (stejně jako dávka stashe v hubu). */
+const MAX_SHOTS = 12;
 const ERR_KEY: Record<DecodeError, Key> = { notImage: 'scan.err.notImage', tooBig: 'scan.err.tooBig', decode: 'scan.err.decode' };
 
 /* Stav rozpoznání políčka → barva rámečku v náhledu. */
@@ -140,7 +142,10 @@ export default function ScreenImport() {
     learnedRef.current = s.vision.learned;
     ctxRef.current = null;
     const errs: Key[] = [], added: Shot[] = [];
+    /* 0.16.1: každý snímek drží v paměti náhled (ImageBitmap), proto nejvýš MAX_SHOTS najednou */
+    const room = MAX_SHOTS - shotsRef.current.length;
     for (const f of files) {
+      if (added.length >= room) { errs.push('scan.err.tooMany'); break; }
       const r = await decodeImage(f);
       if (typeof r === 'string') { errs.push(ERR_KEY[r]); continue; }
       /* Zpracování trvá desítky milisekund; krátká pauza nechá překreslit stav „Zpracovávám…“. */

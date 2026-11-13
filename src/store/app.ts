@@ -12,7 +12,7 @@ import { rollWeek } from '../core/week';
 import { addBlock, nextPlanPoint, planSteps, isPlanKey, BUILD_PREFIX, cleanPoints } from '../core/skills';
 import { applyUpgrade, reqBlock } from '../core/workshop';
 import { getStations } from '../core/gamedata';
-import { clampInt, dayKey, text, uid } from '../core/util';
+import { clampInt, dayKey, fitsState, safeJsonParse, text, uid } from '../core/util';
 import { makeBackup, type BackupImage } from '../core/backup';
 import { applyDelta, lootDelta, normalizeItems } from '../core/raidItems';
 import { normalizeGoal, syncGoals } from '../core/goals';
@@ -132,6 +132,14 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     if (!get().ready) return true;
     const content = JSON.stringify(get().state);
     if (content === lastSaved) { if (get().save !== 'error') set({ save: 'saved' }); return true; }
+    /* 0.16.1: stav nad limitem načtení (20 MB) se neuloží. Jinak by ho příští start odmítl a tiše načetl starší
+       zálohu (.bak). Uložený soubor zůstane, hráč dostane varování; opakování nepomůže, uloží se až menší stav. */
+    if (!fitsState(content)) {
+      const msg = t('save.tooBig');
+      if (get().saveError !== msg) notify(msg, 'danger');
+      set({ save: 'error', saveError: msg });
+      return false;
+    }
     set({ save: 'saving' });
     try {
       await storage.save(content);
@@ -225,7 +233,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
   }
 
   async function snapshot(kind: SnapshotKind, label: string): Promise<boolean> {
-    try { await storage.createSnapshot(kind, label, JSON.stringify(get().state)); return true; }
+    const content = JSON.stringify(get().state);
+    if (!fitsState(content)) { notify(t('notice.snapshotFailed', { err: t('save.tooBig') }), 'danger'); return false; }
+    try { await storage.createSnapshot(kind, label, content); return true; }
     catch (e) { notify(t('notice.snapshotFailed', { err: errText(e) }), 'danger'); return false; }
   }
 
@@ -239,7 +249,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       const res = await storage.load();
       info = { source: res.source, warning: res.warning, recoveredFrom: res.recoveredFrom || null, at: now() };
       if (res.content !== null) {
-        try { state = normalize(JSON.parse(res.content), now(), startLang); lastSaved = res.source === 'state' ? res.content : ''; }
+        try { state = normalize(safeJsonParse(res.content), now(), startLang); lastSaved = res.source === 'state' ? res.content : ''; }
         catch { state = defaultState(now(), startLang); info.warning = t('load.warn.none'); info.source = 'none'; }
       }
     } catch (e) {
@@ -1142,7 +1152,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       let content: string;
       try { content = await storage.readSnapshot(name); } catch (e) { notify(t('notice.snapshotUnreadable', { err: errText(e) }), 'danger'); return false; }
       let parsed: unknown;
-      try { parsed = JSON.parse(content); } catch { notify(t('notice.snapshotCorrupt'), 'danger'); return false; }
+      try { parsed = safeJsonParse(content); } catch { notify(t('notice.snapshotCorrupt'), 'danger'); return false; }
       const ok = await replaceState(normalize(parsed, now(), st().settings.lang), 'restore', 'pred obnovou');
       if (ok) notify(t('notice.restored'));
       return ok;
