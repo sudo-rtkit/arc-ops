@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpCircle, Check as CheckIcon, Lock, Pencil, Plus, Trash2, Undo2, Wrench } from 'lucide-react';
+import { ArrowUpCircle, Check as CheckIcon, Lock, MessagesSquare, Pencil, Plus, Trash2, Undo2, Wrench } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { Badge, Btn, Confirm, Dialog, IconBtn, PageHead, Panel, Progress, Stepper, cx } from '../ui/components';
 import { pct } from '../ui/format';
@@ -14,6 +14,7 @@ import { useT } from '../i18n/react';
 import { ItemLink } from '../ui/ItemCard';
 import { ProvDot } from '../ui/Provenance';
 import { provOf } from '../core/provenance';
+import { askStation } from '../ui/AskOps';
 
 function RecipeEditor({ station, level, onClose }: { station: Station; level: number; onClose: () => void }) {
   const t = useT();
@@ -92,6 +93,9 @@ function StationCard({ st }: { st: Station }) {
               <Btn variant="primary" size="sm" icon={ArrowUpCircle} disabled={!can} onClick={() => actions.upgrade(st.id)}>{t('ws.upgrade')}</Btn>
               <Btn size="sm" disabled={!!blk} onClick={() => actions.levelUp(st.id)} title={t('ws.levelUpTitle')}>{t('ws.levelUp')}</Btn>
               <IconBtn label={t('ws.editRecipe')} icon={Pencil} ghost onClick={() => setEditing(true)} />
+              {/* 0.31.0: Zeptat se Opse na stanici a její recept (AI jen na kliknutí) */}
+              <Btn size="sm" variant="ghost" icon={MessagesSquare} data-testid="station-ask" aria-label={t('ai.askAria', { name: `${st.name} ${nxt}` })}
+                onClick={() => askStation(t, s.ai.on, st.id, st.name, nxt)}>{t('ai.askItem')}</Btn>
               {edited && <Badge tone="accent">{t('ws.editedRecipe')}</Badge>}
             </div>
             {blk && <span className="meta">{t('ws.blocked', { reason: blk })}</span>}

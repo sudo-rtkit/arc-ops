@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.30.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.31.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.31.0',
+    title: { cs: 'Zeptej se Opse na úkoly, dílnu a raid', en: 'Ask Ops about quests, the workshop and your raid' },
+    items: [
+      { text: { cs: 'U úkolu v Úkolech a u stanice ve Workshopu je Zeptat se Opse: řekne, co ti chybí a co dělat dřív.', en: 'A quest in Quests and a station in the Workshop now have Ask Ops: he says what you are missing and what to do first.' }, link: 'quests' },
+      { text: { cs: 'AI Raid Planner v Přípravě na raid vysvětlí rizika, náklady a varianty plánu. Čísla dál počítá aplikace.', en: 'The AI Raid Planner in Raid prep explains the risks, costs and variants of your plan. The app still computes the numbers.' }, link: 'raid' },
+      { text: { cs: 'Po raidu stačí kliknout na Shrnout raid. AI se zeptá jen na tvé kliknutí a asistent je dál ve výchozím stavu vypnutý.', en: 'After a raid, just click Sum up raid. The AI is asked only when you click, and the assistant is still off by default.' }, link: 'ask' },
+    ],
+  },
   {
     version: '0.30.0',
     title: { cs: 'Zeptej se Opse: volitelný AI asistent s vlastním klíčem', en: 'Ask Ops: optional AI assistant with your own key' },

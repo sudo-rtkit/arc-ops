@@ -2,7 +2,7 @@
    dostupných úkolů jdou do nákupního seznamu a Planneru (počítá jádro, viz core/quests.ts). Záložka Projekty je
    jen přehled fází projektů sezóny. Texty úkolů jsou ve zdroji anglicky. */
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessagesSquare, Pin, PinOff } from 'lucide-react';
 import { actions, app, navigate, useAppState } from '../store';
 import { Badge, Btn, Empty, IconBtn, PageHead, Panel, Progress, Search, Select, Stepper, Tabs, cx } from '../ui/components';
 import { PROJECTS, QUESTS, locText, objectiveProgress, questById, questName, questStatus, type QuestStatus } from '../core/quests';
@@ -14,6 +14,7 @@ import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 import { ProvDot } from '../ui/Provenance';
 import { provOf } from '../core/provenance';
+import { askQuest } from '../ui/AskOps';
 
 type Show = 'all' | QuestStatus;
 const TONE: Record<QuestStatus, 'success' | 'accent' | undefined> = { done: 'success', active: 'accent', locked: undefined };
@@ -107,6 +108,9 @@ function QuestList({ focus }: { focus: string }) {
                   </tr>
                   {isOpen && (
                     <tr className="detail-row"><td colSpan={6}>
+                      {/* 0.31.0: Zeptat se Opse na tento úkol (AI jen na kliknutí; bez zapnutého asistenta jen otevře panel) */}
+                      <div className="row quest-ask"><Btn size="sm" variant="ghost" icon={MessagesSquare} data-testid="quest-ask"
+                        aria-label={t('ai.askAria', { name })} onClick={() => askQuest(t, s.ai.on, x.id, name)}>{t('ai.askItem')}</Btn></div>
                       <div className="quest-detail" data-testid="quest-detail">
                         <div><h4>{t('quests.objectives')} <span className="meta">{t('quests.objProgress', op)}</span></h4>
                           <ol className="quest-objectives">{x.objectives.map((o, i) => {

@@ -561,3 +561,4 @@ button.mg-cell:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .ask-compact .ask-result { padding: 8px; }
 .ai-consent { padding: 10px 12px; background: var(--surface-inset); border-radius: 6px; }
 .ai-consent p { margin: 0 0 6px; }
+.quest-ask { justify-content: flex-end; margin: 0 0 6px; }

@@ -5,7 +5,7 @@
    Uložené jsou jen volby; seznam se vždy přepočítá z aktuálního stavu. Ops při spuštění řekne hlášku jen tady
    v okně aplikace (hráč právě klikl), nad hrou nic nevyskakuje. */
 import { useMemo, useRef, useState } from 'react';
-import { BookOpen, ClipboardCheck, Map as MapIcon, Play, RotateCcw, Square, Target } from 'lucide-react';
+import { BookOpen, ClipboardCheck, Map as MapIcon, MessagesSquare, Play, RotateCcw, Square, Target } from 'lucide-react';
 import { actions, app, navigate, useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
 import { Badge, Btn, Check, Empty, PageHead, Panel, Select, cx } from '../ui/components';
@@ -27,6 +27,7 @@ import { line, type LineRef } from '../core/opsVoice';
 import { OpsCanvas, type OpsHandle } from '../ops/OpsCanvas';
 import { useOpsSpeech } from '../ops/speech';
 import { hostSound } from '../shell/host';
+import { askPostRaid, askRaid } from '../ui/AskOps';
 
 function OpsSays({ said }: { said: { line: LineRef | null; n: number } }) {
   const s = useAppState();
@@ -139,6 +140,8 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
             )}
             <div className="row rp-eval-save">
               <Btn variant="primary" icon={BookOpen} onClick={save} data-testid="raid-eval-save">{saved ? t('raid.eval.saveAgain') : t('raid.eval.save')}</Btn>
+              {/* 0.31.0: shrnutí od Opse (AI) jen na toto kliknutí, nikdy samo */}
+              <Btn icon={MessagesSquare} onClick={() => askPostRaid(t, s.ai.on)} aria-label={t('ai.postRaidAria')} data-testid="raid-eval-ask">{t('ai.postRaid')}</Btn>
               {saved ? <span className="meta" data-testid="raid-eval-saved">{t('raid.eval.saved', { at: fmtDateTime(saved.ts), map: mapName(saved.map) })}</span>
                 : <span className="meta">{raid ? t('raid.eval.saveTo', { at: fmtDateTime(raid.ts), map: mapName(raid.map) }) : t('raid.eval.saveForm')}</span>}
             </div>
@@ -212,6 +215,8 @@ export default function RaidPrep() {
             </div>
             <div className="row">
               <Btn icon={MapIcon} onClick={() => navigate('maps', plan.map)}>{t('raid.openMap')}</Btn>
+              {/* 0.31.0: AI Raid Planner: Ops vysvětlí rizika, náklady a varianty aktivního plánu (čísla z Přípravy na raid) */}
+              <Btn icon={MessagesSquare} onClick={() => askRaid(t, s.ai.on)} aria-label={t('ai.askRaidAria')} data-testid="raid-ask">{t('ai.askItem')}</Btn>
               <Btn icon={Square} onClick={() => actions.endRaidPlan()} data-testid="raid-end">{t('raid.end')}</Btn>
             </div>
           </section>

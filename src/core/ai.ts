@@ -68,25 +68,36 @@ export const modelOf = (p: AiPrefs): string => p.model || providerDef(p.provider
 export const todayCount = (p: AiPrefs, today: string): number => (p.day === today ? p.count : 0);
 
 /* ----- otázka ----- */
-export type AiKind = 'free' | 'item' | 'advisor';
-export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor'];
+/* 0.31.0 (fáze 2): quests = úkoly a dílna, raid = příprava na raid (AI Raid Planner), postRaid = shrnutí po raidu. */
+export type AiKind = 'free' | 'item' | 'advisor' | 'quests' | 'raid' | 'postRaid';
+export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor', 'quests', 'raid', 'postRaid'];
 export const isAiKind = (v: unknown): v is AiKind => typeof v === 'string' && (AI_KINDS as readonly string[]).includes(v);
 export const AI_Q_MAX = 500;
 export const AI_REF_MAX = 80;
 export interface AiAsk { question: string; kind: AiKind; ref: string }
 const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f​-‏‪-‮⁦-⁩]/g;
 
+/* 0.31.0: odkaz otázky na úkol nebo stanici (Úkoly, Workshop); id jako v datech (písmena, číslice, _ . -). */
+export const QUESTS_REF_RE = /^(quest|station):[A-Za-z0-9_.-]{1,80}$/;
+/* Nejdelší odkaz podle druhu (0 = bez odkazu); stejné meze hlídají argumenty relay (aiAskArgsOk). */
+export const AI_REF_LIMIT: Readonly<Record<AiKind, number>> = { free: 0, item: AI_REF_MAX, advisor: 121, quests: 88, raid: 0, postRaid: 0 };
+
 /* Otázka z UI nebo z overlaye (relay): text 1–AI_Q_MAX znaků, druh z pevného výčtu, odkaz podle druhu (název
-   předmětu do AI_REF_MAX znaků, id tipu rádce, u volné otázky nic). Cokoli jiného = null. */
+   předmětu do AI_REF_MAX znaků, id tipu rádce, u úkolů a dílny volitelně quest:<id> nebo station:<id>; u volné
+   otázky, přípravy na raid a shrnutí po raidu nic). Cokoli jiného = null. */
 export function normalizeAsk(question: unknown, kind: unknown, ref: unknown): AiAsk | null {
   if (typeof question !== 'string' || !isAiKind(kind)) return null;
   const q = question.replace(CONTROL, ' ').trim();
   if (!q || q.length > AI_Q_MAX) return null;
-  if (kind === 'free') return ref === undefined || ref === '' || ref === null ? { question: q, kind, ref: '' } : null;
+  const empty = ref === undefined || ref === '' || ref === null;
+  if (AI_REF_LIMIT[kind] === 0) return empty ? { question: q, kind, ref: '' } : null;
+  if (kind === 'quests' && empty) return { question: q, kind, ref: '' };
   if (typeof ref !== 'string') return null;
   const r = ref.trim();
-  if (kind === 'item') return r && r.length <= AI_REF_MAX && !/[\u0000-\u001f\u007f<>]/.test(r) ? { question: q, kind, ref: r } : null;
-  return TIP_ID_RE.test(r) && r.length <= 121 ? { question: q, kind, ref: r } : null;
+  if (r.length > AI_REF_LIMIT[kind]) return null;
+  if (kind === 'item') return r && !/[\u0000-\u001f\u007f<>]/.test(r) ? { question: q, kind, ref: r } : null;
+  if (kind === 'quests') return QUESTS_REF_RE.test(r) ? { question: q, kind, ref: r } : null;
+  return TIP_ID_RE.test(r) ? { question: q, kind, ref: r } : null;
 }
 
 /* ----- chyby ----- */

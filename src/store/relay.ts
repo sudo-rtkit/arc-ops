@@ -14,7 +14,7 @@
 import type { App } from './app';
 import type { AppState } from '../core/types';
 import { isObj, recordIds, replayIds, UNSAFE_KEYS } from '../core/util';
-import { AI_KINDS, AI_Q_MAX, AI_REF_MAX } from '../core/ai';
+import { AI_Q_MAX, AI_REF_LIMIT, isAiKind } from '../core/ai';
 import { asRelay } from './aiHook';
 
 type Actions = App['actions'];
@@ -121,14 +121,17 @@ export function decodeArgs(v: unknown, depth = 0): unknown {
   throw new RelayArgError(typeof v);
 }
 
-/* 0.30.0: argumenty otázky pro Opse z overlaye: [otázka ≤ AI_Q_MAX znaků, druh z AI_KINDS, odkaz ≤ 121 znaků nebo
-   nic]. Akce aiAsk je pak ověří znovu (normalizeAsk). */
+/* 0.30.0: argumenty otázky pro Opse z overlaye: [otázka ≤ AI_Q_MAX znaků, druh z AI_KINDS, odkaz nebo nic].
+   0.31.0: mez odkazu podle druhu (AI_REF_LIMIT): předmět 80, tip rádce 121, úkol / stanice 88 (quest:<id>,
+   station:<id>); volná otázka, příprava na raid a shrnutí po raidu odkaz nemají. Akce aiAsk je pak ověří znovu
+   (normalizeAsk). */
 export function aiAskArgsOk(args: unknown[]): boolean {
   if (args.length < 2 || args.length > 3) return false;
   const [q, kind, ref] = args;
   if (typeof q !== 'string' || q.length === 0 || q.length > AI_Q_MAX) return false;
-  if (typeof kind !== 'string' || !(AI_KINDS as readonly string[]).includes(kind)) return false;
-  return ref === undefined || (typeof ref === 'string' && ref.length <= Math.max(AI_REF_MAX, 121));
+  if (typeof kind !== 'string' || !isAiKind(kind)) return false;
+  if (ref === undefined || ref === '') return true;
+  return typeof ref === 'string' && ref.length <= Math.min(AI_REF_LIMIT[kind], 121);
 }
 
 /* Zpráva overlay → hlavní okno. session odliší nové okno overlaye (po zavření a otevření začíná seq znovu od 1). */

@@ -48,7 +48,7 @@ import { ItemCardHost } from '../ui/ItemCard';
 import { SearchHost, useSearchShortcut } from '../ui/SearchPalette';
 import { useUi } from '../store/ui';
 import { emptyAiView, setAiView } from '../store/aiView';
-import { AskOps, askWhy, useAiBlock } from '../ui/AskOps';
+import { AskOps, askWhy, topTips, useAiBlock } from '../ui/AskOps';
 import type { AdvisorTip } from '../core/advisor';
 
 /* 0.18.0: Ctrl+K i v overlayi (klávesa přijde jen oknu s fokusem; overlay sám fokus nikdy nebere) */
@@ -126,6 +126,8 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
   }
   const note = s.steps.find(x => !x.done);
   const form = resolveForm(s.profile.level, s.buddy.form);
+  /* tři nejlepší tipy rádce (stejný výběr jako panel Zeptej se Opse); každý má Proč? */
+  const top3 = topTips(steps.filter(y => y.tip));
   return (
     <div className="ov-body-grid">
       <div className="ov-main">
@@ -143,7 +145,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
               <li key={x.id ?? i} data-tip={x.id}>
                 <span className={cx('ov-tag', x.tone)}>{x.tag}</span>
                 <span className="grow"><b>{x.title}</b><em>{x.sub}</em></span>
-                {x.tip && aiOn && aiBlock === null && s.opsPrefs.dialogs && steps.filter(y => y.tip).indexOf(x) < 3 && (
+                {x.tip && aiOn && aiBlock === null && s.opsPrefs.dialogs && top3.includes(x) && (
                   <button type="button" className="ov-link" data-testid="ov-ask-why" onClick={() => askWhy(t, x.tip!)} aria-label={t('ai.whyAria', { title: x.title })}>{t('ai.why')}</button>
                 )}
                 <button type="button" className="ov-link" onClick={x.action} aria-label={x.id ? t('advisor.openAria', { title: x.title }) : undefined}>{x.label} →</button>

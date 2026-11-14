@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.30.0](https://img.shields.io/badge/version-0.30.0-F4AD82?style=flat-square)
+![Version 0.31.0](https://img.shields.io/badge/version-0.31.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -101,6 +101,15 @@ Supported loadout and FINDINGS captures can recognise weapons, tiers and the aug
 ### Ask Ops (optional AI, your own free key)
 
 Ops can answer questions in his own words and in his personality: *Why keep Wires? What should I sell when I need space? Why this next step?* The answer appears in his speech bubble and, in full with its sources, in the **Ask Ops** panel and the field console. The app's deterministic code computes every number (item card, keep/sell/recycle advice, quest and workshop needs, the "What next?" advisor); the language model only explains them, lists the facts it used with their origin and confidence, and says when the data does not contain the answer. The three "What next?" ideas are free and need no AI; **Why?** asks the AI to explain one. The item card has an **Ask Ops** button.
+
+The question kinds, each with its own small data bundle and its own buttons:
+
+- **Item** (item card, **Ask Ops**): the item card, keep/sell/recycle advice, needs and stash state.
+- **What next?** (**Why?** next to each of the top 3 tips): the advisor's tips and the numbers behind them.
+- **Quests and workshop** (**Ask Ops** on a quest in Quests and on a station in the Workshop): done, available and next-in-chain quests with their objectives, the materials quests still need, the next station levels with recipes and stock, and the recommended next upgrade. *What am I missing for the next quest? What should I upgrade first?*
+- **AI Raid Planner** (**Ask Ops** on the active plan in Raid prep): the plan's goals, map and route by name, the items still to find, and the loadout summary from the loadout builder (value, weight, value at risk). Ops explains the risks and costs and suggests variants from the other scored maps; every number comes from Raid prep.
+- **Post-raid summary** (**Sum up raid** on the post-raid evaluation, only when you click): the evaluation and your last journal raid (outcome, loot value, what it advanced). Raid notes are never sent.
+- **Free question** in the Ask Ops panel.
 
 - **Off by default.** Turn it on in **Settings → AI assistant** after reading and accepting what is sent, and add **your own free API key** from [Groq](https://console.groq.com/keys) (default), [Google Gemini](https://aistudio.google.com/apikey) or [OpenRouter](https://openrouter.ai/settings/keys). No key ships with the app or this repository.
 - **The key stays in Windows Credential Manager.** It passes through the app window once, when you enter it, and is never shown again, stored in the app data or backups, or written to the error log.

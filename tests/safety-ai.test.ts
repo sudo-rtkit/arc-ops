@@ -169,10 +169,13 @@ describe('0.30.0: AI asistent: WebView', () => {
     expect(relay).toContain("'aiAsk',");
     expect(relay).toContain("if (m.name === 'aiAsk' && !aiAskArgsOk(args)) return { ack, applied: false };");
     expect(relay).toContain('q.length > AI_Q_MAX');
-    expect(relay).toContain('(AI_KINDS as readonly string[]).includes(kind)');
+    /* 0.31.0: druh z pevného výčtu a mez odkazu podle druhu (volná otázka, raid a shrnutí po raidu bez odkazu) */
+    expect(relay).toContain("if (typeof kind !== 'string' || !isAiKind(kind)) return false;");
+    expect(relay).toContain('ref.length <= Math.min(AI_REF_LIMIT[kind], 121)');
     expect(relay).toContain('setAi: none, aiConsent: none, aiCount: none,');
     expect(code('src/core/ai.ts')).toContain('export const AI_Q_MAX = 500;');
-    expect(code('src/core/ai.ts')).toContain("export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor'];");
+    expect(code('src/core/ai.ts')).toContain("export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor', 'quests', 'raid', 'postRaid'];");
+    expect(code('src/core/ai.ts')).toContain('export const AI_REF_LIMIT: Readonly<Record<AiKind, number>> = { free: 0, item: AI_REF_MAX, advisor: 121, quests: 88, raid: 0, postRaid: 0 };');
     const bus = read('src-tauri/src/bus.rs');
     expect(bus.slice(bus.indexOf('pub fn route_ok'), bus.indexOf('pub fn kind_ok'))).not.toMatch(/\bAI\b|"ai/);
     expect(read(AI_RS)).not.toMatch(/emit_native|\.emit(_to)?\(/);
@@ -200,7 +203,8 @@ describe('0.30.0: AI asistent: WebView', () => {
     expect(main).toContain('setAiHook((a, origin) => { void ai.ask(a, origin); });');
     /* askOps volají jen tlačítka (onClick / onSubmit) */
     const ts = walk(join(root, 'src'), /\.tsx$/).map(f => [rel(f), code(rel(f))] as const);
-    for (const [f, s] of ts) for (const m of s.matchAll(/\b(askOps|askWhy|askItem)\(/g)) {
+    /* 0.31.0: i nová tlačítka (Úkoly, Workshop, Příprava na raid, Shrnout raid) */
+    for (const [f, s] of ts) for (const m of s.matchAll(/\b(askOps|askWhy|askItem|askAndOpen|askQuest|askStation|askRaid|askPostRaid)\(/g)) {
       const before = s.slice(Math.max(0, m.index! - 160), m.index);
       const lineStart = s.lastIndexOf('\n', m.index!) + 1;
       if (f === 'src/ui/AskOps.tsx' && s.slice(lineStart, m.index).startsWith('export const ask')) continue;

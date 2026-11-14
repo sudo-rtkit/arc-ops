@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.30.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.31.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -93,6 +93,15 @@ Podporované snímky loadoutu a FINDINGS umí rozpoznat zbraně, tier a augment.
 ### Zeptej se Opse (volitelná AI, vlastní bezplatný klíč)
 
 Ops umí odpovědět vlastními slovy a ve své povaze: *Proč si nechat Wires? Co prodat, když potřebuju místo? Proč zrovna tenhle krok?* Odpověď řekne v bublině a celou se zdroji ukáže v panelu **Zeptej se Opse** a v polní konzoli. Všechna čísla počítá deterministický kód aplikace (karta předmětu, rada nech / prodej / recykluj, potřeby úkolů a dílny, rádce „Co dál?“); jazykový model je jen vysvětlí, vypíše údaje, ze kterých vycházel, s jejich původem a jistotou, a řekne, když data odpověď neobsahují. Tři návrhy „Co dál?“ jsou zdarma a bez AI; **Proč?** požádá AI o vysvětlení. Na kartě předmětu je tlačítko **Zeptat se Opse**.
+
+Druhy otázek, každý s vlastním malým balíkem údajů a vlastními tlačítky:
+
+- **Předmět** (karta předmětu, **Zeptat se Opse**): karta předmětu, rada nech / prodej / recykluj, potřeby a stav bedny.
+- **Co dál?** (**Proč?** u každého ze tří nejlepších tipů): tipy rádce a čísla, ze kterých vycházejí.
+- **Úkoly a dílna** (**Zeptat se Opse** u úkolu v Úkolech a u stanice ve Workshopu): splněné, dostupné a další úkoly v řetězu s cíli, materiály, které úkoly ještě potřebují, další úrovně stanic s recepty a zásobou a doporučené další vylepšení. *Co mi chybí na další úkol? Co vylepšit dřív?*
+- **AI Raid Planner** (**Zeptat se Opse** u aktivního plánu v Přípravě na raid): cíle plánu, mapa a trasa jménem, co ještě najít a souhrn loadoutu z builderu (hodnota, váha, hodnota v riziku). Ops vysvětlí rizika a náklady a navrhne varianty z dalších obodovaných map; všechna čísla jsou z Přípravy na raid.
+- **Shrnutí po raidu** (**Shrnout raid** ve vyhodnocení po raidu, jen na kliknutí): vyhodnocení a poslední raid z deníku (výsledek, hodnota lootu, co posunul). Poznámky raidu se nikdy neposílají.
+- **Volná otázka** v panelu Zeptej se Opse.
 
 - **Ve výchozím stavu vypnuto.** Zapneš ho v **Nastavení → AI asistent** po přečtení a odsouhlasení toho, co se posílá, a s **vlastním bezplatným klíčem** od [Groq](https://console.groq.com/keys) (výchozí), [Google Gemini](https://aistudio.google.com/apikey) nebo [OpenRouter](https://openrouter.ai/settings/keys). Aplikace ani repozitář žádný klíč neobsahují.
 - **Klíč zůstává ve Správci pověření Windows.** Oknem aplikace projde jen jednou při zadání; nikdy se znovu nezobrazí, neuloží do dat ani zálohy a nezapíše do deníku chyb.

@@ -27,6 +27,16 @@ export const aiErrText = (t: TFn, e: AiError): string => t(`ai.err.${e}` as Key)
 export const askOps = (question: string, kind: AiKind, ref = ''): void => actions.aiAsk(question, kind, ref);
 export const askWhy = (t: TFn, tip: AdvisorTip): void => askOps(t('ai.q.why', { title: t.m(tip.title) }), 'advisor', tip.id);
 export const askItem = (t: TFn, name: string): void => askOps(t('ai.q.item', { name }), 'item', name);
+/* 0.31.0: tlačítka „Zeptat se Opse“ v Úkolech, ve Workshopu a v Přípravě na raid a „Shrnout raid“ po raidu. Stejně jako
+   karta předmětu otevřou panel Zeptej se Opse; dotaz se pošle jen se zapnutým asistentem (jinak panel ukáže, co
+   chybí v Nastavení). Druh a odkaz jsou pevné (normalizeAsk), otázku skládá aplikace. */
+export const askAndOpen = (aiOn: boolean, question: string, kind: AiKind, ref = ''): void => { navigate('ask'); if (aiOn) askOps(question, kind, ref); };
+export const askQuest = (t: TFn, aiOn: boolean, id: string, name: string): void => askAndOpen(aiOn, t('ai.q.quest', { name }), 'quests', 'quest:' + id);
+export const askStation = (t: TFn, aiOn: boolean, id: string, name: string, n: number): void => askAndOpen(aiOn, t('ai.q.station', { name, n }), 'quests', 'station:' + id);
+export const askRaid = (t: TFn, aiOn: boolean): void => askAndOpen(aiOn, t('ai.q.raid'), 'raid');
+export const askPostRaid = (t: TFn, aiOn: boolean): void => askAndOpen(aiOn, t('ai.q.postRaid'), 'postRaid');
+/* Tři nejlepší tipy „Co dál?“ (každý má tlačítko Proč?); stejný výběr v panelu i v polní konzoli. */
+export const topTips = <T,>(visible: readonly T[]): T[] => visible.slice(0, 3);
 
 /* Smí se teď ptát z tohoto okna? (null = ano) */
 export function useAiBlock(): AiError | null {
@@ -48,9 +58,13 @@ export function AskOps({ compact }: { compact?: boolean }) {
   const setup = block !== null && SETUP.includes(block);
   /* „Co dál?“ jen mimo raid a se zapnutými dialogy Opse */
   const showNext = block !== 'inRaid' && s.opsPrefs.dialogs && !compact;
-  const top = visible.slice(0, 3);
+  const top = topTips(visible);
   const send = () => { const text = q.trim(); if (!text || !ready || thinking) return; askOps(text, 'free'); };
   const tip = v.kind === 'advisor' ? visible.find(x => x.id === v.ref) : undefined;
+  /* 0.31.0: tlačítka pod odpovědí podle druhu a odkazu otázky (nikdy podle textu modelu) */
+  const qRef = v.kind === 'quests' ? v.ref : '';
+  const raidKind = v.kind === 'raid' || v.kind === 'postRaid';
+  const hasActions = v.kind === 'item' || !!tip || !!qRef || raidKind;
   return (
     <div className={cx('ask-ops', compact && 'ask-compact')} data-testid="ask-ops" data-block={block ?? ''}>
       {setup && (
@@ -105,10 +119,13 @@ export function AskOps({ compact }: { compact?: boolean }) {
             </>
           )}
           {v.status === 'error' && v.error && <p className="ask-error" role="alert" data-testid="ask-error" data-error={v.error}>{aiErrText(t, v.error)}</p>}
-          {v.status === 'answer' && (v.kind === 'item' || tip) && (
+          {v.status === 'answer' && hasActions && (
             <div className="row" data-testid="ask-actions">
               {v.kind === 'item' && v.ref && <Btn size="sm" onClick={() => openItemCard(v.ref)}>{t('ai.action.itemCard')}</Btn>}
               {tip && <Btn size="sm" onClick={() => openTip(tip)}>{t('ai.action.openTip')}</Btn>}
+              {qRef.startsWith('quest:') && <Btn size="sm" onClick={() => navigate('quests', 'q=' + qRef.slice(6))} data-testid="ask-open-quest">{t('ai.action.openQuest')}</Btn>}
+              {qRef.startsWith('station:') && <Btn size="sm" onClick={() => navigate('workshop', qRef.slice(8))} data-testid="ask-open-station">{t('ai.action.openStation')}</Btn>}
+              {raidKind && <Btn size="sm" onClick={() => navigate('raid')} data-testid="ask-open-raid">{t('ai.action.openRaid')}</Btn>}
             </div>
           )}
           {v.sources.length > 0 && v.status !== 'thinking' && (
