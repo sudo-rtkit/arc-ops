@@ -78,7 +78,7 @@ for (const lang of ['cs', 'en'] as const) {
 
       await expect.poll(async () => (await stateOf(page))?.provenance?.recs?.inv?.['Magnetic Accelerator']?.src).toBe('manual');
       const st = await stateOf(page);
-      expect(st.schema).toBe(18);
+      expect(st.schema).toBe(19);
       expect(st.provenance.recs.inv['Magnetic Accelerator']).toMatchObject({ src: 'manual', ver: true });
       expect(errors).toEqual([]);
     });

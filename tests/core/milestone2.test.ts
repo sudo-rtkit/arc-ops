@@ -11,7 +11,7 @@ import { planNeeds, planSummary, stationTargets } from '../../src/core/planner';
 import { shopping } from '../../src/core/workshop';
 import { recommend } from '../../src/core/recommend';
 import { getRoutes, getSell, routeLookup } from '../../src/core/gamedata';
-import { loadoutGear, loadoutStats, tallyItems } from '../../src/core/loadouts';
+import { loadoutGear, loadoutStats, normalizeLoadout, tallyItems } from '../../src/core/loadouts';
 import { ROUTES } from '../../src/core/data/routes';
 import { STATIONS } from '../../src/core/data/stations';
 import type { AppState } from '../../src/core/types';
@@ -275,7 +275,7 @@ describe('loadouty a doporučení', () => {
     const ls = loadoutStats(s.raids);
     expect(ls.find(x => x.id === 'L1')).toMatchObject({ n: 2, ok: 1, rate: 0.5, coins: 1000, lost: 2 });
     expect(tallyItems(s.raids, r => r.lost)[0]).toEqual({ name: 'Ferro', qty: 2, raids: 2 });
-    const gear = loadoutGear({ id: 'x', name: 'X', purpose: '', primary: 'w1', secondary: '', augment: 'Aug', shield: '', items: [{ name: 'Aug', qty: 1 }, { name: 'Bandage', qty: 2 }], note: '' }, id => id.toUpperCase());
+    const gear = loadoutGear(normalizeLoadout({ id: 'x', name: 'X', purpose: '', primary: 'w1', secondary: '', augment: 'Aug', shield: '', items: [{ name: 'Aug', qty: 1 }, { name: 'Bandage', qty: 2 }], note: '' }), id => id.toUpperCase());
     expect(gear).toEqual([{ name: 'W1', qty: 1 }, { name: 'Aug', qty: 2 }, { name: 'Bandage', qty: 2 }]);
   });
 

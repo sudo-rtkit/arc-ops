@@ -23,6 +23,7 @@ import { ITEM_DATA, ITEMS_DATE, TRADER_OFFERS } from '../core/itemdb';
 import { WEAPON_STATS } from '../core/data/weaponStats';
 import { OpsPanel, OpsVoicePanel, WardrobePanel, WidgetsPanel } from './OpsSettings';
 import { AutoCapturePanel, GameLinkPanel } from './AutoSettings';
+import { AppLoadPanel } from './AppLoad';
 import { WindowPanel } from './WindowSettings';
 import { APP_VERSION } from '../core/whatsnew';
 import { openWhatsNew } from '../shell/WhatsNew';
@@ -256,6 +257,8 @@ export default function Settings({ sub }: { sub: string }) {
       <AutoCapturePanel />
       <Anchor id="link" />
       <GameLinkPanel />
+      <Anchor id="load" />
+      <AppLoadPanel />
       <Anchor id="voice" />
       <OpsVoicePanel />
       <WardrobePanel />

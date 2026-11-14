@@ -38,7 +38,9 @@ export function raidGear(raid: Pick<Raid, 'gear' | 'loadout'> | null, loadouts: 
   if (!raid) return { items: [], source: 'none' };
   if (raid.gear.length) return { items: raid.gear.map(x => ({ ...x })), source: 'raid' };
   const lo = raid.loadout ? loadouts.find(l => l.id === raid.loadout) : undefined;
-  if (lo && lo.items.length) return { items: lo.items.map(x => ({ ...x })), source: 'loadout' };
+  /* 0.23.0: obrazovka po raidu ukazuje BACKPACK i QUICK USE, takže výbava loadoutu z obou míst */
+  const items = lo ? [...lo.items, ...(lo.quickUse ?? [])] : [];
+  if (items.length) return { items: items.map(x => ({ ...x })), source: 'loadout' };
   return { items: [], source: 'none' };
 }
 

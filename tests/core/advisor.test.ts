@@ -309,9 +309,9 @@ describe('skrytí a odložení', () => {
 
 describe('schéma 15: migrace, záloha a store', () => {
   it('starší stav (schéma 14) dostane prázdný rádce, neznámou bednu a kartu „Co dál?“ hned za ukazateli', () => {
-    expect(SCHEMA).toBe(18);
+    expect(SCHEMA).toBe(19);
     const s = normalize({ schema: 14, profile: { level: 20 }, vision: { lastImportAt: 3 }, dashboard: { hidden: { raids: true }, order: ['raids', 'kpi', 'next'] } }, NOW);
-    expect(s.schema).toBe(18);
+    expect(s.schema).toBe(19);
     expect(s.advisor).toEqual(emptyAdvisor());
     expect(s.vision.stash).toBeNull();
     expect(s.opsPrefs.advisor).toBe(true);

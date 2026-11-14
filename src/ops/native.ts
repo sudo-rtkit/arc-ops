@@ -35,8 +35,15 @@ export interface Native {
   widgetsApp(tab?: string): Promise<void>;
   /* 0.22.1: buddy propouští kliky do hry, dokud je v popředí hra (jen hlavní okno; přepíná Rust podle okna v popředí) */
   passThrough(on: boolean): Promise<void>;
+  /* 0.23.0 (volitelné kvůli testovacím náhradám): Skrýt / zobrazit widgety z buddyho (jen událost oknu widgetů)
+     a zátěž vlastního procesu pro Nastavení (jen hlavní okno, jen čtení; null = mimo Windows) */
+  widgetsHide?(): Promise<void>;
+  appLoad?(): Promise<OwnLoad | null>;
 }
-export type HotkeySlot = 'capture' | 'edit' | 'hide';
+/* 0.23.0: console = zkratka polní konzole (panel Aplikace) */
+export type HotkeySlot = 'capture' | 'edit' | 'hide' | 'console';
+/* Zátěž vlastního procesu (Rust app_load): čas CPU od startu v µs, paměť v B, počet logických procesorů. */
+export interface OwnLoad { cpuUs: number; workingSet: number; peakWorkingSet: number; privateBytes: number; cpus: number }
 /* Měření automatického snímání z Rustu (doba kroku v µs na hodinách, velikost pásu v B). */
 export interface AutoStats { ticks: number; totalUs: number; maxUs: number; lastUs: number; stripBytes: number; captures: number; screen: string | null }
 
@@ -69,6 +76,8 @@ const tauriNative: Native = {
   widgetsFit: () => call('widgets_fit'),
   widgetsApp: tab => call('widgets_app', { tab: tab ?? null }),
   passThrough: on => call('ops_passthrough', { on }),
+  widgetsHide: () => call('widgets_hide'),
+  appLoad: () => call<OwnLoad | null>('app_load'),
 };
 
 const none = async () => undefined;
@@ -79,6 +88,7 @@ export const browserNative: Native = {
   captureTake: async () => { throw new Error('capture:unsupported'); },
   autoCapture: none, autoStats: async () => null,
   widgetsOpen: none, widgetsClose: none, widgetsEdit: none, widgetsFit: none, widgetsApp: none, passThrough: none,
+  widgetsHide: none, appLoad: async () => null,
 };
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);

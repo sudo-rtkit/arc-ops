@@ -300,16 +300,29 @@ export default function BuddyApp() {
   };
 
   if (!view) return null;
+  /* velikost Opse v CSS px (stejně jako plátno v OpsCanvas) */
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  const opsCss = (FRAME * pixelFactor(view.scale, dpr)) / dpr;
   return (
     <div className="buddy" style={placedOnce ? undefined : { visibility: 'hidden' }} onContextMenu={e => e.preventDefault()}>
       {bubble && <div className={'buddy-bubble' + (opsAt.below ? ' below' : '') + (opsAt.right ? ' right' : '')} role="status" data-testid="buddy-bubble">{bubble}</div>}
       <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={view.widgets ? BUDDY_TEXT[uiLang].ariaEdit : BUDDY_TEXT[uiLang].aria}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
-        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" />
+        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" paused={view.calm} />
         {/* 0.20.0: malá tečka, když běží (nebo je pozastavené) automatické snímání */}
         {view.auto && <span className={'buddy-auto auto-' + view.auto} role="img" aria-label={view.auto === 'on' ? BUDDY_TEXT[uiLang].autoOn : BUDDY_TEXT[uiLang].autoPaused} title={view.auto === 'on' ? BUDDY_TEXT[uiLang].autoOn : BUDDY_TEXT[uiLang].autoPaused} data-testid="buddy-auto" />}
       </div>
+      {/* 0.23.0: se zapnutými widgety pod Opsem dvě tlačítka (design overlay-widgets): Úpravy (výslovné povolení fokusu)
+          a vedle nich Skrýt / zobrazit widgety, které jen pošle událost oknu widgetů (nic neaktivuje, fokus zůstane hře) */}
+      {view.widgets && (
+        <div className="buddy-ctl" style={{ left: opsAt.x, top: opsAt.y + opsCss - 22, width: opsCss }} data-testid="buddy-ctl">
+          <button type="button" className="buddy-ctl-btn" aria-label={BUDDY_TEXT[uiLang].editAria} title={BUDDY_TEXT[uiLang].editAria} data-testid="buddy-edit"
+            onPointerDown={e => e.stopPropagation()} onClick={() => { touchAt.current = Date.now(); void native.widgetsEdit().catch(() => undefined); }}>{BUDDY_TEXT[uiLang].edit}</button>
+          <button type="button" className="buddy-ctl-btn" aria-label={BUDDY_TEXT[uiLang].hideAria} title={BUDDY_TEXT[uiLang].hideAria} data-testid="buddy-hide"
+            onPointerDown={e => e.stopPropagation()} onClick={() => { void native.widgetsHide?.().catch(() => undefined); }}>{BUDDY_TEXT[uiLang].hide}</button>
+        </div>
+      )}
     </div>
   );
 }

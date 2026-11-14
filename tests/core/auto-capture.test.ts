@@ -148,8 +148,8 @@ describe('nastavení, fronta a schéma 17', () => {
     expect(normalizeReviewEdit({ id: 'a', kind: 'loot', rows: [{ name: ' X ', qty: 2 }, { name: '', qty: 1 }] })).toEqual({ id: 'a', kind: 'loot', rows: [{ name: 'X', qty: 2 }] });
     expect(normalizeReviewEdit({ id: 'a', kind: 'evil' })).toBeNull();
     const n = normalize({ schema: 17, raids: [{ id: 'R1' }], review: [{ id: 'q1', kind: 'map', raidId: 'R1' }, { id: 'q2', kind: 'map', raidId: 'gone' }], autoLog: [{ id: 'w', raidId: 'gone' }] });
-    expect(SCHEMA).toBe(18);
-    expect(n.schema).toBe(18);
+    expect(SCHEMA).toBe(19);
+    expect(n.schema).toBe(19);
     expect(n.review.map(x => x.id)).toEqual(['q1']);
     expect(n.autoLog).toEqual([]);
     expect(normalize({ schema: 16 })).toMatchObject({ autoCapture: { enabled: false }, gameLink: { off: false, saved: null }, review: [], autoLog: [] });

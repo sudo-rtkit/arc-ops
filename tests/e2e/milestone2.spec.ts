@@ -141,7 +141,7 @@ test('loadout se předvyplní do zápisu raidu a ukáže se ve statistikách', a
   await page.getByRole('button', { name: 'Nový loadout' }).first().click();
   const dlg = page.getByRole('dialog', { name: 'Nový loadout' });
   await dlg.getByLabel('Název', { exact: true }).fill('Money Ferro');
-  await dlg.getByLabel('Augment').fill('Looting Mk. 2');
+  await dlg.getByLabel('Augment', { exact: true }).fill('Looting Mk. 2');
   await dlg.getByRole('button', { name: 'Uložit loadout' }).click();
   await page.getByRole('button', { name: 'Zapsat raid s loadoutem' }).click();
   const raid = page.getByRole('dialog', { name: 'Zapsat raid' });

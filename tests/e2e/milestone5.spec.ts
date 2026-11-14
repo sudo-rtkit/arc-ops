@@ -81,13 +81,13 @@ for (const lang of ['cs', 'en'] as const) {
       await expect(page.getByTestId('ops-off')).toHaveText(L.off);
       await page.getByLabel(L.switch).check();
       await expect(page.getByTestId('ops-options')).toBeVisible();
-      await page.getByRole('button', { name: L.setKey }).click();
+      await page.getByRole('button', { name: L.setKey, exact: true }).click();
       await page.keyboard.press('Control+Shift+KeyS');
       await expect(page.getByTestId('ops-hotkey')).toHaveText('Ctrl+Shift+S');
       await page.getByRole('button', { name: L.scale2 }).click();
       await page.waitForTimeout(700);
       let st = await stateOf(page);
-      expect(st.schema).toBe(18);
+      expect(st.schema).toBe(19);
       expect(st.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, opacity: 90, autoOpen: false });
       await sw.uncheck();
       await expect(page.getByTestId('ops-off')).toBeVisible();

@@ -39,6 +39,8 @@ const COMMANDS: &[&str] = &[
     "widgets_edit",
     "widgets_fit",
     "widgets_app",
+    "widgets_hide",
+    "app_load",
     "main_mode",
     "main_pin",
     "main_geometry",

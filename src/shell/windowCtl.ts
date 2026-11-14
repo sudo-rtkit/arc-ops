@@ -11,6 +11,7 @@ import type { LeftGeometry } from '../core/mainWindow';
 import { browserWin, createWindowCtl, type TrayMenu, type WinNative } from './windowCore';
 import { t } from '../i18n';
 import { autoIndicator } from '../core/autoCapture';
+import { widgetsOn } from '../ops/hub';
 
 const call = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
   const { invoke } = await import('@tauri-apps/api/core');
@@ -55,6 +56,7 @@ const trayMenu = (): TrayMenu => {
   return {
     open: t('tray.open'), compact: t('tray.compact'), buddyLabel: t('tray.buddy'), buddy: b.enabled ? hub.buddyVisible() : null,
     autoLabel: t('tray.auto'), auto: auto === null ? null : auto === 'on', quit: t('tray.quit'),
+    widgetsLabel: t('tray.widgets'), widgets: widgetsOn(s) ? true : null,
     tooltip: 'ARC Raiders Companion' + (auto === 'on' ? ' · ' + t('auto.chip.on') : ''),
   };
 };

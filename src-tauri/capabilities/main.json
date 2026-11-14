@@ -44,6 +44,7 @@
     "allow-tray-sync",
     "allow-widgets-open",
     "allow-widgets-close",
-    "allow-widgets-edit"
+    "allow-widgets-edit",
+    "allow-app-load"
   ]
 }

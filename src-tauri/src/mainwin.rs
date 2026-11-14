@@ -425,6 +425,11 @@ pub struct TrayMenu {
     auto_label: String,
     #[serde(default)]
     auto: Option<bool>,
+    /* 0.23.0: Skrýt / zobrazit widgety (None = widgety vypnuté, položka se nezobrazí) */
+    #[serde(default)]
+    widgets_label: String,
+    #[serde(default)]
+    widgets: Option<bool>,
     quit: String,
     tooltip: String,
 }
@@ -443,6 +448,8 @@ impl Default for TrayMenu {
             buddy: None,
             auto_label: "Automatické snímání".into(),
             auto: None,
+            widgets_label: "Skrýt/zobrazit widgety".into(),
+            widgets: None,
             quit: "Ukončit".into(),
             tooltip: "ARC Raiders Companion".into(),
         }
@@ -463,12 +470,19 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>, m: &TrayMenu) -> tauri::Result<Men
         Some(on) => Some(CheckMenuItem::with_id(app, "auto", label(&m.auto_label, &d.auto_label), true, on, None::<&str>)?),
         None => None,
     };
+    let widgets = match m.widgets {
+        Some(_) => Some(MenuItem::with_id(app, "widgets", label(&m.widgets_label, &d.widgets_label), true, None::<&str>)?),
+        None => None,
+    };
     let mut items: Vec<&dyn tauri::menu::IsMenuItem<R>> = vec![&open, &compact];
     if let Some(b) = &buddy {
         items.push(b);
     }
     if let Some(a) = &auto {
         items.push(a);
+    }
+    if let Some(w) = &widgets {
+        items.push(w);
     }
     items.push(&sep);
     items.push(&quit);
@@ -543,6 +557,8 @@ fn on_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
         }
         "buddy" => emit_tray(app, "buddy"),
         "auto" => emit_tray(app, "auto"),
+        /* 0.23.0: jen událost oknu widgetů (nic se neukazuje ani neaktivuje, hlavní okno se neotevře) */
+        "widgets" => ops::toggle_widgets_hidden(app),
         "quit" => {
             if !ready(app) {
                 ops::shutdown(app);

@@ -7,6 +7,7 @@ import { readCapture, screenKind } from '../../src/core/opsCapture';
 import { analyzeLoot } from '../../src/core/visionImport';
 import { applyRaidLoot, checkRaidLoot, lootItems, lootRows, lootSignature, minusItems, raidGear, type RaidLootInput } from '../../src/core/lootImport';
 import { defaultState, normalize } from '../../src/core/state';
+import { normalizeLoadout } from '../../src/core/loadouts';
 import { makeBackup, parseBackup } from '../../src/core/backup';
 import { createApp } from '../../src/store/app';
 import { createBrowserStorage, memoryKV } from '../../src/storage/browser';
@@ -115,7 +116,7 @@ describe('výbava a loot (čisté funkce)', () => {
   });
 
   it('výbava: zadaná u raidu, jinak položky loadoutu, jinak neznámá', () => {
-    const lo = { id: 'L1', name: 'x', purpose: '', primary: 'Anvil', secondary: '', augment: '', shield: '', items: [{ name: 'Bandage', qty: 3 }], note: '' };
+    const lo = normalizeLoadout({ id: 'L1', name: 'x', purpose: '', primary: 'Anvil', secondary: '', augment: '', shield: '', items: [{ name: 'Bandage', qty: 3 }], note: '' });
     expect(raidGear({ gear: [{ name: 'Heavy Ammo', qty: 40 }], loadout: 'L1' }, [lo])).toEqual({ items: [{ name: 'Heavy Ammo', qty: 40 }], source: 'raid' });
     expect(raidGear({ gear: [], loadout: 'L1' }, [lo])).toEqual({ items: [{ name: 'Bandage', qty: 3 }], source: 'loadout' });
     expect(raidGear({ gear: [], loadout: '' }, [lo]).source).toBe('none');

@@ -16,6 +16,8 @@ import { questById, questName } from './quests';
 import { line, type LineRef } from './opsVoice';
 import type { LootArea } from './lootAreas';
 import { itemAreas } from './lootAreas';
+import { loadoutHaveOf, loadoutSummary, type LoadoutSummary } from './loadouts';
+import { getWeapons } from './gamedata';
 
 const low = (s: string) => s.trim().toLowerCase();
 
@@ -160,11 +162,28 @@ export function nextRaid(s: AppState, plan: RaidPlan, ev: RaidEval, lang: Lang, 
   return { goals, rows, units: rows.reduce((a, r) => a + r.missing, 0), best: recommendedMap(scores), scores };
 }
 
-/* Záznam plánu do deníku (Raid.plan). */
+/* ----- 0.23.0: loadout plánu ----- */
+/* Souhrn loadoutu z builderu (hodnota, riziko, dostupnost) nad aktuální zásobou; null = plán bez loadoutu nebo smazaný. */
+export function planLoadout(s: AppState, id: string): { name: string; sum: LoadoutSummary } | null {
+  const l = id ? s.loadouts.find(x => x.id === id) : undefined;
+  if (!l) return null;
+  const weapons = getWeapons(s.gameData);
+  return { name: l.name, sum: loadoutSummary(l, wid => weapons.find(w => w.id === wid)?.name || wid, loadoutHaveOf(s)) };
+}
+/* Hodnota v riziku: známá jen tehdy, když mají cenu všechny předměty mimo bezpečnou kapsu (jinak null, nic se nehádá). */
+export const knownRisk = (sum: LoadoutSummary): number | null => (sum.riskUnknown.length ? null : sum.risk);
+/* Co se s výbavou stalo: vyřazení = ztráta hodnoty v riziku, přežití = výbava zůstala; bez záznamu raidu nevíme. */
+export function loadoutOutcome(raid: Pick<Raid, 'ok'> | null): 'lost' | 'kept' | null {
+  return raid ? (raid.ok ? 'kept' : 'lost') : null;
+}
+
+/* Záznam plánu do deníku (Raid.plan). 0.23.0: s hodnotou loadoutu v riziku (null = neznámá). */
 export function planRecord(s: AppState, plan: RaidPlan, ev: RaidEval, lang: Lang, today: string): RaidPlanRecord {
+  const lo = planLoadout(s, plan.loadout);
   return {
     at: plan.startedAt, goals: goalLabels(s, plan.goals, lang, today), money: plan.goals.money, map: plan.map, loadout: plan.loadout,
     items: ev.rows.map(r => ({ mat: r.mat, need: r.need, found: Math.min(r.need, r.found) })),
     done: ev.done.map(d => d.name), value: ev.value,
+    ...(lo ? { risk: knownRisk(lo.sum) } : {}),
   };
 }

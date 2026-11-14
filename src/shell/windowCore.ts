@@ -4,7 +4,8 @@ import { closeDecision, rememberClose, setPin, switchMode, withGeometry, type Le
 import type { CloseAction, MainWindowPrefs, WinRect, WindowMode } from '../core/types';
 
 /* 0.20.0: auto = automatické snímání (true běží, false pozastavené, null vypnuté = bez položky); klik ho pozastaví/obnoví */
-export interface TrayMenu { open: string; compact: string; buddyLabel: string; buddy: boolean | null; autoLabel: string; auto: boolean | null; quit: string; tooltip: string }
+/* 0.23.0: widgetsLabel / widgets = Skrýt / zobrazit widgety (null = widgety vypnuté, položka se nezobrazí; Rust jen pošle událost oknu widgetů) */
+export interface TrayMenu { open: string; compact: string; buddyLabel: string; buddy: boolean | null; autoLabel: string; auto: boolean | null; widgetsLabel?: string; widgets?: boolean | null; quit: string; tooltip: string }
 export interface WinNative {
   available: boolean;
   mode(args: { mode: WindowMode; pin: boolean; full: WinRect | null; fullMax: boolean; compact: WinRect | null }): Promise<LeftGeometry | null>;

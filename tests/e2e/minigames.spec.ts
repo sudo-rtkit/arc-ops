@@ -130,7 +130,7 @@ for (const lang of ['cs', 'en'] as const) {
 
     await expect.poll(async () => (await stateOf(page))?.games?.tetris.played).toBe(1);
     const st = await stateOf(page);
-    expect(st.schema).toBe(18);
+    expect(st.schema).toBe(19);
     expect(st.games.tetris).toEqual({ played: 1, best: g.score, bestPct: 100 });
     expect(st.games.paints).toEqual(['olive', 'rust', 'gold']);
     expect(st.games.paint).toBe('original');
@@ -285,7 +285,7 @@ for (const lang of ['cs', 'en'] as const) {
     await expect.poll(() => soundLog(page)).toContain('unlock');
     await expect.poll(async () => (await stateOf(page))?.games?.hack.played).toBe(1);
     const st = await stateOf(page);
-    expect(st.schema).toBe(18);
+    expect(st.schema).toBe(19);
     expect(st.games.hack).toEqual({ played: 1, bestPct: 100, perfect: 1 });
     expect(st.games.paints).toEqual(['olive', 'uplink']);
     expect(st.inventory).toEqual({ 'Metal Parts': 5 });

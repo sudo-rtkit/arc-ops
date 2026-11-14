@@ -13,6 +13,7 @@
     "allow-overlay-toggle",
     "allow-win-place",
     "allow-win-drag",
-    "allow-widgets-edit"
+    "allow-widgets-edit",
+    "allow-widgets-hide"
   ]
 }

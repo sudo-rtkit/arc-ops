@@ -43,7 +43,7 @@ describe('hub: okno widgetů', () => {
     hub.start();
     await flush(hub);
     expect(native.calls.filter(c => c.startsWith('widgets'))).toEqual([]);
-    expect(app.store.getState().state.opsPrefs.widgets).toEqual({ on: false, editKey: '', hideKey: '' });
+    expect(app.store.getState().state.opsPrefs.widgets).toEqual({ on: false, editKey: '', hideKey: '', contrast: false });
     hub.stop();
   });
 
@@ -139,8 +139,8 @@ describe('přepínač widgetů a zkratky patří tomuto počítači', () => {
     const app = await makeApp();
     app.actions.setOpsPrefs({ personality: 'cheeky', widgets: { on: true, editKey: 'Ctrl+KeyA', hideKey: '' } } as never);
     expect(app.store.getState().state.opsPrefs.widgets.on).toBe(false);
-    expect(normalizeOpsPrefs({ widgets: { on: 1, editKey: 'A', hideKey: 'Ctrl+KeyH' } }).widgets).toEqual({ on: false, editKey: '', hideKey: 'Ctrl+KeyH' });
-    expect(normalizeOpsPrefs({ widgets: { on: true, editKey: 'F9', hideKey: 'F9' } }).widgets).toEqual({ on: true, editKey: 'F9', hideKey: '' });
+    expect(normalizeOpsPrefs({ widgets: { on: 1, editKey: 'A', hideKey: 'Ctrl+KeyH' } }).widgets).toEqual({ on: false, editKey: '', hideKey: 'Ctrl+KeyH', contrast: false });
+    expect(normalizeOpsPrefs({ widgets: { on: true, editKey: 'F9', hideKey: 'F9' } }).widgets).toEqual({ on: true, editKey: 'F9', hideKey: '', contrast: false });
   });
 
   it('import zálohy přepínač ani zkratky nezmění', async () => {
@@ -148,7 +148,7 @@ describe('přepínač widgetů a zkratky patří tomuto počítači', () => {
     app.actions.setWidgets({ on: true, editKey: 'Ctrl+Alt+KeyE' });
     const here = structuredClone(app.store.getState().state.opsPrefs.widgets);
     const other = defaultState(NOW);
-    other.opsPrefs.widgets = { on: false, editKey: '', hideKey: 'F8' };
+    other.opsPrefs.widgets = { on: false, editKey: '', hideKey: 'F8', contrast: false };
     const file = parseBackup(makeBackup(other, new Date(NOW)), NOW);
     if ('error' in file) throw new Error(file.error);
     expect(await app.actions.importState(file.state, '{}', 'app')).toBe(true);

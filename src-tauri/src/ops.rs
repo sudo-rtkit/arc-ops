@@ -90,6 +90,8 @@ pub struct OpsState {
     edit_focus: Mutex<(isize, u32)>,
     edit_key: Mutex<Option<Shortcut>>,
     hide_key: Mutex<Option<Shortcut>>,
+    /* 0.23.0: volitelná zkratka polní konzole (panel Aplikace); fokus jen na výslovný stisk */
+    console_key: Mutex<Option<Shortcut>>,
     /* 0.22.1: hráč vypnul „Buddy propouští kliky do hry“ (výchozí false = propouští), buddy teď propouští myš
        a od kdy běží Úpravy widgetů */
     pass_off: AtomicBool,
@@ -163,6 +165,16 @@ fn on_hotkey<R: Runtime>(app: &AppHandle<R>, shortcut: &Shortcut) {
         }
         return;
     }
+    /* 0.23.0: zkratka konzole: otevřenou zavře (fokus se vrátí hře), jinak ji otevře s fokusem (výslovný stisk) */
+    if is(&st.console_key) {
+        let open = app.get_webview_window(OVERLAY).map(|o| o.is_visible().unwrap_or(false)).unwrap_or(false);
+        if open {
+            hide_overlay(app);
+        } else {
+            let _ = show_overlay(app, None);
+        }
+        return;
+    }
     if let Some(o) = app.get_webview_window(OVERLAY) {
         if o.is_visible().unwrap_or(false) {
             hide_overlay(app);
@@ -189,14 +201,15 @@ pub fn parse_hotkey(accel: &str) -> Result<Shortcut, String> {
     accel.parse::<Shortcut>().map_err(|_| "hotkey:invalid".to_string())
 }
 
-/// Zkratka snímku (slot chybí nebo „capture“), Úprav widgetů („edit“) nebo Skrýt / zobrazit widgety („hide“).
+/// Zkratka snímku (slot chybí nebo „capture“), Úprav widgetů („edit“), Skrýt / zobrazit widgety („hide“) nebo
+/// 0.23.0 polní konzole („console“).
 /// Stejná zkratka nesmí být ve dvou slotech.
 #[tauri::command]
 pub async fn ops_hotkey<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>, accel: String, slot: Option<String>) -> Result<(), String> {
     main_only(&window)?;
     let st = app.state::<OpsState>();
     let slot = slot.as_deref().unwrap_or("capture");
-    let slots = [("capture", &st.hotkey), ("edit", &st.edit_key), ("hide", &st.hide_key)];
+    let slots = [("capture", &st.hotkey), ("edit", &st.edit_key), ("hide", &st.hide_key), ("console", &st.console_key)];
     let cell = slots.iter().find(|(n, _)| *n == slot).map(|(_, c)| *c).ok_or("hotkey:invalid")?;
     if !accel.trim().is_empty() {
         let next = parse_hotkey(&accel)?;
@@ -247,7 +260,7 @@ pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     st.enabled.store(false, Ordering::SeqCst);
     st.auto_on.store(false, Ordering::SeqCst);
     st.edit.store(false, Ordering::SeqCst);
-    for k in [&st.hotkey, &st.edit_key, &st.hide_key] {
+    for k in [&st.hotkey, &st.edit_key, &st.hide_key, &st.console_key] {
         if let Ok(mut h) = k.lock() {
             *h = None;
         }
@@ -653,6 +666,22 @@ pub async fn widgets_app<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>
 /* ----- poloha a tažení vlastního okna (0.16.1) ----- */
 
 /// Rozumný obdélník okna ve fyzických px (buddy i overlay; plocha nejvýš ±100 000 px).
+/// 0.23.0: Skrýt / zobrazit widgety z buddyho (tlačítko vedle Úprav). Jen pošle oknu widgetů událost jako zkratka
+/// Skrýt / zobrazit: nic se neukazuje ani neaktivuje, fokus zůstane hře.
+#[tauri::command]
+pub async fn widgets_hide<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>) -> Result<(), String> {
+    only(&window, &[BUDDY])?;
+    toggle_widgets_hidden(&app);
+    Ok(())
+}
+
+/// Skrýt / zobrazit widgety (tlačítko buddyho a položka nabídky v oznamovací oblasti): jen událost oknu widgetů.
+pub fn toggle_widgets_hidden<R: Runtime>(app: &AppHandle<R>) {
+    if enabled(app) && app.get_webview_window(WIDGETS).is_some() {
+        emit_native(app, WIDGETS, "widgets-hide", ());
+    }
+}
+
 pub fn place_ok(x: i32, y: i32, w: u32, h: u32) -> bool {
     let side = 16..=16384;
     let pos = -100_000..=100_000;
@@ -962,6 +991,33 @@ pub async fn ops_autostats<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<
     let st = app.state::<OpsState>();
     let s = st.auto_stats.lock().map_err(|_| "auto:failed")?.clone();
     Ok(s)
+}
+
+/// 0.23.0: zátěž vlastního procesu aplikace pro panel „Zátěž aplikace“ v Nastavení (jen hlavní okno, jen čtení).
+/// Jen tento proces (`GetCurrentProcess`, pseudo-handle, nic se neotevírá): čas CPU od startu a paměť. Procesy
+/// WebView2 ani hra se neměří; procesy se neotevírají ani nečtou. Mimo Windows `None`.
+#[derive(Serialize, Clone, Default, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnLoad {
+    /* čas CPU (jádro + uživatel) od startu procesu v mikrosekundách */
+    pub cpu_us: u64,
+    /* pracovní sada, její maximum a soukromé bajty */
+    pub working_set: u64,
+    pub peak_working_set: u64,
+    pub private_bytes: u64,
+    /* počet logických procesorů (CPU % = podíl jednoho vzorku na všech jádrech) */
+    pub cpus: u32,
+}
+
+#[tauri::command]
+pub async fn app_load<R: Runtime>(window: WebviewWindow<R>) -> Result<Option<OwnLoad>, String> {
+    main_only(&window)?;
+    Ok(own_load())
+}
+
+/// FILETIME (100 ns) na mikrosekundy.
+pub fn filetime_us(low: u32, high: u32) -> u64 {
+    (((high as u64) << 32) | low as u64) / 10
 }
 
 /// Co automatické snímání hlásí hlavnímu oknu: známá obrazovka, jinak „inRaid“ (inventář v raidu), jinak nic.
@@ -1423,7 +1479,10 @@ mod win {
     use std::ffi::c_void;
     use std::mem::{size_of, zeroed};
     use std::ptr::null_mut;
-    use windows_sys::Win32::Foundation::{CloseHandle, HWND, INVALID_HANDLE_VALUE, RECT};
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, HWND, INVALID_HANDLE_VALUE, RECT};
+    /* 0.23.0: jen vlastní proces (pseudo-handle), jen čtení; cizí procesy se neotevírají (hlídá tests/safety-m5.test.ts) */
+    use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
     use windows_sys::Win32::Graphics::Gdi::{
         BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, GetMonitorInfoW, MonitorFromWindow,
         ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, MONITORINFO, MONITOR_DEFAULTTONULL, MONITOR_DEFAULTTOPRIMARY,
@@ -1639,6 +1698,30 @@ mod win {
         }
     }
 
+    /// 0.23.0: zátěž vlastního procesu. Jen pseudo-handle `GetCurrentProcess()` (nic se neotevírá ani nezavírá),
+    /// jen čtení: časy procesu a čítače paměti.
+    pub fn own_load() -> Option<super::OwnLoad> {
+        unsafe {
+            let me = GetCurrentProcess();
+            let (mut c, mut e, mut k, mut u): (FILETIME, FILETIME, FILETIME, FILETIME) = (zeroed(), zeroed(), zeroed(), zeroed());
+            if GetProcessTimes(me, &mut c, &mut e, &mut k, &mut u) == 0 {
+                return None;
+            }
+            let mut m: PROCESS_MEMORY_COUNTERS_EX = zeroed();
+            m.cb = size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32;
+            if GetProcessMemoryInfo(me, &mut m as *mut PROCESS_MEMORY_COUNTERS_EX as *mut PROCESS_MEMORY_COUNTERS, m.cb) == 0 {
+                return None;
+            }
+            Some(super::OwnLoad {
+                cpu_us: super::filetime_us(k.dwLowDateTime, k.dwHighDateTime) + super::filetime_us(u.dwLowDateTime, u.dwHighDateTime),
+                working_set: m.WorkingSetSize as u64,
+                peak_working_set: m.PeakWorkingSetSize as u64,
+                private_bytes: m.PrivateUsage as u64,
+                cpus: std::thread::available_parallelism().map(|n| n.get() as u32).unwrap_or(1),
+            })
+        }
+    }
+
     /// Id běžících procesů hry (podle názvu spustitelného souboru).
     pub fn game_pids() -> Vec<u32> {
         processes().into_iter().filter(|(_, n)| super::is_game_exe(n)).map(|(pid, _)| pid).collect()
@@ -1671,6 +1754,8 @@ mod win {
     }
 }
 
+#[cfg(windows)]
+use win::own_load;
 #[cfg(windows)]
 use win::{capture_foreground_monitor, capture_header_strip, foreground, foreground_pid, game_monitor, game_pids, game_window, game_window_shown, process_names, restore_focus};
 
@@ -1721,6 +1806,10 @@ fn capture_header_strip() -> Result<(u32, u32, u32, Vec<u8>), String> {
 }
 #[cfg(not(windows))]
 fn exclude_from_capture<R: Runtime>(_w: &WebviewWindow<R>) {}
+#[cfg(not(windows))]
+fn own_load() -> Option<OwnLoad> {
+    None
+}
 #[cfg(not(windows))]
 fn foreground() -> (isize, u32) {
     (0, 0)
@@ -1806,6 +1895,26 @@ mod tests {
             assert!(!edit_must_end(true, fg, Some(t0), late));
         }
         assert!(!edit_must_end(false, Game, Some(t0), late));
+    }
+
+    #[test]
+    fn cas_procesu_z_filetime() {
+        /* 100 ns jednotky: 10 = 1 µs; horní slovo posune o 2^32 */
+        assert_eq!(filetime_us(10, 0), 1);
+        assert_eq!(filetime_us(0, 1), (1u64 << 32) / 10);
+        assert_eq!(filetime_us(15_000_000, 0), 1_500_000);
+    }
+
+    #[test]
+    fn zatez_vlastniho_procesu() {
+        let l = own_load();
+        if cfg!(windows) {
+            let l = l.expect("vlastní proces");
+            assert!(l.working_set > 0 && l.peak_working_set >= l.working_set && l.cpus >= 1);
+            assert!(l.private_bytes > 0);
+        } else {
+            assert!(l.is_none());
+        }
     }
 
     #[test]
@@ -2216,6 +2325,21 @@ mod tests {
         }
         let avg = total / n;
         println!("krok automatického snímání: průměr {avg:?}, max {max:?}, pás {bytes} B; při kroku 2 s = {:.3} % jednoho jádra", avg.as_secs_f64() / 2.0 * 100.0);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn zatez_mereni_dotazu_na_vlastni_proces() {
+        /* ruční měření (cargo test -- --ignored): kolik stojí jeden dotaz panelu Zátěž aplikace (každé 2 s) */
+        let n = 1000;
+        let t0 = Instant::now();
+        let mut last = None;
+        for _ in 0..n {
+            last = own_load();
+        }
+        let per = t0.elapsed() / n;
+        println!("app_load: {per:?} na dotaz; při kroku 2 s = {:.5} % jednoho jádra; {last:?}", per.as_secs_f64() / 2.0 * 100.0);
     }
 
     #[cfg(windows)]

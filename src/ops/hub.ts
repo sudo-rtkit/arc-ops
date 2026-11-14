@@ -39,6 +39,7 @@ import { readAutoCapture } from '../core/opsCapture';
 import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator, type RustScreen } from '../core/autoCapture';
 import { IN_RAID_SIGNAL, loadoutSnap } from '../core/raidLife';
 import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
+import { calmNow, widgetPushMs } from '../core/lowImpact';
 
 /* auto (0.21.0): snímek z automatického snímání (původ hodnot po zápisu), jinak ze zkratky */
 export interface Shot { id: number; at: number; read: ScreenRead; auto?: true }
@@ -71,9 +72,13 @@ export interface BuddyView {
   auto: AutoIndicator;
   /* 0.22.0: widgety nad hrou zapnuté: klik na Opse otevře jejich Úpravy (jinak overlay jako dřív) */
   widgets: boolean;
+  /* 0.23.0: režim nízké zátěže právě šetří (zapnutý a hra v popředí): animace stojí */
+  calm: boolean;
 }
 /* 0.22.0: kopie stavu pro okno widgetů (jen čtení) a co čeká na revizi ze snímku (widget Ke kontrole) */
-export interface WidgetView { state: AppState; pending: { stash: number; loot: boolean; progress: boolean }; game: boolean | null }
+export interface WidgetView { state: AppState; pending: { stash: number; loot: boolean; progress: boolean }; game: boolean | null; calm?: boolean }
+/* 0.23.0: údaje pro panel Zátěž aplikace (okna widgetů a jak často se obnovují, šetří se právě teď?) */
+export interface PerfInfo { widgetWindows: number; widgetPushMs: number; calm: boolean; lowImpact: boolean }
 /* Widgety: zapnuté v Nastavení, se zapnutým Opsem a bez hlavního vypínače napojení na hru. */
 export const widgetsOn = (s: AppState): boolean => s.buddy.enabled && s.opsPrefs.widgets.on && !s.gameLink.off;
 /* relay (0.16.0): poslední zpracovaná akce plného modulu z overlaye (store/relay.ts) */
@@ -140,6 +145,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   let widgetsKnown = false, widgetsApplied = false, buddyShown = false, widgetsEditing = false;
   let widgetsTimer: ReturnType<typeof setTimeout> | null = null;
   let appliedKeys = { edit: '', hide: '' };
+  /* 0.23.0: zkratka polní konzole, jak ji hub naposledy poslal do Rustu; posluchači změny hry v popředí */
+  let appliedConsole = '';
+  const frontListeners = new Set<(front: boolean) => void>();
+  /* 0.23.0: režim nízké zátěže šetří, když je zapnutý a hra je vidět v popředí (game-visible z hlídací smyčky) */
+  const calm = () => calmNow(st().opsPrefs.lowImpact, gameVisible);
 
   /* Nativní volání jdou za sebou, aby se zapnutí a vypnutí nepředběhla. */
   let queue: Promise<unknown> = Promise.resolve();
@@ -153,6 +163,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     game: gameKnown ? gameRunning : null,
     auto: autoIndicator(s),
     widgets: widgetsOn(s),
+    calm: calmNow(s.opsPrefs.lowImpact, gameVisible),
   });
   const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey, relay: relayAck });
   const pushBuddy = (force = false) => {
@@ -172,14 +183,14 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   };
   /* 0.22.0: okno widgetů dostává stav s větším odstupem (jen zobrazení, nic se v něm nepíše) */
   const widgetView = (): WidgetView => ({
-    state: st(), pending: { stash: batch.shots.length, loot: !!batch.loot, progress: !!batch.progress }, game: gameKnown ? gameRunning : null,
+    state: st(), pending: { stash: batch.shots.length, loot: !!batch.loot, progress: !!batch.progress }, game: gameKnown ? gameRunning : null, calm: calm(),
   });
   const pushWidgets = (now = false) => {
     if (!widgetsKnown) return;
     if (widgetsTimer) clearTimeout(widgetsTimer);
     widgetsTimer = null;
     if (now || pushMs <= 0) { bus.send('widgets', 'state', widgetView()); return; }
-    widgetsTimer = setTimeout(() => { widgetsTimer = null; bus.send('widgets', 'state', widgetView()); }, pushMs * 3);
+    widgetsTimer = setTimeout(() => { widgetsTimer = null; bus.send('widgets', 'state', widgetView()); }, widgetPushMs(pushMs, calm()));
   };
   /* Úpravy widgetů jsou použití UI stejně jako otevřený overlay (zvuky, bubliny) */
   const ui = (): UiActivity => ({ overlayOpen: overlayOpen || widgetsEditing, appFocused: appFocused() });
@@ -196,6 +207,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
      stav (status) se neposílá, takže hlavní okno ani overlay nic nepřehrají. */
   const emote = (anim: AutoEmote, id: number) => {
     if (!autoActive(st())) return;
+    /* 0.23.0: režim nízké zátěže při hře v popředí: emoce stojí */
+    if (calm()) return;
     const m: EmoteMsg = { anim, id };
     bus.send('buddy', 'emote', m);
     if (overlayKnown) bus.send('overlay', 'emote', m);
@@ -253,6 +266,14 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }
   }
 
+  /* 0.23.0: zkratka polní konzole: se zapnutým Opsem a bez hlavního vypínače napojení na hru */
+  function syncConsoleKey(s: AppState) {
+    const next = s.buddy.enabled && !s.gameLink.off ? s.opsPrefs.consoleKey : '';
+    if (next === appliedConsole) return;
+    appliedConsole = next;
+    run(() => native.setHotkey(next, 'console').catch(() => { if (next) app.notify(t('ops.hotkey.lost'), 'warning'); }));
+  }
+
   /* ----- přepínač a okna ----- */
   /* 0.20.0: automatické snímání a hlídání hry. Hlídací smyčka v Rustu běží, když je zapnuté automatické zobrazení
      buddyho NEBO automatické snímání (jedna smyčka pro obojí). 0.22.1: NEBO propouštění kliků buddyho do hry (smyčka
@@ -284,12 +305,15 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
         });
         syncAuto(s);
         syncWidgetKeys(s);
+        appliedConsole = '';
+        syncConsoleKey(s);
       } else {
         appliedAuto = 'off'; appliedWatch = false; appliedPass = null;
         batch = emptyBatch();
         overlayKnown = false;
         /* Rust při vypnutí zruší všechna okna i zkratky */
         widgetsKnown = false; widgetsApplied = false; buddyShown = false; widgetsEditing = false; appliedKeys = { edit: '', hide: '' };
+        appliedConsole = '';
         setHidden(false);
         run(() => native.enable(false));
       }
@@ -305,7 +329,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       });
     }
     if (b.enabled) syncAuto(s);
-    if (b.enabled) { syncWidgetKeys(s); run(syncWidgetsWindow); }
+    if (b.enabled) { syncWidgetKeys(s); syncConsoleKey(s); run(syncWidgetsWindow); }
     /* zkratku změnil stav (hlavní vypínač napojení na hru a jeho obnovení), ne Nastavení přes setHotkey */
     if (b.enabled && b.hotkey !== appliedHotkey) {
       const next = b.hotkey;
@@ -376,6 +400,27 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       return /^hotkey:(invalid|taken|off)$/.test(code) ? code : 'hotkey:taken';
     }
   }
+
+  /* ----- 0.23.0: zkratka polní konzole (volá ji Nastavení): uloží se jen zkratka, kterou systém přijal ----- */
+  async function setConsoleKey(accel: string): Promise<string | null> {
+    const s = st();
+    if (accel && s.gameLink.off) return 'hotkey:off';
+    if (accel && (accel === s.buddy.hotkey || accel === s.opsPrefs.widgets.editKey || accel === s.opsPrefs.widgets.hideKey)) return 'hotkey:taken';
+    if (!s.buddy.enabled) { app.actions.setConsoleKey(accel); return null; }
+    try {
+      await run(async () => undefined);
+      await native.setHotkey(accel, 'console');
+      appliedConsole = accel;
+      app.actions.setConsoleKey(accel);
+      return null;
+    } catch (e) {
+      const code = String((e as Error)?.message || e);
+      return /^hotkey:(invalid|taken|off)$/.test(code) ? code : 'hotkey:taken';
+    }
+  }
+  /* 0.23.0: panel Zátěž aplikace: kolik oken widgetů hub otevřel a jak často jim posílá stav */
+  const perfInfo = (): PerfInfo => ({ widgetWindows: widgetsApplied ? 1 : 0, widgetPushMs: widgetPushMs(pushMs, calm()), calm: calm(), lowImpact: st().opsPrefs.lowImpact });
+  const onFront = (f: (front: boolean) => void) => { frontListeners.add(f); return () => { frontListeners.delete(f); }; };
 
   /* ----- snímek ----- */
   /* Zahodí jen stránky stashe; loot po raidu zůstane. */
@@ -681,7 +726,14 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       if (st().buddy.enabled) pushBuddy();
     }));
     offs.push(bus.onNative('game-visible', p => {
+      const was = gameVisible;
       gameVisible = p === true;
+      /* 0.23.0: režim nízké zátěže se zapne nebo vypne s hrou v popředí (buddy, widgety, rádce) */
+      if (was !== gameVisible) {
+        frontListeners.forEach(f => f(gameVisible));
+        if (st().buddy.enabled) pushBuddy();
+        pushWidgets();
+      }
       const b = st().buddy;
       if (!b.enabled || !b.autoOpen || buddyHidden) return;
       run(() => (gameVisible ? openBuddy() : closeBuddy()));
@@ -700,7 +752,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const onEmote = (f: (e: EmoteMsg) => void) => { emoteListeners.add(f); return () => { emoteListeners.delete(f); }; };
 
   return {
-    start, stop, setHotkey, setWidgetKey, widgetsEditing: () => widgetsEditing, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
+    start, stop, setHotkey, setWidgetKey, setConsoleKey, perfInfo, onFront, widgetsEditing: () => widgetsEditing, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
     captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, onEmote, ui,
   };
 }

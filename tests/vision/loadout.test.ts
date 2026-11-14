@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import type { RgbaImage } from '../../src/core/vision/image';
-import { EQUIP_SLOTS, equipBoxes, readLoadout, valueArea } from '../../src/core/vision/loadout';
+import { EQUIP_SLOTS, equipBoxes, parseWeight, readLoadout, valueArea } from '../../src/core/vision/loadout';
 import { readAutoCapture } from '../../src/core/opsCapture';
 import { loadoutSnap, packKnown, unknownSlots } from '../../src/core/raidLife';
 import { matchContext } from '../../src/core/catalog';
@@ -28,6 +28,22 @@ describe('výbava: geometrie podle mřížky batohu', () => {
     const big = equipBoxes({ x: 1392, y: 362.67, pitchX: 138.67 });
     expect(big.weapon2.w).toBeCloseTo(405.3, 0);
     expect(valueArea({ x: 1044, y: 272, pitchX: 104 })).toEqual({ x: 794, y: 172, w: 230, h: 26 });
+  });
+});
+
+describe('0.23.0: váha z řádku pod LOADOUT', () => {
+  it('spojí části před hodnotou a čte jedno desetinné místo; jinak nic nehádá', () => {
+    expect(parseWeight(['00/300', '0'])).toEqual({ weight: 0, max: 30 });
+    /* mezera po tečce rozdělí „0.0/35.0“ na „00/35“ a „0“ */
+    expect(parseWeight(['00/35', '0', '660'])).toEqual({ weight: 0, max: 35 });
+    expect(parseWeight(['00/350', '660'])).toEqual({ weight: 0, max: 35 });
+    expect(parseWeight(['21', '2/35', '0', '18608'])).toEqual({ weight: 21.2, max: 35 });
+    /* bez hodnoty, bez lomítka, nesmyslná mez nebo váha */
+    expect(parseWeight(['00/300'])).toBeNull();
+    expect(parseWeight(['123', '0'])).toBeNull();
+    expect(parseWeight(['00/9999', '0'])).toBeNull();
+    expect(parseWeight(['999/300', '0'])).toBeNull();
+    expect(parseWeight([])).toBeNull();
   });
 });
 
@@ -91,11 +107,26 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
     const r = readLoadout(load('own-manage-loadout-custom-empty.png'))!;
     expect([r.kind, r.value]).toEqual(['custom', 0]);
     expect(r.equip.map(e => e.state)).toEqual(EQUIP_SLOTS.map(() => 'empty'));
-    /* známá mez: batoh 0/20 a quick use 0/5 vlastního loadoutu (s místy AUGMENTED SLOTS a SAFE POCKET) čtečka
-       nezměří a prázdná místa „+“ vezme za jeden neznámý předmět; výsledek pak jde celý ke kontrole (nic se nehádá) */
+    /* 0.23.0: oprava známé meze z 0.22.1: modrozelený popisek 0/20 a 0/5 se přečte a volná místa „+“ jsou prázdná,
+       ne neznámý předmět; váha 0.0/30.0 z řádku pod LOADOUT */
+    expect([r.backpackMax, r.quickUseMax]).toEqual([20, 5]);
+    expect([r.weight, r.weightMax]).toEqual([0, 30]);
+    expect(r.backpack).toEqual([]);
+    expect(r.quickUse).toEqual([]);
     const s = loadoutSnap(r, [], ctx(), 1);
-    expect(s.fields.filter(f => f.state === 'item').every(f => f.name === null && f.conf === 'unknown')).toBe(true);
-    expect(packKnown(s)).toBe(false);
+    expect(s.fields.filter(f => f.state === 'item')).toEqual([]);
+    expect(packKnown(s)).toBe(true);
+    expect(unknownSlots(s)).toEqual([]);
+  });
+  it.skipIf(!has('own-manage-loadout-free.png'))('0.23.0: volný loadout: mez váhy 35.0 z řádku pod LOADOUT', () => {
+    const r = readLoadout(load('own-manage-loadout-free.png'))!;
+    expect([r.weight, r.weightMax]).toEqual([0, 35]);
+  });
+  it.skipIf(!has('own-after-raid-survived-findings.png'))('0.23.0: výsledek FINDINGS: váha výbavy proti mezi', () => {
+    const r = readLoadout(load('own-after-raid-survived-findings.png'))!;
+    expect(r.weightMax).toBe(35);
+    expect(r.weight).toBeGreaterThan(0);
+    if (has('own-after-raid-survived-findings-2.png')) expect(readLoadout(load('own-after-raid-survived-findings-2.png'))!).toMatchObject({ weight: 21.2, weightMax: 35 });
   });
   it.skipIf(!has('own-after-raid-survived-findings-2.png'))('druhý výsledek FINDINGS: hodnota 18 608, batoh 12/14, quick use 4/4, štít Light Shield', () => {
     const img = load('own-after-raid-survived-findings-2.png');

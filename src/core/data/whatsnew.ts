@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.22.1 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.23.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.23.0',
+    title: { cs: 'Loadout builder a zátěž aplikace', en: 'Loadout builder and app load' },
+    items: [
+      { text: { cs: 'Loadout podle míst ve hře s hodnotou, váhou proti mezi, dostupností ve skrýši a částkou, kterou riskuješ při vyřazení.', en: 'Build loadouts by in-game slots with value, weight against the limit, stash availability and what you risk if knocked out.' }, link: 'loadouts' },
+      { text: { cs: 'Porovnání dvou loadoutů, chybějící předměty do nákupního seznamu a předvyplnění ze snímku. Počítá s nimi i Příprava na raid.', en: 'Compare two loadouts, send missing items to the shopping list and prefill from a screenshot. Raid prep uses them too.' }, link: 'raid' },
+      { text: { cs: 'Nastavení → Zátěž aplikace: CPU a paměť aplikace a režim nízké zátěže. Nově i zkratka konzole a vysoký kontrast widgetů.', en: 'Settings → App load: the app’s CPU and memory and a low-impact mode. Also new: a console shortcut and high-contrast widgets.' }, link: 'appLoad' },
+    ],
+  },
   {
     version: '0.22.1',
     title: { cs: 'Buddy už hře nebere fokus', en: 'The buddy no longer steals focus from the game' },

@@ -14,6 +14,8 @@ const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 /* Krémový text (počty, hlavička, mince). */
 export const isCream: PixelTest = withInk((r, g, b, l) => (hueSat(r, g, b).s < 0.4 ? clamp01((l - 50) / 150) : 0));
+/* 0.23.0: modrozelený text popisku vlastního loadoutu („0/20“, „0/5“ vedle BACKPACK a QUICK USE). */
+export const isTeal: PixelTest = withInk((r, g, b) => { const h = hueSat(r, g, b); return h.s > 0.35 && h.h >= 180 && h.h < 215 ? clamp01((h.v - 90) / 70) : 0; });
 /* Žlutá prémiová měna. */
 export const isGold: PixelTest = withInk((r, g, b) => { const h = hueSat(r, g, b); return h.s > 0.5 && h.h > 30 && h.h < 60 ? clamp01((h.v - 60) / 150) : 0; });
 /* Šedý tier v rohu zbraně. */

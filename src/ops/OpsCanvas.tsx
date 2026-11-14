@@ -39,16 +39,20 @@ interface Props {
   /* klidový stav (idle, nebo talk během bubliny) */
   restAnim?: RestAnim;
   still?: boolean;
+  /* 0.23.0: režim nízké zátěže při hře v popředí: animace stojí (poslední snímek zůstane) */
+  paused?: boolean;
   /* 0.11.0: nátěr (paleta) Opse; bez něj původní vzhled */
   paint?: string;
 }
 
-export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint }, ref) {
+export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint, paused }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const anim = useRef(new Animator());
   const view = useRef({ level, outfit, variant, paint });
   view.current = { level, outfit, variant, paint };
   const dirty = useRef(true);
+  const pausedRef = useRef(!!paused);
+  pausedRef.current = !!paused;
 
   useImperativeHandle(ref, () => ({
     play: (a, o) => { anim.current.play(a, o); dirty.current = true; },
@@ -79,7 +83,7 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
     const loop = (ts: number) => {
       const a = anim.current;
       a.reduced = !!still || !!mq?.matches;
-      if (last && a.tick(ts - last)) dirty.current = true;
+      if (last && !pausedRef.current && a.tick(ts - last)) dirty.current = true;
       last = ts;
       const nk = pixelFactor(scale, window.devicePixelRatio || 1, fit);
       if (nk !== k) {

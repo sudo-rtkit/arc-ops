@@ -88,6 +88,40 @@ function WidgetKeyField({ slot }: { slot: 'edit' | 'hide' }) {
   );
 }
 
+/* 0.23.0: zkratka polní konzole (volitelná, výchozí žádná); uloží se, až ji systém přijme (hub.setConsoleKey) */
+function ConsoleKeyField() {
+  const t = useT();
+  const s = useAppState();
+  const value = s.opsPrefs.consoleKey;
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState<Key | null>(null);
+  useEffect(() => {
+    if (!recording) return;
+    const on = (e: KeyboardEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.code === 'Escape' && !e.ctrlKey && !e.altKey && !e.shiftKey) { setRecording(false); return; }
+      const h = hotkeyFrom(e);
+      if (!h) return;
+      setRecording(false);
+      if (!validHotkey(h)) { setError('ops.hotkey.invalid'); return; }
+      void hub.setConsoleKey(h).then(err => setError(err ? (`ops.${err.replace(':', '.')}` as Key) : null));
+    };
+    window.addEventListener('keydown', on, true);
+    return () => window.removeEventListener('keydown', on, true);
+  }, [recording]);
+  return (
+    <div className="field">
+      <span className="field-label" id="ops-console-key">{t('ops.consoleKey')}</span>
+      <div className="row">
+        <kbd className="kbd mono" aria-labelledby="ops-console-key" data-testid="ops-console-key">{recording ? t('ops.hotkeyRecord') : value ? hotkeyLabel(value) : t('ops.hotkeyNone')}</kbd>
+        <Btn size="sm" icon={Keyboard} aria-label={`${t('ops.consoleKey')}: ${t('ops.hotkeySet')}`} data-testid="ops-console-key-set" onClick={() => { setError(null); setRecording(true); }} disabled={recording || s.gameLink.off}>{t('ops.hotkeySet')}</Btn>
+        {value && <Btn size="sm" variant="ghost" icon={X} aria-label={`${t('ops.consoleKey')}: ${t('ops.hotkeyClear')}`} onClick={() => void hub.setConsoleKey('').then(() => setError(null))}>{t('ops.hotkeyClear')}</Btn>}
+      </div>
+      {error ? <p className="danger-text" role="alert">{t(error)}</p> : <p className="meta">{t('ops.consoleKeyHint')}</p>}
+    </div>
+  );
+}
+
 /* 0.22.0: Widgety nad hrou (výchozí vypnuto, žlutá zóna). Rozložení se nastavují přímo nad hrou v Úpravách. */
 export function WidgetsPanel() {
   const t = useT();
@@ -105,6 +139,8 @@ export function WidgetsPanel() {
           <WidgetKeyField slot="edit" />
           <WidgetKeyField slot="hide" />
           <p className="meta">{t('wg.settings.keyHint')}</p>
+          <label className="toggle"><input type="checkbox" data-testid="wg-contrast" checked={w.contrast} onChange={e => actions.setWidgets({ contrast: e.target.checked })} />{t('wg.settings.contrast')}</label>
+          <p className="meta">{t('wg.settings.contrastNote')}</p>
           <div className="row"><Btn size="sm" onClick={() => void native.widgetsEdit(true).catch(() => undefined)} disabled={!native.available} data-testid="wg-open-edit">{t('wg.settings.openEdit')}</Btn></div>
         </div>
       )}
@@ -131,6 +167,7 @@ export function OpsPanel() {
       {!b.enabled ? <p className="meta" data-testid="ops-off">{t('ops.offHint')}</p> : (
         <div className="stack" data-testid="ops-options">
           <HotkeyField />
+          <ConsoleKeyField />
           <div className="field">
             <span className="field-label">{t('ops.scale')}</span>
             <div className="seg" role="group" aria-label={t('ops.scale')}>

@@ -24,10 +24,14 @@ const MAIN = [
   'allow-overlay-open', 'allow-main-focus', 'allow-capture-now', 'allow-capture-take', 'allow-ops-autocapture', 'allow-ops-autostats', 'allow-ops-passthrough',
   'allow-main-mode', 'allow-main-pin', 'allow-main-geometry', 'allow-main-drag', 'allow-main-minimize', 'allow-main-hide', 'allow-main-show',
   'allow-main-ready', 'allow-app-quit', 'allow-tray-sync', 'allow-widgets-open', 'allow-widgets-close', 'allow-widgets-edit',
+  /* 0.23.0: zátěž vlastního procesu (jen čtení) */
+  'allow-app-load',
 ];
 const BUDDY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-available-monitors', 'core:window:allow-primary-monitor',
   'allow-bus-send', 'allow-buddy-reveal', 'allow-overlay-toggle', 'allow-win-place', 'allow-win-drag', 'allow-widgets-edit',
+  /* 0.23.0: Skrýt / zobrazit widgety vedle Úprav (jen událost oknu widgetů) */
+  'allow-widgets-hide',
 ];
 const OVERLAY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-outer-position', 'core:window:allow-inner-size',
@@ -113,7 +117,9 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     expect(body('src-tauri/src/ops.rs', 'win_place')).toContain('only(&window, &[BUDDY, OVERLAY])?');
     expect(body('src-tauri/src/ops.rs', 'win_drag')).toContain('only(&window, &[BUDDY])?');
     /* 0.22.0: widgety */
-    for (const fn of ['widgets_open', 'widgets_close']) expect(body('src-tauri/src/ops.rs', fn), fn).toContain('main_only(&window)?');
+    for (const fn of ['widgets_open', 'widgets_close', 'app_load']) expect(body('src-tauri/src/ops.rs', fn), fn).toContain('main_only(&window)?');
+    /* 0.23.0: Skrýt / zobrazit widgety smí jen buddy */
+    expect(body('src-tauri/src/ops.rs', 'widgets_hide')).toContain('only(&window, &[BUDDY])?');
     expect(body('src-tauri/src/ops.rs', 'widgets_edit')).toContain('only(&window, &[MAIN, BUDDY, WIDGETS])?');
     expect(body('src-tauri/src/ops.rs', 'widgets_fit')).toContain('only(&window, &[WIDGETS])?');
     expect(body('src-tauri/src/ops.rs', 'widgets_app')).toContain('only(&window, &[WIDGETS])?');
@@ -289,6 +295,16 @@ describe('0.22.1: buddy nikdy nevezme hře fokus', () => {
       const b = fnBody(fn);
       for (const s of ACTIVATING) expect(b.includes(s), `${fn}: ${s}`).toBe(false);
     }
+    /* 0.23.0: Skrýt / zobrazit z buddyho a z oznamovací oblasti jen pošle událost oknu widgetů */
+    for (const fn of ['widgets_hide', 'toggle_widgets_hidden']) {
+      const b = fnBody(fn);
+      for (const s of ACTIVATING) expect(b.includes(s), `${fn}: ${s}`).toBe(false);
+    }
+    expect(fnBody('toggle_widgets_hidden')).toContain('emit_native(app, WIDGETS, "widgets-hide", ())');
+    const tray = read('src-tauri/src/mainwin.rs');
+    expect(tray).toContain('"widgets" => ops::toggle_widgets_hidden(app),');
+    /* 0.23.0: zkratka konzole otevře konzoli s fokusem jen na výslovný stisk (zkratka je ve výchozím stavu prázdná) */
+    expect(fnBody('on_hotkey')).toMatch(/if is\(&st\.console_key\) \{[\s\S]*?hide_overlay\(app\);[\s\S]*?show_overlay\(app, None\);[\s\S]*?return;\s*\}/);
     /* zkratka Skrýt / zobrazit widgety jen pošle událost */
     const hk = fnBody('on_hotkey');
     expect(hk).toMatch(/if is\(&st\.hide_key\) \{\s*if app\.get_webview_window\(WIDGETS\)\.is_some\(\) \{\s*emit_native\(app, WIDGETS, "widgets-hide", \(\)\);\s*\}\s*return;/);
@@ -327,6 +343,17 @@ describe('0.22.1: buddy nikdy nevezme hře fokus', () => {
     }
     const cargo = read('src-tauri/Cargo.toml');
     expect(cargo).not.toMatch(/Win32_UI_Input|KeyboardAndMouse|rdev|enigo|device_query|inputbot/);
+  });
+
+  it('0.23.0: Skrýt / zobrazit widgety u Opse jen pošle událost; Úpravy dál přes widgets_edit se stráží kliku', () => {
+    const b = read('src/ops/BuddyApp.tsx').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const i = b.indexOf('data-testid="buddy-hide"');
+    expect(i).toBeGreaterThan(0);
+    const btn = b.slice(i, b.indexOf('</button>', i));
+    expect(btn).toContain('native.widgetsHide?.().catch(() => undefined)');
+    for (const w of ['widgetsEdit', 'overlayToggle', 'focus', '.show(', 'touchAt', 'sound']) expect(btn.includes(w), w).toBe(false);
+    expect(b).toContain('paused={view.calm}');
+    expect(read('src/ops/native.ts')).toContain("widgetsHide: () => call('widgets_hide')");
   });
 
   it('buddy v prohlížeči i v Tauri: odmítnutý klik nic nehlásí a okno se samo neukazuje', () => {

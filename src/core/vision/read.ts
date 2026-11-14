@@ -3,8 +3,8 @@
    může zahodít. */
 import { lumMap, type RgbaImage } from './image';
 import { detectLayout, viewportOf, type Box, type Grid, type PanelGrid, type PanelId, type Viewport } from './layout';
-import { brightShare, categoryArea, cellSig, countArea, creamShare, frameLum, gridCells, iconArea, tierArea } from './cells';
-import { isCream, isGold, maskOf, numberTokens, parseGrouped, readCount, readTier, type Tier } from './digits';
+import { brightShare, categoryArea, cellSig, countArea, creamShare, frameLum, gridCells, iconArea, isPlusSlot, tierArea } from './cells';
+import { isCream, isGold, isTeal, maskOf, numberTokens, parseGrouped, readCount, readTier, type Tier } from './digits';
 import { fingerprint } from './fingerprint';
 import { readRarity, type Rarity } from './rarity';
 import { coinsArea, panelLabelArea, stashHeaderArea } from './regions';
@@ -106,6 +106,8 @@ function readPanel(img: RgbaImage, g: PanelGrid, overlays: Overlay[], vp: Viewpo
     const rar = readRarity(img, b);
     const bright = brightShare(img, iconArea(b));
     const colored = rar.rarity !== 'common' && rar.rarity !== 'unknown';
+    /* 0.23.0: volné místo „+“ vlastního loadoutu (modrozelený rámeček a křížek, bez ikony) je prázdné, ne předmět */
+    if (!cnt && !tier && !rar.rgb && isPlusSlot(img, b)) { if (gc.framed) empty.push({ row: gc.row, col: gc.col }); continue; }
     /* Každý předmět má vlevo dole ikonu kategorie; prázdné místo ani zástupné ikony (kroužek, „náhodný“ symbol) ne. */
     const occupied = !!cnt || !!tier || colored || bright > 0.04 || creamShare(img, categoryArea(b)) >= CATEGORY_ICON_MIN;
     if (!occupied) { if (gc.framed) empty.push({ row: gc.row, col: gc.col }); continue; }
@@ -117,7 +119,9 @@ function readPanel(img: RgbaImage, g: PanelGrid, overlays: Overlay[], vp: Viewpo
   }
   let slots: number | null = null, slotsMax: number | null = null;
   if (g.panel !== 'stash') {
-    const tok = numberTokens(img, panelLabelArea(g), isCream).find(t => /^\d+\/\d+$/.test(t.text));
+    /* 0.23.0: vlastní loadout má popisek modrozelený („0/20“), ostatní obrazovky krémový */
+    const label = (test: typeof isCream) => numberTokens(img, panelLabelArea(g), test).find(t => /^\d+\/\d+$/.test(t.text));
+    const tok = label(isCream) ?? label(isTeal);
     if (tok) [slots, slotsMax] = tok.text.split('/').map(Number);
   }
   const partial = (row: number, visible: number, top: boolean): PartialRow | null => {

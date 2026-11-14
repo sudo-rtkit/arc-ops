@@ -22,14 +22,14 @@ const S2 = {
 describe('schéma 3 (dnes 5)', () => {
   it('výchozí stav (aktuálně schéma 5) má prázdné items a vision', () => {
     const s = defaultState(NOW);
-    expect(SCHEMA).toBe(18);
-    expect(s.schema).toBe(18);
+    expect(SCHEMA).toBe(19);
+    expect(s.schema).toBe(19);
     expect(s.items).toEqual({});
     expect(s.vision).toEqual({ learned: [], profile: null, lastImportAt: 0, stash: null });
   });
   it('migrace 2 → 4 doplní items a vision a nic neztratí', () => {
     const s = normalize(S2, NOW);
-    expect(s.schema).toBe(18);
+    expect(s.schema).toBe(19);
     expect(s.items).toEqual({});
     expect(s.vision.learned).toEqual([]);
     expect(s.profile.coins).toBe(120000);
@@ -42,11 +42,11 @@ describe('schéma 3 (dnes 5)', () => {
     expect('error' in p ? p.error : p.state.inventory).toEqual({ 'Metal Parts': 12, 'ARC Alloy': 3 });
     const raw = parseBackup(JSON.stringify(S2), NOW);
     expect('error' in raw ? raw.error : raw.kind).toBe('app');
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 19, state: {} }))).toEqual({ error: ERR_NEWER });
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 20, state: {} }))).toEqual({ error: ERR_NEWER });
   });
   it('deník v1 se převede na aktuální schéma', () => {
     const { state } = importV1(SAMPLE_V1, NOW);
-    expect(state.schema).toBe(18);
+    expect(state.schema).toBe(19);
     expect(state.vision.learned).toEqual([]);
     expect(normalize(JSON.parse(JSON.stringify(state)), NOW)).toEqual(state);
   });
@@ -55,7 +55,7 @@ describe('schéma 3 (dnes 5)', () => {
     s.items = { 'Ferro II': { key: 'Ferro II', name: 'Ferro', category: 'weapon', tier: 'II', count: 1 } };
     s.vision = { learned: [{ id: 'l1', itemKey: 'ARC Alloy', kind: 'material', fp: fp(3), rarity: 'rare', at: 7 }], profile: { cellPx: 96, ui: 1 }, lastImportAt: 9, stash: { used: 200, max: 268, at: 5 } };
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(18);
+    expect(file.schema).toBe(19);
     expect(file.state.items).toEqual(s.items);
     expect(file.state.vision).toEqual(s.vision);
     const p = parseBackup(makeBackup(s), NOW);

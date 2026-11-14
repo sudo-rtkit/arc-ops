@@ -16,3 +16,7 @@ body { user-select: none; -webkit-user-select: none; cursor: default; }
 /* 0.20.0: tečka automatického snímání (vpravo nahoře u Opse) */
 .buddy-auto { position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #E6C66D; box-shadow: 0 0 0 2px rgba(10, 13, 26, .85); pointer-events: none; }
 .buddy-auto.auto-paused { background: #8A8F9C; }
+/* 0.23.0: Úpravy a Skrýt / zobrazit widgety pod Opsem (jen se zapnutými widgety) */
+.buddy-ctl { position: absolute; display: flex; justify-content: center; gap: 2px; pointer-events: none; }
+.buddy-ctl-btn { pointer-events: auto; font: 600 10px/1 system-ui, sans-serif; color: #E6EAEC; background: rgba(10, 13, 26, .88); border: 1px solid #626B70; border-radius: 3px; padding: 3px 5px; cursor: pointer; }
+.buddy-ctl-btn:hover, .buddy-ctl-btn:focus-visible { border-color: #E6C66D; outline: none; }

@@ -60,7 +60,7 @@ const later = <T>(v: T) => () => Promise.resolve(v);
 export const BLOCKED_ACTIONS = {
   importFromScreens: later(null), importRaidLoot: later({ ok: false as const, reason: 'notReady' as const }), importProgress: later(null),
   mapEdit: none, setMapImage: none,
-  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none, setPassClicks: none,
+  setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none, setPassClicks: none, setLowImpact: none, setConsoleKey: none,
   setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),

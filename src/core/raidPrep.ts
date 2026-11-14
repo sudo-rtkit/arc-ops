@@ -275,10 +275,12 @@ export function normalizePlanRecord(raw: unknown): { plan?: RaidPlanRecord } {
     items.push({ mat, need, found: Math.min(need, qty(x.found)) });
   }
   const value = typeof raw.value === 'number' && Number.isFinite(raw.value) ? clampInt(raw.value, 0, 1e10) : null;
+  /* 0.23.0 (schéma 19): hodnota loadoutu v riziku; starší záznam ji nemá (pole chybí) */
+  const risk = typeof raw.risk === 'number' && Number.isFinite(raw.risk) ? clampInt(raw.risk, 0, 1e10) : raw.risk === null ? null : undefined;
   return { plan: {
     at: clampInt(raw.at || 0, 0, 9e15), goals: strs(raw.goals, 50, 120), money: raw.money === true,
     map: MAPS.some(m => m.id === raw.map) ? String(raw.map) : '', loadout: text(raw.loadout, 24),
-    items, done: strs(raw.done, 50, 120), value,
+    items, done: strs(raw.done, 50, 120), value, ...(risk !== undefined ? { risk } : {}),
   } };
 }
 

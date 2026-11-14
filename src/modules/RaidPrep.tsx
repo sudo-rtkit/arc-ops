@@ -16,7 +16,8 @@ import { fmt, fmtDateTime } from '../ui/format';
 import { dayKey } from '../core/util';
 import { MAPS } from '../core/data/maps';
 import type { RaidGoals, RaidPlan } from '../core/types';
-import { evalLine, evaluateRaid, nextRaid, planRaid, savedRaid } from '../core/raidEval';
+import { evalLine, evaluateRaid, knownRisk, loadoutOutcome, nextRaid, planLoadout, planRaid, savedRaid } from '../core/raidEval';
+import { LoadoutSummaryView } from './Loadouts';
 import {
   defaultGoals, emptyGoals, goalOptions, hasGoals, listSig, raidList, recommendedMap, scoreMaps, validGoals, type MapScore,
 } from '../core/raidPrep';
@@ -59,6 +60,10 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
   const next = useMemo(() => (ev ? nextRaid(s, plan, ev, t.lang, today) : null), [ev, s, plan, t.lang, today]);
   const saved = savedRaid(s, plan);
   const mapName = (id: string) => MAPS.find(m => m.id === id)?.name ?? id;
+  /* 0.23.0: loadout plánu: hodnota v riziku a co se s ní stalo (vyřazení / přežití podle záznamu raidu) */
+  const lo = planLoadout(s, plan.loadout);
+  const risk = lo ? knownRisk(lo.sum) : null;
+  const outcome = loadoutOutcome(raid);
   const run = () => {
     setOn(true);
     if (!plan.snap && !captured) return;
@@ -80,6 +85,13 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
         ) : (
           <>
             <p className="meta" data-testid="raid-eval-source">{captured ? t('raid.eval.fromRaid', { at: fmtDateTime(Math.max(captured.ts, captured.lootScan?.at ?? 0)) }) : t('raid.eval.fromStock', { at: fmtDateTime(plan.startedAt) })}</p>
+            {lo && (
+              <p className="meta" data-testid="raid-eval-loadout">
+                {outcome === 'lost' && risk !== null ? t('raid.eval.loadoutLost', { risk: fmt(risk) })
+                  : outcome === 'kept' && risk !== null ? t('raid.eval.loadoutKept', { risk: fmt(risk) })
+                    : t('raid.eval.loadout', { name: lo.name, risk: risk === null ? '?' : fmt(risk) })}
+              </p>
+            )}
             <div className="rp-eval-sum" data-testid="raid-eval-sum" data-kind={ev.kind}>
               <b>{t('raid.eval.sum', { found: ev.found, need: ev.need })}</b>
               {ev.value !== null && <span className="meta">{t('raid.eval.value', { value: ev.value })}</span>}
@@ -140,6 +152,8 @@ export default function RaidPrep() {
   const [goals, setGoals] = useState<RaidGoals>(() => (plan ? validGoals(s, plan.goals, t.lang, today) : defaultGoals(s, t.lang)));
   const [mapPick, setMapPick] = useState<string | null>(plan?.map ?? null);
   const [loadout, setLoadout] = useState(plan?.loadout ?? '');
+  /* 0.23.0: souhrn vybraného loadoutu z builderu (hodnota, riziko, co chybí ve skrýši) */
+  const chosenLo = useMemo(() => planLoadout(s, loadout), [s, loadout]);
   const [said, setSaid] = useState<{ line: LineRef | null; n: number }>({ line: null, n: 0 });
   const [showAllQuests, setShowAllQuests] = useState(false);
 
@@ -272,6 +286,15 @@ export default function RaidPrep() {
           <Select label={t('raid.loadout.label')} value={loadout} onChange={setLoadout}
             options={[{ value: '', label: t('raid.loadout.none') }, ...s.loadouts.map(l => ({ value: l.id, label: l.name + (l.purpose ? ` · ${l.purpose}` : '') }))]} />
           {s.loadouts.length === 0 && <p className="meta">{t('raid.loadout.empty')} <a href="#weapons/loadouts">{t('raid.loadout.create')}</a></p>}
+          {chosenLo && (
+            <div className="rp-loadout-sum" data-testid="raid-loadout-sum">
+              <LoadoutSummaryView sum={chosenLo.sum} compact />
+              <p className={chosenLo.sum.missing.length ? 'meta amber' : 'meta'} data-testid="raid-loadout-missing">
+                {chosenLo.sum.missing.length ? t('raid.loadout.missing', { list: chosenLo.sum.missing.map(m => `${m.missing}× ${m.name}`).join(', ') }) : chosenLo.sum.need.length ? t('raid.loadout.allHave') : ''}
+                {' '}<a href="#weapons/loadouts">{t('raid.loadout.edit')}</a>
+              </p>
+            </div>
+          )}
           {route && <p className="rp-route" data-testid="raid-route"><b>{t('raid.loadout.route', { name: route.name })}</b> {route.loadout || t('common.notSpecified')}</p>}
           <hr className="divider" />
           <Btn variant="primary" icon={Play} onClick={start} disabled={!hasGoals(g)} data-testid="raid-start">{plan ? t('raid.restart') : t('raid.start')}</Btn>

@@ -15,7 +15,7 @@ export const VOLUME_DEFAULT = 25;
 
 export const emptyOpsPrefs = (): OpsPrefs => ({
   personality: 'friendly', sound: true, volume: VOLUME_DEFAULT, dialogs: true, tutorial: { status: 'new', step: 'welcome' }, advisor: true,
-  widgets: { on: false, editKey: '', hideKey: '' }, passClicks: true,
+  widgets: { on: false, editKey: '', hideKey: '', contrast: false }, passClicks: true, lowImpact: false, consoleKey: '',
 });
 
 /* 0.22.0: přepínač widgetů a jejich zkratky. Zkratka musí projít stejnou kontrolou jako zkratka snímku; dvě stejné
@@ -24,7 +24,7 @@ export function normalizeWidgetsSwitch(raw: unknown): WidgetsSwitch {
   const r = isObj(raw) ? raw : {};
   const key = (v: unknown) => (typeof v === 'string' && validHotkey(v) ? v : '');
   const editKey = key(r.editKey), hideKey = key(r.hideKey);
-  return { on: r.on === true, editKey, hideKey: hideKey && hideKey === editKey ? '' : hideKey };
+  return { on: r.on === true, editKey, hideKey: hideKey && hideKey === editKey ? '' : hideKey, contrast: r.contrast === true };
 }
 
 export function normalizeOpsPrefs(raw: unknown): OpsPrefs {
@@ -39,6 +39,10 @@ export function normalizeOpsPrefs(raw: unknown): OpsPrefs {
   d.widgets = normalizeWidgetsSwitch(r.widgets);
   /* 0.22.1: ve starším nastavení chybí a je zapnuté (vypnout jde jen výslovně) */
   d.passClicks = r.passClicks !== false;
+  /* 0.23.0: ve starším nastavení chybí = vypnuto / bez zkratky; zkratka konzole nesmí být stejná jako zkratka widgetů */
+  d.lowImpact = r.lowImpact === true;
+  const ck = typeof r.consoleKey === 'string' && validHotkey(r.consoleKey) ? r.consoleKey : '';
+  d.consoleKey = ck && (ck === d.widgets.editKey || ck === d.widgets.hideKey) ? '' : ck;
   const t = isObj(r.tutorial) ? r.tutorial : {};
   if (STATUSES.includes(t.status as TutorialStatus)) d.tutorial.status = t.status as TutorialStatus;
   if (TUTORIAL_STEPS.includes(t.step as TutorialStep)) d.tutorial.step = t.step as TutorialStep;

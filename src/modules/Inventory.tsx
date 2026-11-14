@@ -187,6 +187,19 @@ export default function Inventory({ sub }: { sub: string }) {
           ) : <ShoppingTable rows={d.shop} />}
         </Panel>
       )}
+      {tab === 'shopping' && d.loadoutShop.length > 0 && (
+        <Panel title={t('inv.loadoutShop')} flush>
+          <p className="meta" style={{ padding: '0 16px' }}>{t('inv.loadoutShopHint')}</p>
+          <div className="table-wrap">
+            <table className="table" data-testid="loadout-shop">
+              <thead><tr><th>{t('lo.col.item')}</th><th className="num">{t('lo.col.missing')}</th><th>Loadout</th></tr></thead>
+              <tbody>{d.loadoutShop.map(r => (
+                <tr key={r.name} data-item={r.name}><td><b>{r.name}</b></td><td className="num mono">{r.missing}×</td><td className="meta">{t('inv.loadoutShopFor', { list: r.loadouts.join(', ') })}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
       {tab === 'hunt' && <Hunt />}
       {tab === 'planner' && <Planner />}
     </div>

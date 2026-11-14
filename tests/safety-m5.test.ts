@@ -119,7 +119,41 @@ describe('bezpečnost milníku 5', () => {
     for (const dep of ['enigo', 'rdev', 'inputbot', 'device_query', 'winapi', 'screenshots', 'xcap', 'scrap', 'reqwest', 'tauri-plugin-shell', 'tauri-plugin-http', 'tauri-plugin-updater']) {
       expect(new RegExp(`^\\s*${dep}\\s*=`, 'm').test(cargo), dep).toBe(false);
     }
-    expect(cargo).not.toMatch(/Win32_System_Threading|Win32_System_Memory|Win32_UI_Input|Win32_System_Diagnostics_Debug/);
+    expect(cargo).not.toMatch(/Win32_System_Memory|Win32_UI_Input|Win32_System_Diagnostics_Debug/);
+  });
+
+  /* 0.23.0: panel „Zátěž aplikace“ měří jen vlastní proces. Win32_System_Threading a Win32_System_ProcessStatus
+     smí ops.rs použít jen na pseudo-handle GetCurrentProcess() a jen ke čtení (časy procesu, čítače paměti).
+     Žádný jiný proces se neotevírá ani nečte; vlákna, priority ani ukončení procesů se nemění. */
+  it('zátěž aplikace: jen vlastní proces, jen čtení (GetCurrentProcess, GetProcessTimes, GetProcessMemoryInfo)', () => {
+    const cargo = read('src-tauri/Cargo.toml');
+    expect(cargo).toMatch(/"Win32_System_Threading", "Win32_System_ProcessStatus"/);
+    const ops = read(OPS_RS);
+    /* bez komentářů (dokumentace funkce názvy API zmiňuje) */
+    const code = ops.slice(0, ops.indexOf('#[cfg(test)]')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    /* jediné importy z obou modulů */
+    const uses = [...code.matchAll(/use windows_sys::Win32::System::(Threading|ProcessStatus)::\{([^}]*)\};/g)].map(m => m[1] + ':' + m[2].replace(/\s+/g, ''));
+    expect(uses.sort()).toEqual(['ProcessStatus:GetProcessMemoryInfo,PROCESS_MEMORY_COUNTERS,PROCESS_MEMORY_COUNTERS_EX', 'Threading:GetCurrentProcess,GetProcessTimes']);
+    expect(code.match(/System::(Threading|ProcessStatus)/g)!.length).toBe(2);
+    for (const f of RS.map(rel).filter(x => x !== OPS_RS)) expect(read(f), f).not.toMatch(/Threading|ProcessStatus|GetProcessTimes|GetProcessMemoryInfo|GetCurrentProcess/);
+    /* oba dotazy jen na vlastní proces (pseudo-handle, nic se neotevírá ani nezavírá) */
+    const fn = code.slice(code.indexOf('pub fn own_load()'), code.indexOf('pub fn game_pids()'));
+    expect(fn).toContain('let me = GetCurrentProcess();');
+    expect(fn).toMatch(/GetProcessTimes\(me, /);
+    expect(fn).toMatch(/GetProcessMemoryInfo\(me, /);
+    expect(code.match(/GetProcessTimes\(/g)!.length).toBe(1);
+    expect(code.match(/GetProcessMemoryInfo\(/g)!.length).toBe(1);
+    expect(code.match(/GetCurrentProcess\(\)/g)!.length).toBe(1);
+    expect(fn).not.toMatch(/CloseHandle|OpenProcess|DuplicateHandle|th32ProcessID|pids/);
+    /* žádné jiné API z Threading (ukončení, vlákna, priority, čekání na cizí procesy) */
+    const all = RS.map(f => load(f)).join('\n');
+    for (const api of ['TerminateProcess', 'CreateProcess', 'CreateThread', 'OpenThread', 'SuspendThread', 'ResumeThread', 'SetPriorityClass', 'SetProcessAffinityMask', 'SetThreadPriority', 'QueueUserAPC', 'NtQueryInformationProcess', 'EnumProcesses', 'EnumProcessModules', 'GetModuleFileNameEx', 'QueryFullProcessImageName']) {
+      expect(all.includes(api), api).toBe(false);
+    }
+    /* příkaz jen pro hlavní okno */
+    const cmd = code.slice(code.indexOf('pub async fn app_load'), code.indexOf('pub fn filetime_us'));
+    expect(cmd).toContain('main_only(&window)?');
+    expect(cmd).toContain('own_load()');
   });
 
   it('okna buddy a overlay mají jen základní oprávnění; žádná okna nesmí zkratky ani shell z JS', () => {

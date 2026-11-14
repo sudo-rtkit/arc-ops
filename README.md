@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.22.1](https://img.shields.io/badge/version-0.22.1-F4AD82?style=flat-square)
+![Version 0.23.0](https://img.shields.io/badge/version-0.23.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -69,6 +69,8 @@ Ctrl+K works while the app or overlay has focus. It is a local window shortcut. 
 An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. The **App** button opens any full module (skill tree, recipes, item database, maps, journal, statistics, minigames…) in a larger panel over the game; settings and backups stay in the main window. Buddy features start **off** and can be enabled in Settings.
 
 **Ops never takes you out of the game (0.22.1).** While the game is in the foreground, Ops lets every click through to the game and can never take its focus (Settings → Buddy and hotkey → “Buddy lets clicks through to the game (recommended)”, on by default). During play you use the hotkeys: the capture hotkey and the widget Edit hotkey. On the desktop or with the app window in front, you can click and drag Ops as before.
+
+**Loadout builder and app load (0.23.0).** Weapons → Loadouts builds a loadout by its in-game slots (augment, shield, two weapons with tier, backpack, quick use, augmented slots, safe pocket; slot counts and weight limit default to the game screens and can be edited). It shows the total value from catalogue sell prices (unknown prices are marked, never guessed), weight against the limit, what you have in stash and storage, and the value at risk if you are knocked out (everything outside the safe pocket). Missing items can go to the shopping list, two loadouts compare side by side, a MANAGE LOADOUT or FINDINGS screenshot prefills one after you review it, and Raid prep and the post-raid evaluation use it. Settings → App load shows the app's own CPU and memory (never the game; FPS impact can only be measured by hand, as described there) and offers a low-impact mode for play. Also new: an optional field console hotkey, high-contrast widgets, and Hide/show widgets next to Ops and in the tray.
 
 **Where every value came from.** A small dot next to a stock count, a profile field, a station level, a skill rank or a quest objective tells you its origin on hover: entered manually, read from a screenshot (file or hotkey), from automatic capture or from a backup import, when, with what recognition confidence, and whether you confirmed it. Settings → Data origin summarises it per area with the recent writes, and the item card has an “Origin” line. When your stock has not changed for over a week and you have open goals, “What next?” suggests a STASH screenshot.
 

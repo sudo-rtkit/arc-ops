@@ -18,7 +18,9 @@ import { runStats } from '../core/runs';
 import { budget, totalPoints, planSteps, planName, nextPlanPoint } from '../core/skills';
 import { adviseAll } from '../core/advice';
 import { stockOf } from '../core/compact';
-import { advisorTips } from '../core/advisor';
+import { advisorTips, type AdvisorTip } from '../core/advisor';
+import { advisorDue, calmNow } from '../core/lowImpact';
+import { loadoutHaveOf, loadoutShopping } from '../core/loadouts';
 import { navigatorLang, setLang, t } from '../i18n';
 
 /* Jazyk prvního spuštění (a stavu bez uložené volby) podle navigator.language; pak platí volba v Settings. */
@@ -32,6 +34,12 @@ app.store.subscribe(st => setLang(st.state.settings.lang));
 
 export function useApp<T>(sel: (s: AppStore) => T): T { return useStore(app.store, sel); }
 export const useAppState = (): AppState => useApp(s => s.state);
+
+/* 0.23.0: režim nízké zátěže: hra v popředí (hlásí hub z hlídací smyčky) a poslední přepočet rádce. Při šetření se
+   rádce „Co dál?“ přepočítá nejvýš jednou za ADVISOR_MS; jinak při každé změně stavu jako dřív. */
+let gameFront = false;
+export const setGameFront = (v: boolean): void => { gameFront = v; };
+let lastTips: { at: number; tips: AdvisorTip[] } | null = null;
 
 /* Odvozené hodnoty: počítají se v jádru, jednou na změnu stavu. */
 export function derive(s: AppState) {
@@ -51,12 +59,18 @@ export function derive(s: AppState) {
   const loadoutNames: Record<string, string> = Object.fromEntries(s.loadouts.map(l => [l.id, l.name]));
   const now = Date.now();
   const advice = adviseAll(s, dayKey(now), s.settings.lang);
+  const weaponName = (id: string): string => weapons.find(w => w.id === id)?.name || id;
+  /* 0.23.0: dostupnost výbavy loadoutu (Zásoba i Vybavení, název bez tieru splní kterýkoli tier) */
+  const loadoutHave = loadoutHaveOf(s);
   return {
     stations, sources, needs, shop,
     materials: getMaterials(s),
     arc: getArc(s.gameData),
     weapons,
-    weaponName: (id: string): string => weapons.find(w => w.id === id)?.name || id,
+    weaponName,
+    loadoutHave,
+    /* 0.23.0: chybějící předměty loadoutů označených „do nákupního seznamu“ */
+    loadoutShop: loadoutShopping(s.loadouts, weaponName, loadoutHave),
     routes: getRoutes(s.gameData),
     allRoutes,
     routeName: (id: string): string => (id ? routeNames[id] || id : DASH),
@@ -69,7 +83,9 @@ export function derive(s: AppState) {
     /* milník 4: rada nech / recykluj / prodej pro každý předmět v Zásobě a Vybavení (klíč = klíč zásoby) */
     advice,
     /* 0.17.0: všechny tipy rádce „Co dál?“ seřazené podle priority (skrytí a odložení filtruje UI: visibleTips) */
-    tips: advisorTips(s, now, s.settings.lang, { advice }),
+    tips: advisorDue(lastTips?.at ?? null, now, calmNow(s.opsPrefs.lowImpact, gameFront)) || !lastTips
+      ? (lastTips = { at: now, tips: advisorTips(s, now, s.settings.lang, { advice }) }).tips
+      : lastTips.tips,
     workshop: workshopProgress(s.stations, stations),
     phases: phases({ profile: s.profile, stations: s.stations, skills: s.skills }),
     maps: mapStatus(s.profile.rounds),

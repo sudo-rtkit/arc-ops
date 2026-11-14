@@ -204,10 +204,10 @@ describe('řadič režimu okna', () => {
 
 describe('schéma 7: migrace a záloha', () => {
   it('stav schématu 6 se načte beze ztrát a dostane výchozí okno a prázdné připnutí', () => {
-    expect(SCHEMA).toBe(18);
+    expect(SCHEMA).toBe(19);
     const old = { schema: 6, profile: { level: 30, coins: 1234 }, inventory: { 'Metal Parts': 4 }, quests: { done: { ss1: 5 } }, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS' } };
     const s = normalize(old, NOW);
-    expect(s.schema).toBe(18);
+    expect(s.schema).toBe(19);
     expect(s.mainWindow).toEqual(emptyMainWindow());
     expect(s.quests).toEqual({ done: { ss1: 5 }, pinned: [], objectives: {} });
     expect(s.profile).toMatchObject({ level: 30, coins: 1234 });
@@ -224,7 +224,7 @@ describe('schéma 7: migrace a záloha', () => {
     s.mainWindow = { ...emptyMainWindow(), mode: 'compact', pin: true, close: 'tray', quests: 4 };
     s.quests.pinned = ['ss1'];
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(18);
+    expect(file.schema).toBe(19);
     expect(file.state.mainWindow).toMatchObject({ mode: 'compact', pin: true, close: 'tray', quests: 4 });
     expect(file.state.quests.pinned).toEqual(['ss1']);
   });

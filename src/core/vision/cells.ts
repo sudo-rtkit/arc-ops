@@ -116,3 +116,26 @@ export function gridCells(g: Grid): GridCell[] {
     out.push({ row, col, box: cellBox(g, row, col), framed: g.present[row * g.cols + col] });
   return out;
 }
+
+/* 0.23.0: volné místo „+“ na přípravě vlastního loadoutu (BACKPACK, QUICK USE, AUGMENTED SLOTS, SAFE POCKET).
+   Uvnitř je jen tenký modrozelený křížek uprostřed, jinak tma; předmět by měl ikonu i mimo střed a ikonu kategorie.
+   Na vlastním snímku (1080p): křížek ~20 px široký, tah ~3 px, barva ~(64, 144, 176). */
+const tealPx = (r: number, g: number, b: number): boolean => { const h = hueSat(r, g, b); return h.s > 0.35 && h.h >= 180 && h.h < 215 && h.v > 90; };
+export function isPlusSlot(img: RgbaImage, b: Box): boolean {
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const arm = b.w * 0.14, bar = Math.max(1.5, b.w * 0.03);
+  let barOn = 0, barN = 0, offOn = 0, offN = 0, outOn = 0, outN = 0;
+  const x0 = Math.round(b.x + b.w * 0.12), x1 = Math.round(b.x + b.w * 0.88), y0 = Math.round(b.y + b.h * 0.12), y1 = Math.round(b.y + b.h * 0.88);
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    if (x < 0 || y < 0 || x >= img.width || y >= img.height) continue;
+    const [r, g, bl] = rgbAt(img, x, y);
+    const dx = Math.abs(x + 0.5 - cx), dy = Math.abs(y + 0.5 - cy);
+    const inCross = (dx <= bar && dy <= arm) || (dy <= bar && dx <= arm);
+    const on = tealPx(r, g, bl);
+    if (inCross) { barN++; if (on) barOn++; }
+    else if (dx <= arm * 1.6 && dy <= arm * 1.6) { offN++; if (on || lumAt(img, x, y) > 100) offOn++; }
+    else { outN++; if (on || lumAt(img, x, y) > 100) outOn++; }
+  }
+  if (!barN || !offN || !outN) return false;
+  return barOn / barN > 0.35 && offOn / offN < 0.08 && outOn / outN < 0.02;
+}

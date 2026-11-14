@@ -28,6 +28,8 @@ function follow(link: WhatsNewLink): void {
     case 'advisor': navigate('dashboard'); return;
     case 'itemCard': navigate('items'); return;
     case 'overlayApp': case 'opsSettings': navigate('settings', 'ops'); return;
+    case 'loadouts': navigate('weapons', 'loadouts'); return;
+    case 'appLoad': navigate('settings', 'load'); return;
     default: navigate(link);
   }
 }

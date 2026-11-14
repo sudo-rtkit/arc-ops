@@ -140,6 +140,8 @@ export interface RaidPlanItem { mat: string; need: number; found: number }
 export interface RaidPlanRecord {
   at: number; goals: string[]; money: boolean; map: string; loadout: string;
   items: RaidPlanItem[]; done: string[]; value: number | null;
+  /* 0.23.0 (schéma 19): hodnota loadoutu v riziku při spuštění plánu (bez bezpečné kapsy; null = neznámá). Volitelné. */
+  risk?: number | null;
 }
 export interface LootScan { sig: string; at: number; items: ItemQty[] }
 
@@ -165,8 +167,21 @@ export interface PlannerState { stations: Record<string, number>; items: Planner
 /* ----- loadouty ----- */
 export interface Loadout {
   id: string; name: string; purpose: string; primary: string; secondary: string;
-  augment: string; shield: string; items: ItemQty[]; note: string;
+  augment: string; shield: string;
+  /* batoh (BACKPACK) */
+  items: ItemQty[]; note: string;
+  /* 0.23.0 (schéma 19): loadout builder. Druh (vlastní nebo volný loadout), tier zbraní ('' = neuvedený),
+     další místa (QUICK USE, AUGMENTED SLOTS, SAFE POCKET), počty míst a mez váhy (null = neznámé) a zda chybějící
+     předměty patří do nákupního seznamu. */
+  kind: LoadoutKind;
+  primaryTier: ItemTier | ''; secondaryTier: ItemTier | '';
+  quickUse: ItemQty[]; augmented: ItemQty[]; safe: ItemQty[];
+  slots: LoadoutSlots;
+  shop: boolean;
 }
+export type LoadoutKind = 'custom' | 'free';
+/* Počty míst a mez váhy (kg). null = neznámé (bez kontroly). */
+export interface LoadoutSlots { backpack: number | null; quickUse: number | null; augmented: number | null; safe: number | null; weight: number | null }
 
 /* ----- prodejní ceník ----- */
 export interface SellItem { id: string; name: string; price: number; note: string; origin: Origin }
@@ -307,8 +322,13 @@ export interface OpsPrefs {
   /* 0.22.1: buddy propouští kliky do hry, dokud je hra v popředí (výchozí zapnuto). Mění ho jen Nastavení hlavního
      okna (akce setPassClicks, ne setOpsPrefs), overlay ho přes relay nezmění. */
   passClicks: boolean;
+  /* 0.23.0: režim nízké zátěže (výchozí vypnuto) a volitelná zkratka polní konzole (výchozí žádná). Mění je jen
+     Nastavení hlavního okna (setLowImpact, zkratku hub po přijetí systémem), overlay je přes relay nezmění. */
+  lowImpact: boolean;
+  consoleKey: string;
 }
-export interface WidgetsSwitch { on: boolean; editKey: string; hideKey: string }
+/* 0.23.0: contrast = vysoký kontrast widgetů (neprůhledné grafitové plochy, bez průhlednosti) */
+export interface WidgetsSwitch { on: boolean; editKey: string; hideKey: string; contrast: boolean }
 
 /* ----- 0.11.0 (schéma 10): minihry a nátěry Opse; herní postup aplikace, patří do zálohy ----- */
 export interface GamesState {
@@ -358,7 +378,7 @@ export interface AdvisorState {
 }
 
 export interface AppState {
-  schema: 18;
+  schema: 19;
   meta: { createdAt: number; updatedAt: number; importedFrom: { source: string; at: number } | null };
   profile: Profile;
   profileLog: ProfileLogEntry[];

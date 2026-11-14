@@ -24,6 +24,8 @@ export interface LoadoutRead {
   kind: LoadoutKind;
   /* hodnota loadoutu z řádku pod LOADOUT (null = nepřečteno) */
   value: number | null;
+  /* 0.23.0: váha a její mez z téhož řádku („0.0/30.0“, kg; null = nepřečteno) */
+  weight: number | null; weightMax: number | null;
   equip: EquipRead[];
   backpack: CellRead[] | null;
   quickUse: CellRead[] | null;
@@ -64,6 +66,18 @@ function readEquip(img: RgbaImage, slot: EquipSlot, box: Box, free: boolean): Eq
   return { slot, box, state: 'item', rarity: rar.rarity, fp: fingerprint(img, iconArea(center), rar.rgb) };
 }
 
+/* 0.23.0: váha z řádku pod LOADOUT. Tečky se jako znaky nečtou a mezera po nich může číslo rozdělit („00/35“, „0“),
+   takže se spojí všechny části před hodnotou (poslední číslo) a čte se tvar „aa/bb“ s jedním desetinným místem
+   na každé straně (váha ve hře má vždy jedno). Cokoli jiného je nepřečteno (null), nic se nedoplňuje. */
+export function parseWeight(tokens: string[]): { weight: number; max: number } | null {
+  if (tokens.length < 2 || tokens[tokens.length - 1].includes('/')) return null;
+  const m = /^(\d{2,4})\/(\d{2,4})$/.exec(tokens.slice(0, -1).join(''));
+  if (!m) return null;
+  const weight = Number(m[1]) / 10, max = Number(m[2]) / 10;
+  if (max < 5 || max > 200 || weight > max * 1.5) return null;
+  return { weight, max };
+}
+
 export function readLoadout(img: RgbaImage): LoadoutRead | null {
   if (!img.width || !img.height || img.data.length < img.width * img.height * 4) return null;
   const layout = detectLayout(img, lumMap(img));
@@ -73,12 +87,14 @@ export function readLoadout(img: RgbaImage): LoadoutRead | null {
   const kind: LoadoutKind = near(tab, 'FREE LOADOUT') ? 'free' : near(tab, 'CUSTOM LOADOUT') ? 'custom' : 'unknown';
   const boxes = equipBoxes(bp);
   const equip = EQUIP_SLOTS.map(s => readEquip(img, s, boxes[s], kind === 'free'));
-  const toks = numberTokens(img, valueArea(bp), isCream).filter(t => !t.text.includes('/') && !t.text.includes('.'));
+  const raw = numberTokens(img, valueArea(bp), isCream);
+  const toks = raw.filter(t => !t.text.includes('/') && !t.text.includes('.'));
   const value = toks.length ? parseGrouped(toks[toks.length - 1].text) : null;
+  const w = parseWeight(raw.map(t => t.text));
   const read = readScreenshot(img, { panels: ['backpack', 'quickUse'] });
   const panel = (id: 'backpack' | 'quickUse') => read.panels.find(p => p.panel === id);
   return {
-    kind, value, equip,
+    kind, value, weight: w?.weight ?? null, weightMax: w?.max ?? null, equip,
     backpack: panel('backpack')?.cells ?? null, quickUse: panel('quickUse')?.cells ?? null,
     backpackMax: panel('backpack')?.slotsMax ?? null, quickUseMax: panel('quickUse')?.slotsMax ?? null,
     screen: { ...read, coins: null, premium: null, stashValue: null, headerSlots: null, headerSlotsMax: null },

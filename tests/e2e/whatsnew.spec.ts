@@ -28,9 +28,9 @@ async function seed(page: Page, state: unknown, opts: { whatsNew?: boolean; tuto
 
 const T = {
   cs: {
-    title: 'Co je nového', since: 'Od verze 0.16.1, kterou jsi měl naposledy.', all: 'Novinky posledních verzí.', older: 'Starší verze (7)',
-    v19: 'Verze 0.22.1', ok: 'Rozumím', close: 'Zavřít novinky', raid: 'Příprava na raid', search: 'Hledat (Ctrl+K)', reopen: 'Co je nového',
-    raidHead: 'Příprava na raid', searchDialog: 'Hledat všude', version: 'ARC Raiders Companion 0.22.1',
+    title: 'Co je nového', since: 'Od verze 0.16.1, kterou jsi měl naposledy.', all: 'Novinky posledních verzí.', older: 'Starší verze (8)',
+    v19: 'Verze 0.23.0', ok: 'Rozumím', close: 'Zavřít novinky', raid: 'Příprava na raid', search: 'Hledat (Ctrl+K)', reopen: 'Co je nového',
+    raidHead: 'Příprava na raid', searchDialog: 'Hledat všude', version: 'ARC Raiders Companion 0.23.0',
     advisorLine: 'Nevíš, co dál? Na Dashboardu ti v kartě „Co dál?“ poradím i s důvodem.',
     raidLine: 'Před raidem mrkni do Přípravy na raid. Řeknu ti, co hledat a kam jít. Nad hrou to máš v záložce Raid.',
     mapLine: 'V Mapách stačí vložit snímek herní mapy a máš interaktivní mapu se svými body.',
@@ -38,9 +38,9 @@ const T = {
     next: 'Dál', show: 'Ukaž mi to', step: (n: number) => `Krok ${n} z 14`,
   },
   en: {
-    title: "What's new", since: 'Since version 0.16.1, the one you had last.', all: 'Highlights of recent versions.', older: 'Older versions (7)',
-    v19: 'Version 0.22.1', ok: 'Got it', close: "Close what's new", raid: 'Raid prep', search: 'Search (Ctrl+K)', reopen: "What's new",
-    raidHead: 'Raid prep', searchDialog: 'Search everywhere', version: 'ARC Raiders Companion 0.22.1',
+    title: "What's new", since: 'Since version 0.16.1, the one you had last.', all: 'Highlights of recent versions.', older: 'Older versions (8)',
+    v19: 'Version 0.23.0', ok: 'Got it', close: "Close what's new", raid: 'Raid prep', search: 'Search (Ctrl+K)', reopen: "What's new",
+    raidHead: 'Raid prep', searchDialog: 'Search everywhere', version: 'ARC Raiders Companion 0.23.0',
     advisorLine: 'Not sure what to do next? The "What next?" card on the Dashboard tells you, and why.',
     raidLine: 'Check Raid prep before a raid. I tell you what to look for and where to go. Over the game it is in the Raid tab.',
     mapLine: 'In Maps, just add a screenshot of the in-game map and you get an interactive map with your points.',
@@ -66,9 +66,9 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(card).toHaveAttribute('data-mode', 'pending');
     await expect(card.getByRole('heading', { name: L.title })).toBeVisible();
     await expect(card).toContainText(L.since);
-    await expect(card.locator('.whatsnew-release').first()).toHaveAttribute('data-version', '0.22.1');
+    await expect(card.locator('.whatsnew-release').first()).toHaveAttribute('data-version', '0.23.0');
     await expect(card.locator('.whatsnew-release').first()).toContainText(L.v19);
-    /* starší verze 0.22.0, 0.21.0, 0.20.1, 0.20.0, 0.19.0, 0.18.0 a 0.17.0 jsou sbalené; 0.16.1 a starší tu nejsou */
+    /* starší verze 0.22.1, 0.22.0, 0.21.0, 0.20.1, 0.20.0, 0.19.0, 0.18.0 a 0.17.0 jsou sbalené; 0.16.1 a starší tu nejsou */
     const older = card.locator('details.whatsnew-older');
     await expect(older.locator('summary')).toHaveText(L.older);
     await expect(card.locator('[data-version="0.16.1"]')).toHaveCount(0);
@@ -80,7 +80,7 @@ for (const lang of ['cs', 'en'] as const) {
     await card.locator('[data-version="0.18.0"]').getByRole('button', { name: L.search }).click();
     await expect(page.getByRole('dialog', { name: L.searchDialog })).toBeVisible();
     await expect(card).toHaveCount(0);
-    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.22.1' });
+    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.23.0' });
     await page.keyboard.press('Escape');
     /* po obnovení stránky už nic */
     await page.reload();
@@ -89,7 +89,7 @@ for (const lang of ['cs', 'en'] as const) {
 
     /* Nastavení → O aplikaci: verze a znovu otevřená karta se všemi verzemi */
     await page.goto('/#settings/about');
-    await expect(page.getByTestId('app-version')).toContainText('0.22.1');
+    await expect(page.getByTestId('app-version')).toContainText('0.23.0');
     await page.getByTestId('whatsnew-reopen').click();
     await expect(card).toBeVisible();
     await expect(card).toHaveAttribute('data-mode', 'all');
@@ -108,7 +108,7 @@ for (const lang of ['cs', 'en'] as const) {
     await page.getByTestId('whatsnew-reopen').click();
     await card.getByRole('button', { name: L.ok }).click();
     await expect(card).toHaveCount(0);
-    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.22.1' });
+    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.23.0' });
     expect(errors).toEqual([]);
   });
 
@@ -119,24 +119,24 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(page.getByTestId('whatsnew')).toHaveCount(0);
   });
 
-  test(`stejná verze (schéma 18, viděl 0.22.1): žádná karta (${lang})`, async ({ page }) => {
-    await seed(page, { schema: 18, whatsNew: { seen: '0.22.1' }, opsPrefs: { tutorial: { status: 'done', step: 'end' } }, settings: { autoSnapshot: false, lang } }, { whatsNew: true });
+  test(`stejná verze (schéma 19, viděl 0.23.0): žádná karta (${lang})`, async ({ page }) => {
+    await seed(page, { schema: 19, whatsNew: { seen: '0.23.0' }, opsPrefs: { tutorial: { status: 'done', step: 'end' } }, settings: { autoSnapshot: false, lang } }, { whatsNew: true });
     await page.goto('/#dashboard');
     await expect(page.locator('h1')).toHaveText('Dashboard');
     await expect(page.getByTestId('whatsnew')).toHaveCount(0);
   });
 
-  test(`aktualizace z 0.22.0: jen 0.22.1, křížek kartu zavře (${lang})`, async ({ page }) => {
+  test(`aktualizace z 0.22.1: jen 0.23.0, křížek kartu zavře (${lang})`, async ({ page }) => {
     const errors = watchErrors(page);
-    await seed(page, { schema: 18, whatsNew: { seen: '0.22.0' }, opsPrefs: { tutorial: { status: 'done', step: 'end' } }, settings: { autoSnapshot: false, lang } }, { whatsNew: true });
+    await seed(page, { schema: 18, whatsNew: { seen: '0.22.1' }, opsPrefs: { tutorial: { status: 'done', step: 'end' } }, settings: { autoSnapshot: false, lang } }, { whatsNew: true });
     await page.goto('/#dashboard');
     const card = page.getByTestId('whatsnew');
     await expect(card.locator('.whatsnew-release')).toHaveCount(1);
-    await expect(card.locator('.whatsnew-release').first()).toHaveAttribute('data-version', '0.22.1');
+    await expect(card.locator('.whatsnew-release').first()).toHaveAttribute('data-version', '0.23.0');
     await expect(card.locator('details')).toHaveCount(0);
     await card.getByRole('button', { name: L.close }).click();
     await expect(card).toHaveCount(0);
-    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.22.1' });
+    await expect.poll(async () => (await stateOf(page)).whatsNew).toEqual({ seen: '0.23.0' });
     expect(errors).toEqual([]);
   });
 

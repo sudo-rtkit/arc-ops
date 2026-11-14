@@ -28,14 +28,14 @@ async function makeApp(stored?: unknown): Promise<App> {
 
 describe('Co je nového: data', () => {
   it('verze aplikace je nejnovější vydání a sedí s package.json, tauri.conf.json a Cargo.toml', () => {
-    expect(APP_VERSION).toBe('0.22.1');
+    expect(APP_VERSION).toBe('0.23.0');
     expect(JSON.parse(readFileSync(ROOT + 'package.json', 'utf8')).version).toBe(APP_VERSION);
     expect(JSON.parse(readFileSync(ROOT + 'src-tauri/tauri.conf.json', 'utf8')).version).toBe(APP_VERSION);
     expect(readFileSync(ROOT + 'src-tauri/Cargo.toml', 'utf8')).toMatch(new RegExp(`^version = "${APP_VERSION.replace(/\./g, '\\.')}"`, 'm'));
   });
-  it('pokrývá 0.10.0 až 0.22.1, od nejnovější, bez duplicit; každý bod má český i anglický text', () => {
+  it('pokrývá 0.10.0 až 0.23.0, od nejnovější, bez duplicit; každý bod má český i anglický text', () => {
     const v = versions([...RELEASES]);
-    expect(v[0]).toBe('0.22.1');
+    expect(v[0]).toBe('0.23.0');
     expect(v[v.length - 1]).toBe('0.10.0');
     expect(new Set(v).size).toBe(v.length);
     for (let i = 1; i < v.length; i++) expect(compareVersions(v[i - 1], v[i])).toBeGreaterThan(0);
@@ -72,19 +72,19 @@ describe('Co je nového: verze', () => {
     expect(normalize({}, NOW).whatsNew).toEqual({ seen: APP_VERSION });
   });
   it('aktualizace o několik verzí: jen vydání novější než viděná verze, od nejnovějšího', () => {
-    expect(versions(pendingReleases('0.16.1'))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0', '0.18.0', '0.17.0']);
-    expect(versions(pendingReleases('0.18.0'))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0']);
-    expect(versions(pendingReleases('0.19.0'))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0']);
-    expect(versions(pendingReleases('0.20.0'))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1']);
-    expect(versions(pendingReleases('0.20.1'))).toEqual(['0.22.1', '0.22.0', '0.21.0']);
+    expect(versions(pendingReleases('0.16.1'))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0', '0.18.0', '0.17.0']);
+    expect(versions(pendingReleases('0.18.0'))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0']);
+    expect(versions(pendingReleases('0.19.0'))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0']);
+    expect(versions(pendingReleases('0.20.0'))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1']);
+    expect(versions(pendingReleases('0.20.1'))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0']);
     expect(versions(pendingReleases('0.9.0'))).toEqual(versions([...RELEASES]));
     /* jiná aktuální verze (např. budoucí 0.20.0 s daty do 0.19.0) */
     expect(versions(pendingReleases('0.17.0', '0.18.0'))).toEqual(['0.18.0']);
   });
   it('stejná verze, návrat ke starší verzi a neznámá verze: nic', () => {
     expect(pendingReleases(APP_VERSION)).toEqual([]);
-    expect(pendingReleases('0.22.1')).toEqual([]);
-    expect(versions(pendingReleases('0.22.0'))).toEqual(['0.22.1']);
+    expect(pendingReleases('0.23.0')).toEqual([]);
+    expect(versions(pendingReleases('0.22.0'))).toEqual(['0.23.0', '0.22.1']);
     expect(pendingReleases('1.0.0', '0.19.0')).toEqual([]);
     expect(pendingReleases(null)).toEqual([]);
     expect(pendingReleases('nesmysl')).toEqual([]);
@@ -92,7 +92,7 @@ describe('Co je nového: verze', () => {
   it('zavření karty: seen = max(seen, aktuální); po návratu ke starší verzi se novější nezapomene', () => {
     expect(markSeen({ seen: '0.16.1' })).toEqual({ seen: APP_VERSION });
     expect(markSeen({ seen: APP_VERSION })).toBeNull();
-    expect(markSeen({ seen: '0.22.1' })).toBeNull();
+    expect(markSeen({ seen: '0.23.0' })).toBeNull();
     expect(markSeen({ seen: null })).toEqual({ seen: APP_VERSION });
     expect(markSeen({ seen: '0.20.0' }, '0.19.0')).toBeNull();
   });
@@ -104,7 +104,7 @@ describe('Co je nového: verze', () => {
 
 describe('Co je nového: schéma 16 a migrace', () => {
   it('starší stav bez pole: verze podle schématu (poslední verze, která ho ukládala)', () => {
-    expect(SCHEMA).toBe(18);
+    expect(SCHEMA).toBe(19);
     expect(versionForSchema(17)).toBe('0.20.1');
     expect(versionForSchema(16)).toBe('0.19.0');
     expect(versionForSchema(15)).toBe('0.18.0');
@@ -115,7 +115,7 @@ describe('Co je nového: schéma 16 a migrace', () => {
     expect(normalize({ schema: 15, profile: { level: 4 } }, NOW).whatsNew).toEqual({ seen: '0.18.0' });
     expect(normalize({ schema: 13 }, NOW).whatsNew).toEqual({ seen: '0.14.0' });
     expect(normalize({ schema: 5 }, NOW).whatsNew).toEqual({ seen: '0.9.0' });
-    expect(versions(pendingReleases(normalize({ schema: 15 }, NOW).whatsNew.seen))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0']);
+    expect(versions(pendingReleases(normalize({ schema: 15 }, NOW).whatsNew.seen))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0']);
   });
   it('uložená hodnota se ověří; schéma 16 bez pole nebo s vadnou verzí = nic neukazovat', () => {
     expect(normalizeWhatsNew({ seen: '0.17.0' }, 16)).toEqual({ seen: '0.17.0' });
@@ -133,7 +133,7 @@ describe('Co je nového: store', () => {
   });
   it('aktualizace z 0.16.1 (schéma 14): karta ukáže 0.17.0–0.21.0, zavření uloží aktuální verzi', async () => {
     const app = await makeApp({ schema: 14, profile: { level: 20 } });
-    expect(versions(pendingReleases(app.store.getState().state.whatsNew.seen))).toEqual(['0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0', '0.18.0', '0.17.0']);
+    expect(versions(pendingReleases(app.store.getState().state.whatsNew.seen))).toEqual(['0.23.0', '0.22.1', '0.22.0', '0.21.0', '0.20.1', '0.20.0', '0.19.0', '0.18.0', '0.17.0']);
     app.actions.whatsNewSeen();
     expect(app.store.getState().state.whatsNew).toEqual({ seen: APP_VERSION });
     expect(pendingReleases(app.store.getState().state.whatsNew.seen)).toEqual([]);
@@ -142,11 +142,11 @@ describe('Co je nového: store', () => {
     expect(again.whatsNew).toEqual({ seen: APP_VERSION });
   });
   it('návrat ke starší verzi: uložená novější verze zůstane a nic se neukáže', async () => {
-    const app = await makeApp({ ...defaultState(NOW), whatsNew: { seen: '0.22.1' } });
-    expect(app.store.getState().state.whatsNew).toEqual({ seen: '0.22.1' });
+    const app = await makeApp({ ...defaultState(NOW), whatsNew: { seen: '0.23.0' } });
+    expect(app.store.getState().state.whatsNew).toEqual({ seen: '0.23.0' });
     expect(pendingReleases(app.store.getState().state.whatsNew.seen)).toEqual([]);
     app.actions.whatsNewSeen();
-    expect(app.store.getState().state.whatsNew).toEqual({ seen: '0.22.1' });
+    expect(app.store.getState().state.whatsNew).toEqual({ seen: '0.23.0' });
   });
   it('import zálohy, obnova ani reset poslední viděnou verzi nemění', async () => {
     const app = await makeApp({ schema: 15, profile: { level: 3 } });

@@ -21,6 +21,7 @@ import type { Key } from '../i18n';
 import { cx } from '../ui/components';
 import { MODULES, moduleName } from '../shell/modules';
 import { autoActive } from '../core/autoCapture';
+import { widgetFitMs } from '../core/lowImpact';
 import { isTauri } from '../storage/tauri';
 import {
   EDGES, LAYOUTS_MAX, WIDGETS, WIDGET_IDS, activeLayout, addWidget, clampN, clampOpacity, deleteLayout, emptyHistory, followDecision, followTarget,
@@ -51,6 +52,8 @@ type Drag = { id: WidgetId; kind: 'move' | Edge; start: Rect; px: number; py: nu
 export default function WidgetsApp() {
   const t = useT();
   const [view, setView] = useState<WidgetView | null>(null);
+  const calmRef = useRef(false);
+  calmRef.current = !!view?.calm;
   const [prefs, setPrefsRaw] = useState<WidgetPrefs>(() => readWidgetPrefs());
   const [mode, setMode] = useState<ModeState>(initialMode);
   const [vp, setVp] = useState<Viewport>(viewport);
@@ -120,7 +123,12 @@ export default function WidgetsApp() {
     window.addEventListener('resize', onResize);
     /* změna rozlišení, DPI nebo monitoru hry: okno znovu přes celý monitor hry (Rust, bez aktivace) */
     let sig = '';
+    /* 0.23.0: režim nízké zátěže při hře v popředí: kontrola rozlišení jen jednou za WIDGET_FIT_LOW_MS */
+    let fitAt = 0;
     const fit = () => {
+      const at = Date.now();
+      if (at - fitAt < widgetFitMs(calmRef.current) - 50) return;
+      fitAt = at;
       const s = `${screen.width}x${screen.height}@${window.devicePixelRatio}`;
       if (s !== sig) { sig = s; void native.widgetsFit().catch(() => undefined); }
     };
@@ -232,7 +240,8 @@ export default function WidgetsApp() {
   const pending = view?.pending ?? { stash: 0, loot: false, progress: false };
 
   return (
-    <div className={cx('wgc', edit ? 'is-edit' : 'is-play')} data-testid="widgets" data-mode={mode.mode} data-hidden={String(mode.hidden)} data-layout={prefs.active}
+    <div className={cx('wgc', edit ? 'is-edit' : 'is-play', view?.state.opsPrefs.widgets.contrast && 'hc', view?.calm && 'calm')} data-testid="widgets" data-mode={mode.mode} data-hidden={String(mode.hidden)} data-layout={prefs.active}
+      data-contrast={String(!!view?.state.opsPrefs.widgets.contrast)} data-calm={String(!!view?.calm)}
       onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
       {edit && <div className="wgc-veil" aria-hidden="true" />}
       {shown && view && sorted.map(w => {

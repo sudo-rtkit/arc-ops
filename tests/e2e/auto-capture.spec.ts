@@ -31,7 +31,7 @@ async function start(page: Page, lang: 'cs' | 'en') {
     settings: { autoSnapshot: true, lang },
   }));
   await page.goto('/#settings');
-  await expect.poll(async () => (await stateOf(page))?.schema, { timeout: 5000 }).toBe(18);
+  await expect.poll(async () => (await stateOf(page))?.schema, { timeout: 5000 }).toBe(19);
 }
 async function auto(page: Page, b64: string, screen: string) {
   return page.evaluate(async ([data, scr]) => {

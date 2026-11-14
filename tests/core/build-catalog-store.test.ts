@@ -21,7 +21,7 @@ describe('katalog buildů ve storu', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('schéma je 7 (0.9.0 přidalo okno a připnuté úkoly)', () => { expect(SCHEMA).toBe(18); });
+  it('schéma je 7 (0.9.0 přidalo okno a připnuté úkoly)', () => { expect(SCHEMA).toBe(19); });
 
   it('načíst jako plán a rozdat body: strom = přesně build (76 i varianta 91)', async () => {
     const a = await app({ schema: 6, profile: { level: 75, expBonus: 0 } });

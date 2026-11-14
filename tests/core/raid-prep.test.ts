@@ -162,8 +162,8 @@ describe('schéma 13: migrace, záloha a obnova', () => {
       maps: { dam: { notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě' }], todo: [] } },
     };
     const s = normalize(old, NOW);
-    expect(SCHEMA).toBe(18);
-    expect(s.schema).toBe(18);
+    expect(SCHEMA).toBe(19);
+    expect(s.schema).toBe(19);
     expect(s.raidPlan).toBeNull();
     expect(s.inventory).toEqual({ Wires: 4 });
     expect(s.maps.dam).toEqual({ notes: 'pozor', visited: { Dome: true }, pois: [{ id: 'p1', name: 'Bedna u mostu', note: 'dvě', type: 'note', area: '' }], todo: [], harmonise: true, img: null });
@@ -210,7 +210,7 @@ describe('schéma 13: migrace, záloha a obnova', () => {
     expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,iVBORw0KGgo=' }])).toEqual([]);
     expect(backupImages([{ ...img, dataUrl: png(10, 5).replace('image/png', 'image/webp') }])).toEqual([]);
     expect(backupImages([{ ...img, dataUrl: 'data:image/png;base64,' + 'A'.repeat(17 * 1024 * 1024) }])).toEqual([]);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 19, state: {} }), NOW)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 20, state: {} }), NOW)).toHaveProperty('error');
   });
 });
 

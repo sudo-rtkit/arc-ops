@@ -262,6 +262,8 @@ pub fn run() {
             ops::widgets_edit,
             ops::widgets_fit,
             ops::widgets_app,
+            ops::widgets_hide,
+            ops::app_load,
             mainwin::main_mode,
             mainwin::main_pin,
             mainwin::main_geometry,

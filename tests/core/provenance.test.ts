@@ -260,14 +260,14 @@ describe('import zálohy, reset a migrace', () => {
   });
 
   it('migrace schématu 17 → 18: zadané hodnoty dostanou „migration“, čas jen tam, kde ho stav zná', () => {
-    expect(SCHEMA).toBe(18);
+    expect(SCHEMA).toBe(19);
     const s = normalize({
       schema: 17, profile: { level: 14, coins: 0 }, inventory: { 'Metal Parts': 3, Fabric: 0 }, stations: { [station.id]: station.min + 1 },
       skills: { current: { [skill.id]: 1 } }, quests: { done: { [quest.id]: T0 - DAY }, objectives: { [quest.id]: [1] } },
       vision: { stash: { used: 100, max: 268, at: T0 - 2 * DAY } }, raids: [{ id: 'R1', ts: T0 - 3 * DAY }],
       items: { Ferro: { key: 'Ferro', name: 'Ferro', category: 'weapon', count: 1 } },
     }, T0);
-    expect(s.schema).toBe(18);
+    expect(s.schema).toBe(19);
     const mig = (at = 0) => ({ src: 'migration', at, ver: false });
     expect(provOf(s, 'inv', 'Metal Parts')).toEqual(mig());
     expect(provOf(s, 'inv', 'Fabric')).toBeNull();
@@ -304,15 +304,15 @@ describe('import zálohy, reset a migrace', () => {
     expect(normalizeProvenance(null)).toEqual(emptyProvenance());
     /* záloha nese původ a vrátí ho beze změny */
     const file = JSON.parse(makeBackup(s));
-    expect(file.schema).toBe(18);
+    expect(file.schema).toBe(19);
     expect(normalize(file.state, T0).provenance).toEqual(s.provenance);
-    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 19, state: {} }), T0)).toHaveProperty('error');
+    expect(parseBackup(JSON.stringify({ app: 'arc-raiders-companion', schema: 20, state: {} }), T0)).toHaveProperty('error');
   });
 
   it('načtení stavu schématu 17 ve storu doplní migraci a uloží schéma 18', async () => {
     const { state, box } = await makeApp({ schema: 17, inventory: { 'Metal Parts': 3 }, settings: { autoSnapshot: false, lang: 'cs' } });
     expect(provOf(state(), 'inv', 'Metal Parts')?.src).toBe('migration');
-    expect(state().schema).toBe(18);
+    expect(state().schema).toBe(19);
     expect(box.content === null || JSON.parse(box.content).schema === 17 || JSON.parse(box.content).schema === 18).toBe(true);
   });
 });

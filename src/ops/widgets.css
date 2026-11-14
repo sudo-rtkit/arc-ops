@@ -146,3 +146,11 @@ button, input, select { font: inherit; color: inherit; }
 .wg-dialog { width: min(380px, calc(100vw - 32px)); top: 30%; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* 0.23.0: vysoký kontrast (design overlay-widgets: neprůhledné grafitové plochy, bez průhlednosti, stejné rozložení)
+   a režim nízké zátěže při hře v popředí (žádné animace ani přechody) */
+.wgc.hc .wg { box-shadow: inset 0 0 0 3px #1B1F22, 0 3px 12px #0008; border-color: #8C979D; }
+.wgc.hc .wg-surface { background: #1B1F22; }
+.wgc.hc .wg-head, .wgc.hc .wg-row, .wgc.hc .wg-quest { border-color: #8C979D; }
+.wgc.hc .wg-meta, .wgc.hc .wg-obj, .wgc.hc .wg-row.done .wg-item { color: #E6EAEC; }
+.wgc.calm *, .wgc.calm *::before, .wgc.calm *::after { animation: none !important; transition: none !important; }

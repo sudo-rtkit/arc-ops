@@ -1,5 +1,5 @@
 /* Hub buddyho pro hlavní okno (jediná instance). Spouští ho main.tsx; Nastavení přes něj mění zkratku. */
-import { app, navigate } from '../store';
+import { app, navigate, setGameFront } from '../store';
 import { createBus } from './bus';
 import { createNative } from './native';
 import { DISMISS_MS, createOpsHub } from './hub';
@@ -40,6 +40,8 @@ export const mainSound = createSoundPlayer(() => {
 });
 hub.onStatus(s => { if (s.sound && s.sound !== 'beep') mainSound.play(s.sound); });
 hub.onLevel(() => { mainSound.play('levelup'); });
+/* 0.23.0: režim nízké zátěže: derive ví, jestli je hra v popředí (rádce se pak přepočítává méně často) */
+hub.onFront(setGameFront);
 if (!isTauri() && typeof window !== 'undefined') (window as unknown as { __opsSound?: unknown }).__opsSound = mainSound;
 /* 0.16.0: moduly hrají zvuk přes hostitele (shell/host.ts); v hlavním okně je to mainSound */
 setHost({ kind: 'main', play: id => { mainSound.play(id); }, openInApp: route => { const [m, sub] = route.split('/'); navigate(m, sub); } });

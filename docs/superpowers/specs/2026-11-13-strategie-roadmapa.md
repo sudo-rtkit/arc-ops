@@ -50,7 +50,7 @@ Neplánujeme: SQLite a účet/cloud sync (zatím netřeba), marketplace a LFG, m
    „Ke kontrole“. Přepínač „vypnout všechna napojení na hru“.
 2. **0.21.0 CI a původ dat:** testy na GitHubu při každém pushi; u každé získané hodnoty zdroj, čas, jistota
    a stav ověření hráčem.
-3. **Poté:** lepší loadout builder (cena, váha, dostupnost ve skrýši), měření zátěže PC (CPU, RAM, FPS při snímání).
+3. **Poté:** lepší loadout builder (cena, váha, dostupnost ve skrýši), měření zátěže PC (CPU, RAM, FPS při snímání). Hotovo v 0.23.0 (FPS hry jen ručním postupem, aplikace do hry nesahá).
 4. **AI asistent Ops (až to zapadne do vývoje, bez spěchu):** dotazy přirozenou řečí nad vlastními daty
    (nástroje jen pro čtení), odpovědi s uvedením, z čeho vychází; akce jen po potvrzení; při hře v popředí neběží.
    Začátek jako volitelná cloudová varianta (vypnuto, vlastní klíč, jasně řečeno, co se posílá), lokální model
