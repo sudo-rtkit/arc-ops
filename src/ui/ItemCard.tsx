@@ -4,7 +4,8 @@
    potřeby kartu zavře a otevře modul (v overlayi v záložce Aplikace). Neznámé údaje se ukážou jako neznámé. */
 import { provText } from './Provenance';
 import { useMemo, type ReactNode } from 'react';
-import { ArrowRight, Map as MapIcon, Pin, PinOff } from 'lucide-react';
+import { ArrowRight, Map as MapIcon, MessagesSquare, Pin, PinOff } from 'lucide-react';
+import { askItem } from './AskOps';
 import { actions, navigate, useAppState } from '../store';
 import { useUi } from '../store/ui';
 import { Badge, Btn, Dialog, cx } from './components';
@@ -165,6 +166,8 @@ function ItemCardDialog({ name, onClose }: { name: string; onClose: () => void }
   return (
     <Dialog title={c.name} size="side" onClose={onClose} initialFocus=".item-card"
       footer={<>
+        {/* 0.30.0: otázka pro Opse k tomuto předmětu (AI jen se zapnutým asistentem; jinak panel ukáže, co nastavit) */}
+        <Btn size="sm" variant="ghost" icon={MessagesSquare} data-testid="item-card-ask" onClick={() => { onClose(); navigate('ask'); if (s.ai.on) askItem(t, c.name); }}>{t('ai.askItem')}</Btn>
         {c.weapon && <Btn size="sm" variant="ghost" onClick={() => go({ module: 'weapons' })}>Weapons</Btn>}
         <Btn size="sm" variant="ghost" onClick={() => go({ module: 'items' })}>Item Database</Btn>
         <Btn size="sm" onClick={onClose}>{t('common.close')}</Btn>

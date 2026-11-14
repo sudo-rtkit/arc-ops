@@ -25,7 +25,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { app } from './store';
 import { LANGS, ensureLang, langReady } from './i18n';
 
-import { hub } from './ops/mainHub';
+import { hub, ai } from './ops/mainHub';
 import { startWindowCtl } from './shell/windowCtl';
 import './ui/compact.css';
 
@@ -34,6 +34,8 @@ installDiag();
 const booted = app.init();
 /* milník 5: buddy, overlay a zkratka (bez zapnutí v Nastavení nic nedělá) */
 hub.start();
+/* 0.30.0: AI asistent (výchozí stav vypnuto; dotaz jen na výslovnou akci hráče) */
+ai.start();
 /* 0.9.0: režim okna, křížek a oznamovací oblast. Zavření křížkem řeší windowCtl (uloží stav, pak skryje nebo
    ukončí); bez připraveného frontendu Rust okno zavře jako dřív. */
 startWindowCtl();

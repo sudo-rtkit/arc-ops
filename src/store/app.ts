@@ -28,6 +28,8 @@ import { applyProgress, type ProgressApply, type ProgressSummary } from '../core
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs, normalizeWidgetsSwitch } from '../core/opsPrefs';
+import { AI_COUNT_MAX, isAiProvider, modelOk, normalizeAsk, type AiKind, type AiProvider } from '../core/ai';
+import { callAiHook } from './aiHook';
 import { markSeen } from '../core/whatsnew';
 import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
 import { buildDraft, gearReview, lifeStep, type LifeEvent, type LifeStep, type LoadoutField, type ResultCapture } from '../core/raidLife';
@@ -325,6 +327,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     n.autoCapture = structuredClone(st().autoCapture);
     n.gameLink = structuredClone(st().gameLink);
     n.raidLife = structuredClone(st().raidLife);
+    /* 0.30.0: AI asistent (zapnutí, souhlas, poskytovatel, model, dnešní počet) patří tomuto počítači; import ho nikdy
+       nezapne */
+    n.ai = structuredClone(st().ai);
     const raidIds = new Set(n.raids.map(r => r.id));
     n.review = st().review.filter(x => x.raidId === null || raidIds.has(x.raidId));
     n.autoLog = st().autoLog.filter(w => w.undone || raidIds.has(w.raidId));
@@ -1306,6 +1311,44 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         if (n.consoleKey === s.opsPrefs.consoleKey) return false;
         s.opsPrefs = { ...s.opsPrefs, consoleKey: n.consoleKey };
       });
+    },
+    /* 0.30.0: AI asistent (jen Nastavení hlavního okna; v overlayi zablokované). Zapnout jde jen se souhlasem;
+       změna poskytovatele vrátí výchozí model. Klíč se tu nikdy neukládá (Rust, Windows Credential Manager). */
+    setAi(patch: { on?: boolean; provider?: AiProvider; model?: string }) {
+      change(s => {
+        const n = { ...s.ai };
+        if (patch.provider !== undefined && isAiProvider(patch.provider) && patch.provider !== n.provider) { n.provider = patch.provider; n.model = ''; }
+        if (patch.model !== undefined) {
+          const m = String(patch.model).trim();
+          if (m === '') n.model = '';
+          else if (modelOk(m)) n.model = m;
+        }
+        if (patch.on !== undefined) n.on = patch.on === true && n.consentAt > 0;
+        if (JSON.stringify(n) === JSON.stringify(s.ai)) return false;
+        s.ai = n;
+      });
+    },
+    /* souhlas s tím, co se posílá a komu (čas souhlasu); odvolání souhlasu asistenta vypne */
+    aiConsent(accept: boolean) {
+      change(s => {
+        if (accept === true) { if (s.ai.consentAt > 0) return false; s.ai = { ...s.ai, consentAt: now() }; return; }
+        if (!s.ai.consentAt && !s.ai.on) return false;
+        s.ai = { ...s.ai, consentAt: 0, on: false };
+      });
+    },
+    /* dnešní počet dotazů (místní den); volá jen obsluha AI v hlavním okně po dotazu, který došel k poskytovateli */
+    aiCount() {
+      change(s => {
+        const today = dayKey(now());
+        const count = s.ai.day === today ? s.ai.count : 0;
+        s.ai = { ...s.ai, day: today, count: Math.min(AI_COUNT_MAX, count + 1) };
+      });
+    },
+    /* Otázka pro Opse: jediná akce AI, kterou smí poslat overlay (relay). Stav nemění, jen předá ověřenou otázku
+       (text nejvýš 500 znaků, druh z pevného výčtu, odkaz podle druhu) obsluze AI v hlavním okně. */
+    aiAsk(question: string, kind: AiKind, ref?: string) {
+      const ask = normalizeAsk(question, kind, ref ?? '');
+      if (ask) callAiHook(ask);
     },
     /* 0.22.0: widgety nad hrou a jejich zkratky (Nastavení hlavního okna; zkratky ukládá hub, až je systém přijme) */
     setWidgets(patch: Partial<WidgetsSwitch>) {

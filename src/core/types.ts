@@ -3,6 +3,7 @@ import type { Lang } from '../i18n';
 import type { WhatsNewState } from './whatsnew';
 import type { AutoCaptureState, AutoWrite, GameLinkState, ReviewItem } from './autoCapture';
 import type { RaidAuto, RaidLife } from './raidLife';
+import type { AiPrefs } from './ai';
 import type { ProvenanceState } from './provenance';
 export type { Lang };
 
@@ -436,6 +437,10 @@ export interface AppState {
   autoLog: AutoWrite[];
   /* 0.21.0 (schéma 18): původ hodnot (zdroj, čas, jistota, ověření); ve starším stavu chybí a doplní se „migration“ */
   provenance: ProvenanceState;
+  /* 0.30.0 (schéma 19 beze změny): AI asistent Ops: zapnuto, poskytovatel, model, souhlas a dnešní počet dotazů.
+     Ve starším stavu chybí a začne vypnutý. Patří tomuto počítači: import zálohy ani obnova ho nemění. Klíč tu nikdy
+     není (Windows Credential Manager). */
+  ai: AiPrefs;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

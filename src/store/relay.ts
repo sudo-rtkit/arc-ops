@@ -14,6 +14,8 @@
 import type { App } from './app';
 import type { AppState } from '../core/types';
 import { isObj, recordIds, replayIds, UNSAFE_KEYS } from '../core/util';
+import { AI_KINDS, AI_Q_MAX, AI_REF_MAX } from '../core/ai';
+import { asRelay } from './aiHook';
 
 type Actions = App['actions'];
 type ActionName = keyof Actions;
@@ -45,6 +47,8 @@ export const RELAY_ACTIONS = [
   'autoUndo', 'autoSeen', 'reviewApply',
   /* 0.24.0: potvrzení původu hodnoty a oblasti (oblast ze seznamu, klíč nejvýš 130 znaků; akce samy ověřují) */
   'provConfirm', 'provConfirmArea',
+  /* 0.30.0: otázka pro Opse (AI asistent); argumenty má pevné (aiAskArgsOk), dotaz pošle jen hlavní okno */
+  'aiAsk',
 ] as const satisfies readonly ActionName[];
 
 /* Akce jen pro hlavní okno a co vrátí v overlayi místo provedení:
@@ -63,6 +67,7 @@ export const BLOCKED_ACTIONS = {
   importFromScreens: later(null), importRaidLoot: later({ ok: false as const, reason: 'notReady' as const }), importProgress: later(null),
   mapEdit: none, setMapImage: none,
   setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none, setPassClicks: none, setLowImpact: none, setConsoleKey: none,
+  setAi: none, aiConsent: none, aiCount: none,
   setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),
@@ -116,6 +121,16 @@ export function decodeArgs(v: unknown, depth = 0): unknown {
   throw new RelayArgError(typeof v);
 }
 
+/* 0.30.0: argumenty otázky pro Opse z overlaye: [otázka ≤ AI_Q_MAX znaků, druh z AI_KINDS, odkaz ≤ 121 znaků nebo
+   nic]. Akce aiAsk je pak ověří znovu (normalizeAsk). */
+export function aiAskArgsOk(args: unknown[]): boolean {
+  if (args.length < 2 || args.length > 3) return false;
+  const [q, kind, ref] = args;
+  if (typeof q !== 'string' || q.length === 0 || q.length > AI_Q_MAX) return false;
+  if (typeof kind !== 'string' || !(AI_KINDS as readonly string[]).includes(kind)) return false;
+  return ref === undefined || (typeof ref === 'string' && ref.length <= Math.max(AI_REF_MAX, 121));
+}
+
 /* Zpráva overlay → hlavní okno. session odliší nové okno overlaye (po zavření a otevření začíná seq znovu od 1). */
 export interface RelayCall { session: string; seq: number; name: string; args: unknown; ids: string[] }
 /* Potvrzení v kopii stavu z hlavního okna: poslední zpracovaná akce dané relace. */
@@ -134,12 +149,13 @@ export function applyRelay(app: App, raw: unknown): RelayResult | null {
     if (JSON.stringify(m.args).length > RELAY_MAX_CHARS) return { ack, applied: false };
     args = decodeArgs(m.args) as unknown[];
   } catch { return { ack, applied: false }; }
+  if (m.name === 'aiAsk' && !aiAskArgsOk(args)) return { ack, applied: false };
   /* jen vlastní funkce objektu akcí (ne zděděná vlastnost) */
   const fn = Object.hasOwn(app.actions, m.name) ? (app.actions[m.name] as unknown) : null;
   if (typeof fn !== 'function') return { ack, applied: false };
   const before = app.store.getState().state;
   try {
-    replayIds(m.ids, () => (fn as (...a: unknown[]) => unknown)(...args));
+    asRelay(() => replayIds(m.ids as string[], () => (fn as (...a: unknown[]) => unknown)(...args)));
   } catch { return { ack, applied: false }; }
   return { ack, applied: app.store.getState().state !== before };
 }

@@ -543,3 +543,21 @@ button.mg-cell:focus-visible { outline: 2px solid var(--accent); outline-offset:
 .lo-compare td.wrap { white-space: normal; }
 .lo-compare-items td { font-size: 12px; color: var(--text-secondary, inherit); }
 .rp-loadout-sum { display: flex; flex-direction: column; gap: 4px; }
+
+/* ----- 0.30.0: Zeptej se Opse (AI asistent) ----- */
+.ask-ops { display: flex; flex-direction: column; gap: 12px; }
+.ask-note { margin: 0; padding: 8px 12px; border-left: 3px solid var(--amber); background: var(--surface-inset); }
+.ask-note p { margin: 0 0 6px; }
+.ask-next h3, .ai-consent h3 { margin: 0 0 4px; font-size: 1rem; }
+.ask-tips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ask-tips li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ask-form { display: flex; flex-direction: column; gap: 6px; }
+.ask-form .textarea { width: 100%; resize: vertical; }
+.ask-result { padding: 10px 12px; background: var(--surface-inset); border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
+.ask-answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.ask-error { margin: 0; color: var(--danger); }
+.ask-q { margin: 0; }
+.ask-sources ul { margin: 6px 0 0; padding-left: 18px; }
+.ask-compact .ask-result { padding: 8px; }
+.ai-consent { padding: 10px 12px; background: var(--surface-inset); border-radius: 6px; }
+.ai-consent p { margin: 0 0 6px; }

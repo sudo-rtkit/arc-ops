@@ -26,6 +26,7 @@ import { emptyAdvisor, normalizeAdvisor } from './advisor';
 import { emptyWhatsNew, normalizeWhatsNew } from './whatsnew';
 import { emptyAutoCapture, emptyGameLink, normalizeAutoCapture, normalizeAutoLog, normalizeGameLink, normalizeReview } from './autoCapture';
 import { emptyRaidLife, normalizeRaidAuto, normalizeRaidLife } from './raidLife';
+import { emptyAi, normalizeAi } from './ai';
 import { emptyProvenance, normalizeProvenance, seedMigration } from './provenance';
 import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
@@ -104,6 +105,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     review: [],
     autoLog: [],
     provenance: emptyProvenance(),
+    ai: emptyAi(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -489,6 +491,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   const raidIds = new Set(out.raids.map(x => x.id));
   out.review = normalizeReview(r.review).filter(x => x.raidId === null || raidIds.has(x.raidId));
   out.autoLog = normalizeAutoLog(r.autoLog).filter(w => w.undone || raidIds.has(w.raidId));
+  /* 0.30.0: AI asistent (volitelné pole, schéma zůstává 19); ve starším stavu chybí a začne vypnutý */
+  out.ai = normalizeAi(r.ai);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */

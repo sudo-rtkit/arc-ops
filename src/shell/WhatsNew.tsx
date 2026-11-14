@@ -31,6 +31,7 @@ function follow(link: WhatsNewLink): void {
     case 'loadouts': navigate('weapons', 'loadouts'); return;
     case 'appLoad': navigate('settings', 'load'); return;
     case 'diagnostics': navigate('settings', 'diag'); return;
+    case 'aiSettings': navigate('settings', 'ai'); return;
     default: navigate(link);
   }
 }

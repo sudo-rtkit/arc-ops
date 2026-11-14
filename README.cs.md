@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.29.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.30.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -90,6 +90,16 @@ Podporované snímky loadoutu a FINDINGS umí rozpoznat zbraně, tier a augment.
 
 *Skutečné rozhraní widgetů v prohlížeči nad smyšlenou scénou projektu; žádný snímek ani grafika hry. Obrázky neověřují nativní propouštění kliků ani chování fokusu.*
 
+### Zeptej se Opse (volitelná AI, vlastní bezplatný klíč)
+
+Ops umí odpovědět vlastními slovy a ve své povaze: *Proč si nechat Wires? Co prodat, když potřebuju místo? Proč zrovna tenhle krok?* Odpověď řekne v bublině a celou se zdroji ukáže v panelu **Zeptej se Opse** a v polní konzoli. Všechna čísla počítá deterministický kód aplikace (karta předmětu, rada nech / prodej / recykluj, potřeby úkolů a dílny, rádce „Co dál?“); jazykový model je jen vysvětlí, vypíše údaje, ze kterých vycházel, s jejich původem a jistotou, a řekne, když data odpověď neobsahují. Tři návrhy „Co dál?“ jsou zdarma a bez AI; **Proč?** požádá AI o vysvětlení. Na kartě předmětu je tlačítko **Zeptat se Opse**.
+
+- **Ve výchozím stavu vypnuto.** Zapneš ho v **Nastavení → AI asistent** po přečtení a odsouhlasení toho, co se posílá, a s **vlastním bezplatným klíčem** od [Groq](https://console.groq.com/keys) (výchozí), [Google Gemini](https://aistudio.google.com/apikey) nebo [OpenRouter](https://openrouter.ai/settings/keys). Aplikace ani repozitář žádný klíč neobsahují.
+- **Klíč zůstává ve Správci pověření Windows.** Oknem aplikace projde jen jednou při zadání; nikdy se znovu nezobrazí, neuloží do dat ani zálohy a nezapíše do deníku chyb.
+- **Co se posílá:** tvoje otázka a malý, velikostí omezený výběr údajů z aplikace k ní, a jen když klikneš. **Nikdy se neposílá:** snímek obrazovky, jména jiných hráčů, záloha, cesty k souborům, e-mail ani kód relace. Bezplatné úrovně služeb mohou dotazy používat ke zlepšování svých modelů (Google to u bezplatného Gemini API uvádí).
+- **Nikdy během raidu.** V polní konzoli nad hrou se zeptáš jen tehdy, když aplikace ví, že nejsi v raidu; když si není jistá, bere to jako raid. Nic samo nevyskočí a hra nikdy nepřijde o fokus.
+- Dotaz jde z nativní části aplikace přímo k vybrané službě přes HTTPS (pevný seznam hostitelů, limit 30 s, omezená velikost, nejvýš 6 dotazů za minutu); samotné okno aplikace přístup k síti nemá. Odpověď je prostý text a model v aplikaci nic nezmění.
+
 ### Původ dat a zátěž aplikace
 
 Tečky původu ukazují zdroj hodnoty, čas, jistotu rozpoznání, pokud je známá, a stav potvrzení. **Potvrdit** označí neověřenou hodnotu jako zkontrolovanou; **Nastavení → Původ dat** shrnuje oblasti a nabízí **Potvrdit vše v oblasti**. Tečky jsou i u materiálů v receptech dílny a počtů v nákupním seznamu.
@@ -119,7 +129,7 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 
 ## Soukromí a bezpečnost
 
-Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
+Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Jedinou výjimkou je volitelný AI asistent (výchozí stav vypnuto, vlastní klíč): otázku pošle jen na tvé kliknutí, viz výše. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
 Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze souboru a zkratky potvrzuje hráč. Volitelné automatické snímání může jisté údaje zapsat po snímku stavu s možností Zpět; nejisté čekají na kontrolu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
 

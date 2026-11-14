@@ -1,5 +1,5 @@
 import {
-  BookOpen, Bot, Boxes, ChartNoAxesCombined, Coins, Crosshair, Gamepad2, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
+  BookOpen, Bot, MessagesSquare, Boxes, ChartNoAxesCombined, Coins, Crosshair, Gamepad2, GitBranch, Hammer, LayoutDashboard, ListChecks, Map, Package,
   ScrollText, Settings, Target, Trophy, UserRound, type LucideIcon,
 } from 'lucide-react';
 
@@ -13,6 +13,8 @@ export interface ModuleDef { id: string; name: string; nameKey?: Key; icon: Luci
 export const MODULES: ModuleDef[] = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, group: 'overview' },
   { id: 'profile', name: 'Player Profile', icon: UserRound, group: 'overview' },
+  /* 0.30.0: AI asistent je Ops (výchozí stav vypnuto, vlastní klíč) */
+  { id: 'ask', name: 'Ask Ops', nameKey: 'nav.ask', icon: MessagesSquare, group: 'overview' },
   { id: 'skills', name: 'Skill Tree', icon: GitBranch, group: 'progress' },
   { id: 'workshop', name: 'Workshop', icon: Hammer, group: 'progress' },
   { id: 'inventory', name: 'Inventory', icon: Package, group: 'progress' },

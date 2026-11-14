@@ -34,16 +34,22 @@ describe('bezpečnost milníku 5', () => {
   });
 
   it('žádný síťový klient v src/ ani src-tauri/src', () => {
+    /* 0.30.0: jediná výjimka je volitelný AI asistent v src-tauri/src/ai.rs (ureq; std::net jen v jeho testech) */
     for (const word of ['reqwest', 'ureq', 'hyper::', 'TcpStream', 'UdpSocket', 'std::net', 'fetch(', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon']) {
-      expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual([]);
+      expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual(['ureq', 'std::net'].includes(word) ? ['src-tauri/src/ai.rs'] : []);
     }
+    const ai = read('src-tauri/src/ai.rs');
+    expect(ai.slice(0, ai.indexOf('#[cfg(test)]\nmod tests')).includes('std::net'), 'std::net mimo testy').toBe(false);
   });
 
   it('snímání obrazovky, globální zkratka, seznam procesů a Win32 jsou jen ve vyhrazeném modulu ops.rs', () => {
     for (const word of [
       'BitBlt', 'GetDC', 'CreateDIBSection', 'CreateToolhelp32Snapshot', 'Process32', 'SetWindowDisplayAffinity', 'GetForegroundWindow',
       'SetForegroundWindow', 'windows_sys', 'global_shortcut', 'GlobalShortcutExt', 'RegisterHotKey', 'capture_foreground_monitor',
-    ]) expect(RS.map(rel).filter(f => read(f).includes(word) && f !== OPS_RS), word).toEqual([]);
+    ]) expect(RS.map(rel).filter(f => read(f).includes(word) && f !== OPS_RS && !(word === 'windows_sys' && f === 'src-tauri/src/ai.rs')), word).toEqual([]);
+    /* 0.30.0: ai.rs smí z Win32 jen Správce pověření (klíč AI asistenta) a kód chyby */
+    const aiUses = [...read('src-tauri/src/ai.rs').matchAll(/use windows_sys::Win32::([\w:]+)::\{/g)].map(m => m[1]).sort();
+    expect(aiUses).toEqual(['Foundation', 'Security::Credentials']);
     const ops = read(OPS_RS);
     for (const word of ['BitBlt', 'CreateToolhelp32Snapshot', 'tauri_plugin_global_shortcut', 'WDA_EXCLUDEFROMCAPTURE']) expect(ops, word).toContain(word);
     /* snímek se nikdy nezapisuje na disk */

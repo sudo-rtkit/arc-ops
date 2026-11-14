@@ -474,6 +474,22 @@ const cs = {
     friendly: [{ one: "Co dál? Zásoba je stará {count} den. Jeden snímek STASH a máme čerstvá čísla.", few: "Co dál? Zásoba je stará {count} dny. Jeden snímek STASH a máme čerstvá čísla.", other: "Co dál? Zásoba je stará {count} dní. Jeden snímek STASH a máme čerstvá čísla." }, "Tvoje cíle počítají se starými počty. Nafotíme STASH?"],
     cheeky: [{ one: "Zásoba stará {count} den. Já si to pamatuju, ale bedna se mohla změnit.", few: "Zásoba stará {count} dny. Já si to pamatuju, ale bedna se mohla změnit.", other: "Zásoba stará {count} dní. Já si to pamatuju, ale bedna se mohla změnit." }, "Počítám s čísly z pravěku. Ukaž mi STASH."],
   },
+  /* ----- 0.30.0: AI asistent (odpověď píše model už v povaze Opse; text je jen prostý) ----- */
+  'ai.thinking': {
+    plain: ['Zpracovávám data z aplikace…', 'Moment, procházím data.'],
+    friendly: ['Hmm, chvilku, mrknu do tvých dat…', 'Dej mi vteřinku, přemýšlím.'],
+    cheeky: ['Přemýšlím. Ano, to umím.', 'Chvilku, zahřívám obvody.'],
+  },
+  'ai.answer': {
+    plain: ['{text:raw}', '{text:raw}'],
+    friendly: ['{text:raw}', '{text:raw}'],
+    cheeky: ['{text:raw}', '{text:raw}'],
+  },
+  'ai.error': {
+    plain: ['{text:raw}', 'Nejde to. {text:raw}'],
+    friendly: ['Jejda. {text:raw}', 'Hm, nepovedlo se. {text:raw}'],
+    cheeky: ['Tak tohle nevyšlo. {text:raw}', 'Ehm. {text:raw}'],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -931,6 +947,22 @@ const en: Record<LineKey, LineVariants> = {
     plain: [{ one: "Your stock has not changed for {count} day. Snap your STASH.", other: "Your stock has not changed for {count} days. Snap your STASH." }, "Your stock counts are old. Update them with a STASH screenshot."],
     friendly: [{ one: "What next? Your stock is {count} day old. One STASH screenshot and the numbers are fresh.", other: "What next? Your stock is {count} days old. One STASH screenshot and the numbers are fresh." }, "Your goals count with old numbers. Shall we snap the STASH?"],
     cheeky: [{ one: "Stock {count} day old. I remember it, but your stash may have moved on.", other: "Stock {count} days old. I remember it, but your stash may have moved on." }, "I am counting with prehistoric numbers. Show me the STASH."],
+  },
+  /* ----- 0.30.0: AI assistant ----- */
+  'ai.thinking': {
+    plain: ['Processing the app data…', 'One moment, going through the data.'],
+    friendly: ['Hmm, give me a second, checking your data…', 'One sec, thinking.'],
+    cheeky: ['Thinking. Yes, I can do that.', 'Hold on, warming up my circuits.'],
+  },
+  'ai.answer': {
+    plain: ['{text:raw}', '{text:raw}'],
+    friendly: ['{text:raw}', '{text:raw}'],
+    cheeky: ['{text:raw}', '{text:raw}'],
+  },
+  'ai.error': {
+    plain: ['{text:raw}', 'Not possible. {text:raw}'],
+    friendly: ['Oops. {text:raw}', 'Hm, that did not work. {text:raw}'],
+    cheeky: ['Well, that flopped. {text:raw}', 'Ahem. {text:raw}'],
   },
 };
 

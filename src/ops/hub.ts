@@ -44,6 +44,8 @@ import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator
 import { equipFields, IN_RAID_SIGNAL, loadoutSnap, type LoadoutField } from '../core/raidLife';
 import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
 import { calmNow, widgetPushMs } from '../core/lowImpact';
+import type { AiView } from '../store/aiView';
+import type { GameInfo } from '../core/ai';
 
 /* auto (0.21.0): snímek z automatického snímání (původ hodnot po zápisu), jinak ze zkratky */
 export interface Shot { id: number; at: number; read: ScreenRead; auto?: true }
@@ -87,7 +89,8 @@ export interface PerfInfo { widgetWindows: number; widgetPushMs: number; calm: b
 /* Widgety: zapnuté v Nastavení, se zapnutým Opsem a bez hlavního vypínače napojení na hru. */
 export const widgetsOn = (s: AppState): boolean => s.buddy.enabled && s.opsPrefs.widgets.on && !s.gameLink.off;
 /* relay (0.16.0): poslední zpracovaná akce plného modulu z overlaye (store/relay.ts) */
-export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string; relay: RelayAck | null }
+/* ai (0.30.0): co ukazuje „Zeptej se Opse“ (otázka, odpověď se zdroji, chyba, proč se teď nejde ptát) */
+export interface OverlayView { state: AppState; batch: BatchView; savedAt: number; hotkey: string; relay: RelayAck | null; ai?: AiView | null }
 /* Je Ops UI právě v použití (pro zvuky a nevyžádané bubliny)? */
 export interface UiActivity { overlayOpen: boolean; appFocused: boolean }
 /* Stav Opse: animace, hláška (varianta podle povahy se vybere v okně), zvuk a zda šlo o odpověď na akci hráče. */
@@ -155,7 +158,10 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   const frontListeners = new Set<(front: boolean) => void>();
   /* 0.23.0: režim nízké zátěže šetří, když je zapnutý a hra je vidět v popředí (game-visible z hlídací smyčky) */
   const calm = () => calmNow(st().opsPrefs.lowImpact, gameVisible);
-
+  /* 0.30.0: poslední obrazovka z pásu s nadpisy (automatické snímání; 'inRaid' = inventář v raidu) a pohled AI
+     asistenta pro overlay (nastaví obsluha AI v hlavním okně) */
+  let lastScreen: string | null = null;
+  let aiViewOf: (() => AiView) | null = null;
   /* Nativní volání jdou za sebou, aby se zapnutí a vypnutí nepředběhla. */
   let queue: Promise<unknown> = Promise.resolve();
   const run = (fn: () => Promise<unknown>) => { queue = queue.then(fn).catch(() => undefined); return queue; };
@@ -170,7 +176,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     widgets: widgetsOn(s),
     calm: calmNow(s.opsPrefs.lowImpact, gameVisible),
   });
-  const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey, relay: relayAck });
+  const overlayView = (): OverlayView => ({ state: st(), batch, savedAt: app.store.getState().lastSavedAt, hotkey: st().buddy.hotkey, relay: relayAck, ai: aiViewOf?.() ?? null });
   const pushBuddy = (force = false) => {
     const v = buddyView(st()), sig = JSON.stringify(v);
     if (!force && sig === lastBuddy) return;
@@ -639,6 +645,17 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     };
   }
 
+  /* 0.30.0: AI asistent: obrazovka z pásu s nadpisy, co hlavní okno ví o hře, bublina Opse k odpovědi */
+  function noteScreen(screen: string | null) {
+    if (screen === lastScreen) return;
+    lastScreen = screen;
+    if (aiViewOf) pushOverlay();
+  }
+  const gameInfo = (): GameInfo => ({ known: gameKnown, running: gameRunning, visible: gameVisible, screen: lastScreen });
+  const aiSay = (anim: OpsAnim, l: LineRef) => say(anim, l, true);
+  const setAiViewSource = (fn: (() => AiView) | null) => { aiViewOf = fn; };
+  const pushAi = () => pushOverlay(true);
+
   /* ----- start ----- */
   function start() {
     const onState = (s: AppState) => {
@@ -732,13 +749,16 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     /* 0.20.0: obrazovka v pásu s nadpisy se změnila (null = žádná známá, např. v raidu) */
     offs.push(bus.onNative('auto-screen', p => {
       /* 0.22.1: inventář v raidu jen posune průběh raidu (žádný snímek, žádná obrazovka) */
-      if (p === IN_RAID_SIGNAL && autoActive(st())) { app.actions.lifeEvent({ type: 'inRaid', at: now() }); return; }
-      if ((p === null || isRustScreen(p)) && autoActive(st())) app.actions.lifeEvent({ type: 'screen', at: now(), screen: p });
+      if (p === IN_RAID_SIGNAL && autoActive(st())) { noteScreen('inRaid'); app.actions.lifeEvent({ type: 'inRaid', at: now() }); return; }
+      if ((p === null || isRustScreen(p)) && autoActive(st())) { noteScreen(p); app.actions.lifeEvent({ type: 'screen', at: now(), screen: p }); }
     }));
     offs.push(bus.onNative('capture-failed', () => { batch = { ...batch, failed: 'capture' }; status('error', line('scan.failed')); pushOverlay(true); afterAppCapture('failed'); }));
     offs.push(bus.onNative('game', p => {
+      const was = gameKnown && gameRunning;
       gameRunning = p === true;
       gameKnown = true;
+      /* 0.30.0: hra skončila nebo začala: overlay se dozví, jestli se smí ptát Opse */
+      if (was !== gameRunning && aiViewOf) pushOverlay();
       if (st().buddy.enabled) pushBuddy();
     }));
     offs.push(bus.onNative('game-visible', p => {
@@ -770,6 +790,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   return {
     start, stop, setHotkey, setWidgetKey, setConsoleKey, perfInfo, onFront, widgetsEditing: () => widgetsEditing, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
     captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, onEmote, ui,
+    gameInfo, aiSay, setAiViewSource, pushAi,
   };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

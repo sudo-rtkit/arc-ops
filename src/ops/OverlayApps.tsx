@@ -36,6 +36,8 @@ const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   checklist: lazy(() => import('../modules/Checklist')),
   stats: lazy(() => import('../modules/Statistics')),
   games: lazy(() => import('../modules/Minigames')),
+  /* 0.30.0: Zeptej se Opse; otázka jde do hlavního okna přes relay (aiAsk) */
+  ask: lazy(() => import('../modules/AskOps')),
 };
 /* Moduly jen pro hlavní okno (v overlayi „Otevřít v aplikaci“). */
 export const APP_ONLY = ['settings'] as const;

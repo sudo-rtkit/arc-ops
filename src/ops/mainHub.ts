@@ -7,6 +7,9 @@ import { isTauri } from '../storage/tauri';
 import { createSoundPlayer } from './sound';
 import { setHost } from '../shell/host';
 import { autoActive, isRustScreen } from '../core/autoCapture';
+import { createAiController } from './aiHub';
+import { createAiNative } from '../shell/aiNative';
+import { setAiHook } from '../store/aiHook';
 
 export const native = createNative();
 export const hub = createOpsHub({
@@ -45,3 +48,12 @@ hub.onFront(setGameFront);
 if (!isTauri() && typeof window !== 'undefined') (window as unknown as { __opsSound?: unknown }).__opsSound = mainSound;
 /* 0.16.0: moduly hrají zvuk přes hostitele (shell/host.ts); v hlavním okně je to mainSound */
 setHost({ kind: 'main', play: id => { mainSound.play(id); }, openInApp: route => { const [m, sub] = route.split('/'); navigate(m, sub); } });
+
+/* 0.30.0: AI asistent Ops. Jediná obsluha dotazů (jen hlavní okno volá Rust); otázky z panelu, karty předmětu,
+   tlačítka „Proč?“ i z overlaye (relay) přijdou jako akce store aiAsk. Overlay dostane pohled s kopií stavu. */
+export const ai = createAiController({
+  app, native: createAiNative(),
+  port: { say: (anim, l) => hub.aiSay(anim, l), game: () => hub.gameInfo(), push: () => hub.pushAi() },
+});
+hub.setAiViewSource(() => ai.view());
+setAiHook((a, origin) => { void ai.ask(a, origin); });

@@ -25,6 +25,7 @@ import { OpsPanel, OpsVoicePanel, WardrobePanel, WidgetsPanel } from './OpsSetti
 import { AutoCapturePanel, GameLinkPanel } from './AutoSettings';
 import { AppLoadPanel } from './AppLoad';
 import { DiagnosticsPanel } from './Diagnostics';
+import { AiSettingsPanel } from './AiSettings';
 import { WindowPanel } from './WindowSettings';
 import { APP_VERSION } from '../core/whatsnew';
 import { openWhatsNew } from '../shell/WhatsNew';
@@ -251,6 +252,8 @@ export default function Settings({ sub }: { sub: string }) {
       </Panel>
       <Anchor id="window" />
       <WindowPanel />
+      <Anchor id="ai" />
+      <AiSettingsPanel />
       <Anchor id="ops" />
       <OpsPanel />
       <WidgetsPanel />

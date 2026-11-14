@@ -33,6 +33,8 @@ const LOADERS: Record<string, () => Promise<{ default: ComponentType<{ sub: stri
   money: () => import('./modules/MoneyRuns'), trials: () => import('./modules/Trials'), journal: () => import('./modules/Journal'),
   checklist: () => import('./modules/Checklist'), stats: () => import('./modules/Statistics'), settings: () => import('./modules/Settings'),
   games: () => import('./modules/Minigames'), raid: () => import('./modules/RaidPrep'),
+  /* 0.30.0: Zeptej se Opse (AI asistent) */
+  ask: () => import('./modules/AskOps'),
 };
 const VIEWS: Record<string, ComponentType<{ sub: string }>> = {
   dashboard: Dashboard,

@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.29.0](https://img.shields.io/badge/version-0.29.0-F4AD82?style=flat-square)
+![Version 0.30.0](https://img.shields.io/badge/version-0.30.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -98,6 +98,16 @@ Supported loadout and FINDINGS captures can recognise weapons, tiers and the aug
 
 *Actual browser widget UI over the project's fictional scenery; no game screenshot or artwork. Native click-through and focus behaviour are not demonstrated by these images.*
 
+### Ask Ops (optional AI, your own free key)
+
+Ops can answer questions in his own words and in his personality: *Why keep Wires? What should I sell when I need space? Why this next step?* The answer appears in his speech bubble and, in full with its sources, in the **Ask Ops** panel and the field console. The app's deterministic code computes every number (item card, keep/sell/recycle advice, quest and workshop needs, the "What next?" advisor); the language model only explains them, lists the facts it used with their origin and confidence, and says when the data does not contain the answer. The three "What next?" ideas are free and need no AI; **Why?** asks the AI to explain one. The item card has an **Ask Ops** button.
+
+- **Off by default.** Turn it on in **Settings → AI assistant** after reading and accepting what is sent, and add **your own free API key** from [Groq](https://console.groq.com/keys) (default), [Google Gemini](https://aistudio.google.com/apikey) or [OpenRouter](https://openrouter.ai/settings/keys). No key ships with the app or this repository.
+- **The key stays in Windows Credential Manager.** It passes through the app window once, when you enter it, and is never shown again, stored in the app data or backups, or written to the error log.
+- **What is sent:** your question plus a small, size-limited bundle of related app data, and only when you click. **Never sent:** screenshots, other players' names, backups, file paths, e-mail or session codes. Free tiers may use requests to improve their models (Google states this for the free Gemini API).
+- **Never during a raid.** In the field console over the game you can ask only when the app knows you are not in a raid; when unsure, it treats it as a raid. Nothing pops up on its own and the game never loses focus.
+- The request goes from the app's native layer straight to the chosen provider over HTTPS (fixed host list, 30 s time limit, size caps, at most 6 requests per minute); the app window itself has no network access. Answers are plain text, and the model cannot change anything in the app.
+
 ### Data origin and app load
 
 Origin dots show where values came from, when, recognition confidence where available, and whether you confirmed them. **Confirm** marks an unconfirmed value as checked; **Settings → Data origin** summarises each area and offers **Confirm all in area**. Dots also appear on workshop recipe materials and shopping-list counts.
@@ -129,7 +139,7 @@ For an upgrade, use the newer installer over the existing installation; local da
 
 ## Your data stays with you
 
-- Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them.
+- Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them. The one exception is the optional AI assistant (off by default, your own key): it sends a question only when you click, as described above.
 - Inventory, loot and progression screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - File and hotkey recognition proposes changes for review. Opt-in automatic capture can write certain fields after a state snapshot with Undo; uncertain fields wait for review. Unreadable fields stay unknown. JSON export/restore helps you recover from mistakes.

@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.29.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.30.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.30.0',
+    title: { cs: 'Zeptej se Opse: volitelný AI asistent s vlastním klíčem', en: 'Ask Ops: optional AI assistant with your own key' },
+    items: [
+      { text: { cs: 'Ops odpoví vlastními slovy nad tvými daty a ukáže, z čeho vychází. Čísla počítá aplikace, AI je jen vysvětluje.', en: 'Ops answers in his own words from your data and shows what it is based on. The app computes the numbers, the AI only explains them.' }, link: 'ask' },
+      { text: { cs: 'Ve výchozím stavu vypnuto. Zapneš ho v Nastavení s vlastním bezplatným klíčem; klíč zůstane ve Správci pověření Windows.', en: 'Off by default. Turn it on in Settings with your own free key; the key stays in Windows Credential Manager.' }, link: 'aiSettings' },
+      { text: { cs: 'Dotaz jen na tvé kliknutí a nikdy v raidu. Tři návrhy „Co dál?“ s tlačítkem Proč? jsou zdarma bez AI.', en: 'A request is sent only when you click, never in a raid. The three "What next?" ideas with a Why? button are free, without AI.' } },
+    ],
+  },
   {
     version: '0.29.0',
     title: { cs: 'Úkoly obchodníků ze snímku: splněno, odměna i nabídka', en: 'Trader quests from a screenshot: done, reward and offers' },

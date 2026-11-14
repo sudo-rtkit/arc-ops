@@ -43,7 +43,7 @@ pub const APP: &str = "app";
 /* známé štítky; cokoli jiného se zapíše jako "other" (mapa omezovače tak nemůže růst) */
 const LABELS: [&str; 5] = ["main", "buddy", "overlay", "widgets", APP];
 /* opt-in funkce, které smí export uvést (jen true/false) */
-pub const FEATURES: [&str; 10] = ["buddy", "autoOpen", "hotkey", "widgets", "autoCapture", "gameLinkOff", "passClicks", "lowImpact", "sound", "autoSnapshot"];
+pub const FEATURES: [&str; 11] = ["buddy", "autoOpen", "hotkey", "widgets", "autoCapture", "gameLinkOff", "passClicks", "lowImpact", "sound", "autoSnapshot", "ai"];
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -230,13 +230,20 @@ fn scrub_emails(s: &str) -> String {
     out
 }
 
-/// Dlouhé souvislé tokeny (≥ 32 znaků z písmen, číslic, `_` a `-`, s písmenem i číslicí) → `<redacted>` (klíče API).
+/// Předpony klíčů API (0.30.0: Groq `gsk_`, Google `AIza`, OpenRouter a další `sk-`): token s nimi se vymaže
+/// i kratší nebo bez číslice.
+const KEY_PREFIXES: [&str; 3] = ["gsk_", "AIza", "sk-"];
+
+/// Dlouhé souvislé tokeny (≥ 32 znaků z písmen, číslic, `_` a `-`, s písmenem i číslicí) a tokeny s předponou klíče
+/// API (≥ 16 znaků) → `<redacted>` (klíče API).
 fn scrub_tokens(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut run = String::new();
     let flush = |run: &mut String, out: &mut String| {
-        let long = run.chars().count() >= 32 && run.chars().any(|c| c.is_ascii_digit()) && run.chars().any(|c| c.is_ascii_alphabetic());
-        out.push_str(if long { "<redacted>" } else { run.as_str() });
+        let n = run.chars().count();
+        let long = n >= 32 && run.chars().any(|c| c.is_ascii_digit()) && run.chars().any(|c| c.is_ascii_alphabetic());
+        let key = n >= 16 && KEY_PREFIXES.iter().any(|p| run.starts_with(p));
+        out.push_str(if long || key { "<redacted>" } else { run.as_str() });
         run.clear();
     };
     for c in s.chars() {
@@ -725,6 +732,13 @@ mod tests {
         assert_eq!(scrub("dvě: a@b.cz b@c.org", None), "dvě: <email> <email>");
         /* dlouhé tokeny (klíče) */
         assert_eq!(scrub("key sk-ant-api03-abcdefghijklmnop1234567890QRSTUV end", None), "key <redacted> end");
+        /* 0.30.0: klíče poskytovatelů AI asistenta (i bez číslice nebo kratší než 32 znaků) */
+        /* zkušební hodnoty jsou záměrně kratší než skutečné klíče (aby je skenery tajemství nebraly za klíč) */
+        assert_eq!(scrub("Bearer gsk_FAKEFAKEFAKEFAKEnotakey", None), "Bearer <redacted>");
+        assert_eq!(scrub("key=AIzaFAKEFAKEFAKEnotakey;", None), "key=<redacted>;");
+        assert_eq!(scrub("sk-or-v1-FAKEFAKEFAKEnotakey", None), "<redacted>");
+        assert_eq!(scrub("gsk_shortbutkey16", None), "<redacted>");
+        assert_eq!(scrub("ask-me and sk-x", None), "ask-me and sk-x");
         assert_eq!(scrub("at App (http://tauri.localhost/assets/index-BX3k2a9f.js:12:34)", None), "at App (http://tauri.localhost/assets/index-BX3k2a9f.js:12:34)");
     }
 

@@ -55,7 +55,8 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(tabs.last()).toHaveAttribute('aria-selected', 'false');
     const picker = ov.getByTestId('ov-app-picker');
     await expect(picker).toBeVisible();
-    await expect(picker.locator('button[data-module]')).toHaveCount(18);
+    /* 0.30.0: + Zeptej se Opse */
+    await expect(picker.locator('button[data-module]')).toHaveCount(19);
     await expect(picker.getByText(L.group, { exact: true })).toBeVisible();
     await expect(picker.locator('button[data-module="settings"]')).toContainText(L.mainOnly);
 

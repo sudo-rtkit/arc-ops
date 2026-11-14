@@ -1,8 +1,10 @@
 //! Rust backend: jen soubory ve složce dat, snímky, souborové dialogy a otevření odkazu nebo složky.
-//! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů, žádná síť.
+//! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů. Síť jen v modulu `ai` (0.30.0: volitelný
+//! AI asistent, výchozí stav vypnuto, vlastní klíč, pevný seznam hostitelů HTTPS, jen z hlavního okna).
 //! Buddy, overlay, widgety nad hrou (0.22.0), zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
 //! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
+mod ai;
 mod bus;
 mod diag;
 mod mainwin;
@@ -215,6 +217,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(ops::plugin())
         .manage(ops::OpsState::default())
+        /* 0.30.0: AI asistent (síť jen na vyžádání hráče, klíč ve Windows Credential Manageru) */
+        .manage(ai::AiState(std::sync::Arc::new(ai::Ai::production())))
         /* Zničení hlavního okna ukončí celou aplikaci včetně buddyho a overlaye (jinak by zůstaly bez stavu). */
         .on_window_event(|w, e| {
             ops::on_window_event(w, e);
@@ -289,6 +293,10 @@ pub fn run() {
             diag::diag_log,
             diag::diag_read,
             diag::diag_clear,
+            ai::ai_ask,
+            ai::ai_key_set,
+            ai::ai_key_clear,
+            ai::ai_key_status,
             bus::bus_send,
             ops::ops_enable,
             ops::ops_hotkey,

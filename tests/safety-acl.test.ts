@@ -28,6 +28,8 @@ const MAIN = [
   'allow-app-load',
   /* 0.28.0: místní deník chyb: zápis a jen tady čtení, export a vymazání */
   'allow-diag-log', 'allow-diag-read', 'allow-diag-export', 'allow-diag-clear',
+  /* 0.30.0: AI asistent jen v hlavním okně: dotaz a klíč (stav klíče jen ano/ne) */
+  'allow-ai-ask', 'allow-ai-key-set', 'allow-ai-key-clear', 'allow-ai-key-status',
 ];
 const BUDDY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-available-monitors', 'core:window:allow-primary-monitor',

@@ -47,6 +47,9 @@ import { RaidFormHost } from '../ui/RaidForm';
 import { ItemCardHost } from '../ui/ItemCard';
 import { SearchHost, useSearchShortcut } from '../ui/SearchPalette';
 import { useUi } from '../store/ui';
+import { emptyAiView, setAiView } from '../store/aiView';
+import { AskOps, askWhy, useAiBlock } from '../ui/AskOps';
+import type { AdvisorTip } from '../core/advisor';
 
 /* 0.18.0: Ctrl+K i v overlayi (klávesa přijde jen oknu s fokusem; overlay sám fokus nikdy nebere) */
 const ovSearchOn = () => true;
@@ -104,7 +107,10 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
   const active = QUESTS.filter(q => questStatus(q, s.quests.done) === 'active').length;
   const shopMissing = d.shop.filter(r => r.missing > 0);
   const missing = shopMissing.reduce((a, r) => a + r.missing, 0);
-  const steps: { id?: string; tag: string; tone: string; title: string; sub: string; action: () => void; label: string; dismiss?: () => void }[] = [];
+  const steps: { id?: string; tip?: AdvisorTip; tag: string; tone: string; title: string; sub: string; action: () => void; label: string; dismiss?: () => void }[] = [];
+  /* 0.30.0: „Proč?“ u tří nejlepších tipů (AI jen na kliknutí, jen mimo raid a s nastaveným asistentem) */
+  const aiBlock = useAiBlock();
+  const aiOn = s.ai.on;
   if (batch.loot) steps.push({ tag: t('ops.ov.tag.review'), tone: 'warn', title: t('ops.ov.l.title'), sub: t('ops.ov.l.banner'), action: () => go('scan'), label: t('ops.ov.tab.scan') });
   if (batch.shots.length) steps.push({ tag: t('ops.ov.tag.review'), tone: 'muted', title: t('ops.ov.step.scan'), sub: t('ops.ov.step.scanSub', { count: batch.shots.length }), action: () => go('scan'), label: t('ops.ov.tab.scan') });
   /* 0.17.0: další kroky = tipy rádce „Co dál?“ (stejné jako na Dashboardu); otevřou plný modul přímo v overlayi,
@@ -113,7 +119,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
   for (const tip of visibleTips(d.tips, s.advisor, Date.now())) {
     const title = t.m(tip.title);
     steps.push({
-      id: tip.id, tag: t(`advisor.rule.${tip.rule}` as Key), tone: TONE[tip.tone], title, sub: t.m(tip.detail), action: () => openTip(tip),
+      id: tip.id, tip, tag: t(`advisor.rule.${tip.rule}` as Key), tone: TONE[tip.tone], title, sub: t.m(tip.detail), action: () => openTip(tip),
       label: tip.target.route.startsWith('settings') ? t('ops.ov.advisorInApp') : t('ops.ov.advisorOpen'),
       dismiss: () => app.actions.advisorDismiss(tip.id, tip.key),
     });
@@ -137,12 +143,22 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
               <li key={x.id ?? i} data-tip={x.id}>
                 <span className={cx('ov-tag', x.tone)}>{x.tag}</span>
                 <span className="grow"><b>{x.title}</b><em>{x.sub}</em></span>
+                {x.tip && aiOn && aiBlock === null && s.opsPrefs.dialogs && steps.filter(y => y.tip).indexOf(x) < 3 && (
+                  <button type="button" className="ov-link" data-testid="ov-ask-why" onClick={() => askWhy(t, x.tip!)} aria-label={t('ai.whyAria', { title: x.title })}>{t('ai.why')}</button>
+                )}
                 <button type="button" className="ov-link" onClick={x.action} aria-label={x.id ? t('advisor.openAria', { title: x.title }) : undefined}>{x.label} →</button>
                 {x.dismiss && <button type="button" className="ov-x" onClick={x.dismiss} aria-label={t('advisor.dismissAria', { title: x.title })} title={t('advisor.dismiss')}><X size={14} aria-hidden="true" /></button>}
               </li>
             ))}</ul>
           )}
         </section>
+        {/* 0.30.0: Zeptej se Opse (jen se zapnutým asistentem; nad hrou jen mimo raid) */}
+        {aiOn && (
+          <section className="ov-card ov-ask" data-testid="ov-ask">
+            <header><h3>{t('nav.ask')}</h3></header>
+            <AskOps compact />
+          </section>
+        )}
       </div>
       <aside className="ov-rail">
         <section className="ov-card ov-opscard">
@@ -597,6 +613,8 @@ export default function OverlayApp() {
         gotState.current = true;
         gate(v.state?.settings?.lang, () => {
           mirror.receive(v.state, v.relay);
+          /* 0.30.0: pohled AI asistenta z hlavního okna (bez něj: nic k dispozici) */
+          setAiView(v.ai ?? { ...emptyAiView(), overlayBlock: 'unavailable', mainBlock: 'unavailable' });
           batchRef.current = v.batch;
           setView(v);
         });

@@ -942,6 +942,11 @@ fn foreground_now() -> Foreground {
     classify_foreground(foreground_pid(), std::process::id(), &pids)
 }
 
+/// 0.30.0: je teď v popředí hra? (AI asistent pak nic neposílá; jen čtení, nic se neaktivuje)
+pub fn game_in_front() -> bool {
+    foreground_now() == Foreground::Game
+}
+
 /* Nastaví propouštění myši oknem buddyho podle okna v popředí (jen při změně). */
 fn apply_buddy_pass<R: Runtime>(app: &AppHandle<R>, fg: Foreground) {
     let Some(w) = app.get_webview_window(BUDDY) else { return };

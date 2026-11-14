@@ -1,11 +1,15 @@
 /* Bezpečnost rozpoznávání ze snímků (milník 3a): jádro je čistá funkce bez DOM, aplikace sama nesnímá obrazovku
    a v src/ není URL MetaForge (v 3b smí být jen text odkazu v Settings). tests/safety.test.ts zůstává beze změny. */
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync as readFs, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+/* 0.30.0: obsah souborů se načte jednou (testy hledají mnoho slov; opakované čtení velkých datových souborů
+   pod zátěží celé sady překračovalo časový limit, stejně jako dřív v safety-m5) */
+const fileCache = new Map<string, string>();
+const readFileSync = (f: string, enc: 'utf8'): string => { let v = fileCache.get(f); if (v === undefined) { v = readFs(f, enc); fileCache.set(f, v); } return v; };
 const walk = (dir: string): string[] => readdirSync(dir).flatMap(n => {
   const p = join(dir, n);
   return statSync(p).isDirectory() ? walk(p) : /\.(tsx?)$/.test(n) ? [p] : [];
