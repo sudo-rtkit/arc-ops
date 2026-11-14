@@ -3,17 +3,20 @@
    (tests/fixtures/vision/own, v .gitignore) a bez nich se přeskočí. Na vlastních snímcích se vypíše přesnost
    po polích (zbraň, tier, augment) a ověří se, že žádný název není špatně (nic se nehádá).
    0.25.0: jistota přes zásobník u zbraní s doplňky, čtení řádku munice na umělém místě, odolnost proti chybějící
-   zbrani v katalogu a špatně přečtenému zásobníku. */
+   zbrani v katalogu a špatně přečtenému zásobníku.
+   0.27.0: druh munice z ikony jako další filtr (veto, jedinečnost, cesta přes obrys + zásobník + munici) a odolnost
+   proti špatně přečtené ikoně. Čtení samotné ikony je v tests/vision/ammo.test.ts. */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import { resize, rotate, type RgbaImage } from '../../src/core/vision/image';
 import type { Box } from '../../src/core/vision/layout';
 import {
-  AUGMENT_PAD, SHAPE_LEN, ASPECT_TOL, SHAPE_SURE, MAG_SHAPE_MIN, ammoArea, augmentImageArea, magFits, matchShape, readAmmo, readWeaponTier, shapeOf, shapeSimilarity,
+  AUGMENT_PAD, SHAPE_LEN, ASPECT_TOL, SHAPE_SURE, MAG_SHAPE_MIN, AMMO_RIVAL_MAX, AMMO_GAP, ammoArea, augmentImageArea, magFits, matchShape, readAmmo, readWeaponTier, shapeOf, shapeSimilarity,
   weaponImageArea, weaponTierArea, type EquipShape,
 } from '../../src/core/vision/equip';
 import { readRarity } from '../../src/core/vision/rarity';
+import { AMMO_TYPES, type AmmoType } from '../../src/core/vision/ammoIcon';
 import { CREAM, text as drawText } from './progress-synth';
 import { equipBoxes, readLoadout } from '../../src/core/vision/loadout';
 import { detectLayout } from '../../src/core/vision/layout';
@@ -242,7 +245,7 @@ describe('0.25.0: zásobník jako druhá cesta k jistotě (zbraň s doplňkem)',
     /* 10 sedí jen Pistol, ale tvar je puška: Pistol není první, takže nic */
     expect(matchShape(silencedShape(), 'weapon', 'common', list(), 10, 'I').name).toBeNull();
   });
-  it('katalog: vynechaná zbraň (nová ve hře) se při žádném svém zásobníku a tieru nepojmenuje jako jiná', () => {
+  it('katalog: vynechaná zbraň (nová ve hře) se při žádném svém zásobníku, tieru a druhu munice nepojmenuje jako jiná', () => {
     const cat = equipShapes();
     const TIERS = ['I', 'II', 'III', 'IV'] as const;
     let wrong = 0, tries = 0;
@@ -250,14 +253,75 @@ describe('0.25.0: zásobník jako druhá cesta k jistotě (zbraň s doplňkem)',
       const rest = cat.filter(e => e !== w);
       for (const tier of TIERS) {
         const base = w.magTiers ? w.magTiers[TIERS.indexOf(tier)] : w.mag!;
-        for (const mag of [base, ...(w.magAdd ?? []).map(d => base + d)]) for (const sh of w.shapes) {
+        /* 0.27.0: bez druhu munice (jako 0.25.0), se správným a s každým špatně přečteným */
+        for (const mag of [base, ...(w.magAdd ?? []).map(d => base + d)]) for (const sh of w.shapes) for (const ammo of [null, ...AMMO_TYPES]) {
           tries++;
-          if (matchShape(sh, 'weapon', w.rarity ?? 'unknown', rest, mag, tier).conf === 'high') wrong++;
+          if (matchShape(sh, 'weapon', w.rarity ?? 'unknown', rest, mag, tier, ammo).conf === 'high') wrong++;
         }
       }
     }
-    expect(tries).toBeGreaterThan(500);
+    expect(tries).toBeGreaterThan(5000);
     expect(wrong).toBe(0);
+  });
+});
+
+describe('0.27.0: druh munice z ikony jako další filtr kandidátů', () => {
+  const SILENCED: Rect[] = [[-30, 14, 30, 5], ...RIFLE].map(([x, y, w, h]) => [x + 30, y, w, h] as Rect);
+  const silencedShape = () => { const { img, box } = weaponSlot(SILENCED, 1.6); return shapeOf(img, weaponImageArea(box))!; };
+  const plainShape = () => { const { img, box } = weaponSlot(RIFLE, 2); return shapeOf(img, weaponImageArea(box))!; };
+  /* Rifle lehká, Pistol těžká (zásobník 10 + 10 = 20 sedí i jí), Scoped střední; tvary katalogu jen jednou (pomalé) */
+  const base = { rifle: catalogShape('Rifle', RIFLE), pistol: catalogShape('Pistol', PISTOL), scoped: catalogShape('Scoped', SCOPED) };
+  /* pistolAmmo null = katalog bez údaje o munici */
+  const list = (pistolAmmo: AmmoType | null = 'heavy'): EquipShape[] => [
+    { ...base.rifle, mag: 20, magAdd: [5, 10, 15], ammo: 'light' },
+    { ...base.pistol, mag: 10, magAdd: [5, 10, 15], ammo: pistolAmmo ?? undefined },
+    { ...base.scoped, mag: 5, magAdd: [], ammo: 'medium' },
+  ];
+  /* úplně jiný obrys (buben vlevo, tenká hlaveň) se stejnou municí a zásobníkem jako Rifle */
+  const DRUM: Rect[] = [[0, 10, 30, 30], [30, 20, 70, 4]];
+  const drum = { ...catalogShape('Drum', DRUM), mag: 20, magAdd: [5, 10, 15], ammo: 'light' as const };
+  it('zásobník 20 sedí Rifle i Pistol: bez munice nic (0.25.0), s lehkou municí Rifle jistě', () => {
+    const sh = silencedShape();
+    expect(matchShape(sh, 'weapon', 'common', list(), 20, 'I').name).toBeNull();
+    expect(matchShape(sh, 'weapon', 'common', list(), 20, 'I', null).name).toBeNull();
+    expect(matchShape(sh, 'weapon', 'common', list(), 20, 'I', 'light')).toMatchObject({ name: 'Rifle', conf: 'high', via: 'magazine' });
+  });
+  it('špatně přečtená munice název jen vezme, nikdy nezmění', () => {
+    const sh = silencedShape();
+    for (const ammo of ['heavy', 'medium', 'shotgun', 'energy', 'launcher'] as const) {
+      const m = matchShape(sh, 'weapon', 'common', list(), 20, 'I', ammo);
+      expect(m.name, ammo).toBeNull();
+      expect(m.best).toBe('Rifle');
+    }
+    /* jistá shoda tvaru s jiným druhem munice už jistá není */
+    expect(matchShape(plainShape(), 'weapon', 'common', list(), 20, 'I', 'light')).toMatchObject({ name: 'Rifle', conf: 'high' });
+    expect(matchShape(plainShape(), 'weapon', 'common', list(), 20, 'I', 'heavy')).toMatchObject({ name: null, conf: 'unknown', why: 'ammo', best: 'Rifle' });
+    /* žádný tvar, zásobník, tier ani druh munice nepojmenuje u tvaru pušky jinou zbraň */
+    for (const sh of [silencedShape(), plainShape()]) for (let mag = 0; mag < 40; mag++) for (const tier of [null, 'I'] as const) for (const ammo of [null, ...AMMO_TYPES]) {
+      const m = matchShape(sh, 'weapon', 'common', list(), mag, tier, ammo);
+      if (m.conf === 'high') expect(m.name, `${mag} ${tier} ${ammo}`).toBe('Rifle');
+    }
+  });
+  it('obrys + zásobník + munice: soupeř se stejnou municí a sedícím zásobníkem, ale úplně jiným obrysem, jistotě nebrání', () => {
+    const sh = silencedShape();
+    /* Drum lehká: zásobník i munice sedí, obrys ne; Pistol těžká */
+    const cat = [...list(), drum];
+    const rivalS = Math.max(...drum.shapes.map(x => shapeSimilarity(sh.v, x.v)));
+    expect(rivalS).toBeLessThan(AMMO_RIVAL_MAX);
+    const m = matchShape(sh, 'weapon', 'common', cat, 20, 'I', 'light');
+    expect(m).toMatchObject({ name: 'Rifle', conf: 'high', via: 'ammo' });
+    expect(m.score - rivalS).toBeGreaterThanOrEqual(AMMO_GAP);
+    /* bez přečtené munice (nejisté čtení) chování 0.25.0: nic */
+    expect(matchShape(sh, 'weapon', 'common', cat, 20, 'I', null).name).toBeNull();
+    /* soupeř bez údaje o munici v katalogu se počítá jako možný: Pistol bez munice (bližší obrys) jistotu bere */
+    expect(matchShape(sh, 'weapon', 'common', [...list(null), drum], 20, 'I', 'light').name).toBeNull();
+    expect(matchShape(sh, 'weapon', 'common', [...list(), drum], 20, 'I', 'light').name).toBe('Rifle');
+    /* neznámá vzácnost místa: nic */
+    expect(matchShape(sh, 'weapon', 'common', cat, 20, 'I', 'light').name).toBe('Rifle');
+    expect(matchShape(sh, 'weapon', 'unknown', cat, 20, 'I', 'light').name).toBeNull();
+    /* soupeř s bližším obrysem (Pistol lehká, shoda nad AMMO_RIVAL_MAX) jistotu bere */
+    expect(Math.max(...base.pistol.shapes.map(x => shapeSimilarity(sh.v, x.v)))).toBeGreaterThanOrEqual(AMMO_RIVAL_MAX);
+    expect(matchShape(sh, 'weapon', 'common', [...list('light'), drum], 20, 'I', 'light').name).toBeNull();
   });
 });
 
@@ -320,7 +384,8 @@ const has = (n: string) => existsSync(new URL(n, OWN));
 const load = (n: string): RgbaImage => { const p = PNG.sync.read(readFileSync(new URL(n, OWN))); return { width: p.width, height: p.height, data: new Uint8ClampedArray(p.data) }; };
 /* Skutečnost podle oka (2026-11-14): zbraň s tierem, augment; '' = prázdné nebo vylosované místo.
    Anvil IV má tlumič, Ferro II jinou pažbu, Torrente II tři doplňky včetně zásobníku (0/82 = 70 + 12).
-   0.24.0: jistě 2 zbraně ze 6; 0.25.0: 5 ze 6 (tyto tři přes zásobník), Stitcher dál jen návrh. */
+   0.24.0: jistě 2 zbraně ze 6; 0.25.0: 5 ze 6 (tyto tři přes zásobník), Stitcher dál jen návrh.
+   0.27.0: 6 ze 6, Stitcher přes druh munice z ikony (lehká: Rattler se zásobníkem 20 vypadne, Kettle má jiný obrys). */
 const TRUTH: Record<string, { weapon1: string; weapon2: string; augment: string }> = {
   'own-prerade-free-loadout.png': { weapon1: '', weapon2: '', augment: 'Free Loadout Augment' },
   'own-manage-loadout-free.png': { weapon1: '', weapon2: '', augment: 'Free Loadout Augment' },
@@ -352,7 +417,7 @@ describe('0.24.0: přesnost na vlastních snímcích (jen lokálně)', () => {
         if (m.conf === 'medium' && m.best === wName) tally.weapon.guess++;
         if (m.best === wName) tally.weapon.top++;
         if (e.tier === wTier) tally.tier.ok++; else if (e.tier) tally.tier.wrong++;
-        lines.push(`${n} ${slot}: ${want} → ${m.conf} ${m.name ?? '(' + m.best + ')'} ${m.score} tier ${e.tier ?? '?'} ammo ${e.ammo ? e.ammo.loaded + '/' + e.ammo.max : '?'}`);
+        lines.push(`${n} ${slot}: ${want} → ${m.conf} ${m.name ?? '(' + m.best + ')'} ${m.score}${m.via ? ' via ' + m.via : ''} tier ${e.tier ?? '?'} ammo ${e.ammo ? e.ammo.loaded + '/' + e.ammo.max : '?'} ${e.ammoType ?? '?'}`);
       }
       const a = r.equip.find(x => x.slot === 'augment')!;
       if (!truth.augment) { expect(a.state, `${n} augment`).not.toBe('item'); continue; }
@@ -366,20 +431,34 @@ describe('0.24.0: přesnost na vlastních snímcích (jen lokálně)', () => {
     expect(tally.tier.wrong).toBe(0);
     expect(tally.augment.wrong).toBe(0);
     if (has('own-after-raid-survived-findings.png') && has('own-after-raid-survived-findings-2.png')) expect(tally.weapon.sure).toBeGreaterThanOrEqual(3);
-    if (OWN_FILES.length === Object.keys(TRUTH).length) expect(tally.weapon.sure).toBeGreaterThanOrEqual(5);
+    /* 0.27.0: se všemi snímky všech šest zbraní jistě */
+    if (OWN_FILES.length === Object.keys(TRUTH).length) expect(tally.weapon.sure).toBe(6);
     expect(tally.tier.ok).toBe(tally.tier.n);
     expect(tally.augment.sure).toBe(tally.augment.n);
   });
-  it.skipIf(!has('own-inraid-inventory.png'))('inventář v raidu: Stitcher je těsně pod prahem, jen návrh ke kontrole; munice 20/20', () => {
-    const r = readLoadout(load('own-inraid-inventory.png'))!;
+  it.skipIf(!has('own-inraid-inventory.png'))('0.27.0: inventář v raidu: Stitcher pod prahem tvaru, jistě přes lehkou munici z ikony; munice 20/20', () => {
+    const img = load('own-inraid-inventory.png');
+    const r = readLoadout(img)!;
     const w = r.equip.find(e => e.slot === 'weapon1')!;
     expect(w.ammo).toEqual({ loaded: 20, max: 20 });
+    expect(w.ammoType).toBe('light');
+    expect(w.match).toMatchObject({ name: 'Stitcher', conf: 'high', via: 'ammo' });
+    expect(w.match!.score).toBeLessThan(SHAPE_SURE);
     const s = loadoutSnap(r, [], matchContext(getMaterials(defaultState()).map(m => m.name), []), 1);
-    expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ name: null, conf: 'unknown', guess: 'Stitcher I', tierConf: 'high' });
+    expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ name: 'Stitcher I', conf: 'high', tierConf: 'high' });
+    /* bez čtení ikony (nejisté) chování 0.25.0: jen návrh */
+    const side = Math.min(w.box.w, w.box.h);
+    const sh = shapeOf(img, weaponImageArea(w.box), readRarity(img, { x: w.box.x, y: w.box.y + w.box.h - side, w: side, h: side }).rgb);
+    expect(matchShape(sh, 'weapon', w.rarity, equipShapes(), 20, 'I', null)).toMatchObject({ name: null, conf: 'medium', best: 'Stitcher' });
+    /* soupeři se zásobníkem 20 a lehkou municí mají obrys daleko */
+    const kettle = equipShapes().find(e => e.name === 'Kettle')!;
+    expect(Math.max(...kettle.shapes.map(x => shapeSimilarity(sh!.v, x.v)))).toBeLessThan(AMMO_RIVAL_MAX);
   });
   it.skipIf(!OWN_FILES.length)('0.25.0: špatně přečtený zásobník ani tier nepojmenuje jinou zbraň; bez správné zbraně v katalogu jen výjimečně', () => {
     const cat = equipShapes();
     let wrong = 0, absentWrong = 0, tries = 0;
+    /* 0.27.0: totéž s každým druhem munice (správným i špatně přečteným) */
+    let ammoWrong = 0, ammoAbsent = 0, ammoTries = 0;
     for (const n of OWN_FILES) {
       const img = load(n);
       const r = readLoadout(img)!;
@@ -396,12 +475,21 @@ describe('0.24.0: přesnost na vlastních snímcích (jen lokálně)', () => {
           const m = matchShape(sh, 'weapon', e.rarity, cat, mag, tier);
           if (m.conf === 'high' && m.name !== want) wrong++;
           if (matchShape(sh, 'weapon', e.rarity, rest, mag, tier).conf === 'high') absentWrong++;
+          for (const ammo of AMMO_TYPES) {
+            ammoTries++;
+            const ma = matchShape(sh, 'weapon', e.rarity, cat, mag, tier, ammo);
+            if (ma.conf === 'high' && ma.name !== want) ammoWrong++;
+            if (matchShape(sh, 'weapon', e.rarity, rest, mag, tier, ammo).conf === 'high') ammoAbsent++;
+          }
         }
       }
     }
-    console.log(`odolnost: ${tries} zkoušek, špatně se správnou zbraní v katalogu ${wrong}, bez ní ${absentWrong}`);
+    console.log(`odolnost: ${tries} zkoušek, špatně se správnou zbraní v katalogu ${wrong}, bez ní ${absentWrong}; s druhem munice ${ammoTries} zkoušek, špatně ${ammoWrong}, bez správné zbraně ${ammoAbsent}`);
     expect(wrong).toBe(0);
+    expect(ammoWrong).toBe(0);
     /* bez správné zbraně v katalogu (nová zbraň ve hře) a se zásobníkem, který náhodou sedí jiné: pod 1 % */
     expect(absentWrong / tries).toBeLessThan(0.01);
+    /* druh munice nepřidá žádný omyl navíc: bez správné zbraně nejvýš tolik jako bez munice (jen u správné munice) */
+    expect(ammoAbsent).toBeLessThanOrEqual(absentWrong);
   });
 });

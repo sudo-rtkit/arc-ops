@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.25.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.27.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,14 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.27.0',
+    title: { cs: 'Druh munice pozná zbraň', en: 'Ammo type tells weapons apart' },
+    items: [
+      { text: { cs: 'Výbava na MANAGE LOADOUT a FINDINGS čte i ikonu druhu munice. Zbraně se stejným zásobníkem a jinou municí se rozliší, třeba Stitcher od Rattleru.', en: 'Gear on MANAGE LOADOUT and FINDINGS now reads the ammo type icon. Weapons with the same magazine but other ammo are told apart, e.g. Stitcher from Rattler.' }, link: 'loadouts' },
+      { text: { cs: 'Zbraň se pojmenuje, jen když tvarem, zásobníkem i municí sedí jediná. Nejistá ikona se nepoužije a nic se nehádá.', en: 'A weapon is named only when exactly one fits by outline, magazine and ammo type. An unsure icon is ignored; nothing is guessed.' } },
+    ],
+  },
   {
     version: '0.26.0',
     title: { cs: 'Pět podob Bedňáka na výběr', en: 'Five selectable Ops forms' },

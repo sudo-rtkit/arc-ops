@@ -4,6 +4,7 @@
    rozvržení na obou obrazovkách, měřeno v roztečích políček, ne v pixelech). Hodnota loadoutu se čte z řádku
    pod nadpisem LOADOUT (poslední číslo; první je váha „0.0/35.0“).
    0.24.0: zbraně (název, tier, munice) a augment se poznají podle tvaru z katalogu (vision/equip.ts).
+   0.27.0: k tomu druh munice z ikony u řádku munice (vision/ammoIcon.ts) jako další filtr kandidátů.
    Výsledek obsahuje jen čísla (otisky, vzácnosti, počty), ne obrazová data. Nic se tu nehádá: co nejde poznat,
    je 'unknown'. Volný loadout (FREE LOADOUT) má na neobsazených místech symbol „náhodné“ (hra výbavu vylosuje
    až při nasazení), takže tato místa jsou 'random', ne prázdná. Čistá funkce, jen čte pixely. */
@@ -17,6 +18,7 @@ import { readScreenshot, type CellRead, type ScreenRead } from './read';
 import { readHeader, near } from './progress';
 import { AUGMENT_PAD, augmentImageArea, matchShape, readAmmo, readWeaponTier, shapeOf, weaponImageArea, type EquipShape, type ShapeMatch } from './equip';
 import type { Tier } from './digits';
+import { readAmmoType, type AmmoType } from './ammoIcon';
 import { equipShapes } from '../equipCatalog';
 
 export type EquipSlot = 'augment' | 'shield' | 'weapon1' | 'weapon2';
@@ -27,6 +29,8 @@ export type SlotState = 'item' | 'empty' | 'random';
 export interface EquipRead {
   slot: EquipSlot; box: Box; state: SlotState; rarity: Rarity; fp: number[] | null;
   match?: ShapeMatch | null; tier?: Tier | null; ammo?: { loaded: number; max: number } | null;
+  /* 0.27.0: druh munice z ikony u řádku munice, jen při jistém čtení (null = nepřečteno nebo nejisté) */
+  ammoType?: AmmoType | null;
 }
 export type LoadoutKind = 'free' | 'custom' | 'unknown';
 export interface LoadoutRead {
@@ -76,7 +80,8 @@ function readEquip(img: RgbaImage, slot: EquipSlot, box: Box, free: boolean, sha
   if (weapon) {
     out.ammo = readAmmo(img, box);
     out.tier = readWeaponTier(img, box);
-    out.match = matchShape(shapeOf(img, weaponImageArea(box), rar.rgb), 'weapon', rar.rarity, shapes, out.ammo?.max ?? null, out.tier);
+    out.ammoType = readAmmoType(img, box).type;
+    out.match = matchShape(shapeOf(img, weaponImageArea(box), rar.rgb), 'weapon', rar.rarity, shapes, out.ammo?.max ?? null, out.tier, out.ammoType);
   } else if (slot === 'augment') {
     out.match = matchShape(shapeOf(img, augmentImageArea(box), rar.rgb, 40, AUGMENT_PAD), 'augment', rar.rarity, shapes);
   }
