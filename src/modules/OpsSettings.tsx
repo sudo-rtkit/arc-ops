@@ -6,7 +6,7 @@ import { actions, useApp, useAppState } from '../store';
 import { Btn, Panel, Select } from '../ui/components';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
-import { OPACITY_MAX, OPACITY_MIN, OPS, OPS_SLOTS, collection, formForLevel, partName, resolveOutfit, slotParts, validHotkey } from '../core/ops';
+import { OPACITY_MAX, OPACITY_MIN, OPS, OPS_SLOTS, collection, resolveForm, partName, resolveOutfit, slotParts, validHotkey } from '../core/ops';
 import { OpsCanvas } from '../ops/OpsCanvas';
 import { hub, native } from '../ops/mainHub';
 import { hotkeyFrom, hotkeyLabel } from '../ops/hotkey';
@@ -196,15 +196,30 @@ export function WardrobePanel() {
   const level = s.profile.level;
   const have = useMemo(() => collection(s.buddy, level), [s.buddy, level]);
   const outfit = useMemo(() => resolveOutfit(level, s.buddy), [level, s.buddy]);
-  const form = formForLevel(level);
+  const form = resolveForm(level, s.buddy.form);
   const next = OPS.unlocks.find(u => u.level > level && u.unlockedParts.some(p => !have.includes(p)));
   const nextPart = next?.unlockedParts.find(p => !have.includes(p));
   return (
-    <Panel id="wardrobe" title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" onClick={() => actions.resetBuddyOutfit()} disabled={!Object.keys(s.buddy.outfit).length}>{t('ops.autoAll')}</Btn>}>
+    <Panel id="wardrobe" title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" onClick={() => actions.resetBuddyOutfit()} disabled={!s.buddy.form && !Object.keys(s.buddy.outfit).length}>{t('ops.autoAll')}</Btn>}>
       <p className="secondary-text">{t('ops.wardrobeHint')}</p>
+      <fieldset className="ops-body-picker" data-testid="ops-body-picker">
+        <legend>{t('ops.bodyChoice')}</legend>
+        <p className="meta">{t('ops.bodyChoiceHint')}</p>
+        <div className="ops-body-options">
+          <label className="ops-body-option">
+            <input type="radio" name="ops-body" value="auto" checked={!s.buddy.form} onChange={() => actions.setBuddy({ form: 'auto' })} />
+            <span>{t('ops.bodyAuto')}</span>
+          </label>
+          {OPS.forms.map(f => <label key={f.id} className="ops-body-option">
+            <input type="radio" name="ops-body" value={f.id} checked={s.buddy.form === f.id} onChange={() => actions.setBuddy({ form: f.id })} />
+            <OpsCanvas variant="corner" fit still level={level} form={f.id} outfit={outfit} paint={s.games.paint} scale={1} label={f.name[t.lang]} />
+            <span>{f.name[t.lang]}</span>
+          </label>)}
+        </div>
+      </fieldset>
       <div className="ops-wardrobe">
         <div className="ops-preview">
-          <OpsCanvas variant="detail" fit level={level} outfit={outfit} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
+          <OpsCanvas variant="detail" fit level={level} form={s.buddy.form} outfit={outfit} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
           <p data-testid="ops-form">{t('ops.form', { name: form.name[t.lang], level })}</p>
           <p className="meta" data-testid="ops-collection">{t('ops.collection', { have: have.length, total: OPS.parts.length })}</p>
           <p className="meta">{next && nextPart ? t('ops.next', { level: next.level, name: partName(nextPart, t.lang) }) : t('ops.nextMax')}</p>

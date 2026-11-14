@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.26.0 — Five selectable Ops forms
+
+- Settings → Ops wardrobe now offers visual choices for all five existing body forms: Rookie, Explorer, Scavenger, Veteran and Legend, plus automatic selection by profile level. All five can be chosen at any level. The choice is saved locally and does not change player level, records or part unlocks.
+- Buddy, overlay, compact window, tutorial, minigames, raid-prep previews and Ops widgets use the selected form. Actual profile level still controls the level tag and equipment collection. Manual forms keep level-up rewards and animations without automatically transforming to another body.
+- “All automatic” resets both the body selection and manual parts. Older saves without a body choice keep automatic behaviour; malformed choices fall back to automatic. The optional `buddy.form` field needs no schema change. This release uses existing bodies and does not integrate the separate clothing design packs.
+
+
 Condensed from the existing Czech README. Versions below describe shipped behaviour, not planned features. Newest first. Implementation references remain in the [plans](docs/superpowers/plans/) and [specifications](docs/superpowers/specs/).
 
 The [original Czech technical release notes](docs/history/README-0.13.1.cs.md) are preserved in full, including the intermediate 0.12.1 buddy fix later extended by 0.13.1. Release notes describe implemented versions; they do not imply an installer has been uploaded to GitHub Releases.

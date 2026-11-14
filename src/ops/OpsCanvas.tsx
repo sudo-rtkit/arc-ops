@@ -28,6 +28,7 @@ export const pixelFactor = (scale: number, dpr = typeof window !== 'undefined' ?
 interface Props {
   variant?: OpsVariantId;
   level: number;
+  form?: string;
   outfit: Record<string, string | null>;
   /* celý násobek mřížky varianty v logických pixelech */
   scale: number;
@@ -45,11 +46,11 @@ interface Props {
   paint?: string;
 }
 
-export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint, paused }, ref) {
+export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint, paused, form }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const anim = useRef(new Animator());
-  const view = useRef({ level, outfit, variant, paint });
-  view.current = { level, outfit, variant, paint };
+  const view = useRef({ level, outfit, variant, paint, form });
+  view.current = { level, outfit, variant, paint, form };
   const dirty = useRef(true);
   const pausedRef = useRef(!!paused);
   pausedRef.current = !!paused;
@@ -67,7 +68,8 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
 
   useEffect(() => { anim.current.play(initial); dirty.current = true; }, [initial]);
   useEffect(() => { anim.current.setRest(restAnim); dirty.current = true; }, [restAnim]);
-  useEffect(() => { dirty.current = true; void preload(variant, level, outfit).then(() => { dirty.current = true; }); }, [variant, level, outfit, paint]);
+  useEffect(() => { if (anim.current.transform) anim.current.startTransform(null); dirty.current = true; }, [form]);
+  useEffect(() => { dirty.current = true; void preload(variant, level, outfit, form).then(() => { dirty.current = true; }); }, [variant, level, outfit, paint, form]);
 
   useEffect(() => {
     const c = canvas.current;
@@ -95,7 +97,7 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
       }
       if (dirty.current) {
         dirty.current = false;
-        drawOps(octx, view.current.variant, view.current.level, view.current.outfit, a.pose(), view.current.paint);
+        drawOps(octx, view.current.variant, view.current.level, view.current.outfit, a.pose(), view.current.paint, view.current.form);
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.drawImage(off, 0, 0, c.width, c.height);
@@ -107,5 +109,5 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
     return () => cancelAnimationFrame(raf);
   }, [scale, still, variant, fit]);
 
-  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" data-variant={variant} data-paint={paint || 'original'} />;
+  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" data-form={form || 'auto'} data-variant={variant} data-paint={paint || 'original'} />;
 });

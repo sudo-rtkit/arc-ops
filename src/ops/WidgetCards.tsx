@@ -18,7 +18,7 @@ import { visibleTips, STASH_FRESH_DAYS, weekDaysLeft } from '../core/advisor';
 import { QUESTS, locText, questName } from '../core/quests';
 import { autoIndicator } from '../core/autoCapture';
 import { starSum } from '../core/week';
-import { formForLevel } from '../core/ops';
+import { resolveForm } from '../core/ops';
 import { verdictText } from '../ui/Advice';
 import { AreaBadges } from '../ui/MapView';
 import type { Density, WidgetId } from '../core/widgets';
@@ -273,7 +273,7 @@ function Weekly(p: CardProps) {
 function Ops(p: CardProps) {
   const t = useT();
   const s = useAppState();
-  const form = formForLevel(s.profile.level);
+  const form = resolveForm(s.profile.level, s.buddy.form);
   return (
     <>
       <header className="wg-head"><h2>{t('wg.ops.level', { level: s.profile.level })}</h2></header>

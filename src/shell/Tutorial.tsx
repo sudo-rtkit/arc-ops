@@ -89,7 +89,7 @@ export function Tutorial({ compact }: { compact: boolean }) {
 
   return (
     <aside ref={card} className={cx('tour', compact && 'tour--compact')} aria-label={t('tut.label')} data-testid="tour" data-step={resume ? 'resume' : tut.step}>
-      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint} label={t('ops.previewAria')}
+      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint} label={t('ops.previewAria')}
         restAnim={sp.talking ? 'talk' : 'idle'} />
       <div className="tour-bubble">
         <div className="tour-head">

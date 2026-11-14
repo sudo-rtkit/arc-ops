@@ -50,7 +50,7 @@ function OpsCorner({ said, ops }: { said: { line: LineRef | null; n: number }; o
   const sp = useOpsSpeech(said.line, s.opsPrefs.personality, t.lang, { ops, nonce: said.n });
   return (
     <div className="mg-ops" data-testid="games-ops">
-      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint}
+      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint}
         label={t('ops.previewAria')} restAnim={sp.talking ? 'talk' : 'idle'} />
       <p className={cx('mg-speech', !sp.text && 'muted')} role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{sp.text || t('games.opsIdle')}</p>
     </div>

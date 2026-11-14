@@ -309,7 +309,7 @@ export default function BuddyApp() {
       <div className="buddy-ops" style={{ left: opsAt.x, top: opsAt.y }} role="button" tabIndex={0} aria-label={view.widgets ? BUDDY_TEXT[uiLang].ariaEdit : BUDDY_TEXT[uiLang].aria}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerEnter={() => wake()}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); touchAt.current = Date.now(); toggle(); } }}>
-        <OpsCanvas ref={ops} variant="corner" level={view.level} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" paused={view.calm} />
+        <OpsCanvas ref={ops} variant="corner" level={view.level} form={view.form} outfit={view.outfit} paint={view.paint} scale={view.scale} label="Ops" initial="appear" paused={view.calm} />
         {/* 0.20.0: malá tečka, když běží (nebo je pozastavené) automatické snímání */}
         {view.auto && <span className={'buddy-auto auto-' + view.auto} role="img" aria-label={view.auto === 'on' ? BUDDY_TEXT[uiLang].autoOn : BUDDY_TEXT[uiLang].autoPaused} title={view.auto === 'on' ? BUDDY_TEXT[uiLang].autoOn : BUDDY_TEXT[uiLang].autoPaused} data-testid="buddy-auto" />}
       </div>

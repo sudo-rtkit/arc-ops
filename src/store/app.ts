@@ -39,7 +39,7 @@ import { DEFAULT_PAINT } from '../core/paints';
 import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlist';
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
-import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, validHotkey } from '../core/ops';
+import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, validHotkey, isForm } from '../core/ops';
 import type { BuddyState } from '../core/types';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
@@ -1102,9 +1102,11 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     setLang(lang: Lang) { change(s => { if (!isLang(lang) || s.settings.lang === lang) return false; s.settings.lang = lang; }); },
 
     /* milník 5: buddy a zkratka. Zapnutí a zkratku do systému promítá hub (src/ops/hub.ts). */
-    setBuddy(patch: Partial<Pick<BuddyState, 'enabled' | 'hotkey' | 'scale' | 'opacity' | 'autoOpen'>>) {
+    setBuddy(patch: Partial<Pick<BuddyState, 'enabled' | 'hotkey' | 'scale' | 'opacity' | 'autoOpen' | 'form'>>) {
       change(s => {
         const b = s.buddy, before = JSON.stringify(b);
+        if (patch.form === 'auto') delete b.form;
+        else if (isForm(patch.form)) b.form = patch.form;
         if (patch.enabled !== undefined) b.enabled = patch.enabled === true;
         if (patch.hotkey !== undefined) b.hotkey = patch.hotkey === '' || validHotkey(patch.hotkey) ? patch.hotkey : b.hotkey;
         if (patch.scale !== undefined) b.scale = patch.scale === 2 ? 2 : 1;
@@ -1372,7 +1374,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         s.games.paint = id;
       });
     },
-    resetBuddyOutfit() { change(s => { if (!Object.keys(s.buddy.outfit).length) return false; s.buddy.outfit = {}; }); },
+    resetBuddyOutfit() { change(s => { if (!s.buddy.form && !Object.keys(s.buddy.outfit).length) return false; s.buddy.outfit = {}; delete s.buddy.form; }); },
     setBuddyPosition(monitor: string, x: number, y: number) {
       change(s => {
         const key = text(monitor, 120), p = { x: clampInt(x, -20000, 20000), y: clampInt(y, -20000, 20000) };

@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.25.0](https://img.shields.io/badge/version-0.25.0-F4AD82?style=flat-square)
+![Version 0.26.0](https://img.shields.io/badge/version-0.26.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -65,6 +65,8 @@ Press **Ctrl+K** (or use the sidebar search) to find any item, quest, station, s
 Ctrl+K works while the app or overlay has focus. It is a local window shortcut. The card also shows matching points on your own map; missing catalogue facts stay unknown.
 
 ### Meet Bedňák, callsign Ops
+
+Choose any of the five body forms in Settings → Ops wardrobe, or keep automatic growth by profile level. Your choice is saved and shared by every Ops view; actual level and part unlocks stay tied to the profile.
 
 An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. The **App** button opens any full module (skill tree, recipes, item database, maps, journal, statistics, minigames…) in a larger panel over the game; settings and backups stay in the main window. Buddy features start **off** and can be enabled in Settings.
 

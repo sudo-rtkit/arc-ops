@@ -338,6 +338,12 @@
 /* ----- milník 5: Buddy a zkratka, Šatník Opse ----- */
 .kbd { display: inline-flex; align-items: center; min-height: var(--control-md); padding: 0 var(--space-3); border: var(--line-thin) solid var(--border-control); border-radius: var(--radius-control); background: var(--bg-raised); color: var(--text-primary); font-size: 13px; }
 .ops-wardrobe { display: grid; grid-template-columns: 200px 1fr; gap: var(--space-5); align-items: start; }
+.ops-body-picker { border: 0; padding: 0; margin: 0 0 var(--space-5); min-width: 0; }
+.ops-body-picker legend { font-weight: 600; }
+.ops-body-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
+.ops-body-option { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); cursor: pointer; text-align: center; }
+.ops-body-option:has(input:checked) { border-color: var(--accent); background: var(--bg-selected); }
+.ops-body-option:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ops-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); background: var(--bg-app); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); text-align: center; }
 .ops-preview canvas { image-rendering: pixelated; }
 .ops-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }

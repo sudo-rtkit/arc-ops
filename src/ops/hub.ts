@@ -67,7 +67,7 @@ export interface BatchView {
   failed: string;
 }
 export interface BuddyView {
-  lang: Lang; level: number; outfit: Record<string, string | null>; scale: 1 | 2;
+  lang: Lang; level: number; form?: string; outfit: Record<string, string | null>; scale: 1 | 2;
   /* 0.11.0: nátěr Opse */
   paint: string;
   positions: Record<string, { x: number; y: number }>; monitor: string; hotkey: string;
@@ -162,7 +162,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   /* ----- kopie stavu pro okna ----- */
   const buddyView = (s: AppState): BuddyView => ({
-    lang: s.settings.lang, level: s.profile.level, outfit: resolveOutfit(s.profile.level, s.buddy), scale: s.buddy.scale, paint: s.games.paint,
+    lang: s.settings.lang, level: s.profile.level, form: s.buddy.form, outfit: resolveOutfit(s.profile.level, s.buddy), scale: s.buddy.scale, paint: s.games.paint,
     positions: s.buddy.positions, monitor: s.buddy.monitor, hotkey: s.buddy.hotkey,
     personality: s.opsPrefs.personality, sound: s.opsPrefs.sound, volume: s.opsPrefs.volume, dialogs: s.opsPrefs.dialogs,
     game: gameKnown ? gameRunning : null,
@@ -643,7 +643,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       pushOverlay();
       pushWidgets();
       if (prevLevel !== null && s.profile.level !== prevLevel) {
-        const ev: LevelEvent | null = levelEvent(prevLevel, s.profile.level);
+        const ev: LevelEvent | null = levelEvent(prevLevel, s.profile.level, s.buddy.form);
         if (ev) { bus.send('buddy', 'event', { ...ev, ui: ui() } satisfies BuddyLevelEvent); eventListeners.forEach(f => f(ev)); }
       }
       prevLevel = s.profile.level;

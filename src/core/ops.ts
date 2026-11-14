@@ -66,6 +66,8 @@ export const formForLevel = (level: number): FormSpec => {
   const l = clampLevel(level);
   return OPS.forms.find(f => l >= f.levels[0] && l <= f.levels[1]) ?? OPS.forms[0];
 };
+export const isForm = (id: unknown): id is string => typeof id === 'string' && OPS.forms.some(f => f.id === id);
+export const resolveForm = (level: number, id?: string): FormSpec => OPS.forms.find(f => f.id === id) ?? formForLevel(level);
 
 /* Všechny díly odemčené do daného levelu včetně (level 0 je holé tělo). */
 export function unlockedUpTo(level: number): string[] {
@@ -108,12 +110,12 @@ export const slotParts = (slot: string, unlocked: string[]): PartSpec[] =>
 export type LevelEvent =
   | { kind: 'transform'; level: number; from: string; to: string; transform: string | null; parts: string[] }
   | { kind: 'unlock'; level: number; parts: string[] };
-export function levelEvent(prev: number, next: number): LevelEvent | null {
+export function levelEvent(prev: number, next: number, manualForm?: string): LevelEvent | null {
   const a = clampLevel(prev), b = clampLevel(next);
   if (b <= a) return null;
   const parts = OPS.unlocks.filter(u => u.level > a && u.level <= b).flatMap(u => u.unlockedParts);
   const fa = formForLevel(a), fb = formForLevel(b);
-  if (fa.id !== fb.id) {
+  if (fa.id !== fb.id && !isForm(manualForm)) {
     const tr = OPS.transforms.find(t => t.to === fb.id) ?? null;
     return { kind: 'transform', level: b, from: fa.id, to: fb.id, transform: tr?.id ?? null, parts };
   }
@@ -135,6 +137,7 @@ export const validHotkey = (h: string): boolean => HOTKEY_RE.test(h) && (h.inclu
 export function normalizeBuddy(raw: unknown): BuddyState {
   const r = isObj(raw) ? raw : {};
   const b = emptyBuddy();
+  if (isForm(r.form)) b.form = r.form;
   b.enabled = r.enabled === true;
   b.hotkey = typeof r.hotkey === 'string' && validHotkey(r.hotkey) ? r.hotkey : '';
   b.scale = r.scale === 2 ? 2 : 1;

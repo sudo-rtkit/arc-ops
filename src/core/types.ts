@@ -258,6 +258,8 @@ export interface AdviceState { keep: Record<string, true> }
 
 /* ----- milník 5: buddy Ops, overlay a zkratka (výchozí stav vypnuto) ----- */
 export interface BuddyState {
+  /* Chybějící volba = automaticky podle levelu; ruční podoba je pouze kosmetická. */
+  form?: string;
   /* hlavní přepínač „Buddy a zkratka“; vypnuto = žádné okno, žádná zkratka */
   enabled: boolean;
   /* globální zkratka (Ctrl+Shift+KeyS …), prázdná = žádná */

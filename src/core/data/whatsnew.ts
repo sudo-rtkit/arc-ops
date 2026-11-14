@@ -10,6 +10,14 @@ export interface WhatsNewRelease { version: string; title: WhatsNewText; items: 
 
 export const RELEASES: readonly WhatsNewRelease[] = [
   {
+    version: '0.26.0',
+    title: { cs: 'Pět podob Bedňáka na výběr', en: 'Five selectable Ops forms' },
+    items: [
+      { text: { cs: 'V šatníku vyber jednu z pěti podob Bedňáka. Volba platí v buddym, overlayi, kompaktu i dalších náhledech a zůstane uložená.', en: 'Pick one of five Ops forms in the wardrobe. Your choice is saved and used by the buddy, overlay, compact window and other previews.' }, link: 'opsSettings' },
+      { text: { cs: 'Automatická podoba podle levelu zůstává dostupná. Ruční výběr mění pouze vzhled, ne level profilu ani odemykání dílů.', en: 'Automatic form by level is still available. A manual form changes only appearance, never your profile level or part unlocks.' } },
+    ],
+  },
+  {
     version: '0.25.0',
     title: { cs: 'Zbraně s doplňky, výbava ze zkratky, rychlejší okna', en: 'Weapons with attachments, gear from the hotkey, lighter windows' },
     items: [
