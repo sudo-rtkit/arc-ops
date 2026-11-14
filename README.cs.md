@@ -60,19 +60,45 @@ Ctrl+K funguje při fokusu aplikace nebo konzole; je to zkratka daného okna. Ka
 
 Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi povahami. Kliknutím otevřeš konzoli s profilem, úkoly, zásobou, dílnou, skilly, nákupy a revizí snímku a aktivním plánem raidu. Tlačítko **Aplikace** otevře nad hrou ve větším panelu kterýkoli plný modul (skill tree, recepty, databázi předmětů, mapy, deník, statistiky, minihry…); nastavení a zálohy zůstávají v hlavním okně. Výchozí stav buddyho je **vypnuto**.
 
-**Ops tě nikdy nevyhodí ze hry (0.22.1).** Když je hra v popředí, Ops propouští každý klik do hry a nikdy jí nevezme fokus (Nastavení → Buddy a zkratka → „Buddy propouští kliky do hry (doporučeno)“, výchozí zapnuto). Během hry používáš zkratky: zkratku snímku a zkratku Úprav widgetů. Na ploše nebo s oknem aplikace v popředí jde na Opse kliknout a přetáhnout ho jako dřív.
+**Ops během hraní propouští kliky.** Když je hra v popředí, Ops propouští každý klik do hry a nikdy jí nevezme fokus (Nastavení → Buddy a zkratka → „Buddy propouští kliky do hry (doporučeno)“, výchozí zapnuto). Během hry používáš zkratky: zkratku snímku a zkratku Úprav widgetů. Na ploše nebo s oknem aplikace v popředí jde na Opse kliknout a přetáhnout ho jako dřív.
 
-**Loadout builder a zátěž aplikace (0.23.0).** Weapons → Loadouty skládá loadout podle míst ve hře (augment, štít, dvě zbraně s tierem, batoh, quick use, augmented slots, bezpečná kapsa; počty míst a mez váhy jsou výchozí podle obrazovek hry a jdou upravit). Ukáže celkovou hodnotu podle prodejních cen z katalogu (neznámé ceny jsou označené, nic se nehádá), váhu proti mezi, co máš ve skrýši a ve Vybavení a kolik riskuješ při vyřazení (vše mimo bezpečnou kapsu). Chybějící předměty pošleš do nákupního seznamu, dva loadouty porovnáš vedle sebe, loadout předvyplníš ze snímku MANAGE LOADOUT nebo FINDINGS po kontrole a Příprava na raid i vyhodnocení s ním počítají. Nastavení → Zátěž aplikace ukáže CPU a paměť vlastního procesu aplikace (nikdy hry; vliv na FPS jde změřit jen ručně, postup je tam popsaný) a nabízí režim nízké zátěže pro hraní. Nově také volitelná zkratka polní konzole, vysoký kontrast widgetů a Skrýt/zobrazit widgety u Opse a v oznamovací oblasti.
+### Sestav a porovnej loadouty
 
-**Zbraně a augment ze snímku, potvrzení hodnot (0.24.0).** Snímek MANAGE LOADOUT nebo FINDINGS (i automatický snímek výsledku) teď pozná podle tvaru zbraně, jejich tier a augment, u každého s jistotou. Co je pod prahem, zůstane neznámé a jde ke kontrole, nejvýš s návrhem, který zaškrtneš sám; nic se nehádá. Rozpoznaná výbava předvyplní loadout builder, automatický záznam raidu i vyhodnocení po raidu. Nepotvrzená hodnota má vedle tečky původu tlačítko **Potvrdit**, Nastavení → Původ dat má **Potvrdit vše v oblasti** a tečky původu jsou nově i u počtů materiálů v receptech dílny a v nákupním seznamu.
+Ve **Weapons → Loadouty** vyber augment, štít a dvě zbraně s tierem a naplň batoh, quick use, augmented slots a bezpečnou kapsu. Počty míst a mez váhy vycházejí z herních obrazovek a můžeš je upravit. Uvidíš prodejní hodnotu z katalogu, váhu proti mezi, dostupnost ve skrýši i hodnotu v riziku mimo bezpečnou kapsu. Neznámé ceny zůstávají označené. Porovnej dvě sestavy vedle sebe, pošli chybějící věci do nákupního seznamu nebo loadout předvyplň po kontrole snímku MANAGE LOADOUT / FINDINGS. Uloženou sestavu používá i Příprava na raid a vyhodnocení.
 
-**Zbraně s doplňky, výbava ze zkratky, lehčí okna (0.25.0).** Zbraň, jejíž obrys se liší od ikony katalogu (tlumič, jiná pažba, další doplňky), se teď pojmenuje, když velikost zásobníku z řádku munice sedí jen této zbrani dané vzácnosti a tieru (základní zásobník, nebo základ plus jeden doplněk zásobníku) a zároveň je první podle tvaru; jinak zůstane neznámá, nic se nehádá. Snímek FINDINGS ze zkratky čte i zbraně, augment a štít; po zápisu lootu čekají ve frontě Ke kontrole, jisté už zaškrtnuté. Každé okno načte jen slovník tvého jazyka a čtečku snímků až s prvním snímkem.
+[![Editor loadoutu s místy a živým souhrnem, smyšlená demo data](docs/assets/github/loadout-builder.png)](docs/assets/github/loadout-builder@2x.png)
 
-**Odkud je každá hodnota.** Malá tečka vedle počtu v zásobě, pole profilu, úrovně stanice, ranku skillu nebo cíle úkolu po najetí myší ukáže původ: ručně, ze snímku (soubor nebo zkratka), z automatického snímání nebo z importu zálohy, kdy, s jakou jistotou rozpoznání a jestli jsi hodnotu potvrdil. Nastavení → Původ dat to shrne po oblastech i s posledními zápisy a karta předmětu má řádek „Původ“. Když se zásoba přes týden nezměnila a máš otevřené cíle, „Co dál?“ navrhne snímek STASH.
+[![Porovnání dvou demo loadoutů podle hodnoty, rizika, váhy a dostupnosti](docs/assets/github/loadout-compare.png)](docs/assets/github/loadout-compare@2x.png)
 
-**Automatické snímání obrazovek mimo raid (volitelné, výchozí vypnuto, čeká na ověření u Embarku).** Když ho v Nastavení zapneš (po krátkém vysvětlení), Ops hlídá jen při hře v popředí: asi každé 2 s zkopíruje malý pruh s nadpisem obrazovky a teprve u známé obrazovky menu (příprava loadoutu, výsledek raidu a obrazovky, které vybereš) pořídí jeden plný snímek. Snímky zůstávají jen v paměti a po přečtení se zahodí. Z loadoutu a výsledku připraví zápis do Deníku raidů: jisté údaje zapíše se snímkem stavu a tlačítkem Zpět, nejisté čekají ve frontě „Ke kontrole“. Pozastavit jde v kompaktním okně i v nabídce ikony v oznamovací oblasti a „Vypnout všechna napojení na hru“ vypne najednou buddyho nad hrou, zkratku snímku i automatické snímání. Exkluzivní celá obrazovka může dávat černé snímky, doporučený je režim okna bez okraje. Zapínáš na vlastní uvážení.
+### Snímání, kontrola a deník raidů
 
-**Widgety nad hrou (0.22.0, volitelné, výchozí vypnuto, čeká na ověření u Embarku).** Vyber si malé karty s vlastními daty a rozmísti je nad hru: Seznam k nalezení (plán raidu), Připnuté úkoly, Nákupy, Co dál?, Nechat / prodat / recyklovat, Obsazenost skrýše, Týdenní výzvy, Ops, Ke kontrole a Automatické snímání. Žádná mapa, poloha ani minimapa. Ve **Hře** widgety jen ukazují: průhledné okno propouští každý klik do hry a nikdy jí nebere fokus. Zkratkou Úprav během hry (nebo klikem na Opse, když hra není v popředí) otevřeš **Úpravy**: přesun a změna velikosti s mřížkou 8 px a přichycením k okrajům i ostatním widgetům, krytí každého widgetu (30–100 %, text zůstane čitelný), hustota a zámek, přidání z katalogu, Zpět a přepnutí rozložení **Lobby**, **Raid** nebo vlastního jedním klikem. Hotovo nebo Esc vrátí Hru i fokus hře; návrat do hry Úpravy ukončí sám. „Skrýt vše“ vyčistí obrazovku pro tuto relaci. **Aplikace** v Úpravách otevře celou polní konzoli (všechny záložky a plné moduly). Rozložení patří jen tomuto počítači: nejsou v zálohách a import zálohy je nezmění. Hra musí běžet v okně bez okraje nebo v okně; exkluzivní celá obrazovka není podporovaná.
+**Automatické snímání je volitelné, výchozí vypnuté a čeká na ověření u Embarku.** Po zapnutí v Nastavení kontroluje přibližně každé 2 sekundy malý pruh s nadpisem, jen když je hra v popředí. Rozpoznaná a vybraná obrazovka menu mimo raid spustí plný snímek; obrázky zůstávají v paměti a po přečtení se zahodí. Loadout → výsledek → návrh zápisu propojí výbavu, výsledek a loot. Jisté údaje se zapíší automaticky po snímku stavu, s tlačítkem **Zpět**; nejisté čekají ve frontě **Ke kontrole**. Pozastavit jde v Nastavení, kompaktu i oznamovací oblasti. Volitelná gesta při snímání jsou tichá, bez zvuku, bubliny i změny fokusu. Doporučené je okno bez okraje; zapínáš na vlastní uvážení.
+
+Podporované snímky loadoutu a FINDINGS umí rozpoznat zbraně, tier a augment. O jistotě názvu rozhoduje tvar a u některých zbraní s doplňky i velikost zásobníku; nejistá výbava zůstává neznámá nebo se nabídne jako návrh. Výbava z FINDINGS pořízeného zkratkou čeká po zápisu lootu **Ke kontrole**: jisté řádky jsou zaškrtnuté, návrhy vybereš sám a **Uložit vše** zapíše zkontrolované řádky. Rozpoznávání má omezení; každý návrh ověř.
+
+[![Ke kontrole: rozpoznané Ferro II a augment, nezaškrtnutý návrh Stitcher I s jistotou 79 procent](docs/assets/github/review-queue.png)](docs/assets/github/review-queue@2x.png)
+
+### Widgety nad hrou
+
+**Widgety jsou volitelné, výchozí vypnuté a čekají na ověření u Embarku.** Deset malých karet ukazuje vlastní data: Seznam k nalezení, Připnuté úkoly, Nákupy, Co dál?, Nechat / prodat / recyklovat, Obsazenost skrýše, Týdenní výzvy, Ops, Ke kontrole a Automatické snímání. Žádná mapa, živá poloha ani minimapa. Režim **Hra** jen zobrazuje a propouští kliky. Zvolenou zkratkou otevřeš během hry **Úpravy**: přesun a změna velikosti s přichycením, krytí, hustota a zámek, přidání z katalogu, Zpět a přepnutí rozložení **Lobby**, **Raid** nebo vlastního. Hotovo / Esc vrátí Hru; návrat do hry také ukončí Úpravy. K dispozici je vysoký kontrast i Skrýt/zobrazit. Rozložení patří tomuto PC a nejsou v zálohách. Vyžaduje hru v okně nebo bez okraje; exkluzivní celá obrazovka není podporovaná.
+
+| Hra · rozložení Raid | Úpravy · katalog widgetů |
+|---|---|
+| [![Widgety Raid nad původní smyšlenou scénou](docs/assets/github/widgets-raid.png)](docs/assets/github/widgets-raid@2x.png) | [![Úpravy s lištou, úchyty a katalogem widgetů](docs/assets/github/widgets-edit.png)](docs/assets/github/widgets-edit@2x.png) |
+
+*Skutečné rozhraní widgetů v prohlížeči nad smyšlenou scénou projektu; žádný snímek ani grafika hry. Obrázky neověřují nativní propouštění kliků ani chování fokusu.*
+
+### Původ dat a zátěž aplikace
+
+Tečky původu ukazují zdroj hodnoty, čas, jistotu rozpoznání, pokud je známá, a stav potvrzení. **Potvrdit** označí neověřenou hodnotu jako zkontrolovanou; **Nastavení → Původ dat** shrnuje oblasti a nabízí **Potvrdit vše v oblasti**. Tečky jsou i u materiálů v receptech dílny a počtů v nákupním seznamu.
+
+[![Původ dat s nepotvrzenými demo hodnotami a potvrzením oblasti](docs/assets/github/data-origin.png)](docs/assets/github/data-origin@2x.png)
+
+**Nastavení → Zátěž aplikace** ve Windows ukazuje CPU a paměť vlastního procesu, časování automatického snímání a obnovování widgetů. Procesy WebView2 nejsou započítané; paměť JavaScriptu okna se ukazuje zvlášť. Hru neměří a netvrdí konkrétní vliv na FPS: panel popisuje ruční porovnání. Volitelný **režim nízké zátěže** při hře v popředí zpomalí obnovování widgetů i přepočet poradce a pozastaví animace Opse i gesta snímání.
+
+[![Zátěž aplikace v prohlížeči: nativní metriky nedostupné, režim nízké zátěže zapnutý](docs/assets/github/app-load.png)](docs/assets/github/app-load@2x.png)
+
+*Ukázka v prohlížeči: nativní metriky procesu nejsou dostupné. Žádná čísla CPU/RAM ani výsledky výkonu hry nejsou smyšlené.*
 
 ![Demo polní konzole s Opsem](docs/assets/github/overlay.png)
 
@@ -93,7 +119,7 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 
 Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
-Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze snímků potvrzuje hráč, před zápisem vzniká snímek stavu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
+Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze souboru a zkratky potvrzuje hráč. Volitelné automatické snímání může jisté údaje zapsat po snímku stavu s možností Zpět; nejisté čekají na kontrolu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
 
 Verze 0.16.1 zpřísnila oprávnění jednotlivých oken, ověřování zpráv mezi okny a limity velikosti obrázků. Podrobnosti jsou v [historii verzí](CHANGELOG.md#0161--security-hardening).
 
