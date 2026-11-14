@@ -7,6 +7,9 @@ import { profileScreen, questScreen, skillScreen } from '../vision/progress-synt
 
 const PROFILE = toPngBase64(profileScreen({ level: 'LEVEL 20', xp: '2,977/29,000 XP', coins: '58,313' }));
 const QUEST = Buffer.from(toPngBase64(questScreen({ trader: 'APOLLO', title: 'SHORING UP DEFENSES', checks: [true, true, false, true] })), 'base64');
+/* 0.29.0: úkol se žlutým tlačítkem CLAIM (splněno, odměna čeká) a úkol k přijetí (ACCEPT, odrážky místo políček) */
+const CLAIM = Buffer.from(toPngBase64(questScreen({ trader: 'TIAN WEN', title: 'THE RIGHT TOOL', checks: [true, true, true], button: 'CLAIM' })), 'base64');
+const ACCEPT = Buffer.from(toPngBase64(questScreen({ trader: 'TIAN WEN', title: 'A BETTER USE', checks: [], bullets: 2, button: 'ACCEPT', caption: true })), 'base64');
 const SKILL = Buffer.from(toPngBase64(skillScreen({ name: 'MARATHON RUNNER', current: 5 })), 'base64');
 const stateOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('arcops:state') || 'null'));
 function watchErrors(page: Page): string[] {
@@ -36,8 +39,8 @@ async function capture(page: Page, b64: string) {
 }
 
 const T = {
-  cs: { title: 'Profil', write: 'Potvrdit a zapsat 4 změny', done: 'Zapsány 4 hodnoty.', shot: 'Načíst ze snímku', quest: 'Úkol obchodníka', skill: 'Skill tree', skillWrite: 'Potvrdit a zapsat 1 změnu', skillDone: 'Zapsána 1 hodnota.', nothing: 'Není co zapsat', questWrite: 'Potvrdit a zapsat 3 změny', questDone: 'Zapsány 3 hodnoty.' },
-  en: { title: 'Profile', write: 'Confirm and write 4 changes', done: '4 values written.', shot: 'Load from a screenshot', quest: 'Trader quest', skill: 'Skill tree', skillWrite: 'Confirm and write 1 change', skillDone: '1 value written.', nothing: 'Nothing to write', questWrite: 'Confirm and write 3 changes', questDone: '3 values written.' },
+  cs: { title: 'Profil', write: 'Potvrdit a zapsat 4 změny', done: 'Zapsány 4 hodnoty.', shot: 'Načíst ze snímku', quest: 'Úkol obchodníka', skill: 'Skill tree', skillWrite: 'Potvrdit a zapsat 1 změnu', skillDone: 'Zapsána 1 hodnota.', nothing: 'Není co zapsat', questWrite: 'Potvrdit a zapsat 3 změny', questDone: 'Zapsány 3 hodnoty.', claimWrite: 'Potvrdit a zapsat 1 změnu' },
+  en: { title: 'Profile', write: 'Confirm and write 4 changes', done: '4 values written.', shot: 'Load from a screenshot', quest: 'Trader quest', skill: 'Skill tree', skillWrite: 'Confirm and write 1 change', skillDone: '1 value written.', nothing: 'Nothing to write', questWrite: 'Confirm and write 3 changes', questDone: '3 values written.', claimWrite: 'Confirm and write 1 change' },
 } as const;
 
 for (const lang of ['cs', 'en'] as const) {
@@ -100,6 +103,38 @@ for (const lang of ['cs', 'en'] as const) {
     await rev.getByTestId('progress-write').click();
     await expect(box.getByTestId('progress-shot-done')).toHaveText(L.skillDone);
     await expect.poll(async () => (await stateOf(page)).skills.current).toEqual({ m_marathon: 5 });
+    expect(errors).toEqual([]);
+  });
+
+  test(`Profil → Načíst ze snímku: CLAIM označí úkol splněný, ACCEPT nic nezapíše (${lang})`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await start(page, lang);
+    await page.goto('/#profile/shot');
+    const box = page.getByTestId('progress-shot');
+    await expect(box).toBeVisible();
+    const rev = box.getByTestId('progress-review');
+
+    /* ACCEPT: úkol dostupný, žádné cíle ani řádky, není co zapsat */
+    await box.getByTestId('progress-shot-file').setInputFiles({ name: 'accept.png', mimeType: 'image/png', buffer: ACCEPT });
+    await expect(rev.getByTestId('progress-quest')).toHaveAttribute('data-state', 'accept');
+    await expect(rev.getByTestId('progress-quest-state')).toContainText('ACCEPT');
+    await expect(rev.locator('.pr-objectives li')).toHaveCount(0);
+    await expect(rev.getByTestId('progress-rows')).toHaveCount(0);
+    await expect(rev.getByTestId('progress-write')).toBeDisabled();
+
+    /* CLAIM: „splněno“ předvybrané, odměna čeká; zápis se snímkem stavu */
+    await box.getByTestId('progress-shot-file').setInputFiles({ name: 'claim.png', mimeType: 'image/png', buffer: CLAIM });
+    await expect(rev.getByTestId('progress-quest')).toHaveAttribute('data-state', 'claim');
+    await expect(rev.getByTestId('progress-quest-state')).toContainText('CLAIM');
+    await expect(rev.getByTestId('progress-quest')).toContainText('Tian Wen');
+    await expect(rev.locator('tr[data-row="done"] input[type="checkbox"]')).toBeChecked();
+    await expect(rev.locator('tr[data-row^="tick:"]')).toHaveCount(0);
+    await expect(rev.getByTestId('progress-write')).toHaveText(L.claimWrite);
+    await rev.getByTestId('progress-write').click();
+    await expect(box.getByTestId('progress-shot-done')).toBeVisible();
+    await expect.poll(async () => Object.keys((await stateOf(page)).quests.done)).toContain('ss7');
+    expect((await stateOf(page)).quests.done).not.toHaveProperty('ss10');
+    expect((await stateOf(page)).quests.objectives ?? {}).toEqual({});
     expect(errors).toEqual([]);
   });
 }

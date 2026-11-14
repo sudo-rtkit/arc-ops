@@ -108,6 +108,12 @@ const cs = {
     friendly: ['{what:raw} přečteno a všechno sedí. Paráda.', 'Koukal jsem na {what:raw}. Nic nového, máme to v pořádku.'],
     cheeky: ['{what:raw}: všechno sedí. Nuda, ale spořádaná.', 'Žádná změna. Aspoň vím, že nelžeš.'],
   },
+  /* 0.29.0: obrazovka úkolu s tlačítkem CLAIM: úkol splněný, odměna čeká; {what} = název úkolu */
+  'progress.questReward': {
+    plain: ['Úkol {what:raw} je splněný, odměna čeká na vyzvednutí. Zápis až po potvrzení.', '{what:raw}: splněno, vyzvedni si odměnu. Potvrď zápis.'],
+    friendly: ['{what:raw} máš hotový! Odměna čeká, tak si ji vyzvedni. Potvrď a zapíšu to.', 'Hotovo: {what:raw}. Nezapomeň na odměnu, potvrď a já to zapíšu.'],
+    cheeky: ['{what:raw} hotový a odměna se tam jen tak válí. Vyzvedni si ji, já zatím počkám na potvrzení.', 'Splněno: {what:raw}. Odměnu si vyzvedni sám, já jen zapisuju.'],
+  },
   'progress.written': {
     plain: [
       { one: 'Zapsána {count} hodnota.', few: 'Zapsány {count} hodnoty.', other: 'Zapsáno {count} hodnot.' },
@@ -568,6 +574,11 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['Read: {what:raw}. Everything matches the app.', '{what:raw}: no change against the app.'],
     friendly: ['{what:raw} read and everything matches. Great.', 'I looked at {what:raw}. Nothing new, we are in order.'],
     cheeky: ['{what:raw}: everything matches. Boring, but tidy.', 'No change. At least I know you do not lie.'],
+  },
+  'progress.questReward': {
+    plain: ['Quest {what:raw} is done and its reward is waiting. Nothing is written before you confirm.', '{what:raw}: done, claim your reward. Confirm the write.'],
+    friendly: ['You finished {what:raw}! The reward is waiting, go claim it. Confirm and I will write it down.', 'Done: {what:raw}. Do not forget the reward; confirm and I will note it.'],
+    cheeky: ['{what:raw} is done and the reward is just lying there. Claim it, I will wait for your confirmation.', 'Done: {what:raw}. Claim the reward yourself, I only take notes.'],
   },
   'progress.written': {
     plain: [

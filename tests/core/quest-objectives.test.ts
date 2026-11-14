@@ -33,6 +33,8 @@ async function makeApp(initial?: unknown) {
 }
 const questRead = (title: string, objectives: (boolean | null)[], conf = 0.9): QuestRead => ({
   screen: 'quest', trader: { value: 'APOLLO', conf: 0.9, raw: 'APOLLO' }, title: { value: title, conf, raw: title }, objectives,
+  /* 0.29.0: přijatý úkol s políčky (bez žlutého tlačítka) */
+  state: 'progress', button: { value: null, conf: 0, raw: '' }, bullets: 0,
 });
 
 describe('cíle úkolů: čisté funkce', () => {

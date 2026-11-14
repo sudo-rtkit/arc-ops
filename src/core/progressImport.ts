@@ -10,15 +10,19 @@
    - skill tree: rank skillu jen z tooltipu skillu; součty větví z přehledu jen pro kontrolu;
    - úkol (0.10.2): zaškrtnuté cíle se navrhnou k zaškrtnutí v aplikaci (jen když počet cílů sedí s daty; jistý úkol
      předvybraný, nejistý po potvrzení). Nezaškrtnutý cíl, který je v aplikaci zaškrtnutý, se nabídne k odškrtnutí,
-     nikdy předvybraný. Úkol se nikdy neoznačí jako splněný, ani když jsou zaškrtnuté všechny cíle: obrazovka úkolu
-     splnění neukazuje (splněný úkol u obchodníka už není), takže „označit splněný“ se nenabízí vůbec. Jisté je jen to,
-     že úkol s nezaškrtnutým cílem splněný není. Čistá logika bez UI. */
+     nikdy předvybraný. Zaškrtnuté všechny cíle samy úkol nikdy neoznačí jako splněný. Jisté je jen to, že úkol
+     s nezaškrtnutým cílem splněný není.
+   - úkol (0.29.0) podle stavu obrazovky (core/vision/progress.ts, questState): CLAIM (odměna čeká) a okno COMPLETE
+     (tlačítko DONE) znamenají „úkol splněný“. Nabídne se jen pro úkol poznaný podle názvu přesně nebo skoro přesně
+     (questDoneMatch, práh jistoty); jistý je předvybraný, nejistý až po potvrzení, jinak nic. ACCEPT (úkol k přijetí)
+     nezapíše nic, jen ukáže, že je úkol dostupný. Cíle se zaškrtávají jen u přijatého úkolu (stav 'progress');
+     nejistý stav nezapíše nic. Čistá logika bez UI. */
 import type { AppState, BranchId } from './types';
-import type { ProgressRead, Read } from './vision/progress';
-import { QUESTS, locText, questById, setObjective } from './quests';
+import type { ProgressRead, QuestState, Read } from './vision/progress';
+import { QUESTS, locText, prerequisites, questById, setObjective, setQuestDone } from './quests';
 import { SKILLS } from './data/skills';
 import { STATIONS } from './data/stations';
-import { AT_HIDEOUT, type Loc } from './data/arctracker';
+import { AT_HIDEOUT, type AtQuest, type Loc } from './data/arctracker';
 import { branchTotals } from './skills';
 import { LIMITS } from './state';
 import { nameDistance } from './catalog';
@@ -88,6 +92,11 @@ export interface QuestProposal {
   done: boolean; pinned: boolean;
   /* obrazovka ukazuje nezaškrtnutý cíl: úkol jistě není splněný */
   open: boolean;
+  /* 0.29.0: stav obrazovky úkolu; doneOffer = obrazovka ukazuje splněný úkol (CLAIM nebo COMPLETE) a úkol je poznaný
+     dost přesně, aby šlo nabídnout „splněno“ (jistota v conf); reward = odměna čeká na vyzvednutí (CLAIM);
+     available = úkol k přijetí (ACCEPT), jen informace; prevMissing = kolik předchozích úkolů se s ním označí */
+  state: QuestState;
+  doneOffer: boolean; reward: boolean; available: boolean; prevMissing: number;
 }
 export interface SkillsProposal {
   kind: 'skills';
@@ -104,6 +113,30 @@ const SLOT_SURE = new Set(['scrappy', 'gear', 'gunsmith']);
 /* Názvy stanic aplikace a jejich protějšky v datech dílny (pro materiály). */
 const AT_ID: Record<string, string> = { gear: 'equipment_bench', gunsmith: 'weapon_bench', medical: 'med_station', refiner: 'refiner', utility: 'utility_bench', explosives: 'explosives_bench', scrappy: 'scrappy', research: 'research_station' };
 const TRADERS = [...new Set(QUESTS.map(q => q.trader))];
+
+/* 0.29.0: přísná shoda názvu úkolu pro „splněno“. Jen přesný nebo skoro přesný název (nejvýš 1 znak rozdílu,
+   u dlouhých názvů 12 %), s odstupem od druhého nejbližšího úkolu obchodníka aspoň 2 znaky. Jistá ('high') jen
+   s poznaným obchodníkem, nejvýš 1 znakem rozdílu, odstupem aspoň 3 a jistě přečteným názvem; jinak 'medium'
+   (potvrdí hráč). Cokoli dál = null: špatný úkol se nikdy neoznačí. */
+export const DONE_GAP = 2;
+export const DONE_GAP_SURE = 3;
+export function questDoneMatch(title: Read<string>, trader: Read<string>, quests: AtQuest[] = QUESTS): { quest: AtQuest; dist: number; conf: Conf } | null {
+  const raw = title.value ?? '';
+  const len = raw.replace(/[^A-Z0-9?]/gi, '').length;
+  if (len < 4 || confOf(title) === 'unknown') return null;
+  const traders = [...new Set(quests.map(q => q.trader))];
+  const tr = trader.value ? bestMatch(trader.value, traders, x => x) : null;
+  const pool = tr ? quests.filter(q => q.trader === tr.item) : quests;
+  const scored = pool.map(q => ({ q, d: nameDistance(raw, en(q.name)) })).sort((a, b) => a.d - b.d);
+  const [a, b] = scored;
+  if (!a || a.d > Math.max(1, Math.floor(len * 0.12))) return null;
+  const gap = b ? b.d - a.d : Infinity;
+  if (gap < DONE_GAP) return null;
+  /* délka přečteného textu musí odpovídat názvu (useknutý řádek nesmí vyjít jako kratší název) */
+  if (Math.abs(len - en(a.q.name).replace(/[^A-Z0-9]/gi, '').length) > 1) return null;
+  const sure = !!tr && confOf(trader) !== 'unknown' && a.d <= 1 && gap >= DONE_GAP_SURE && confOf(title) === 'high';
+  return { quest: a.q, dist: a.d, conf: sure ? 'high' : 'medium' };
+}
 
 export function proposeProgress(read: ProgressRead, s: AppState, lang: 'cs' | 'en' = 'cs'): ProgressProposal {
   const stations = getStations(s.gameData);
@@ -176,20 +209,36 @@ export function proposeProgress(read: ProgressRead, s: AppState, lang: 'cs' | 'e
       return out;
     }
     case 'quest': {
+      /* starší čtení bez stavu (jiné okno, testy) = nejistý stav: nic se nezapíše */
+      const state: QuestState = read.state ?? 'unknown';
       const tr = read.trader.value ? bestMatch(read.trader.value, TRADERS, x => x) : null;
-      const pool = tr ? QUESTS.filter(q => q.trader === tr.item) : QUESTS;
-      const m = read.title.value ? bestMatch(read.title.value, pool, q => en(q.name)) : null;
-      const q = m?.item ?? null;
-      const countMatch = !!q && q.objectives.length === read.objectives.length;
-      const conf: Conf = !q ? 'unknown' : m!.dist <= 1 && confOf(read.title) !== 'unknown' ? 'high' : 'medium';
+      const finished = state === 'claim' || state === 'complete';
+      let q: AtQuest | null, conf: Conf;
+      if (finished) {
+        /* splněný úkol: jen přísná shoda názvu; jistota i podle přečteného tlačítka */
+        const m = questDoneMatch(read.title, read.trader);
+        q = m?.quest ?? null;
+        conf = !m ? 'unknown' : confOf(read.button) === 'high' ? m.conf : lower(m.conf, 'medium');
+      } else {
+        const pool = tr ? QUESTS.filter(x => x.trader === tr.item) : QUESTS;
+        const m = read.title.value ? bestMatch(read.title.value, pool, x => en(x.name)) : null;
+        q = m?.item ?? null;
+        conf = !q ? 'unknown' : m!.dist <= 1 && confOf(read.title) !== 'unknown' ? 'high' : 'medium';
+      }
+      /* cíle jen u přijatého úkolu s políčky; úkol k přijetí ani nejistý stav žádné nemá */
+      const objs = state === 'progress' || state === 'claim' ? read.objectives : [];
+      const countMatch = !!q && q.objectives.length === objs.length;
+      const done = !!q && !!s.quests.done[q.id];
       return {
         kind: 'quest', questId: q?.id ?? null, conf, title: q ? locText(q.name, lang) : read.title.value ?? '', trader: tr?.item ?? null,
-        objectives: read.objectives.map((checked, i) => ({
+        objectives: objs.map((checked, i) => ({
           text: countMatch ? locText(q!.objectives[i], lang) : null, checked,
           stored: countMatch && (s.quests.objectives[q!.id] ?? []).includes(i),
         })),
-        countMatch, done: !!q && !!s.quests.done[q.id], pinned: !!q && s.quests.pinned.includes(q.id),
-        open: read.objectives.some(x => x === false),
+        countMatch, done, pinned: !!q && s.quests.pinned.includes(q.id),
+        open: state === 'progress' && objs.some(x => x === false),
+        state, doneOffer: finished && !!q && conf !== 'unknown', reward: state === 'claim', available: state === 'accept',
+        prevMissing: q && finished ? prerequisites(q.id).filter(id => !s.quests.done[id]).length : 0,
       };
     }
     case 'skills': {
@@ -222,6 +271,8 @@ export interface ProgressApply {
   /* úkol: zrušit chybné „splněno“ (jen když obrazovka ukazuje nesplněný cíl) a připnout */
   questUndone?: string[];
   questPin?: string[];
+  /* 0.29.0: označit úkol jako splněný (obrazovka CLAIM nebo COMPLETE); s ním i předchozí úkoly, jako ruční zaškrtnutí */
+  questDone?: string[];
   /* 0.10.2: zaškrtnutí (on) nebo odškrtnutí cíle úkolu podle indexu v datech */
   questTicks?: QuestTick[];
   /* 0.12.0: počet materiálu v Zásobě (jen známý materiál, jen na výslovné přání z detailu stanice) */
@@ -231,7 +282,7 @@ export interface QuestTick { id: string; index: number; on: boolean }
 export interface ProgressSummary { fields: number }
 
 /* Kontrola a zápis vybraných hodnot. Neznámé id, hodnota mimo rozsah nebo rank nad maximum se zahodí. */
-export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): ProgressSummary {
+export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5, at = Date.now()): ProgressSummary {
   let fields = 0;
   const lim: Record<string, readonly [number, number]> = { level: LIMITS.level, xp: LIMITS.xp, xpNext: LIMITS.xpNext, coins: LIMITS.coins };
   for (const [k, v] of safeEntries(input.profile)) {
@@ -255,6 +306,11 @@ export function applyProgress(s: AppState, input: ProgressApply, pinMax = 5): Pr
   for (const id of input.questUndone ?? []) {
     if (!questById(id) || !s.quests.done[id]) continue;
     const next = { ...s.quests.done }; delete next[id]; s.quests.done = next; fields++;
+  }
+  for (const id of (input.questDone ?? []).slice(0, 16)) {
+    if (!questById(id) || s.quests.done[id] || input.questUndone?.includes(id)) continue;
+    const next = setQuestDone(s.quests.done, id, true, at);
+    if (next !== s.quests.done) { fields += Object.keys(next).length - Object.keys(s.quests.done).length; s.quests.done = next; }
   }
   for (const x of input.questTicks ?? []) {
     const next = setObjective(s.quests.objectives, x.id, x.index, x.on);
@@ -286,6 +342,9 @@ export function defaultApply(p: ProgressProposal): ProgressApply {
     case 'skills': return p.skill && p.skill.id && p.skill.conf === 'high' && p.skill.current.conf === 'high' && p.skill.current.value !== p.skill.now ? { skills: { [p.skill.id]: p.skill.current.value! } } : {};
     case 'quest': {
       if (!p.questId || p.conf !== 'high') return {};
+      /* CLAIM a COMPLETE: jen „splněno“ (jisté předvybrané); ACCEPT a nejistý stav nic */
+      if (p.doneOffer) return p.done ? {} : { questDone: [p.questId] };
+      if (p.state !== 'progress') return {};
       const out: ProgressApply = {};
       if (p.done && p.open) out.questUndone = [p.questId];
       /* jen zaškrtnutí; odškrtnutí nikdy předem */
@@ -302,7 +361,10 @@ export function proposalChanges(p: ProgressProposal): number {
     case 'profile': return (['level', 'xp', 'xpNext', 'coins'] as const).filter(k => p[k].value !== null && p[k].value !== p.now[k]).length;
     case 'stations': return p.rows.filter(r => r.value !== null && r.value !== r.now).length + stockChanges(p).length;
     case 'skills': return p.skill?.id && p.skill.current.value !== null && p.skill.current.value !== p.skill.now ? 1 : 0;
-    case 'quest': return p.questId ? ((p.done && p.open) || !p.pinned ? 1 : 0) + questTickChanges(p).length : 0;
+    case 'quest':
+      if (!p.questId) return 0;
+      if (p.doneOffer) return p.done ? 0 : 1;
+      return p.state === 'progress' ? ((p.done && p.open) || !p.pinned ? 1 : 0) + questTickChanges(p).length : 0;
   }
 }
 
@@ -312,7 +374,8 @@ export const stockChanges = (p: StationsProposal): ResourceRow[] => (p.resources
 /* Rozdíly cílů mezi snímkem a aplikací: zaškrtnuté na snímku a ne v aplikaci (on) a naopak (off). Nepřečtený cíl
    (null) ani úkol s jiným počtem cílů nic nenabízí. */
 export function questTickChanges(p: QuestProposal): QuestTick[] {
-  if (!p.questId || !p.countMatch) return [];
+  /* 0.29.0: jen přijatý úkol s políčky (CLAIM řeší „splněno“, ACCEPT políčka nemá) */
+  if (!p.questId || !p.countMatch || p.state !== 'progress') return [];
   const out: QuestTick[] = [];
   p.objectives.forEach((o, index) => {
     if (o.checked === true && !o.stored) out.push({ id: p.questId!, index, on: true });
@@ -339,7 +402,7 @@ export function normalizeProgressApply(raw: unknown): ProgressApply | null {
   return {
     profile: nums(o.profile, ['level', 'xp', 'xpNext', 'coins']),
     stations: nums(o.stations), skills: nums(o.skills), inventory: nums(o.inventory),
-    questUndone: ids(o.questUndone), questPin: ids(o.questPin),
+    questUndone: ids(o.questUndone), questPin: ids(o.questPin), questDone: ids(o.questDone),
     questTicks: (Array.isArray(o.questTicks) ? o.questTicks : []).slice(0, 64).flatMap((x): QuestTick[] => {
       if (!x || typeof x !== 'object') return [];
       const v = x as Record<string, unknown>;

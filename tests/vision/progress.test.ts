@@ -166,7 +166,7 @@ describe('návrh: jistota a ověření proti datům', () => {
     expect(proposalChanges(p)).toBe(6);
   });
   it('úkol: neznámý název nic nenabízí; podobné názvy bez jasného vítěze se nepárují', () => {
-    const q = proposeProgress({ screen: 'quest', trader: R('APOLLO'), title: R('XYZZY QWERTY'), objectives: [false] }, s) as QuestProposal;
+    const q = proposeProgress({ screen: 'quest', trader: R('APOLLO'), title: R('XYZZY QWERTY'), objectives: [false], state: 'progress', button: R<string>(null), bullets: 0 }, s) as QuestProposal;
     expect(q.questId).toBeNull();
     expect(defaultApply(q)).toEqual({});
     expect(bestMatch('A', QUESTS, x => String(x.name))).toBeNull();
@@ -197,6 +197,6 @@ describe('zápis jen potvrzených a platných hodnot', () => {
   it('vstup z okna overlaye: jen čísla a krátká id', () => {
     expect(normalizeProgressApply(null)).toBeNull();
     expect(normalizeProgressApply({ profile: { level: '20', coins: 5, evil: 1 }, stations: [1], skills: { a: NaN, b: 2 }, questPin: ['x', 3] }))
-      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, inventory: {}, questUndone: [], questPin: ['x'], questTicks: [] });
+      .toEqual({ profile: { coins: 5 }, stations: {}, skills: { b: 2 }, inventory: {}, questUndone: [], questPin: ['x'], questDone: [], questTicks: [] });
   });
 });

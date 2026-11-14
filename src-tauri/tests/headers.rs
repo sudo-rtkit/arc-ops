@@ -55,6 +55,8 @@ const CASES: &[(&str, Option<Screen>)] = &[
     ("own-after-raid-knocked-out-2.png", Some(Screen::KnockedOut)),
     /* 0.22.1: hra v raidu s HUD (kompas, spoluhráči, munice): nic, nikdy snímek ani signál „v raidu“ */
     ("own-inraid-gameplay-hud.png", None),
+    /* 0.29.0: mapa V RAIDU se seznamem úkolů (živá poloha, jména hráčů): nikdy obrazovka pro snímek ani úkol */
+    ("own-inraid-map-quests.png", None),
     ("own-all-1-top.png", Some(Screen::Stash)),
     ("own-all-2.png", Some(Screen::Stash)),
     ("own-all-3.png", Some(Screen::Stash)),
@@ -74,6 +76,10 @@ const CASES: &[(&str, Option<Screen>)] = &[
     ("return-and-progression/gunsmith-level.png", Some(Screen::Workshop)),
     ("return-and-progression/quest-shoring.png", Some(Screen::Quests)),
     ("return-and-progression/quest-battening.png", Some(Screen::Quests)),
+    /* 0.29.0: úkoly Tian Wena: CLAIM, okno COMPLETE (bez krémového panelu) a ACCEPT */
+    ("own-trader-quests-claim.png", Some(Screen::Quests)),
+    ("own-trader-quest-complete.png", Some(Screen::Quests)),
+    ("own-trader-quest-accept.png", Some(Screen::Quests)),
     ("return-and-progression/skill-tree.png", Some(Screen::Skills)),
     ("return-and-progression/skill-looters-partial.png", Some(Screen::Skills)),
     ("return-and-progression/skill-marathon-max.png", Some(Screen::Skills)),
@@ -195,4 +201,35 @@ fn vlastni_snimky_inventar_v_raidu() {
     if seen == 0 {
         println!("vlastní snímky chybí, test přeskočen");
     }
+}
+
+/* 0.29.0: vybraná záložka TRADES (obchod) se nesnímá. Snímek s TRADES hráč nedodal, proto se vyrobí ze snímku úkolů:
+   slovo QUESTS se ztmaví na šedou nevybrané záložky a TRADES se zjasní na bílou vybrané (jen pixely písma). */
+#[test]
+fn vlastni_snimek_zalozka_trades_neni_ukol() {
+    let Some((w, h, mut rgba)) = load("own-trader-quests-claim.png") else {
+        println!("vlastní snímky chybí, test přeskočen");
+        return;
+    };
+    assert_eq!((w, h), (1920, 1080));
+    let lum = |p: &[u8]| (299 * p[0] as u32 + 587 * p[1] as u32 + 114 * p[2] as u32) / 1000;
+    /* QUESTS (x 512–598) z bílé na šedou 165, TRADES (x 400–485) ze šedé na bílou 240; řádky 20–44 */
+    for y in 20..44 {
+        for x in 400..598 {
+            let i = (y * w + x) * 4;
+            let l = lum(&rgba[i..i + 3]);
+            if (512..598).contains(&x) && l >= 170 {
+                rgba[i..i + 3].copy_from_slice(&[165, 165, 165]);
+            } else if (400..485).contains(&x) && l >= 120 {
+                let v = (l * 240 / 165).min(245) as u8;
+                rgba[i..i + 3].copy_from_slice(&[v, v, v]);
+            }
+        }
+    }
+    let (rows, px) = strip(w, h, &rgba);
+    let f = Frame { w, h: rows, screen_h: h, rgba: &px };
+    let s = header::probe(&f, "quests-tab");
+    println!("TRADES vybraná: quests-tab={s:.2}, obrazovka {:?}", header::classify(&f, header::ALL_BITS));
+    assert!(s < header::thresh("quests-tab"), "quests-tab={s}");
+    assert_eq!(header::classify(&f, header::ALL_BITS), None);
 }

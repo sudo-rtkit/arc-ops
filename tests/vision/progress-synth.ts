@@ -129,12 +129,26 @@ export function profileScreen(o: { level: string; xp: string; coins: string }): 
   return img;
 }
 
-/* Úkol obchodníka: název, cíle se zaškrtávacími políčky (true = plné, false = prázdné). */
-export function questScreen(o: { trader: string; title: string; checks: boolean[] }): RgbaImage {
+/* Úkol obchodníka: název, cíle se zaškrtávacími políčky (true = plné, false = prázdné).
+   0.29.0: žluté tlačítko (CLAIM, ACCEPT), kosočtverečné odrážky cílů úkolu k přijetí (bullets = počet), šedý seznam
+   map nad názvem a titulek hry přes spodní část tlačítka (caption). */
+export const YELLOW: RGB = [255, 184, 0];
+const GREY: RGB = [165, 165, 165];
+/* Šířka textu bez kreslení (kreslí se do obrázku 1 × 1, rect mimo obraz nic nedělá). */
+const textW = (h: number, s: string) => text(canvas(1, 1), 0, 0, h, s, INK);
+export function yellowButton(img: RgbaImage, x: number, y: number, w: number, h: number, label: string) {
+  rect(img, x, y, w, h, YELLOW);
+  text(img, Math.round(x + (w - textW(15, label)) / 2), Math.round(y + (h - 15) / 2), 15, label, INK);
+}
+export function diamond(img: RgbaImage, cx: number, cy: number, r: number, c: RGB) {
+  for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (Math.abs(x) + Math.abs(y) <= r) rect(img, cx + x, cy + y, 1, 1, c);
+}
+export function questScreen(o: { trader: string; title: string; checks: boolean[]; bullets?: number; button?: string; map?: string; caption?: boolean }): RgbaImage {
   const img = canvas();
   header(img, o.trader, 'GRENADES');
   tab(img, 580, 'QUESTS');
   rect(img, 1404, 112, 468, 856, CREAM);
+  if (o.map) text(img, 858, 404, 12, o.map, GREY);
   text(img, 858, 430, 19, o.title, WHITE);
   o.checks.forEach((c, i) => {
     const y = 141 + i * 40;
@@ -142,6 +156,31 @@ export function questScreen(o: { trader: string; title: string; checks: boolean[
     else frame(img, 1420, y, 16, 2, [101, 107, 122]);
     rect(img, 1445, y + 4, 200, 8, [120, 112, 104]);
   });
+  for (let i = 0; i < (o.bullets ?? 0); i++) {
+    const y = 149 + i * 32;
+    diamond(img, 1428, y, 4, [101, 107, 122]);
+    rect(img, 1445, y - 4, 260, 8, [120, 112, 104]);
+  }
+  if (o.button) yellowButton(img, 866, 872, 464, 56, o.button);
+  if (o.caption) text(img, 610, 914, 15, 'WERE SHORT ON EVERYTHING BUT MOUTHS', WHITE);
+  return img;
+}
+
+/* 0.29.0: okno COMPLETE: malý šedý název úkolu, velké COMPLETE, odměny se žlutým štítkem XP a tlačítko DONE;
+   bez krémového panelu cílů. */
+export function completeScreen(o: { trader: string; title: string; word?: string; button?: string }): RgbaImage {
+  const img = canvas();
+  header(img, o.trader, 'GUN SHOP');
+  tab(img, 500, 'QUESTS');
+  const edge: RGB = [70, 74, 90];
+  rect(img, 1003, 311, 690, 2, edge); rect(img, 1003, 767, 690, 2, edge); rect(img, 1003, 311, 2, 458, edge); rect(img, 1691, 311, 2, 458, edge);
+  text(img, Math.round(1348 - textW(16, o.title) / 2), 358, 16, o.title, GREY);
+  const word = o.word ?? 'COMPLETE';
+  text(img, Math.round(1348 - textW(38, word) / 2), 400, 38, word, WHITE);
+  text(img, 1238, 499, 16, 'REWARDS', GREY);
+  rect(img, 1360, 492, 98, 31, YELLOW);
+  for (let i = 0; i < 3; i++) rect(img, 1198 + i * 102, 543, 96, 96, [30, 34, 46]);
+  yellowButton(img, 1173, 674, 350, 56, o.button ?? 'DONE');
   return img;
 }
 

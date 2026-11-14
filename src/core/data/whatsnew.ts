@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.28.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.29.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.29.0',
+    title: { cs: 'Úkoly obchodníků ze snímku: splněno, odměna i nabídka', en: 'Trader quests from a screenshot: done, reward and offers' },
+    items: [
+      { text: { cs: 'Snímek úkolu s tlačítkem CLAIM nebo okno COMPLETE nabídne označit úkol jako splněný. U CLAIM ti Ops připomene, že odměna čeká.', en: 'A quest screenshot with the CLAIM button, or the COMPLETE window, offers to mark the quest done. With CLAIM, Ops reminds you that the reward is waiting.' }, link: 'quests' },
+      { text: { cs: 'Úkol k přijetí (ACCEPT) se jen ukáže jako dostupný; nic se nezapíše. Splněno jen u úkolu, jehož název přesně sedí s daty.', en: 'A quest you can still accept (ACCEPT) is only shown as available; nothing is written. Done only for a quest whose name matches the data exactly.' } },
+      { text: { cs: 'Volitelné automatické snímání pozná záložku QUESTS u každého obchodníka, i okno COMPLETE. Obchod (TRADES) se nesnímá.', en: 'Opt-in automatic capture recognises the QUESTS tab at every trader, including the COMPLETE window. The TRADES tab is never captured.' }, link: 'opsSettings' },
+    ],
+  },
   {
     version: '0.28.0',
     title: { cs: 'Místní deník chyb', en: 'Local error log' },

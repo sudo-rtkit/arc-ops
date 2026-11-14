@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.28.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.29.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 

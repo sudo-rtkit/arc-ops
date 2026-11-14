@@ -13,6 +13,7 @@ import type { AppState } from '../../src/core/types';
 import type { LootAnalysis } from '../../src/core/visionImport';
 import { makeBackup } from '../../src/core/backup';
 import { syntheticFindings } from '../vision/findings';
+import { questScreen } from '../vision/progress-synth';
 
 const T0 = Date.UTC(2026, 10, 13, 18, 0);
 const snap = (over: Partial<LoadoutSnap> = {}): LoadoutSnap => ({
@@ -280,6 +281,35 @@ describe('hub: automatický snímek → průběh raidu → zápis do Deníku', (
     /* obrazovka STASH bez stashe na snímku nic nepřidá */
     expect(await hub2.handleAutoCapture(syntheticFindings({ button: false }), 'stash')).toBe('empty');
     hub2.stop();
+  });
+});
+
+/* 0.29.0: obrazovky úkolu z automatického snímání: CLAIM jde do fronty „Ke kontrole“ (zápis až po revizi, nic se
+   nezapíše samo); ACCEPT nic nezapíše ani nepřidá do fronty. Snímá se jen se zapnutou obrazovkou úkolů (výchozí vypnuto). */
+describe('hub: automatický snímek obrazovky úkolu', () => {
+  it('CLAIM → ke kontrole, nic se nezapíše; ACCEPT → nic; bez zapnutí nic', async () => {
+    const { app } = await makeApp();
+    const hub = createOpsHub({ app, bus: nullBus(), native: fakeNative(), now: () => T0, pushMs: 0 });
+    hub.start();
+    const claim = questScreen({ trader: 'TIAN WEN', title: 'THE RIGHT TOOL', checks: [true, true, true], button: 'CLAIM' });
+    const accept = questScreen({ trader: 'TIAN WEN', title: 'A BETTER USE', checks: [], bullets: 2, button: 'ACCEPT' });
+    /* výchozí stav: automatické snímání i obrazovka úkolů vypnuté */
+    expect(defaultState(T0).autoCapture.screens.quests).toBe(false);
+    expect(await hub.handleAutoCapture(claim, 'quests')).toBe('off');
+    app.actions.setBuddy({ enabled: true });
+    app.actions.setAutoCapture({ ack: true, enabled: true, screens: { quests: true } });
+    const before = JSON.stringify(app.store.getState().state.quests);
+    expect(await hub.handleAutoCapture(accept, 'quests')).toBe('dup');
+    expect(app.store.getState().state.review.filter(r => r.kind === 'screen')).toEqual([]);
+    expect(await hub.handleAutoCapture(claim, 'quests')).toBe('screen');
+    const s = app.store.getState().state;
+    expect(s.review.filter(r => r.kind === 'screen').map(r => r.screen)).toEqual(['quests']);
+    expect(JSON.stringify(s.quests)).toBe(before);
+    /* v revizi (batch) je CLAIM s předvybraným „splněno“ */
+    const b = hub.batch().progress;
+    expect(b?.auto).toBe(true);
+    expect(b?.read.screen === 'quest' && b.read.state).toBe('claim');
+    hub.stop();
   });
 });
 

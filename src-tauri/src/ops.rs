@@ -1178,6 +1178,10 @@ pub mod header {
         Geo { name: "station-panel", anchor: R, x: 1410, y: 168, w: 160, h: 20, src: "return-and-progression/gear-level.png" },
         /* úkol obchodníka: krémový panel cílů vpravo nahoře */
         Geo { name: "quest-panel", anchor: R, x: 1410, y: 116, w: 160, h: 20, src: "return-and-progression/quest-shoring.png" },
+        /* 0.29.0: obchodník, zvýrazněná záložka QUESTS: jen slovo (jasně bílé; nevybraná záložka je šedá a světlé písmo
+           není). Vzor ze snímku Tian Wen; u jiných obchodníků je záložka jinde, proto posuvná sonda (SLIDES). Pozná
+           všechny stavy úkolu včetně okna COMPLETE bez krémového panelu; vybraná záložka TRADES (obchod) ne. */
+        Geo { name: "quests-tab", anchor: L, x: 514, y: 20, w: 82, h: 24, src: "own-trader-quests-claim.png" },
         /* tmavá mezera vlevo od krémového panelu (celobílý snímek tak panel nepředstírá) */
         Geo { name: "quest-gap", anchor: R, x: 1362, y: 116, w: 36, h: 20, src: "return-and-progression/quest-shoring.png" },
         Geo { name: "station-gap", anchor: R, x: 1362, y: 168, w: 36, h: 20, src: "return-and-progression/gear-level.png" },
@@ -1197,6 +1201,24 @@ pub mod header {
     /// 0.22.1: sondy inventáře v raidu. Shoda všech = hráč je v raidu. Nikdy nespustí plný snímek (fair play: snímá se
     /// jen mimo raid), jen posune průběh raidu do fáze „v raidu“ (core/raidLife.ts).
     pub const IN_RAID: &[&str] = &["raid-pill", "raid-loadout", "raid-tabs"];
+
+    /// 0.29.0: posuvné sondy: název, rozsah v jednotkách vlevo a vpravo od polohy vzoru (násobky CELL) a vlastní práh.
+    /// Záložka QUESTS obchodníka: Tian Wen 514, Apollo 598; rozsah pokryje kratší i delší jména obchodníků. Posuvné
+    /// slovo najde v jakémkoli světlém nadpisu nějakou částečnou shodu (vlastní snímky jiných obrazovek 0,53–0,64,
+    /// vybraná záložka TRADES 0,62), skutečná záložka QUESTS 1,0; proto přísnější práh SLIDE_THRESH.
+    pub const SLIDE_THRESH: f32 = 0.85;
+    pub const SLIDES: &[(&str, i32, i32)] = &[("quests-tab", 140, 260)];
+    pub fn slide(name: &str) -> Option<(i32, i32)> {
+        SLIDES.iter().find(|(n, _, _)| *n == name).map(|&(_, l, r)| (l, r))
+    }
+    /// Práh shody sondy: posuvná sonda SLIDE_THRESH, ostatní THRESH.
+    pub fn thresh(name: &str) -> f32 {
+        if slide(name).is_some() {
+            SLIDE_THRESH
+        } else {
+            THRESH
+        }
+    }
 
     /// Je v pásu inventář v raidu? Jen čtení pixelů pásu, který už automatické snímání má.
     pub fn in_raid(f: &Frame) -> bool {
@@ -1218,7 +1240,8 @@ pub mod header {
         Def { screen: Screen::Stash, probes: &["inv-pill", "stash-label"] },
         Def { screen: Screen::Profile, probes: &["raider-pill", "raider-edge"] },
         Def { screen: Screen::Workshop, probes: &["workshop-pill", "workshop-edge"] },
-        Def { screen: Screen::Quests, probes: &["quest-panel", "quest-gap"] },
+        /* 0.29.0: úkoly obchodníka podle zvýrazněné záložky QUESTS (i okno COMPLETE bez panelu cílů; TRADES ne) */
+        Def { screen: Screen::Quests, probes: &["quests-tab"] },
         Def { screen: Screen::Workshop, probes: &["station-panel", "station-gap", "!quest-panel"] },
         Def { screen: Screen::Skills, probes: &["skill-title", "skill-end"] },
     ];
@@ -1309,8 +1332,24 @@ pub mod header {
     /// daleko od vzoru); obojí prázdné = 1.
     pub fn score(f: &Frame, g: &Geo, rows: &[&str]) -> f32 {
         let (cw, ch, cells) = grid(f, g);
-        let (tw, th) = (cw - 2, ch - 2);
-        if rows.len() != th || rows.iter().any(|r| r.len() != tw) {
+        best_match(&cells, cw, ch, rows, cw - 2)
+    }
+
+    /// 0.29.0: shoda posuvné sondy: vzor se hledá ve vodorovném rozsahu `left` jednotek vlevo až `right` vpravo od
+    /// své polohy (zvýrazněná záložka QUESTS je u každého obchodníka jinde, podle délky jména). Mřížka světlého písma
+    /// se spočítá jednou pro celý rozsah, pak se vzor porovná v každém posunu o buňku (práce omezená rozsahem).
+    pub fn score_slide(f: &Frame, g: &Geo, rows: &[&str], left: i32, right: i32) -> f32 {
+        let (left, right) = (left.max(0) / CELL * CELL, right.max(0) / CELL * CELL);
+        let wide = Geo { name: g.name, anchor: g.anchor, x: g.x - left, y: g.y, w: g.w + left + right, h: g.h, src: g.src };
+        let (cw, ch, cells) = grid(f, &wide);
+        best_match(&cells, cw, ch, rows, (g.w / CELL) as usize)
+    }
+
+    /// Nejlepší shoda vzoru (šířka `tw` buněk) v mřížce `cells` (cw × ch, o buňku větší na každé straně) přes
+    /// všechny vodorovné posuny a svislý posun o -1, 0, +1 buňku.
+    fn best_match(cells: &[bool], cw: usize, ch: usize, rows: &[&str], tw: usize) -> f32 {
+        let th = ch.saturating_sub(2);
+        if tw == 0 || th == 0 || cw < tw + 2 || rows.len() != th || rows.iter().any(|r| r.len() != tw) {
             return 0.0;
         }
         let tpl: Vec<bool> = rows.iter().flat_map(|r| r.bytes().map(|b| b == b'#')).collect();
@@ -1330,7 +1369,7 @@ pub mod header {
         let nt = tpl.iter().filter(|&&b| b).count() as u32;
         let mut best = 0.0f32;
         for dy in 0..3 {
-            for dx in 0..3 {
+            for dx in 0..=cw - tw {
                 let (mut hit, mut far) = (0u32, 0u32);
                 for y in 0..th {
                     for x in 0..tw {
@@ -1350,10 +1389,13 @@ pub mod header {
         best
     }
 
-    /// Shoda pojmenované sondy (0 bez vzoru).
+    /// Shoda pojmenované sondy (0 bez vzoru); posuvná sonda se hledá v celém svém rozsahu.
     pub fn probe(f: &Frame, name: &str) -> f32 {
         match (geo(name), bits(name)) {
-            (Some(g), Some(b)) => score(f, g, b),
+            (Some(g), Some(b)) => match slide(name) {
+                Some((l, r)) => score_slide(f, g, b, l, r),
+                None => score(f, g, b),
+            },
             _ => 0.0,
         }
     }
@@ -1386,7 +1428,7 @@ pub mod header {
                 if neg {
                     ok &= s < NEG_MAX;
                 } else {
-                    ok &= s >= THRESH;
+                    ok &= s >= thresh(name);
                     worst = worst.min(s);
                 }
                 if !ok {
@@ -2194,6 +2236,11 @@ mod tests {
 
     /* Umělý pás: tmavé pozadí se šumem a světlé buňky vzorů vybraných sond (v měřítku obrazovky). */
     fn synth(w: usize, screen_h: usize, probes: &[&str], seed: u32) -> Vec<u8> {
+        let at: Vec<(&str, i32)> = probes.iter().map(|p| (*p, 0)).collect();
+        synth_at(w, screen_h, &at, seed)
+    }
+    /// Umělý pás se vzory sond posunutými vodorovně o `dx` jednotek (posuvné sondy).
+    fn synth_at(w: usize, screen_h: usize, probes: &[(&str, i32)], seed: u32) -> Vec<u8> {
         let h = header::strip_rows(screen_h as u32) as usize;
         let mut px = vec![0u8; w * h * 4];
         let mut r = seed.wrapping_mul(2_654_435_761).max(1);
@@ -2206,14 +2253,15 @@ mod tests {
         }
         let u = screen_h as f32 / 1080.0;
         let wu = w as f32 / u;
-        for name in probes {
+        for &(name, dx) in probes {
             let g = header::geo(name).unwrap();
             let rows = header::bits(name).unwrap();
-            let ox = match g.anchor {
-                Anchor::L => g.x as f32,
-                Anchor::C => wu / 2.0 + (g.x as f32 - 960.0),
-                Anchor::R => wu - (1920.0 - g.x as f32),
-            };
+            let ox = dx as f32
+                + match g.anchor {
+                    Anchor::L => g.x as f32,
+                    Anchor::C => wu / 2.0 + (g.x as f32 - 960.0),
+                    Anchor::R => wu - (1920.0 - g.x as f32),
+                };
             for (cy, row) in rows.iter().enumerate() {
                 for (cx, b) in row.bytes().enumerate() {
                     if b != b'#' {
@@ -2237,6 +2285,29 @@ mod tests {
         let px = synth(w, screen_h, probes, 7);
         let f = header::Frame { w, h: header::strip_rows(screen_h as u32) as usize, screen_h, rgba: &px };
         header::classify(&f, mask).map(|x| x.0)
+    }
+
+    /* 0.29.0: záložka QUESTS obchodníka se najde v celém rozsahu posuvné sondy (různě dlouhá jména obchodníků) a v různých
+       rozlišeních; mimo rozsah, bez záložky nebo jen s panelem úkolu (bez záložky) nic */
+    #[test]
+    fn zalozka_quests_posuvna_sonda() {
+        let (l, r) = header::slide("quests-tab").expect("posuvná sonda");
+        for (w, h) in [(1920, 1080), (2560, 1440), (3840, 2160), (1280, 720), (3440, 1440)] {
+            for dx in [-l, -60, 0, 84, 130, r] {
+                let px = synth_at(w, h, &[("quests-tab", dx)], 7);
+                let f = header::Frame { w, h: header::strip_rows(h as u32) as usize, screen_h: h, rgba: &px };
+                assert_eq!(header::classify(&f, header::ALL_BITS).map(|x| x.0), Some(Screen::Quests), "{w}×{h} posun {dx}");
+                assert_eq!(header::classify(&f, header::ALL_BITS & !Screen::Quests.bit()), None, "{w}×{h} posun {dx}");
+            }
+            for dx in [-l - 40, r + 60] {
+                let px = synth_at(w, h, &[("quests-tab", dx)], 7);
+                let f = header::Frame { w, h: header::strip_rows(h as u32) as usize, screen_h: h, rgba: &px };
+                assert!(header::probe(&f, "quests-tab") < header::thresh("quests-tab"), "{w}×{h} posun {dx} mimo rozsah");
+            }
+        }
+        /* krémový panel úkolu bez záložky QUESTS (např. jiná obrazovka obchodníka) už úkol nespustí */
+        assert_eq!(classify_synth(1920, 1080, &["quest-panel", "quest-gap"], header::ALL_BITS), None);
+        assert!(header::SLIDES.iter().all(|(n, l, r)| header::geo(n).is_some() && l % header::CELL == 0 && r % header::CELL == 0));
     }
 
     /* 0.22.1: inventář v raidu je jen signál „v raidu“: nikdy obrazovka pro plný snímek */
@@ -2303,7 +2374,7 @@ mod tests {
         }
         /* ultrawide 21:9: sondy ukotvené ke středu a k pravé hraně se posunou */
         assert_eq!(classify_synth(3440, 1440, &["res-loadout", "res-knocked"], header::ALL_BITS), Some(Screen::KnockedOut));
-        assert_eq!(classify_synth(3440, 1440, &["quest-panel", "quest-gap"], header::ALL_BITS), Some(Screen::Quests));
+        assert_eq!(classify_synth(3440, 1440, &["quests-tab"], header::ALL_BITS), Some(Screen::Quests));
     }
 
     #[test]
@@ -2340,6 +2411,16 @@ mod tests {
         }
         let per = t0.elapsed() / n;
         println!("classify 4K pás: {per:?} na krok, pás {} B", px.len());
+        assert!(per < Duration::from_millis(250), "{per:?}");
+        /* 0.29.0: nejhorší případ: pás bez známé obrazovky projde všechny sondy včetně posuvné záložky QUESTS */
+        let px = synth(w, sh, &[], 3);
+        let f = header::Frame { w, h: header::strip_rows(sh as u32) as usize, screen_h: sh, rgba: &px };
+        let t0 = Instant::now();
+        for _ in 0..n {
+            assert_eq!(header::classify(&f, header::ALL_BITS), None);
+        }
+        let per = t0.elapsed() / n;
+        println!("classify 4K pás bez obrazovky (všechny sondy): {per:?} na krok");
         assert!(per < Duration::from_millis(250), "{per:?}");
     }
 

@@ -62,7 +62,13 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
       conf: k.conf === 'unknown' ? 'unknown' : k.current.conf === 'unknown' ? 'unknown' : k.conf === 'medium' || k.current.conf === 'medium' ? 'medium' : 'high',
       same: k.current.value === k.now, note: k.next !== null ? t('progress.skill.next', { n: k.next }) : k.current.value !== null && k.current.value === k.max ? t('progress.skill.max') : undefined,
       set: a => { if (k.current.value !== null) a.skills = { ...a.skills, [k.id!]: k.current.value }; } });
-  } else if (p.kind === 'quest' && p.questId) {
+  } else if (p.kind === 'quest' && p.questId && p.doneOffer) {
+    /* 0.29.0: CLAIM nebo COMPLETE: jen „splněno“ (s předchozími úkoly, jako ruční zaškrtnutí) */
+    const q = p.questId;
+    rows.push({ key: 'done', label: t('progress.quest.markDone'), read: t('progress.quest.doneNow'), now: t(p.done ? 'progress.quest.doneNow' : 'progress.quest.notDone'),
+      conf: p.conf, same: p.done, note: p.prevMissing ? t('progress.quest.prevToo', { count: p.prevMissing }) : undefined,
+      set: a => { a.questDone = [q]; } });
+  } else if (p.kind === 'quest' && p.questId && p.state === 'progress') {
     const q = p.questId;
     if (p.done && p.open) rows.push({ key: 'undone', label: t('progress.quest.undone'), read: t('progress.quest.notDone'), now: t('progress.quest.doneNow'), conf: p.conf, same: false,
       set: a => { a.questUndone = [q]; } });
@@ -102,7 +108,8 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
       </div>
 
       {p.kind === 'quest' && (
-        <div className="pr-quest" data-testid="progress-quest">
+        <div className="pr-quest" data-testid="progress-quest" data-state={p.state}>
+          <p className={p.state === 'unknown' ? c.banner + ' warn' : c.muted} data-testid="progress-quest-state">{t(`progress.quest.state.${p.state}` as Key)}</p>
           {p.questId ? <p><b>{p.title}</b>{p.trader && <span className={c.muted}> · {p.trader}</span>} <span className={cx(c.tag, TONE(p.conf))}>{confText(p.conf)}</span></p>
             : <p className={c.banner + ' warn'}>{t('progress.quest.unknown', { name: p.title || '?' })}</p>}
           {p.objectives.length > 0 && (
@@ -113,9 +120,9 @@ export function ProgressReview({ read, id, variant, writing, onWrite, onDiscard 
                 <span className="sr-only">{o.checked === true ? t('progress.quest.ticked') : o.checked === false ? t('progress.quest.unticked') : t('progress.conf.unknown')}</span></li>
             ))}</ul>
           )}
-          {p.questId && !p.countMatch && <p className={c.muted}>{t('progress.quest.countDiff')}</p>}
+          {p.questId && p.state === 'progress' && !p.countMatch && <p className={c.muted}>{t('progress.quest.countDiff')}</p>}
           <p className={c.muted}>{t('progress.quest.rule')}</p>
-          {p.questId && p.done && !p.open && <p className={c.muted}>{t('progress.quest.doneKept')}</p>}
+          {p.questId && p.state === 'progress' && p.done && !p.open && <p className={c.muted}>{t('progress.quest.doneKept')}</p>}
         </div>
       )}
 

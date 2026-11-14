@@ -29,8 +29,46 @@ export interface StationRead {
   screen: 'station'; title: Read<string>; level: Read<number>; panelLevel: Read<number>;
   resources: StationResourceRead[];
 }
-/* Úkol obchodníka: obchodník z hlavičky, název úkolu, zaškrtávací políčka cílů v pořadí (null = nejisté). */
-export interface QuestRead { screen: 'quest'; trader: Read<string>; title: Read<string>; objectives: (boolean | null)[] }
+/* Úkol obchodníka: obchodník z hlavičky, název úkolu, zaškrtávací políčka cílů v pořadí (null = nejisté).
+   0.29.0: stav obrazovky úkolu (questState) ze žlutého tlačítka a rozvržení:
+   - 'claim': cíle zaškrtnuté a tlačítko CLAIM (úkol splněný, odměna čeká na vyzvednutí);
+   - 'complete': okno COMPLETE s tlačítkem DONE (úkol právě splněný; bez krémového panelu, název z okna);
+   - 'accept': úkol k přijetí (tlačítko ACCEPT, cíle s kosočtverečnými odrážkami, ne políčky: objectives prázdné);
+   - 'progress': přijatý úkol s políčky cílů a bez tlačítka;
+   - 'unknown': cokoli nejistého nebo protichůdného. */
+export type QuestState = 'claim' | 'complete' | 'accept' | 'progress' | 'unknown';
+export const QUEST_STATES: readonly QuestState[] = ['claim', 'complete', 'accept', 'progress', 'unknown'];
+export interface QuestRead {
+  screen: 'quest'; trader: Read<string>; title: Read<string>; objectives: (boolean | null)[];
+  state: QuestState;
+  /* text žlutého tlačítka (CLAIM, DONE, ACCEPT), nepřečtený = null */
+  button: Read<string>;
+  /* kosočtverečné odrážky cílů (úkol k přijetí): nejsou to políčka a nikdy nic nesplní */
+  bullets: number;
+}
+/* Doklady pro stav obrazovky úkolu (čistá funkce questState, testovaná i synteticky). */
+export type QuestButton = 'claim' | 'done' | 'accept' | 'other' | null;
+export interface QuestEvidence {
+  /* krémový panel cílů vpravo */
+  panel: boolean;
+  /* žluté tlačítko: přečtený druh, 'other' = tlačítko je, ale text nesedí; null = žádné tlačítko */
+  button: QuestButton;
+  /* velké slovo COMPLETE nad tlačítkem (okno splnění) */
+  completeWord: boolean;
+  /* zaškrtávací políčka cílů a kosočtverečné odrážky (úkol k přijetí) */
+  checks: (boolean | null)[];
+  bullets: number;
+}
+/* Stav jen z jednoznačných dokladů; cokoli protichůdného je 'unknown' (nikdy nic nezapíše). */
+export function questState(e: QuestEvidence): QuestState {
+  if (e.button === 'other') return 'unknown';
+  if (e.completeWord) return e.button === 'done' && !e.panel && !e.checks.length && !e.bullets ? 'complete' : 'unknown';
+  if (e.button === 'done') return 'unknown';
+  if (!e.panel) return 'unknown';
+  if (e.button === 'claim') return !e.bullets && e.checks.length > 0 && e.checks.every(c => c === true) ? 'claim' : 'unknown';
+  if (e.button === 'accept') return !e.checks.length ? 'accept' : 'unknown';
+  return e.checks.length > 0 && !e.bullets ? 'progress' : 'unknown';
+}
 /* Skill tree: součty větví (jen pro kontrolu) a tooltip skillu, je-li otevřený. */
 export interface SkillTipRead { name: Read<string>; current: Read<number>; next: Read<number>; arrow: boolean }
 export interface SkillsRead { screen: 'skills'; totals: { c: Read<number>; m: Read<number>; s: Read<number> }; tooltip: SkillTipRead | null }
@@ -269,35 +307,136 @@ export function stationLayout(img: RgbaImage): { panel: Box; resources: { name: 
 }
 
 /* ----- ÚKOL OBCHODNÍKA ----- */
+/* Žlutá výplň tlačítka (CLAIM, DONE, ACCEPT) a štítku XP odměny. */
+const isYellow = (r: number, g: number, b: number) => r > 200 && g > 140 && b < 90 && r - b > 150;
+/* Žluté tlačítko: největší žlutá plocha tvaru tlačítka (široká, nízká) pod hlavičkou. Hledá se na hrubé mřížce
+   bloků (každý blok jen pár vzorků), takže práce je omezená velikostí snímku. Štítek XP je menší a nepočítá se. */
+export function yellowButton(img: RgbaImage): Box | null {
+  const g = geo(img);
+  const s = Math.max(3, Math.round(g.u * 6));
+  const y0 = Math.round(g.Y(80));
+  const bw = Math.floor(g.W / s), bh = Math.floor((g.H - y0) / s);
+  if (bw <= 0 || bh <= 0) return null;
+  const on = new Uint8Array(bw * bh);
+  const st = Math.max(1, Math.floor(s / 3));
+  for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
+    let hit = 0, n = 0;
+    for (let y = y0 + by * s; y < y0 + (by + 1) * s; y += st) for (let x = bx * s; x < (bx + 1) * s; x += st) { n++; if (isYellow(...rgbAt(img, x, y))) hit++; }
+    if (hit >= n * 0.6) on[by * bw + bx] = 1;
+  }
+  const cs = components(on, bw, bh).map(c => ({ x: c.x0 * s, y: y0 + c.y0 * s, w: (c.x1 - c.x0 + 1) * s, h: (c.y1 - c.y0 + 1) * s, n: c.n }))
+    .filter(c => c.w >= g.u * 200 && c.w <= g.u * 700 && c.h >= g.u * 30 && c.h <= g.u * 84 && c.w >= c.h * 3.5)
+    .sort((a, b) => b.n - a.n);
+  const c = cs[0];
+  if (!c) return null;
+  /* hrubý obdélník se zpřesní průměty žluté výplně (sloupce a řádky s aspoň třetinou žlutých pixelů) */
+  const ax = Math.max(0, c.x - s), ay = Math.max(0, c.y - s);
+  const aw = Math.min(g.W, c.x + c.w + s) - ax, ah = Math.min(g.H, c.y + c.h + s) - ay;
+  const cols = new Uint32Array(aw), rows = new Uint32Array(ah);
+  for (let y = 0; y < ah; y++) for (let x = 0; x < aw; x++) if (isYellow(...rgbAt(img, ax + x, ay + y))) { cols[x]++; rows[y]++; }
+  const xs = [...cols.keys()].filter(i => cols[i] >= c.h / 3), ys = [...rows.keys()].filter(i => rows[i] >= c.w / 3);
+  if (!xs.length || !ys.length) return null;
+  return { x: ax + xs[0], y: ay + ys[0], w: xs[xs.length - 1] - xs[0] + 1, h: ys[ys.length - 1] - ys[0] + 1 };
+}
+
+const BUTTONS: [Exclude<QuestButton, 'other' | null>, string][] = [['claim', 'CLAIM'], ['done', 'DONE'], ['accept', 'ACCEPT']];
+/* Text tlačítka: tmavý řádek nejblíž svislému středu tlačítka (titulky hry přes spodní část tlačítka se nečtou). */
+function readButton(img: RgbaImage, g: Geo, b: Box): { kind: QuestButton; read: Read<string> } {
+  const inner: Box = { x: b.x + b.h * 0.6, y: b.y + 2, w: b.w - b.h * 1.2, h: b.h - 4 };
+  const mid = b.y + b.h / 2;
+  const rows = inkRows(img, inner, darkInk, 2).filter(r => r.y1 - r.y0 + 1 >= g.u * 9 && r.y1 - r.y0 + 1 <= g.u * 26)
+    .sort((p, q) => Math.abs((p.y0 + p.y1) / 2 - mid) - Math.abs((q.y0 + q.y1) / 2 - mid));
+  const r = rows[0];
+  if (!r || Math.abs((r.y0 + r.y1) / 2 - mid) > b.h * 0.2) return { kind: 'other', read: none() };
+  const box: Box = { x: inner.x, y: r.y0 - g.u * 3, w: inner.w, h: r.y1 - r.y0 + 1 + g.u * 6 };
+  const reads = (['name', 'head'] as const).map(f => readLine(img, box, darkInk, f)).filter(t => t.text).sort((p, q) => q.conf - p.conf);
+  const t = reads[0];
+  if (!t) return { kind: 'other', read: none() };
+  const text = words2(t.text);
+  const hits = BUTTONS.filter(([, w]) => near(text, w, 0.2));
+  const read: Read<string> = { value: text, conf: t.conf, raw: t.text };
+  return { kind: hits.length === 1 && t.conf >= 0.45 ? hits[0][0] : 'other', read };
+}
+
+/* Okno COMPLETE nad tlačítkem DONE: velké slovo COMPLETE a nad ním menší název úkolu (šedý, na středu okna). */
+function readCompleteDialog(img: RgbaImage, g: Geo, b: Box): { complete: boolean; title: Read<string> } {
+  const cxm = b.x + b.w / 2;
+  const area: Box = { x: cxm - g.u * 330, y: b.y - g.u * 380, w: g.u * 660, h: g.u * 360 };
+  if (area.x < 0 || area.y < 0 || area.x + area.w > g.W) return { complete: false, title: none() };
+  const rows = inkRows(img, area, lightInk, 3);
+  /* COMPLETE: nejvyšší řádek (písmo zhruba 40 jednotek) */
+  const big = rows.filter(r => r.y1 - r.y0 + 1 >= g.u * 28 && r.y1 - r.y0 + 1 <= g.u * 60).sort((p, q) => (q.y1 - q.y0) - (p.y1 - p.y0))[0];
+  if (!big) return { complete: false, title: none() };
+  const w = readLine(img, { x: area.x, y: big.y0 - g.u * 4, w: area.w, h: big.y1 - big.y0 + 1 + g.u * 8 }, lightInk, 'head');
+  /* velké tučné E vzory čtou i jako F („COMPLFTF“): jedno slovo s tolerancí dvou znaků; samo nic nerozhoduje,
+     stav 'complete' chce i tlačítko DONE a chybějící panel cílů */
+  const complete = w.words.length === 1 && near(words2(w.text), 'COMPLETE', 0.3);
+  if (!complete) return { complete: false, title: none() };
+  /* název: poslední řádek nad COMPLETE, nejvýš 70 jednotek nad ním, výška písma nadpisu */
+  const above = rows.filter(r => r.y1 < big.y0 && big.y0 - r.y1 <= g.u * 70 && r.y1 - r.y0 + 1 >= g.u * 9 && r.y1 - r.y0 + 1 <= g.u * 26);
+  const tr = above[above.length - 1];
+  if (!tr) return { complete, title: none() };
+  const t = readLine(img, { x: area.x, y: tr.y0 - g.u * 4, w: area.w, h: tr.y1 - tr.y0 + 1 + g.u * 8 }, lightInk, 'head');
+  return { complete, title: t.text ? { value: words2(t.text), conf: t.conf, raw: t.text } : none() };
+}
+
+/* Jasné písmo názvu úkolu (bílé); seznam map nad ním je šedý a nepočítá se. */
+const brightInk: PixelTest = (r, gg, b, l) => l >= 200 && hueSat(r, gg, b).s < 0.3;
+
 function readQuest(img: RgbaImage, g: Geo, h: Header): QuestRead {
-  const out: QuestRead = { screen: 'quest', trader: h.title, title: none(), objectives: [] };
+  const out: QuestRead = { screen: 'quest', trader: h.title, title: none(), objectives: [], state: 'unknown', button: none(), bullets: 0 };
+  const btn = yellowButton(img);
+  const bt = btn ? readButton(img, g, btn) : { kind: null as QuestButton, read: none<string>() };
+  out.button = bt.read;
   const panel = creamPanel(img, { x: g.R(1380), y: g.Y(90), w: g.W - g.R(1380), h: g.Y(900) }, g.u * 300, g.u * 300);
-  if (!panel) return out;
-  /* název úkolu: nejvyšší světlý řádek nad popisem, vlevo od panelu (nad ním je menší název mapy) */
-  const tb: Box = { x: panel.x - g.u * 556, y: g.Y(388), w: g.u * 520, h: g.Y(78) };
-  const rows = inkRows(img, tb, lightInk, 3);
-  const tr = [...rows].sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0];
+  if (!panel) {
+    /* bez panelu cílů: jen okno COMPLETE (název z okna) */
+    const d = btn && bt.kind === 'done' ? readCompleteDialog(img, g, btn) : { complete: false, title: none<string>() };
+    out.title = d.title;
+    out.state = questState({ panel: false, button: bt.kind, completeWord: d.complete, checks: [], bullets: 0 });
+    return out;
+  }
+  /* název úkolu: první jasný řádek pod obrázkem úkolu vlevo od panelu (šedý seznam map nad ním se přeskočí,
+     popis pod ním je až za názvem) */
+  const tb: Box = { x: panel.x - g.u * 556, y: g.Y(380), w: g.u * 520, h: g.Y(180) };
+  const tr = inkRows(img, tb, brightInk, 3).find(r => r.y1 - r.y0 + 1 >= g.u * 10 && r.y1 - r.y0 + 1 <= g.u * 30);
   if (tr) {
     const t: LineRead = readLine(img, { x: tb.x, y: tr.y0 - g.u * 4, w: tb.w, h: tr.y1 - tr.y0 + 1 + g.u * 8 }, lightInk, 'head');
     if (t.text) out.title = { value: words2(t.text), conf: t.conf, raw: t.text };
   }
-  /* zaškrtávací políčka cílů: čtverečky v levém pruhu panelu; plný = splněno, prázdný (krém uvnitř) = ne */
+  /* cíle v levém pruhu panelu: zaškrtávací políčka (čtverec: rohy tmavé; plný = splněno, prázdný = krém uvnitř)
+     a kosočtverečné odrážky úkolu k přijetí (rohy obdélníku krémové), které NEJSOU políčka */
   const strip: Box = { x: panel.x + g.u * 6, y: panel.y + g.u * 6, w: g.u * 40, h: panel.h * 0.68 };
   const dark: PixelTest = (_r, _g, _b, l) => l < 175;
   const { mask, w, h: mh } = maskOf(img, strip, dark);
-  const boxes = components(mask, w, mh).filter(c => {
+  const at = (x: number, y: number) => mask[Math.min(mh - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+  const checks: (boolean | null)[] = [];
+  let bullets = 0;
+  for (const c of components(mask, w, mh).sort((a, b) => a.y0 - b.y0)) {
     const cw = c.x1 - c.x0 + 1, ch = c.y1 - c.y0 + 1;
-    return cw >= g.u * 10 && cw <= g.u * 24 && ch >= g.u * 10 && ch <= g.u * 24 && Math.abs(cw - ch) <= Math.max(2, g.u * 3);
-  }).sort((a, b) => a.y0 - b.y0);
-  for (const c of boxes) {
+    if (Math.abs(cw - ch) > Math.max(2, g.u * 3) || cw < g.u * 5 || cw > g.u * 24) continue;
+    /* rohy obdélníku tvaru (malý čtverec v každém rohu): čtverec je má tmavé, kosočtverec světlé */
+    const k = Math.max(1, Math.round(cw * 0.15));
+    const corner = (x0: number, y0: number, dx: number, dy: number) => {
+      for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) if (at(x0 + dx * i, y0 + dy * j)) return 1;
+      return 0;
+    };
+    const corners = corner(c.x0, c.y0, 1, 1) + corner(c.x1, c.y0, -1, 1) + corner(c.x0, c.y1, 1, -1) + corner(c.x1, c.y1, -1, -1);
+    const centre = at(Math.round((c.x0 + c.x1) / 2), Math.round((c.y0 + c.y1) / 2));
+    if (corners === 0 && centre && c.n <= cw * ch * 0.7) { bullets++; continue; }
+    if (corners < 4 || cw < g.u * 10) continue;
     const inset = Math.max(2, Math.round(g.u * 3));
     let cream = 0, n = 0;
     for (let y = c.y0 + inset; y <= c.y1 - inset; y++) for (let x = c.x0 + inset; x <= c.x1 - inset; x++) {
       n++; if (isPanelCream(...rgbAt(img, Math.round(strip.x) + x, Math.round(strip.y) + y))) cream++;
     }
     const f = n ? cream / n : 0.5;
-    out.objectives.push(f <= 0.25 ? true : f >= 0.75 ? false : null);
+    checks.push(f <= 0.25 ? true : f >= 0.75 ? false : null);
   }
+  out.bullets = bullets;
+  out.state = questState({ panel: true, button: bt.kind, completeWord: false, checks, bullets });
+  /* úkol k přijetí (nebo nejasný s odrážkami) nemá zaškrtávací políčka: nic se nepočítá jako splněný cíl */
+  out.objectives = out.state === 'accept' || bullets > 0 ? [] : checks;
   return out;
 }
 

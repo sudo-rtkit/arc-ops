@@ -22,6 +22,7 @@ import { itemKey } from '../../src/core/types';
 const DIR = FIXTURES + 'own/return-and-progression/';
 const HAS = existsSync(DIR + 'expected-manual.json') && existsSync(DIR + 'return-findings.png');
 const OLD = FIXTURES + 'own/';
+const QUEST_SHOTS = ['own-trader-quests-claim.png', 'own-trader-quest-complete.png', 'own-trader-quest-accept.png'];
 const exp = HAS ? JSON.parse(readFileSync(DIR + 'expected-manual.json', 'utf8')) : {};
 const cache = new Map<string, RgbaImage>();
 const load = (path: string): RgbaImage => {
@@ -124,9 +125,14 @@ describe.skipIf(!HAS)('vlastní snímky: ostatní obrazovky', () => {
     expect(r).toMatchObject({ kind: 'read', screen: 'stash' });
     if (r.kind === 'read') expect(r.read.panels.map(p => p.panel)).toEqual(['stash']);
   });
+  /* 0.29.0: snímky obrazovky úkolu obchodníka (CLAIM, COMPLETE, ACCEPT) leží ve stejné složce, ale jsou to obrazovky
+     postupu: z kontroly inventáře se vynechají výslovně (vlastní testy v own-quests.test.ts) a musí se číst jako úkol */
   it('žádný starší snímek inventáře se nečte jako obrazovka postupu', () => {
-    for (const f of readdirSync(OLD).filter(x => x.endsWith('.png'))) expect(readProgress(load(OLD + f)), f).toBeNull();
+    const shots = readdirSync(OLD).filter(x => x.endsWith('.png') && !QUEST_SHOTS.includes(x));
+    expect(shots.length).toBeGreaterThan(0);
+    for (const f of shots) expect(readProgress(load(OLD + f)), f).toBeNull();
     expect(readProgress(load(DIR + 'return-findings.png'))).toBeNull();
+    for (const f of QUEST_SHOTS.filter(x => existsSync(OLD + x))) expect(readProgress(load(OLD + f))?.screen, f).toBe('quest');
   });
 });
 

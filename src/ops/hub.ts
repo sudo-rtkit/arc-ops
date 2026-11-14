@@ -448,7 +448,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       batch = { ...batch, progress: { id: nextShot++, at: now(), read: r.progress, ...auto }, last: 'progress', emptyAt: 0, rejected: '', failed: '' };
       const p = proposeProgress(r.progress, st(), getLang());
       const what = t(`progress.screen.${p.kind === 'stations' ? (p.source === 'overview' ? 'workshop' : 'station') : p.kind}` as Key);
-      status(proposalChanges(p) ? 'inspect' : 'talk', line(proposalChanges(p) ? 'progress.read' : 'progress.same', { what }));
+      /* 0.29.0: CLAIM: úkol splněný a odměna čeká (jen když jde něco zapsat) */
+      if (p.kind === 'quest' && p.reward && p.doneOffer && proposalChanges(p)) status('inspect', line('progress.questReward', { what: p.title }));
+      else status(proposalChanges(p) ? 'inspect' : 'talk', line(proposalChanges(p) ? 'progress.read' : 'progress.same', { what }));
       pushOverlay(true);
       return 'progress';
     }
@@ -519,6 +521,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     }
     const res = ingest(r.result, true);
     if (res === 'empty') return { outcome: 'empty', review: 0 };
+    /* 0.29.0: obrazovka úkolu bez čehokoli k zápisu (ACCEPT, nejistý stav, úkol už splněný) do fronty „Ke kontrole“
+       nejde; nic se nezapisuje a Ops nic nehraje */
+    if (r.result.kind === 'progress' && r.result.progress.screen === 'quest' && !proposalChanges(proposeProgress(r.result.progress, st(), getLang()))) return { outcome: 'dup', review: 0 };
     app.actions.reviewAddScreen(screen);
     return { outcome: 'screen', review: 1 };
   }

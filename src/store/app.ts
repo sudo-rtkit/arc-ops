@@ -559,14 +559,15 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         return done ? { ok: true, ...(done as RaidLootDone) } : { ok: false, reason: late ?? 'notReady' };
       } finally { lootBusy = false; }
     },
-    /* Postup ze snímku (0.10.1): profil, úrovně stanic, ranky skillů z tooltipu, úkol (jen zrušení chybného
-       „splněno“ a připnutí). Před zápisem snímek stavu; když se nepodaří, nic se nezapíše. */
+    /* Postup ze snímku (0.10.1): profil, úrovně stanic, ranky skillů z tooltipu, úkol (zrušení chybného
+       „splněno“, připnutí, cíle; 0.29.0 i „splněno“ z obrazovky CLAIM nebo COMPLETE). Před zápisem snímek stavu;
+       když se nepodaří, nic se nezapíše. Původ hodnot (snímek ze zkratky, automatické snímání) zapíše change. */
     async importProgress(input: ProgressApply, via: ShotVia = 'screenshot-file'): Promise<ProgressSummary | null> {
       if (!get().ready) return null;
       await doSave();
       if (!(await snapshot('import', 'pred importem postupu ze snimku'))) return null;
       let sum: ProgressSummary = { fields: 0 };
-      change(s => { sum = applyProgress(s, input, PIN_MAX); if (!sum.fields) return false; }, { src: shotVia(via), ver: true });
+      change(s => { sum = applyProgress(s, input, PIN_MAX, now()); if (!sum.fields) return false; }, { src: shotVia(via), ver: true });
       await doSave();
       return sum;
     },
