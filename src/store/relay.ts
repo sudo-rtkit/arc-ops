@@ -43,6 +43,8 @@ export const RELAY_ACTIONS = [
   'advisorDismiss', 'advisorSnooze', 'advisorRestore', 'advisorRestoreAll',
   /* 0.20.0: Zpět u automatického zápisu, upozornění viděna, vyřízení fronty „Ke kontrole“ (akce samy ověřují id a data) */
   'autoUndo', 'autoSeen', 'reviewApply',
+  /* 0.24.0: potvrzení původu hodnoty a oblasti (oblast ze seznamu, klíč nejvýš 130 znaků; akce samy ověřují) */
+  'provConfirm', 'provConfirmArea',
 ] as const satisfies readonly ActionName[];
 
 /* Akce jen pro hlavní okno a co vrátí v overlayi místo provedení:

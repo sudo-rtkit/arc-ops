@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.23.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.24.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -63,6 +63,8 @@ Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi
 **Ops tě nikdy nevyhodí ze hry (0.22.1).** Když je hra v popředí, Ops propouští každý klik do hry a nikdy jí nevezme fokus (Nastavení → Buddy a zkratka → „Buddy propouští kliky do hry (doporučeno)“, výchozí zapnuto). Během hry používáš zkratky: zkratku snímku a zkratku Úprav widgetů. Na ploše nebo s oknem aplikace v popředí jde na Opse kliknout a přetáhnout ho jako dřív.
 
 **Loadout builder a zátěž aplikace (0.23.0).** Weapons → Loadouty skládá loadout podle míst ve hře (augment, štít, dvě zbraně s tierem, batoh, quick use, augmented slots, bezpečná kapsa; počty míst a mez váhy jsou výchozí podle obrazovek hry a jdou upravit). Ukáže celkovou hodnotu podle prodejních cen z katalogu (neznámé ceny jsou označené, nic se nehádá), váhu proti mezi, co máš ve skrýši a ve Vybavení a kolik riskuješ při vyřazení (vše mimo bezpečnou kapsu). Chybějící předměty pošleš do nákupního seznamu, dva loadouty porovnáš vedle sebe, loadout předvyplníš ze snímku MANAGE LOADOUT nebo FINDINGS po kontrole a Příprava na raid i vyhodnocení s ním počítají. Nastavení → Zátěž aplikace ukáže CPU a paměť vlastního procesu aplikace (nikdy hry; vliv na FPS jde změřit jen ručně, postup je tam popsaný) a nabízí režim nízké zátěže pro hraní. Nově také volitelná zkratka polní konzole, vysoký kontrast widgetů a Skrýt/zobrazit widgety u Opse a v oznamovací oblasti.
+
+**Zbraně a augment ze snímku, potvrzení hodnot (0.24.0).** Snímek MANAGE LOADOUT nebo FINDINGS (i automatický snímek výsledku) teď pozná podle tvaru zbraně, jejich tier a augment, u každého s jistotou. Co je pod prahem, zůstane neznámé a jde ke kontrole, nejvýš s návrhem, který zaškrtneš sám; nic se nehádá. Rozpoznaná výbava předvyplní loadout builder, automatický záznam raidu i vyhodnocení po raidu. Nepotvrzená hodnota má vedle tečky původu tlačítko **Potvrdit**, Nastavení → Původ dat má **Potvrdit vše v oblasti** a tečky původu jsou nově i u počtů materiálů v receptech dílny a v nákupním seznamu.
 
 **Odkud je každá hodnota.** Malá tečka vedle počtu v zásobě, pole profilu, úrovně stanice, ranku skillu nebo cíle úkolu po najetí myší ukáže původ: ručně, ze snímku (soubor nebo zkratka), z automatického snímání nebo z importu zálohy, kdy, s jakou jistotou rozpoznání a jestli jsi hodnotu potvrdil. Nastavení → Původ dat to shrne po oblastech i s posledními zápisy a karta předmětu má řádek „Původ“. Když se zásoba přes týden nezměnila a máš otevřené cíle, „Co dál?“ navrhne snímek STASH.
 

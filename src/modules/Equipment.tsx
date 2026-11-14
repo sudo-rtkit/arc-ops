@@ -98,7 +98,7 @@ export default function Equipment() {
                         <tr key={x.key} data-item={x.key}>
                           <td><ItemLink name={x.key}><b className="wrap">{x.name}</b></ItemLink></td>
                           <td>{x.tier ? <Badge>{x.tier}</Badge> : <span className="muted">—</span>}</td>
-                          <td className="num"><span className="with-prov"><Stepper label={t('equip.countAria', { name: label })} value={x.count} min={1} max={LIMITS.inventory[1]} onChange={v => actions.itemSetCount(x.key, v)} /><ProvDot rec={provOf(s, 'items', x.key)} /></span></td>
+                          <td className="num"><span className="with-prov"><Stepper label={t('equip.countAria', { name: label })} value={x.count} min={1} max={LIMITS.inventory[1]} onChange={v => actions.itemSetCount(x.key, v)} /><ProvDot rec={provOf(s, 'items', x.key)} confirm={{ d: 'items', k: x.key }} /></span></td>
                           <td className="advice-cell"><AdviceCell advice={d.advice.get(x.key)} label={label} /></td>
                           <td className="actions-cell"><span className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
                             <IconBtn ghost label={t('equip.editAria', { name: label })} icon={Pencil} onClick={() => setEdit(x)} />

@@ -502,7 +502,9 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
       const sig = r.read ? lootSignature(r.read) : null;
       if (sig && raidWithSig(s, sig)) return { outcome: 'dup', review: 0 };
       const pair = app.actions.lifeEvent({ type: 'result', at });
-      const done = await app.actions.autoRaid({ at, outcome: r.outcome, loot, sig }, pair);
+      /* 0.24.0: výbava z FINDINGS (zbraně, augment, štít) doplní, co loadout před raidem nezná */
+      const gear = r.loadout ? loadoutSnap(r.loadout, s.vision.learned, matchCtx(s), at).fields.filter(f => f.slot !== 'backpack' && f.slot !== 'quickUse') : null;
+      const done = await app.actions.autoRaid({ at, outcome: r.outcome, loot, sig, gear }, pair);
       pushOverlay(true);
       if (!done) return { outcome: 'dup', review: 0 };
       return { outcome: 'result', review: st().autoLog.find(w => w.id === done.writeId)?.review ?? 0 };

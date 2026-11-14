@@ -72,13 +72,17 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
     expect([r.backpackMax, r.quickUseMax]).toEqual([14, 4]);
     expect(r.equip.map(e => `${e.slot}:${e.state}`)).toEqual(['augment:item', 'shield:random', 'weapon1:random', 'weapon2:random']);
     const s = loadoutSnap(r, [], ctx(), 1);
-    /* augment volného loadoutu v katalogu není: zůstane neznámý (nic se nehádá) */
-    expect(s.fields.find(f => f.slot === 'augment')).toMatchObject({ state: 'item', name: null, conf: 'unknown' });
+    /* 0.24.0: augment volného loadoutu se pozná podle tvaru (Free Loadout Augment) */
+    expect(s.fields.find(f => f.slot === 'augment')).toMatchObject({ state: 'item', name: 'Free Loadout Augment', conf: 'high' });
+    expect(s.fields.find(f => f.slot === 'augment')!.score).toBeGreaterThan(0.9);
     expect(s.fields.filter(f => f.slot === 'backpack' || f.slot === 'quickUse').map(f => f.state)).toEqual(['random', 'random']);
     expect(packKnown(s)).toBe(false);
-    expect(unknownSlots(s)).toEqual(['augment', 'shield', 'weapon1', 'weapon2', 'backpack', 'quickUse']);
+    expect(unknownSlots(s)).toEqual(['shield', 'weapon1', 'weapon2', 'backpack', 'quickUse']);
   });
   it.skipIf(!has('own-after-raid-survived-findings.png'))('výsledek FINDINGS: štít Light Shield, zbraně jako předměty, hodnota loadoutu', () => {
+    /* 0.24.0: Kettle I se pozná; Ferro II (jiná pažba), Anvil IV (tlumič) a Torrente II (jiný vzhled tieru) jsou
+       od ikony katalogu moc daleko: zůstanou neznámé, nic se nehádá */
+    const weapons: Record<string, (string | null)[]> = { 'own-after-raid-survived-findings.png': ['Kettle I', null], 'return-and-progression/return-findings.png': [null, null] };
     for (const [n, value] of [['own-after-raid-survived-findings.png', 26531], ['return-and-progression/return-findings.png', 55551]] as const) {
       if (!has(n)) continue;
       const r = readLoadout(load(n))!;
@@ -86,7 +90,8 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
       expect(r.equip.map(e => e.state), n).toEqual(['item', 'item', 'item', 'item']);
       const s = loadoutSnap(r, [], ctx(), 1);
       expect(s.fields.find(f => f.slot === 'shield'), n).toMatchObject({ name: 'Light Shield', conf: 'high' });
-      expect(s.fields.filter(f => f.slot === 'weapon1' || f.slot === 'weapon2').every(f => f.conf === 'unknown' && f.name === null), n).toBe(true);
+      expect(s.fields.filter(f => f.slot === 'weapon1' || f.slot === 'weapon2').map(f => f.name), n).toEqual(weapons[n]);
+      expect(s.fields.find(f => f.slot === 'augment'), n).toMatchObject({ name: 'Free Loadout Augment', conf: 'high' });
       expect(readAutoCapture(load(n), 'findings')).toMatchObject({ kind: 'result', outcome: 'survived', read: expect.objectContaining({ coins: null }) });
     }
   });
@@ -135,8 +140,8 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
     expect(r.equip.map(e => e.state)).toEqual(['item', 'item', 'item', 'empty']);
     const s = loadoutSnap(r, [], ctx(), 1);
     expect(s.fields.find(f => f.slot === 'shield')).toMatchObject({ name: 'Light Shield', conf: 'high' });
-    /* zbraň (Ferro) se podle katalogu nepozná: zůstane neznámá, nic se nehádá */
-    expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ state: 'item', name: null, conf: 'unknown' });
+    /* 0.24.0: zbraň Ferro se pozná podle tvaru, tier I z římské číslice */
+    expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ state: 'item', name: 'Ferro I', conf: 'high', tierConf: 'high' });
     const res = readAutoCapture(img, 'findings');
     expect(res).toMatchObject({ kind: 'result', outcome: 'survived' });
     const pack = s.fields.filter(f => f.slot === 'backpack' || f.slot === 'quickUse');

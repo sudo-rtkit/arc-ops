@@ -267,3 +267,16 @@ describe('store: vyhodnocení a deník', () => {
     expect(planRecord(state(), state().raidPlan!, evaluateRaid(state(), state().raidPlan!, null, 'cs', TODAY), 'cs', TODAY).at).toBe(NOW);
   });
 });
+
+/* 0.24.0: výbava rozpoznaná ze snímků (zbraně s tierem, augment) ve vyhodnocení po raidu */
+describe('0.24.0: výbava automatického záznamu ve vyhodnocení', () => {
+  it('hodnota ze známých cen, bez ceny zvlášť; ztracená při vyřazení; ruční záznam nic', async () => {
+    const { raidGear } = await import('../../src/core/raidEval');
+    const auto = { at: 1, survived: true, value: null, lostValue: null, kind: null, unsure: [] };
+    expect(raidGear({ ok: true, gear: [{ name: 'Kettle I', qty: 1 }, { name: 'Neznámá věc', qty: 1 }], auto })).toEqual({ names: ['Kettle I', 'Neznámá věc'], value: 840, unknown: ['Neznámá věc'], lost: false });
+    expect(raidGear({ ok: false, gear: [{ name: 'Kettle I', qty: 2 }], auto })).toEqual({ names: ['2× Kettle I'], value: 1680, unknown: [], lost: true });
+    expect(raidGear({ ok: true, gear: [{ name: 'Kettle I', qty: 1 }] })).toBeNull();
+    expect(raidGear({ ok: true, gear: [], auto })).toBeNull();
+    expect(raidGear(null)).toBeNull();
+  });
+});

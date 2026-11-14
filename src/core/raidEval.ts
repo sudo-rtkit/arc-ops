@@ -16,7 +16,7 @@ import { questById, questName } from './quests';
 import { line, type LineRef } from './opsVoice';
 import type { LootArea } from './lootAreas';
 import { itemAreas } from './lootAreas';
-import { loadoutHaveOf, loadoutSummary, type LoadoutSummary } from './loadouts';
+import { itemFacts, loadoutHaveOf, loadoutSummary, type LoadoutSummary } from './loadouts';
 import { getWeapons } from './gamedata';
 
 const low = (s: string) => s.trim().toLowerCase();
@@ -186,4 +186,20 @@ export function planRecord(s: AppState, plan: RaidPlan, ev: RaidEval, lang: Lang
     done: ev.done.map(d => d.name), value: ev.value,
     ...(lo ? { risk: knownRisk(lo.sum) } : {}),
   };
+}
+
+/* ----- 0.24.0: výbava rozpoznaná ze snímků ----- */
+/* Výbava zapsaná u automatického záznamu raidu (zbraně s tierem, augment, štít a předměty z loadoutu; ze snímku
+   loadoutu nebo FINDINGS) a její hodnota podle prodejních cen z katalogu. Hodnota jen ze známých cen; předměty bez
+   ceny se vypíšou zvlášť (nic se nehádá). null = záznam není automatický nebo výbavu nemá. */
+export interface RaidGear { names: string[]; value: number; unknown: string[]; lost: boolean }
+export function raidGear(raid: Pick<Raid, 'gear' | 'ok' | 'auto'> | null): RaidGear | null {
+  if (!raid?.auto || !raid.gear.length) return null;
+  let value = 0;
+  const unknown: string[] = [];
+  for (const g of raid.gear) {
+    const f = itemFacts(g.name);
+    if (f.value === null) unknown.push(g.name); else value += f.value * g.qty;
+  }
+  return { names: raid.gear.map(g => (g.qty > 1 ? `${g.qty}× ${g.name}` : g.name)), value, unknown, lost: !raid.ok };
 }

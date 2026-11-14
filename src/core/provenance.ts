@@ -19,6 +19,7 @@ export const isProvSource = (v: unknown): v is ProvSource => typeof v === 'strin
 
 export type ProvDomain = 'inv' | 'items' | 'profile' | 'stations' | 'skills' | 'quests' | 'objectives' | 'stash' | 'raids';
 export const PROV_DOMAINS: readonly ProvDomain[] = ['inv', 'items', 'profile', 'stations', 'skills', 'quests', 'objectives', 'stash', 'raids'];
+export const isProvDomain = (v: unknown): v is ProvDomain => typeof v === 'string' && (PROV_DOMAINS as readonly string[]).includes(v);
 
 /* Jeden záznam. at = čas získání (0 = neznámý), conf = jistota 0–1 (chybí = neuvádí se, např. ruční zadání),
    ver = hodnotu potvrdil hráč (ruční zadání, potvrzená revize), prev = předchozí zdroj, pokud byl jiný. */
@@ -255,4 +256,25 @@ export function provSummary(s: Pick<AppState, 'provenance'>): ProvSummary[] {
 export function visionConf(g: { match: { status: string; score: number }; countSure: boolean }): number | undefined {
   if (g.match.status === 'unknown') return undefined;
   return conf01(Math.min(g.match.score, g.countSure ? 1 : 0.5));
+}
+
+/* ----- 0.24.0: potvrzení hráčem ----- */
+/* Záznam raidu, ke kterému čeká fronta „Ke kontrole“, se nepotvrzuje (potvrdí ho až vyřízení fronty). */
+const waits = (s: Pick<AppState, 'review'>, d: ProvDomain, key: string) => d === 'raids' && s.review.some(x => x.raidId === key);
+export const canConfirm = (s: Pick<AppState, 'provenance' | 'review'>, d: ProvDomain, key: string): boolean => {
+  const r = provOf(s, d, key);
+  return !!r && !r.ver && !waits(s, d, key);
+};
+/* Potvrdí jednu hodnotu: zdroj, čas a jistota zůstanou, jen ver = true. Vrací, jestli se něco změnilo. */
+export function confirmValue(s: Pick<AppState, 'provenance' | 'review'>, d: ProvDomain, key: string): boolean {
+  if (!isProvDomain(d) || typeof key !== 'string' || !canConfirm(s, d, key)) return false;
+  s.provenance.recs[d][key].ver = true;
+  return true;
+}
+/* Potvrdí všechny nepotvrzené hodnoty oblasti. Vrací počet potvrzených. */
+export function confirmDomain(s: Pick<AppState, 'provenance' | 'review'>, d: ProvDomain): number {
+  if (!isProvDomain(d)) return 0;
+  let n = 0;
+  for (const [k, r] of Object.entries(s.provenance.recs[d])) if (!r.ver && !waits(s, d, k)) { r.ver = true; n++; }
+  return n;
 }

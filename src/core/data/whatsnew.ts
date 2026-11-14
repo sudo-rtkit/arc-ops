@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.23.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.24.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.24.0',
+    title: { cs: 'Zbraně a augment ze snímku, potvrzení hodnot', en: 'Weapons and augment from screenshots, confirming values' },
+    items: [
+      { text: { cs: 'Snímek loadoutu nebo FINDINGS pozná zbraň, její tier a augment, u každého s jistotou. Co si není jisté, zůstane neznámé a jde ke kontrole, nic se nehádá.', en: 'Loadout and FINDINGS screenshots now recognise weapons, their tier and the augment, with a confidence. Anything unsure goes to review; nothing is guessed.' }, link: 'loadouts' },
+      { text: { cs: 'Rozpoznaná výbava jde do předvyplnění loadoutu, do automatického záznamu raidu i do vyhodnocení po raidu.', en: 'Recognised gear feeds the loadout prefill, the automatic raid entry and the post-raid evaluation.' }, link: 'raid' },
+      { text: { cs: 'Nepotvrzenou hodnotu potvrdíš tlačítkem vedle tečky původu, celou oblast v Nastavení → Původ dat. Tečky jsou nově i u materiálů v dílně a v nákupním seznamu.', en: 'Confirm a value next to its origin dot, or a whole area in Settings → Data origin. Dots now also show on workshop and shopping list materials.' } },
+    ],
+  },
   {
     version: '0.23.0',
     title: { cs: 'Loadout builder a zátěž aplikace', en: 'Loadout builder and app load' },

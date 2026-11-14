@@ -30,7 +30,7 @@ export default function Profile({ sub }: { sub?: string }) {
   const field = (f: ProfileField, label: string, hint?: string, suffix?: string) => {
     const [lo, hi] = profileLimit(f);
     return <NumberField label={label} value={p[f]} min={lo} max={hi} hint={hint} suffix={suffix} onCommit={n => actions.setProfile(f, n)}
-      extra={<ProvDot rec={provOf(s, 'profile', f)} showDefault />} />;
+      extra={<ProvDot rec={provOf(s, 'profile', f)} confirm={{ d: 'profile', k: f }} showDefault />} />;
   };
   const m = METRICS.find(x => x.id === metric)!;
   const mLabel = t(m.label), mUnit = t(m.unit);
@@ -52,7 +52,7 @@ export default function Profile({ sub }: { sub?: string }) {
           </div>
           <div className="row between">
             <div><span className="field-label">{t('profile.amplified')}</span><p className="meta">{texts.amplified}</p></div>
-            <span className="with-prov"><Stepper label={t('profile.amplified')} value={p.amplified} min={0} max={99} onChange={n => actions.setProfile('amplified', n)} /><ProvDot rec={provOf(s, 'profile', 'amplified')} showDefault /></span>
+            <span className="with-prov"><Stepper label={t('profile.amplified')} value={p.amplified} min={0} max={99} onChange={n => actions.setProfile('amplified', n)} /><ProvDot rec={provOf(s, 'profile', 'amplified')} confirm={{ d: 'profile', k: 'amplified' }} showDefault /></span>
           </div>
         </Panel>
         <div className="stack">

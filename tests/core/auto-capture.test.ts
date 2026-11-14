@@ -2,7 +2,7 @@
    a tlačítkem Zpět, fronta „Ke kontrole“, hlavní vypínač napojení na hru, schéma 17 a cesta automatického snímku
    přes hub (umělé obrazovky z veřejného vzoru, žádné vlastní snímky hráče). */
 import { describe, expect, it } from 'vitest';
-import { IN_RAID_QUIET_MS, LOADOUT_STALE_MS, buildDraft, emptyRaidLife, lifeStep, normalizeRaidLife, packKnown, type LoadoutSnap, type RaidLife } from '../../src/core/raidLife';
+import { IN_RAID_QUIET_MS, LOADOUT_STALE_MS, buildDraft, emptyRaidLife, lifeStep, normalizeRaidLife, packKnown, withResultGear, type LoadoutField, type LoadoutSnap, type RaidLife } from '../../src/core/raidLife';
 import { AUTO_SCREENS, RUST_SCREENS, autoActive, autoIndicator, normalizeAutoCapture, normalizeGameLink, normalizeReview, normalizeReviewEdit, screenBits, unseenWrites } from '../../src/core/autoCapture';
 import { SCHEMA, defaultState, normalize } from '../../src/core/state';
 import { createApp } from '../../src/store/app';
@@ -312,3 +312,59 @@ function fakeNative(): Native {
 function nullBus(): Bus {
   return { label: 'main', send: () => undefined, on: () => () => undefined, onNative: () => () => undefined, ready: async () => undefined };
 }
+
+/* 0.24.0: výbava z FINDINGS (zbraně, augment) doplní loadout; nepoznaná výbava jde ke kontrole s návrhem */
+describe('0.24.0: výbava z FINDINGS a kontrola výbavy', () => {
+  const base = (): AppState => defaultState(T0);
+  const gear = (): LoadoutField[] => [
+    { slot: 'augment', state: 'item', name: 'Free Loadout Augment', qty: 1, conf: 'high', score: 0.96 },
+    { slot: 'shield', state: 'item', name: 'Light Shield', qty: 1, conf: 'high' },
+    { slot: 'weapon1', state: 'item', name: 'Kettle I', qty: 1, conf: 'high', score: 0.88, tierConf: 'high' },
+    { slot: 'weapon2', state: 'item', name: null, qty: 1, conf: 'unknown', score: 0.79, guess: 'Stitcher I', tierConf: 'high' },
+  ];
+  it('loadout zná zbraň 1 jen nejistě: převezme se jistá hodnota z FINDINGS; prázdné místo loadoutu platí', () => {
+    const lo = snap({ fields: [...snap().fields.filter(f => f.slot !== 'weapon2'), { slot: 'weapon2', state: 'empty', name: null, qty: 1, conf: 'high' }] });
+    const m = withResultGear(lo, gear(), T0)!;
+    expect(m.fields.map(f => `${f.slot}:${f.name}`)).toEqual(['augment:Combat Mk. 1', 'shield:Light Shield', 'weapon1:Kettle I', 'weapon2:null', 'backpack:Bandage']);
+    expect(m.fields.find(f => f.slot === 'weapon2')?.state).toBe('empty');
+    expect(withResultGear(lo, null, T0)).toBe(lo);
+    expect(withResultGear(lo, [], T0)).toBe(lo);
+  });
+  it('bez loadoutu: výbava z FINDINGS, batoh a quick use neznámé; loot jde celý ke kontrole', () => {
+    const d = buildDraft(base(), { at: T0, outcome: 'survived', sig: null, loot: loot([['Bandage', 5, true, 'known']]), gear: gear() }, { loadout: null });
+    expect(d.raid.gear).toEqual([{ name: 'Free Loadout Augment', qty: 1 }, { name: 'Light Shield', qty: 1 }, { name: 'Kettle I', qty: 1 }]);
+    expect(d.raid.loot).toEqual([]);
+    const lo = d.review.find(r => r.kind === 'loadout')!;
+    expect(lo.slots).toEqual(['weapon2', 'backpack', 'quickUse']);
+    /* nepoznaná zbraň: řádek s návrhem a jistotou (nezaškrtnutý, rozhodne hráč) */
+    expect(lo.rows).toEqual([{ guess: 'Stitcher I', qty: 1, score: 0.79 }]);
+    expect(d.raid.auto).toMatchObject({ value: null, kind: null });
+    /* vyřazení: výbava z FINDINGS se nepoužije (obrazovka ji nemá) */
+    const ko = buildDraft(base(), { at: T0, outcome: 'knockedOut', sig: null, loot: null, gear: gear() }, { loadout: null });
+    expect(ko.raid.gear).toEqual([]);
+  });
+  it('store: kontrola výbavy přidá potvrzenou zbraň k záznamu (při vyřazení i do ztrát)', async () => {
+    const { app } = await makeApp();
+    const res = await app.actions.autoRaid({ at: T0, outcome: 'survived', sig: null, loot: null, gear: gear() }, null);
+    let s = app.store.getState().state;
+    const q = s.review.find(x => x.kind === 'loadout')!;
+    expect(q.rows).toEqual([{ guess: 'Stitcher I', qty: 1, score: 0.79 }]);
+    expect(normalizeReviewEdit({ id: q.id, kind: 'gear', rows: [{ name: ' Stitcher I ', qty: 3 }] })).toEqual({ id: q.id, kind: 'gear', rows: [{ name: 'Stitcher I', qty: 3 }] });
+    expect(app.actions.reviewApply([{ id: q.id, kind: 'gear', rows: [{ name: 'Stitcher I', qty: 1 }] }])).toBe(1);
+    s = app.store.getState().state;
+    const raid = s.raids.find(r => r.id === res!.raidId)!;
+    expect(raid.gear).toEqual([{ name: 'Free Loadout Augment', qty: 1 }, { name: 'Light Shield', qty: 1 }, { name: 'Kettle I', qty: 1 }, { name: 'Stitcher I', qty: 1 }]);
+    expect(raid.lost).toEqual([]);
+    expect(raid.auto?.unsure).not.toContain('loadout');
+    /* úprava „gear“ k jiné frontě než výbavě nic neudělá */
+    const map = s.review.find(x => x.kind === 'map')!;
+    expect(app.actions.reviewApply([{ id: map.id, kind: 'gear', rows: [{ name: 'X', qty: 1 }] }])).toBe(0);
+  });
+  it('uložený průběh raidu drží jistotu, návrh a tier (normalizace)', () => {
+    const lo = snap({ fields: gear() });
+    expect(normalizeRaidLife(JSON.parse(JSON.stringify({ phase: 'loadout', loadout: lo, quietSince: 0 }))).loadout).toEqual(lo);
+    const bad = normalizeRaidLife({ phase: 'loadout', quietSince: 0, loadout: { ...lo, fields: [{ slot: 'weapon1', state: 'item', name: 'X', conf: 'high', score: 7, guess: 'Y', tierConf: 'maybe' }] } });
+    /* jistota oříznutá, návrh jen u nepojmenovaného pole, neznámá jistota tieru pryč */
+    expect(bad.loadout?.fields).toEqual([{ slot: 'weapon1', state: 'item', name: 'X', qty: 1, conf: 'high', score: 1 }]);
+  });
+});

@@ -81,3 +81,30 @@ export function resize(img: RgbaImage, w: number, h: number): RgbaImage {
   }
   return { width: w, height: h, data: out };
 }
+
+/* 0.24.0: otočení o úhel ve stupních (kladný = proti směru hodinových ručiček, jako v běžných editorech), bilineárně,
+   s rozšířením plátna; mimo obraz je pozadí bg. Slouží narovnání šikmých ikon zbraní z katalogu a testům. */
+export function rotate(img: RgbaImage, deg: number, bg: [number, number, number, number] = [0, 0, 0, 0]): RgbaImage {
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  const W = img.width, H = img.height;
+  /* zaokrouhlovací chyba (cos 90° ≠ 0) nesmí přidat řádek */
+  const w = Math.ceil(Math.abs(W * c) + Math.abs(H * s) - 1e-6), h = Math.ceil(Math.abs(W * s) + Math.abs(H * c) - 1e-6);
+  const out = new Uint8ClampedArray(w * h * 4);
+  const cx = W / 2, cy = H / 2, ox = w / 2, oy = h / 2, d = img.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    /* zpětné zobrazení: bod výstupu → bod zdroje (osa y míří dolů, proto znaménka) */
+    const dx = x + 0.5 - ox, dy = y + 0.5 - oy;
+    const sx = c * dx - s * dy + cx - 0.5, sy = s * dx + c * dy + cy - 0.5;
+    const o = (y * w + x) * 4;
+    if (sx < -0.5 || sy < -0.5 || sx > W - 0.5 || sy > H - 0.5) { out.set(bg, o); continue; }
+    const x0 = Math.max(0, Math.floor(sx)), y0 = Math.max(0, Math.floor(sy));
+    const x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1);
+    const tx = Math.min(1, Math.max(0, sx - x0)), ty = Math.min(1, Math.max(0, sy - y0));
+    for (let k = 0; k < 4; k++) {
+      const top = d[(y0 * W + x0) * 4 + k] * (1 - tx) + d[(y0 * W + x1) * 4 + k] * tx;
+      const bot = d[(y1 * W + x0) * 4 + k] * (1 - tx) + d[(y1 * W + x1) * 4 + k] * tx;
+      out[o + k] = top * (1 - ty) + bot * ty;
+    }
+  }
+  return { width: w, height: h, data: out };
+}

@@ -3029,4 +3029,17 @@ export const en: Dict = {
   "inv.loadoutShop": "For loadouts",
   "inv.loadoutShopHint": "Items missing for loadouts marked “Add to shopping list” (Weapons → Loadouts).",
   "inv.loadoutShopFor": "for {list}",
+  /* 0.24.0 */
+  "review.gear.name": "Gear",
+  "review.gear.guess": "suggestion {score:raw} %, tick it only if it is right",
+  "lo.scan.conf": "confidence {conf:pct}",
+  "lo.scan.noTier": "tier not read, add it",
+  "lo.scan.guess": "Suggestion: {name} ({conf:pct}), use it",
+  "raid.eval.gearKept": "Gear from the screenshot: {list} · worth {value}. You kept it.",
+  "raid.eval.gearLost": "Gear from the screenshot: {list} · worth {value}. You lost it.",
+  "raid.eval.gearUnknown": "No price in the catalogue: {list}.",
+  "prov.confirm": "Confirm",
+  "prov.confirmAria": "Confirm value ({text:raw})",
+  "prov.confirmArea": "Confirm all in area",
+  "prov.confirmAreaAria": "Confirm all in area {area}",
 };

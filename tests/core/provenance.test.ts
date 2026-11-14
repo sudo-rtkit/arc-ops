@@ -7,7 +7,7 @@ import { applyRelay, createMirror, type RelayCall } from '../../src/store/relay'
 import { SCHEMA, defaultState, normalize } from '../../src/core/state';
 import { makeBackup, parseBackup } from '../../src/core/backup';
 import {
-  PROV_LOG_MAX, PROV_MAX, emptyProvenance, latestAt, normalizeProvenance, provOf, provSummary, seedMigration, stampChanges, visionConf,
+  PROV_LOG_MAX, PROV_MAX, canConfirm, confirmDomain, confirmValue, emptyProvenance, latestAt, normalizeProvenance, provOf, provSummary, seedMigration, stampChanges, visionConf,
 } from '../../src/core/provenance';
 import { advisorTips, RESCAN_DAYS, visibleTips } from '../../src/core/advisor';
 import { QUESTS } from '../../src/core/quests';
@@ -429,4 +429,50 @@ describe('původ: odolnost proti podvržené záloze (Codex Security, CWE-407)',
     expect(Object.values(recs).every(r => r.src === 'migration')).toBe(true);
     expect(recs['r' + (N - 1)]?.at).toBe(1_000 + N - 1);
   }, 30_000);
+});
+
+/* 0.24.0: „Potvrdit“ u hodnoty a „Potvrdit vše v oblasti“ v Nastavení → Původ dat */
+describe('0.24.0: potvrzení hodnoty a oblasti', () => {
+  const stored = () => ({ schema: 17, inventory: { 'Metal Parts': 5, Fabric: 3 }, stations: { [station.id]: station.min + 1 } });
+  it('jedna hodnota: ver = true, zdroj, čas a jistota zůstanou; výchozí nebo potvrzená hodnota nic', async () => {
+    const { app, state } = await makeApp(stored());
+    const before = provOf(state(), 'inv', 'Metal Parts')!;
+    expect(before).toMatchObject({ src: 'migration', ver: false });
+    expect(canConfirm(state(), 'inv', 'Metal Parts')).toBe(true);
+    expect(app.actions.provConfirm('inv', 'Metal Parts')).toBe(true);
+    expect(provOf(state(), 'inv', 'Metal Parts')).toEqual({ ...before, ver: true });
+    /* jiná hodnota zůstala nepotvrzená; hodnoty a deník se nezměnily */
+    expect(provOf(state(), 'inv', 'Fabric')?.ver).toBe(false);
+    expect(state().inventory).toEqual({ 'Metal Parts': 5, Fabric: 3 });
+    /* podruhé, bez záznamu, nesmysl */
+    expect(app.actions.provConfirm('inv', 'Metal Parts')).toBe(false);
+    expect(app.actions.provConfirm('inv', 'Nope')).toBe(false);
+    expect(app.actions.provConfirm('evil', 'Fabric')).toBe(false);
+    expect(app.actions.provConfirm('inv', 'x'.repeat(131))).toBe(false);
+    expect(app.actions.provConfirm('inv', 7)).toBe(false);
+  });
+  it('celá oblast: potvrdí jen tu oblast a vrátí počet; záznam raidu s čekající kontrolou se nepotvrdí', async () => {
+    const { app, state } = await makeApp(stored());
+    expect(app.actions.provConfirmArea('inv')).toBe(2);
+    expect(provSummary(state()).find(r => r.d === 'inv')?.unverified).toBe(0);
+    expect(provSummary(state()).find(r => r.d === 'stations')?.unverified).toBe(1);
+    expect(app.actions.provConfirmArea('inv')).toBe(0);
+    expect(app.actions.provConfirmArea('__proto__')).toBe(0);
+    /* raid s frontou „Ke kontrole“ */
+    const s = structuredClone(state());
+    s.provenance.recs.raids = { R1: { src: 'auto-capture', at: T0, ver: false }, R2: { src: 'auto-capture', at: T0, ver: false } };
+    s.review = [{ id: 'q', at: T0, kind: 'map', raidId: 'R1' }];
+    expect(canConfirm(s, 'raids', 'R1')).toBe(false);
+    expect(confirmValue(s, 'raids', 'R1')).toBe(false);
+    expect(confirmDomain(s, 'raids')).toBe(1);
+    expect([s.provenance.recs.raids.R1.ver, s.provenance.recs.raids.R2.ver]).toEqual([false, true]);
+  });
+  it('overlay: akce jdou přes relay (jen data, hlavní okno ověří)', async () => {
+    const { app, state } = await makeApp(stored());
+    const call = (name: string, args: unknown[], seq: number): RelayCall => ({ session: 'ovr1', seq, name, args, ids: [] });
+    expect(applyRelay(app, call('provConfirm', ['inv', 'Fabric'], 1))?.applied).toBe(true);
+    expect(provOf(state(), 'inv', 'Fabric')?.ver).toBe(true);
+    expect(applyRelay(app, call('provConfirmArea', ['stations'], 2))?.applied).toBe(true);
+    expect(applyRelay(app, call('provConfirmArea', ['bogus'], 3))?.applied).toBe(false);
+  });
 });

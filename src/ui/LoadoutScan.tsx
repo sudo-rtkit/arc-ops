@@ -22,8 +22,12 @@ import type { Key } from '../i18n';
 
 const ERR_KEY: Record<DecodeError, Key> = { notImage: 'scan.err.notImage', tooBig: 'scan.err.tooBig', decode: 'scan.err.decode' };
 interface Shot { bitmap: ImageBitmap; read: LoadoutRead; snap: LoadoutSnap; rows: Row[] }
-/* Řádek kontroly: místo, navržený název (prázdný = neznámý), počet, jistota a výřez políčka pro náhled. */
-interface Row { id: string; slot: ScanSlot; name: string; qty: number; conf: 'high' | 'medium' | 'unknown'; box: Box | null }
+/* Řádek kontroly: místo, navržený název (prázdný = neznámý), počet, jistota a výřez políčka pro náhled.
+   0.24.0: score = jistota rozpoznání 0–1, guess = návrh pod prahem (jen tlačítkem), tierConf = tier zbraně. */
+interface Row {
+  id: string; slot: ScanSlot; name: string; qty: number; conf: 'high' | 'medium' | 'unknown'; box: Box | null;
+  score?: number; guess?: string; tierConf?: 'high' | 'medium' | 'unknown';
+}
 
 function Thumb({ bitmap, box }: { bitmap: ImageBitmap; box: Box | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -31,8 +35,10 @@ function Thumb({ bitmap, box }: { bitmap: ImageBitmap; box: Box | null }) {
     const c = ref.current, ctx = c?.getContext('2d');
     if (!c || !ctx || !box) return;
     c.width = 40; c.height = 40;
-    const side = Math.min(box.w, box.h);
-    ctx.drawImage(bitmap, box.x + (box.w - side) / 2, box.y, side, side, 0, 0, 40, 40);
+    /* 0.24.0: místo zbraně je na šířku: celý obrázek zmenšený do náhledu (dřív se ořízl na čtverec a zbraň byla useknutá) */
+    const k = 40 / Math.max(box.w, box.h), w = box.w * k, h = box.h * k;
+    ctx.clearRect(0, 0, 40, 40);
+    ctx.drawImage(bitmap, box.x, box.y, box.w, box.h, (40 - w) / 2, (40 - h) / 2, w, h);
   }, [bitmap, box]);
   return <canvas ref={ref} className="scan-thumb" width={40} height={40} aria-hidden="true" />;
 }
@@ -44,7 +50,7 @@ function reviewRows(read: LoadoutRead, snap: LoadoutSnap, ctx: ReturnType<typeof
   read.equip.forEach((e, i) => {
     const f = snap.fields[i];
     if (!f || f.state !== 'item') return;
-    rows.push({ id: 'e' + i, slot: e.slot, name: f.name ?? '', qty: 1, conf: f.conf, box: e.box });
+    rows.push({ id: 'e' + i, slot: e.slot, name: f.name ?? '', qty: 1, conf: f.conf, box: e.box, ...(f.score !== undefined ? { score: f.score } : {}), ...(f.guess ? { guess: f.guess } : {}), ...(f.tierConf ? { tierConf: f.tierConf } : {}) });
   });
   if (read.screen) {
     const a = analyzeLoot(read.screen, learned, ctx);
@@ -57,6 +63,23 @@ function reviewRows(read: LoadoutRead, snap: LoadoutSnap, ctx: ReturnType<typeof
     }
   }
   return rows;
+}
+
+/* 0.24.0: jistota pole (zbraň, augment), tier zbraně a návrh pod prahem, který se převezme jen tlačítkem. */
+function ScanConf({ r, used, onUse }: { r: Row; used: boolean; onUse: (name: string) => void }) {
+  const t = useT();
+  if (r.score === undefined && !r.tierConf) return null;
+  return (
+    <span className="lo-scan-conf" data-testid="lo-scan-conf">
+      {r.score !== undefined && r.conf === 'high' && <span className="meta"> {t('lo.scan.conf', { conf: r.score })}</span>}
+      {r.tierConf === 'unknown' && r.conf === 'high' && <span className="meta amber"> {t('lo.scan.noTier')}</span>}
+      {r.guess && !used && (
+        <button type="button" className="link-btn" onClick={() => onUse(r.guess!)} data-testid="lo-scan-guess">
+          {t('lo.scan.guess', { name: r.guess, conf: r.score ?? 0 })}
+        </button>
+      )}
+    </span>
+  );
 }
 
 export function LoadoutScan({ base, onApply }: { base: Loadout; onApply: (l: Loadout) => void }) {
@@ -160,7 +183,8 @@ export function LoadoutScan({ base, onApply }: { base: Loadout; onApply: (l: Loa
                     <td>{slotLabel(r.slot)}</td>
                     <td><input className="input" list="lo-scan-names" aria-label={t('lo.scan.itemAria', { slot: slotLabel(r.slot) })} placeholder={t('lootscan.namePh')} maxLength={80}
                       value={nameOf(r)} onChange={e => setNames(p => ({ ...p, [r.id]: e.target.value }))} />
-                      {r.conf !== 'high' && <span className="meta"> {t(r.conf === 'unknown' ? 'lo.scan.unknown' : 'scan.status.uncertain')}</span>}</td>
+                      {r.conf !== 'high' && <span className="meta"> {t(r.conf === 'unknown' ? 'lo.scan.unknown' : 'scan.status.uncertain')}</span>}
+                      <ScanConf r={r} used={names[r.id] !== undefined} onUse={g => setNames(p => ({ ...p, [r.id]: g }))} /></td>
                     <td className="num"><Stepper label={t('lo.scan.countAria', { slot: slotLabel(r.slot) })} value={countOf(r)} min={1} max={ITEM_MAX} onChange={v => setCounts(p => ({ ...p, [r.id]: v }))} /></td>
                   </tr>
                 ))}</tbody>

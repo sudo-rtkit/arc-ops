@@ -2,7 +2,8 @@
    jednou přečtou a dál se drží jen čísla (ScreenRead). Čistá funkce.
    - INVENTORY se STASH → 'stash': čte se jen STASH (batoh a quick use se do dávky stashe nemíchají).
    - FINDINGS po raidu (bez STASH, s batohem a tlačítkem CONTINUE) → 'loot': čte se jen BACKPACK a QUICK USE.
-     EQUIPMENT se nečte (není to mřížka políček) a mince se nečtou: hodnota loadoutu na této obrazovce nejsou mince.
+     Mince se nečtou: hodnota loadoutu na této obrazovce nejsou mince. 0.24.0: EQUIPMENT (zbraně, augment, štít)
+     čte jen automatický snímek výsledku (readAutoCapture) čtečkou výbavy; snímek ze zkratky ho nečte.
    - 0.10.1: obrazovky postupu (PROFIL, DÍLNA a detail stanice, ÚKOL obchodníka, SKILL TREE) → 'progress':
      přečtou se jen čísla a názvy (core/vision/progress.ts), zápis až po kontrole v revizi.
    - Cokoli jiného (MANAGE LOADOUT před raidem, neznámá obrazovka) se zahodí bez čtení. */
@@ -57,7 +58,8 @@ export function readCapture(img: RgbaImage): CaptureResult {
    (KNOCKED OUT loot nemá, výbava je ztracená); ostatní obrazovky stejnou cestou jako snímek ze zkratky. */
 export type AutoRead =
   | { kind: 'loadout'; loadout: LoadoutRead }
-  | { kind: 'result'; outcome: RaidOutcome; read: ScreenRead | null }
+  /* 0.24.0: loadout = výbava přečtená z FINDINGS (zbraně, augment, štít), jen u přežití */
+  | { kind: 'result'; outcome: RaidOutcome; read: ScreenRead | null; loadout?: LoadoutRead | null }
   | { kind: 'other'; result: CaptureResult }
   | { kind: 'empty' };
 export function readAutoCapture(img: RgbaImage, screen: RustScreen): AutoRead {
@@ -68,9 +70,12 @@ export function readAutoCapture(img: RgbaImage, screen: RustScreen): AutoRead {
   }
   if (screen === 'findings' || screen === 'knockedOut') {
     if (screen === 'knockedOut') return { kind: 'result', outcome: 'knockedOut', read: null };
+    /* čtečka výbavy čte i BACKPACK a QUICK USE (stejné čtení jako dřív); bez mřížky batohu nic */
+    const lo = readLoadout(img);
+    if (lo?.screen && lo.screen.panels.some(p => p.panel === 'backpack')) return { kind: 'result', outcome: 'survived', read: lo.screen, loadout: lo };
     const read = readScreenshot(img, { panels: ['backpack', 'quickUse'] });
     const ok = read.panels.some(p => p.panel === 'backpack');
-    return { kind: 'result', outcome: 'survived', read: ok ? { ...read, coins: null, premium: null, stashValue: null, headerSlots: null, headerSlotsMax: null } : null };
+    return { kind: 'result', outcome: 'survived', read: ok ? { ...read, coins: null, premium: null, stashValue: null, headerSlots: null, headerSlotsMax: null } : null, loadout: null };
   }
   return { kind: 'other', result: readCapture(img) };
 }

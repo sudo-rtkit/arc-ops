@@ -581,4 +581,9 @@ td .item-link b, li .item-link b { font-weight: var(--weight-semibold); }
 .prov-dot.prov-other { background: transparent; border: 1px solid var(--text-muted); opacity: .8; }
 .prov-dot.prov-unverified { background: var(--amber); opacity: 1; }
 .prov-dot.prov-default { background: transparent; border: 1px dashed var(--text-muted); opacity: .5; }
+/* 0.24.0: „Potvrdit“ u nepotvrzené hodnoty (malé tlačítko vedle tečky) */
+.prov-confirm { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; margin-left: 2px; padding: 0; border: 1px solid var(--amber); border-radius: 4px; background: transparent; color: var(--amber); cursor: pointer; vertical-align: middle; }
+.prov-confirm:hover { background: var(--amber); color: var(--bg-app); }
+.prov-confirm:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lo-scan-conf .link-btn { margin-left: 6px; }
 .prov-log { margin: 0; padding-left: 18px; display: grid; gap: 2px; }

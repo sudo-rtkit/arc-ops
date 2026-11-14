@@ -43,7 +43,7 @@ import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, v
 import type { BuddyState } from '../core/types';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
-import { MANUAL, clearDomains, stampChanges, stampImport, visionConf, type ProvCtx, type ProvDomain, type ProvSource } from '../core/provenance';
+import { MANUAL, clearDomains, confirmDomain, confirmValue, isProvDomain, stampChanges, stampImport, visionConf, type ProvCtx, type ProvDomain, type ProvSource } from '../core/provenance';
 import { itemKey } from '../core/types';
 
 /* Úprava vestavěného záznamu (ARC, zbraně): klíč s hodnotou undefined vrací pole na vestavěný základ.
@@ -468,6 +468,18 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       return n;
     },
     invAdd(mat: string, delta: number) { actions.invSet(mat, (st().inventory[mat] || 0) + delta); },
+    /* 0.24.0: hráč potvrdí hodnotu (tečka původu „Potvrdit“) nebo všechny nepotvrzené hodnoty oblasti (Nastavení →
+       Původ dat). Hodnota ani zdroj se nemění; záznam raidu s čekající kontrolou se nepotvrdí. */
+    provConfirm(d: unknown, key: unknown): boolean {
+      if (!isProvDomain(d) || typeof key !== 'string' || !key || key.length > 130) return false;
+      return change(s => { if (!confirmValue(s, d, key)) return false; });
+    },
+    provConfirmArea(d: unknown): number {
+      if (!isProvDomain(d)) return 0;
+      let n = 0;
+      change(s => { n = confirmDomain(s, d); if (!n) return false; });
+      return n;
+    },
     setMaterialMeta(name: string, patch: { category?: string; source?: string } | null) {
       change(s => {
         if (patch === null) { delete s.gameData.materials[name]; return; }
@@ -1221,6 +1233,12 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
           } else if (e.kind === 'loot') {
             if (!r) continue;
             r.loot = normalizeItems([...r.loot, ...e.rows]); unsure('loot');
+          } else if (e.kind === 'gear') {
+            /* 0.24.0: výbavu potvrzenou v kontrole přidá k záznamu (při vyřazení i do ztrát) */
+            if (!r || item.kind !== 'loadout') continue;
+            r.gear = normalizeItems([...r.gear, ...e.rows]);
+            if (!r.ok) r.lost = normalizeItems([...r.lost, ...e.rows]);
+            unsure('loadout');
           } else if (item.kind === 'loadout') unsure('loadout');
           s.review = s.review.filter(x => x.id !== item.id);
           done++;

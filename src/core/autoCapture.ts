@@ -123,6 +123,8 @@ export type ReviewEdit =
   | { id: string; kind: 'map'; map: string }
   | { id: string; kind: 'outcome'; survived: boolean }
   | { id: string; kind: 'loot'; rows: { name: string; qty: number }[] }
+  /* 0.24.0: výbava potvrzená v kontrole (nepoznaná zbraň nebo augment) */
+  | { id: string; kind: 'gear'; rows: { name: string; qty: number }[] }
   | { id: string; kind: 'dismiss' };
 export function normalizeReviewEdit(raw: unknown): ReviewEdit | null {
   if (!isObj(raw) || typeof raw.id !== 'string') return null;
@@ -131,6 +133,7 @@ export function normalizeReviewEdit(raw: unknown): ReviewEdit | null {
     case 'map': return typeof raw.map === 'string' ? { id, kind: 'map', map: text(raw.map, 40) } : null;
     case 'outcome': return typeof raw.survived === 'boolean' ? { id, kind: 'outcome', survived: raw.survived } : null;
     case 'loot': return Array.isArray(raw.rows) ? { id, kind: 'loot', rows: normalizeItems(raw.rows, 40) } : null;
+    case 'gear': return Array.isArray(raw.rows) ? { id, kind: 'gear', rows: normalizeItems(raw.rows, 8) } : null;
     case 'dismiss': return { id, kind: 'dismiss' };
     default: return null;
   }

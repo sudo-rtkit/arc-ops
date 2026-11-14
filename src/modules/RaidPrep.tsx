@@ -16,7 +16,7 @@ import { fmt, fmtDateTime } from '../ui/format';
 import { dayKey } from '../core/util';
 import { MAPS } from '../core/data/maps';
 import type { RaidGoals, RaidPlan } from '../core/types';
-import { evalLine, evaluateRaid, knownRisk, loadoutOutcome, nextRaid, planLoadout, planRaid, savedRaid } from '../core/raidEval';
+import { evalLine, evaluateRaid, knownRisk, loadoutOutcome, nextRaid, planLoadout, planRaid, raidGear, savedRaid } from '../core/raidEval';
 import { LoadoutSummaryView } from './Loadouts';
 import {
   defaultGoals, emptyGoals, goalOptions, hasGoals, listSig, raidList, recommendedMap, scoreMaps, validGoals, type MapScore,
@@ -64,6 +64,8 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
   const lo = planLoadout(s, plan.loadout);
   const risk = lo ? knownRisk(lo.sum) : null;
   const outcome = loadoutOutcome(raid);
+  /* 0.24.0: výbava rozpoznaná ze snímků (zbraně s tierem, augment) u automatického záznamu raidu */
+  const gear = raidGear(raid);
   const run = () => {
     setOn(true);
     if (!plan.snap && !captured) return;
@@ -90,6 +92,12 @@ function RaidEvalPanel({ plan, onSay, onNext }: { plan: RaidPlan; onSay: (l: Lin
                 {outcome === 'lost' && risk !== null ? t('raid.eval.loadoutLost', { risk: fmt(risk) })
                   : outcome === 'kept' && risk !== null ? t('raid.eval.loadoutKept', { risk: fmt(risk) })
                     : t('raid.eval.loadout', { name: lo.name, risk: risk === null ? '?' : fmt(risk) })}
+              </p>
+            )}
+            {gear && (
+              <p className="meta" data-testid="raid-eval-gear">
+                {t(gear.lost ? 'raid.eval.gearLost' : 'raid.eval.gearKept', { list: gear.names.join(', '), value: fmt(gear.value) })}
+                {gear.unknown.length > 0 && ' ' + t('raid.eval.gearUnknown', { list: gear.unknown.join(', ') })}
               </p>
             )}
             <div className="rp-eval-sum" data-testid="raid-eval-sum" data-kind={ev.kind}>

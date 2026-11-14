@@ -18,13 +18,20 @@ import { normalizeItems } from './raidItems';
 import { lootMinusGear, type LootAnalysis, type MatchContext } from './visionImport';
 import { matchFp, MATCH_SURE, type LearnedFp } from './vision/match';
 import { analyzeLoot } from './visionImport';
-import type { LoadoutRead } from './vision/loadout';
+import type { EquipRead, LoadoutRead } from './vision/loadout';
+import type { FieldConf } from './vision/equip';
+import { itemKey } from './types';
 import { LOADOUT_SLOTS, isRustScreen, type LoadoutSlot, type ReviewItem, type ReviewRow, type RustScreen } from './autoCapture';
 
-export type FieldConf = 'high' | 'medium' | 'unknown';
+export type { FieldConf };
 /* Jedno místo výbavy nebo předmět v batohu / quick use. state: item = předmět (name null = nepoznaný),
-   random = volný loadout (hra vylosuje), empty = prázdné místo. */
-export interface LoadoutField { slot: LoadoutSlot; state: 'item' | 'random' | 'empty'; name: string | null; qty: number; conf: FieldConf }
+   random = volný loadout (hra vylosuje), empty = prázdné místo.
+   0.24.0 (zbraně a augment podle tvaru): score = jistota rozpoznání 0–1, guess = návrh jen pro kontrolu (shoda pod
+   prahem jistoty; nikdy se nezapíše sám), tierConf = jistota tieru zbraně (unknown = tier nepřečtený). */
+export interface LoadoutField {
+  slot: LoadoutSlot; state: 'item' | 'random' | 'empty'; name: string | null; qty: number; conf: FieldConf;
+  score?: number; guess?: string; tierConf?: FieldConf;
+}
 export interface LoadoutSnap { at: number; kind: 'free' | 'custom' | 'unknown'; value: number | null; fields: LoadoutField[] }
 
 export type LifePhase = 'idle' | 'loadout' | 'inRaid';
@@ -88,10 +95,22 @@ export function lifeStep(life: RaidLife, ev: LifeEvent): LifeStep {
 
 /* ----- loadout ze snímku ----- */
 /* Pole s jistotou z otisku: known (≥ MATCH_SURE) = high, uncertain = medium, jinak neznámé. */
+/* 0.24.0: zbraň nebo augment podle shody tvaru. Jistá shoda = název (u zbraně s přečteným tierem „Kettle I“,
+   bez tieru jen „Kettle“ a tier ke kontrole); jinak neznámé, nejvýš s návrhem pro kontrolu. */
+export function equipField(e: EquipRead): LoadoutField {
+  const m = e.match!;
+  const weapon = e.slot === 'weapon1' || e.slot === 'weapon2';
+  const tier = weapon ? e.tier ?? undefined : undefined;
+  const extra = weapon ? { tierConf: (tier ? 'high' : 'unknown') as FieldConf } : {};
+  if (m.conf === 'high' && m.name) return { slot: e.slot, state: 'item', name: itemKey(m.name, tier), qty: 1, conf: 'high', score: m.score, ...extra };
+  return { slot: e.slot, state: 'item', name: null, qty: 1, conf: 'unknown', score: m.score, ...(m.conf === 'medium' && m.best ? { guess: itemKey(m.best, tier) } : {}), ...extra };
+}
+
 export function loadoutSnap(read: LoadoutRead, learned: LearnedFp[], ctx: MatchContext, at: number): LoadoutSnap {
   const fields: LoadoutField[] = [];
   for (const e of read.equip) {
     if (e.state !== 'item' || !e.fp) { fields.push({ slot: e.slot, state: e.state, name: null, qty: 1, conf: 'high' }); continue; }
+    if (e.match && e.slot !== 'shield') { fields.push(equipField(e)); continue; }
     const m = matchFp(e.fp, e.rarity, learned, ctx.catalog ?? []);
     const conf: FieldConf = m.itemKey === null ? 'unknown' : m.status === 'known' && m.score >= MATCH_SURE ? 'high' : m.status === 'unknown' ? 'unknown' : 'medium';
     fields.push({ slot: e.slot, state: 'item', name: conf === 'unknown' ? null : m.itemKey, qty: 1, conf });
@@ -114,9 +133,9 @@ export function loadoutSnap(read: LoadoutRead, learned: LearnedFp[], ctx: MatchC
 /* Výbava, která je jistě známá (jen pojmenované předměty). */
 export const knownGear = (lo: LoadoutSnap): ItemQty[] =>
   normalizeItems(lo.fields.filter(f => f.state === 'item' && f.name && f.conf !== 'unknown').map(f => ({ name: f.name!, qty: f.qty })));
-/* Místa, o kterých nic nevíme (nepoznaný předmět nebo vylosovaná výbava). */
+/* Místa, o kterých nic nevíme (nepoznaný předmět nebo vylosovaná výbava). 0.24.0: i zbraň s nepřečteným tierem. */
 export const unknownSlots = (lo: LoadoutSnap | null): LoadoutSlot[] =>
-  lo ? [...new Set(lo.fields.filter(f => (f.state === 'item' && f.conf === 'unknown') || f.state === 'random').map(f => f.slot))] : [...LOADOUT_SLOTS];
+  lo ? [...new Set(lo.fields.filter(f => (f.state === 'item' && (f.conf === 'unknown' || f.tierConf === 'unknown')) || f.state === 'random').map(f => f.slot))] : [...LOADOUT_SLOTS];
 /* Obsah batohu a quick use je celý známý (jen pak jde loot oddělit od výbavy). */
 export const packKnown = (lo: LoadoutSnap | null): boolean =>
   !!lo && lo.kind !== 'free' && !lo.fields.some(f => (f.slot === 'backpack' || f.slot === 'quickUse') && (f.state === 'random' || f.conf === 'unknown'));
@@ -129,7 +148,12 @@ export function normalizeLoadoutSnap(raw: unknown): LoadoutSnap | null {
     const state = f.state === 'random' || f.state === 'empty' ? f.state : 'item';
     const conf: FieldConf = f.conf === 'high' || f.conf === 'medium' ? f.conf : 'unknown';
     const name = typeof f.name === 'string' && f.name.trim() ? text(f.name, 80) : null;
-    return [{ slot: f.slot as LoadoutSlot, state, name, qty: clampInt(f.qty ?? 1, 1, 99999), conf: name || state !== 'item' ? conf : 'unknown' }];
+    const out: LoadoutField = { slot: f.slot as LoadoutSlot, state, name, qty: clampInt(f.qty ?? 1, 1, 99999), conf: name || state !== 'item' ? conf : 'unknown' };
+    /* 0.24.0: volitelná jistota, návrh a tier (starší stav je nemá) */
+    if (typeof f.score === 'number' && Number.isFinite(f.score)) out.score = Math.round(Math.min(1, Math.max(0, f.score)) * 1000) / 1000;
+    if (state === 'item' && !name && typeof f.guess === 'string' && f.guess.trim()) out.guess = text(f.guess, 80);
+    if (f.tierConf === 'high' || f.tierConf === 'unknown') out.tierConf = f.tierConf;
+    return [out];
   });
   return { at: clampInt(raw.at || 0, 0, 9e15), kind, value: raw.value === null || raw.value === undefined ? null : clampInt(raw.value, 0, 1e9), fields };
 }
@@ -146,7 +170,26 @@ export const IN_RAID_SIGNAL = 'inRaid';
 
 /* ----- návrh záznamu raidu z výsledku ----- */
 export type RaidOutcome = 'survived' | 'knockedOut';
-export interface ResultCapture { at: number; outcome: RaidOutcome; loot: LootAnalysis | null; sig: string | null }
+/* 0.24.0: gear = výbava přečtená z obrazovky FINDINGS (augment, štít, zbraně; jen přežití). Doplní místa výbavy,
+   která loadout před raidem nezná (nebo když loadout viděn nebyl); batoh a quick use z ní nejdou. */
+export interface ResultCapture { at: number; outcome: RaidOutcome; loot: LootAnalysis | null; sig: string | null; gear?: LoadoutField[] | null }
+
+const EQUIP: readonly LoadoutSlot[] = ['augment', 'shield', 'weapon1', 'weapon2'];
+const sureEquip = (f: LoadoutField | undefined): boolean => !!f && f.state === 'item' && !!f.name && f.conf === 'high' && f.tierConf !== 'unknown';
+/* Loadout doplněný výbavou z FINDINGS: místo výbavy, které loadout nezná jistě, převezme jistou hodnotu z FINDINGS.
+   Bez loadoutu vznikne loadout jen z výbavy; batoh a quick use jsou pak neznámé (jako vylosované), takže loot
+   nejde oddělit od výbavy a jde celý ke kontrole. */
+export function withResultGear(lo: LoadoutSnap | null, gear: LoadoutField[] | null | undefined, at: number): LoadoutSnap | null {
+  const seen = (gear ?? []).filter(f => EQUIP.includes(f.slot));
+  if (!seen.length) return lo;
+  if (!lo) {
+    return { at, kind: 'unknown', value: null, fields: [...seen, { slot: 'backpack', state: 'random', name: null, qty: 1, conf: 'high' }, { slot: 'quickUse', state: 'random', name: null, qty: 1, conf: 'high' }] };
+  }
+  /* prázdné místo z loadoutu platí (zbraň sebraná v raidu není výbava, se kterou hráč šel) */
+  const fields = lo.fields.filter(f => !EQUIP.includes(f.slot) || f.state === 'empty' || sureEquip(f) || !sureEquip(seen.find(g => g.slot === f.slot)));
+  for (const sl of EQUIP) if (!fields.some(f => f.slot === sl)) { const g = seen.find(x => x.slot === sl); if (g) fields.push(g); }
+  return { ...lo, fields: fields.sort((a, b) => LOADOUT_SLOTS.indexOf(a.slot) - LOADOUT_SLOTS.indexOf(b.slot)) };
+}
 export type AutoUnsure = 'map' | 'loadout' | 'loot';
 /* Údaje automatického zápisu v záznamu raidu (schéma 17, volitelné). */
 export interface RaidAuto {
@@ -167,7 +210,7 @@ const MAP_IDS = MAPS.map(m => m.id);
 
 export function buildDraft(s: AppState, cap: ResultCapture, pair: { loadout: LoadoutSnap | null }): RaidDraft {
   const plan = s.raidPlan && s.raidPlan.startedAt <= cap.at ? s.raidPlan : null;
-  const lo = pair.loadout;
+  const lo = withResultGear(pair.loadout, cap.outcome === 'survived' ? cap.gear : null, cap.at);
   const unsure: AutoUnsure[] = [];
   const review: RaidDraft['review'] = [];
   /* mapa: jen z aktivního plánu; jinak poslední mapa (nebo první) a kontrola */
@@ -180,9 +223,12 @@ export function buildDraft(s: AppState, cap: ResultCapture, pair: { loadout: Loa
   const type: RaidType = plan ? (plan.goals.money ? 'money' : plan.goals.quests.length ? 'quest' : 'other') : 'other';
   const gear = lo ? knownGear(lo) : [];
   const slots = unknownSlots(lo);
-  if (!lo || slots.some(sl => lo.fields.some(f => f.slot === sl && f.state === 'item'))) {
+  if (!lo || !pair.loadout || slots.some(sl => lo.fields.some(f => f.slot === sl && f.state === 'item'))) {
     unsure.push('loadout');
-    review.push({ kind: 'loadout', slots });
+    /* 0.24.0: nepoznaná výbava jako řádky ke kontrole (návrh jen při shodě těsně pod prahem; hráč ho musí zaškrtnout) */
+    const rows: ReviewRow[] = (lo?.fields ?? []).filter(f => EQUIP.includes(f.slot) && f.state === 'item' && !f.name)
+      .map(f => ({ guess: f.guess ?? '', qty: 1, score: Math.round((f.score ?? 0) * 1000) / 1000 }));
+    review.push({ kind: 'loadout', slots, ...(rows.length ? { rows } : {}) });
   }
   const survived = cap.outcome === 'survived';
   let loot: ItemQty[] = [];
@@ -206,7 +252,7 @@ export function buildDraft(s: AppState, cap: ResultCapture, pair: { loadout: Loa
     raid: {
       ts: cap.at, map, type, ok: survived, coins: 0, min: 0, gear,
       loot, lost: survived ? [] : gear,
-      auto: { at: cap.at, survived, value: lo?.value ?? null, lostValue: !survived ? lo?.value ?? null : null, kind: lo?.kind ?? null, unsure },
+      auto: { at: cap.at, survived, value: pair.loadout?.value ?? null, lostValue: !survived ? pair.loadout?.value ?? null : null, kind: pair.loadout?.kind ?? null, unsure },
     },
     review, items,
   };

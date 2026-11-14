@@ -3029,4 +3029,17 @@ export const cs = {
   "inv.loadoutShop": "Pro loadouty",
   "inv.loadoutShopHint": "Předměty, které chybí loadoutům označeným „Do nákupního seznamu“ (Weapons → Loadouty).",
   "inv.loadoutShopFor": "pro {list}",
+  /* 0.24.0 */
+  "review.gear.name": "Výbava",
+  "review.gear.guess": "návrh {score:raw} %, zaškrtni, jen když sedí",
+  "lo.scan.conf": "jistota {conf:pct}",
+  "lo.scan.noTier": "tier nepřečten, doplň ho",
+  "lo.scan.guess": "Návrh: {name} ({conf:pct}), použít",
+  "raid.eval.gearKept": "Výbava ze snímku: {list} · hodnota {value}. Zůstala ti.",
+  "raid.eval.gearLost": "Výbava ze snímku: {list} · hodnota {value}. Ztratil jsi ji.",
+  "raid.eval.gearUnknown": "Bez ceny v katalogu: {list}.",
+  "prov.confirm": "Potvrdit",
+  "prov.confirmAria": "Potvrdit hodnotu ({text:raw})",
+  "prov.confirmArea": "Potvrdit vše v oblasti",
+  "prov.confirmAreaAria": "Potvrdit vše v oblasti {area}",
 } as const satisfies Record<string, string | { one: string; few?: string; other: string }>;

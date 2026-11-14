@@ -55,6 +55,7 @@ function MaterialDialog({ mat, onClose }: { mat: Material | null; onClose: () =>
 
 function ShoppingTable({ rows }: { rows: ShoppingRow[] }) {
   const t = useT();
+  const s = useAppState();
   return (
     <div className="table-wrap tall">
       <table className="table mat-table">
@@ -62,7 +63,7 @@ function ShoppingTable({ rows }: { rows: ShoppingRow[] }) {
         <tbody>{rows.map(x => (
           <tr key={x.mat}>
             <td><ItemLink name={x.mat}><b>{x.mat}</b></ItemLink> {x.arc && <Badge>{t('inv.arcPart')}</Badge>}</td>
-            <td className="num"><Stepper label={t('ws.have', { name: x.mat })} value={x.have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(x.mat, v)} /></td>
+            <td className="num"><span className="with-prov"><Stepper label={t('ws.have', { name: x.mat })} value={x.have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(x.mat, v)} /><ProvDot rec={provOf(s, 'inv', x.mat)} confirm={{ d: 'inv', k: x.mat }} /></span></td>
             <td className="num">{fmt(x.need)}</td>
             <td className={cx('num', x.missing ? 'amber' : 'success')}>{x.missing ? fmt(x.missing) : <><span className="sr-only">{t('inv.nothing')} </span>✓</>}</td>
             <td>{sourceLabel(x.mat, x.src, t.lang)}</td><td className="muted wrap">{x.uses.join(', ')}</td>
@@ -118,7 +119,7 @@ function Stock() {
                 <tr key={m.name}>
                   <td><ItemLink name={m.name}><b className="wrap">{m.name}</b></ItemLink> {m.custom && <Badge tone="accent">{t('origin.vlastni')}</Badge>}</td>
                   <td>{categoryLabel(m.category, t.lang)}</td>
-                  <td className="num"><span className="with-prov"><Stepper label={t('ws.have', { name: m.name })} value={have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m.name, v)} /><ProvDot rec={provOf(s, 'inv', m.name)} /></span></td>
+                  <td className="num"><span className="with-prov"><Stepper label={t('ws.have', { name: m.name })} value={have} min={0} max={LIMITS.inventory[1]} onChange={v => actions.invSet(m.name, v)} /><ProvDot rec={provOf(s, 'inv', m.name)} confirm={{ d: 'inv', k: m.name }} /></span></td>
                   <td className="num">{sh ? fmt(sh.need) : <span className="muted">0</span>}</td>
                   <td className={cx('num', missing > 0 && 'amber')}>{missing > 0 ? fmt(missing) : <span className="muted">0</span>}</td>
                   <td className="wrap">{sourceLabel(m.name, m.source, t.lang)}</td>
@@ -194,7 +195,7 @@ export default function Inventory({ sub }: { sub: string }) {
             <table className="table" data-testid="loadout-shop">
               <thead><tr><th>{t('lo.col.item')}</th><th className="num">{t('lo.col.missing')}</th><th>Loadout</th></tr></thead>
               <tbody>{d.loadoutShop.map(r => (
-                <tr key={r.name} data-item={r.name}><td><b>{r.name}</b></td><td className="num mono">{r.missing}×</td><td className="meta">{t('inv.loadoutShopFor', { list: r.loadouts.join(', ') })}</td></tr>
+                <tr key={r.name} data-item={r.name}><td><ItemLink name={r.name}><b>{r.name}</b></ItemLink></td><td className="num mono">{r.missing}×</td><td className="meta">{t('inv.loadoutShopFor', { list: r.loadouts.join(', ') })}</td></tr>
               ))}</tbody>
             </table>
           </div>

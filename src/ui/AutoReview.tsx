@@ -56,6 +56,8 @@ export function ReviewPanel() {
     if (x.kind === 'map') d.map = r?.map ?? MAPS[0].id;
     if (x.kind === 'outcome') d.survived = r?.ok ?? true;
     if (x.kind === 'loot') d.rows = (x.rows ?? []).map(row => ({ on: !!row.guess && row.qty !== null, name: row.guess, qty: row.qty ?? 1 }));
+    /* 0.24.0: nepoznaná výbava: návrh je jen nabídka, nic není zaškrtnuté, dokud to hráč neudělá */
+    if (x.kind === 'loadout') d.rows = (x.rows ?? []).map(row => ({ on: false, name: row.guess, qty: 1 }));
     return [x.id, d];
   })), [items, s.raids]); // eslint-disable-line react-hooks/exhaustive-deps
   /* po vyřízení všeho zůstane jen potvrzení */
@@ -69,7 +71,10 @@ export function ReviewPanel() {
       if (x.kind === 'map' && d.map) return [{ id: x.id, kind: 'map', map: d.map }];
       if (x.kind === 'outcome' && d.survived !== undefined) return [{ id: x.id, kind: 'outcome', survived: d.survived }];
       if (x.kind === 'loot') return [{ id: x.id, kind: 'loot', rows: (d.rows ?? []).filter(r => r.on && r.name.trim() && r.qty > 0).map(r => ({ name: r.name.trim(), qty: r.qty })) }];
-      if (x.kind === 'loadout') return [{ id: x.id, kind: 'dismiss' }];
+      if (x.kind === 'loadout') {
+        const rows = (d.rows ?? []).filter(r => r.on && r.name.trim()).map(r => ({ name: r.name.trim(), qty: 1 }));
+        return [rows.length ? { id: x.id, kind: 'gear', rows } : { id: x.id, kind: 'dismiss' }];
+      }
       /* snímek obrazovky: vyřízený je až po revizi v Ops; „Ponechat“ = zůstane ve frontě */
       return [];
     });
@@ -101,9 +106,9 @@ export function ReviewPanel() {
                 </div>
               )}
               {x.kind === 'loadout' && <p className="meta">{t('review.unknownSlots', { list: (x.slots ?? []).map(sl => t(`review.slot.${sl}` as Key)).join(', ') })}</p>}
-              {x.kind === 'loot' && !d.drop && (
+              {(x.kind === 'loot' || (x.kind === 'loadout' && (d.rows ?? []).length > 0)) && !d.drop && (
                 <table className="table compact-table">
-                  <thead><tr><th>{t('review.loot.add')}</th><th>{t('review.loot.name')}</th><th className="num">{t('review.loot.qty')}</th></tr></thead>
+                  <thead><tr><th>{t('review.loot.add')}</th><th>{t(x.kind === 'loadout' ? 'review.gear.name' : 'review.loot.name')}</th>{x.kind === 'loot' && <th className="num">{t('review.loot.qty')}</th>}</tr></thead>
                   <tbody>{(d.rows ?? []).map((row, i) => {
                     const src = x.rows?.[i];
                     const upd = (p: Partial<typeof row>) => set(x.id, { rows: (d.rows ?? []).map((r, j) => (j === i ? { ...r, ...p } : r)) });
@@ -111,10 +116,10 @@ export function ReviewPanel() {
                       <tr key={i}>
                         <td><input type="checkbox" aria-label={t('review.loot.add')} checked={row.on} onChange={e => upd({ on: e.target.checked })} /></td>
                         <td>
-                          <input className="input" value={row.name} placeholder={t('review.loot.unknown')} aria-label={t('review.loot.name')} onChange={e => upd({ name: e.target.value, on: !!e.target.value.trim() })} />
-                          {src && src.guess && <span className="meta"> {t('review.loot.guess', { score: Math.round(src.score * 100) })}</span>}
+                          <input className="input" value={row.name} placeholder={t('review.loot.unknown')} aria-label={t(x.kind === 'loadout' ? 'review.gear.name' : 'review.loot.name')} onChange={e => upd({ name: e.target.value, on: !!e.target.value.trim() })} />
+                          {src && src.guess && <span className="meta"> {t(x.kind === 'loadout' ? 'review.gear.guess' : 'review.loot.guess', { score: Math.round(src.score * 100) })}</span>}
                         </td>
-                        <td className="num"><input className="input num" type="number" min={1} max={99999} value={row.qty} aria-label={t('review.loot.qty')} onChange={e => upd({ qty: Math.max(1, Math.min(99999, Number(e.target.value) || 1)) })} /></td>
+                        {x.kind === 'loot' && <td className="num"><input className="input num" type="number" min={1} max={99999} value={row.qty} aria-label={t('review.loot.qty')} onChange={e => upd({ qty: Math.max(1, Math.min(99999, Number(e.target.value) || 1)) })} /></td>}
                       </tr>
                     );
                   })}</tbody>

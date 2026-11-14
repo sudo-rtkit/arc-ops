@@ -91,7 +91,7 @@ function QuestList({ focus }: { focus: string }) {
                   <tr data-quest={x.id} data-status={st} className={cx(st === 'done' && 'muted', isOpen && 'selected')}>
                     <td><input type="checkbox" aria-label={t('quests.doneAria', { name })} checked={st === 'done'} onChange={e => toggle(x.id, e.target.checked)} /></td>
                     <td>
-                      <b className="wrap">{name}</b> <Badge tone={TONE[st]}>{t(`quests.status.${st}` as Key)}</Badge>{st === 'done' && <> <ProvDot rec={provOf(s, 'quests', x.id)} /></>}
+                      <b className="wrap">{name}</b> <Badge tone={TONE[st]}>{t(`quests.status.${st}` as Key)}</Badge>{st === 'done' && <> <ProvDot rec={provOf(s, 'quests', x.id)} confirm={{ d: 'quests', k: x.id }} /></>}
                       {x.research && <> <Badge>{t('quests.research')}</Badge></>}
                       {st !== 'done' && pinned.includes(x.id) && <> <Badge tone="accent">{t('quests.pinnedBadge')}</Badge></>}
                       <br /><span className="meta">{[...x.maps.map(mapName), x.xp ? t('quests.xp', { xp: x.xp }) : ''].filter(Boolean).join(' · ')}</span>

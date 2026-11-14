@@ -265,8 +265,14 @@ export function readTier(img: RgbaImage, area: Box): Tier | null {
   const cs = components(mask, w, h).filter(c => c.n >= 6);
   if (!cs.length) return null;
   const c = cs.sort((a, b) => b.x1 - a.x1)[0];
+  if (c.x1 < w * 0.6) return null;
+  return tierOfShape(mask, w, c);
+}
+
+/* 0.24.0: tier podle tvaru jedné souvislé oblasti (sdílí políčko i místo zbraně ve výbavě, vision/equip.ts). */
+export function tierOfShape(mask: Uint8Array, w: number, c: Comp): Tier | null {
   const ch = c.y1 - c.y0 + 1, cw = c.x1 - c.x0 + 1;
-  if (ch < 6 || cw > ch * 1.6 || c.x1 < w * 0.6) return null;
+  if (ch < 6 || cw > ch * 1.6) return null;
   const row = (f: number) => Math.round(c.y0 + f * (ch - 1));
   const slope = lastRunStart(mask, w, row(0.3), c.x0, c.x1) - lastRunStart(mask, w, row(0.75), c.x0, c.x1);
   const mid = [0.35, 0.45, 0.55, 0.65].map(f => runs(mask, w, row(f), c.x0, c.x1)).sort((a, b) => a - b);
