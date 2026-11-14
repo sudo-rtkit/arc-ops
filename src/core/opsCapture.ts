@@ -3,7 +3,8 @@
    - INVENTORY se STASH → 'stash': čte se jen STASH (batoh a quick use se do dávky stashe nemíchají).
    - FINDINGS po raidu (bez STASH, s batohem a tlačítkem CONTINUE) → 'loot': čte se jen BACKPACK a QUICK USE.
      Mince se nečtou: hodnota loadoutu na této obrazovce nejsou mince. 0.24.0: EQUIPMENT (zbraně, augment, štít)
-     čte jen automatický snímek výsledku (readAutoCapture) čtečkou výbavy; snímek ze zkratky ho nečte.
+     čte automatický snímek výsledku (readAutoCapture) čtečkou výbavy; 0.25.0 stejnou čtečkou i snímek ze zkratky
+     (equip, jen čísla a shody; zápis až po potvrzení ve frontě „Ke kontrole“, viz store importRaidLoot).
    - 0.10.1: obrazovky postupu (PROFIL, DÍLNA a detail stanice, ÚKOL obchodníka, SKILL TREE) → 'progress':
      přečtou se jen čísla a názvy (core/vision/progress.ts), zápis až po kontrole v revizi.
    - Cokoli jiného (MANAGE LOADOUT před raidem, neznámá obrazovka) se zahodí bez čtení. */
@@ -12,7 +13,7 @@ import { lumMap, type RgbaImage } from './vision/image';
 import { detectLayout } from './vision/layout';
 import { hasContinueButton } from './vision/screen';
 import { readProgress, type ProgressRead } from './vision/progress';
-import { readLoadout, type LoadoutRead } from './vision/loadout';
+import { readLoadout, type EquipRead, type LoadoutRead } from './vision/loadout';
 import type { RustScreen } from './autoCapture';
 import type { RaidOutcome } from './raidLife';
 
@@ -20,7 +21,8 @@ export type CaptureReject = 'noInventory' | 'otherScreen';
 export type CaptureScreen = 'stash' | 'loot';
 export type CaptureResult =
   | { kind: 'empty'; reason: CaptureReject }
-  | { kind: 'read'; screen: CaptureScreen; read: ScreenRead }
+  /* 0.25.0: equip = výbava z FINDINGS (zbraně, augment, štít), jen u screen 'loot' */
+  | { kind: 'read'; screen: CaptureScreen; read: ScreenRead; equip?: EquipRead[] }
   | { kind: 'progress'; progress: ProgressRead };
 
 /* Jen druh obrazovky (bez čtení políček). 'findings' = obrazovka po raidu, 'stash' = INVENTORY se STASH,
@@ -47,6 +49,9 @@ export function readCapture(img: RgbaImage): CaptureResult {
     if (!read.panels.some(p => p.panel === 'stash')) return { kind: 'empty', reason: 'noInventory' };
     return { kind: 'read', screen: 'stash', read };
   }
+  /* 0.25.0: čtečka výbavy čte i BACKPACK a QUICK USE stejným čtením jako dřív (stejný podpis snímku) */
+  const lo = readLoadout(img);
+  if (lo?.screen && lo.screen.panels.some(p => p.panel === 'backpack')) return { kind: 'read', screen: 'loot', read: lo.screen, equip: lo.equip };
   const read = readScreenshot(img, { panels: ['backpack', 'quickUse'] });
   if (!read.panels.some(p => p.panel === 'backpack')) return { kind: 'empty', reason: 'noInventory' };
   /* hodnota loadoutu ani nic jiného z této obrazovky se za mince nepovažuje */

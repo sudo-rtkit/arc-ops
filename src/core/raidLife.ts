@@ -190,6 +190,29 @@ export function withResultGear(lo: LoadoutSnap | null, gear: LoadoutField[] | nu
   for (const sl of EQUIP) if (!fields.some(f => f.slot === sl)) { const g = seen.find(x => x.slot === sl); if (g) fields.push(g); }
   return { ...lo, fields: fields.sort((a, b) => LOADOUT_SLOTS.indexOf(a.slot) - LOADOUT_SLOTS.indexOf(b.slot)) };
 }
+/* 0.25.0: pole výbavy (zbraně, augment, štít) z přečtené výbavy FINDINGS stejnou cestou jako loadout (loadoutSnap);
+   batoh a quick use se tu neřeší. */
+export function equipFields(equip: EquipRead[], learned: LearnedFp[], ctx: MatchContext): LoadoutField[] {
+  const read: LoadoutRead = { kind: 'unknown', value: null, weight: null, weightMax: null, equip, backpack: null, quickUse: null, backpackMax: null, quickUseMax: null, screen: null };
+  return loadoutSnap(read, learned, ctx, 0).fields.filter(f => EQUIP.includes(f.slot));
+}
+/* 0.25.0: výbava ze snímku FINDINGS ze zkratky → položka fronty „Ke kontrole“ (stejná jako u automatického zápisu).
+   Snímek ze zkratky nic nezapisuje bez potvrzení: jistě poznaná výbava (název i tier) je předvyplněná a zaškrtnutá
+   (sure), nepoznané místo má návrh nebo je prázdné. Co už záznam raidu ve výbavě má, se znovu nenabízí (potvrzení
+   výbavu přičítá). null = není co kontrolovat. */
+export function gearReview(raid: Pick<Raid, 'gear'> | null, gear: LoadoutField[] | null | undefined): { kind: 'loadout'; slots: LoadoutSlot[]; rows: ReviewRow[] } | null {
+  const have = new Set((raid?.gear ?? []).map(x => x.name.trim().toLowerCase()));
+  const seen = (gear ?? []).filter(f => EQUIP.includes(f.slot) && f.state === 'item');
+  const rows: ReviewRow[] = [];
+  const slots: LoadoutSlot[] = [];
+  for (const f of seen) {
+    const score = Math.round((f.score ?? 0) * 1000) / 1000;
+    if (sureEquip(f)) { if (!have.has(f.name!.toLowerCase())) rows.push({ guess: f.name!, qty: 1, score, sure: true }); continue; }
+    slots.push(f.slot);
+    rows.push({ guess: f.name ?? f.guess ?? '', qty: 1, score });
+  }
+  return rows.length ? { kind: 'loadout', slots: [...new Set(slots)], rows } : null;
+}
 export type AutoUnsure = 'map' | 'loadout' | 'loot';
 /* Údaje automatického zápisu v záznamu raidu (schéma 17, volitelné). */
 export interface RaidAuto {

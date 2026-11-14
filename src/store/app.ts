@@ -30,7 +30,7 @@ import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainW
 import { normalizeOpsPrefs, normalizeWidgetsSwitch } from '../core/opsPrefs';
 import { markSeen } from '../core/whatsnew';
 import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
-import { buildDraft, lifeStep, type LifeEvent, type LifeStep, type ResultCapture } from '../core/raidLife';
+import { buildDraft, gearReview, lifeStep, type LifeEvent, type LifeStep, type LoadoutField, type ResultCapture } from '../core/raidLife';
 import { raidWithSig } from '../core/lootImport';
 import { applyGameResult, applyQuizAnswer, mergeGames, type GameOutcome, type GameResult } from '../core/minigames';
 import { answerQuiz, discardRound, finishRound, mergeRounds, saveRound, type GameId } from '../core/gameRounds';
@@ -532,8 +532,11 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
       return sum;
     },
     /* Loot ze snímku FINDINGS do raidu (0.8.1): kontrola (opakovaný snímek, výbava, nahrazení), snímek stavu,
-       teprve potom zápis. Když se snímek stavu nepodaří, nic se nezapíše. Mince se nemění. */
-    async importRaidLoot(input: RaidLootInput, sig: string, via: ShotVia = 'screenshot-hotkey'): Promise<RaidLootResult> {
+       teprve potom zápis. Když se snímek stavu nepodaří, nic se nezapíše. Mince se nemění.
+       0.25.0: gear = výbava (zbraně, augment, štít) přečtená z téhož snímku hubem (z overlaye ji poslat nejde, akce
+       je pro relay zakázaná). Do záznamu se nezapíše hned: jde do fronty „Ke kontrole“ k záznamu (jistá předem
+       zaškrtnutá), novější snímek téhož raidu předchozí položku výbavy nahradí. */
+    async importRaidLoot(input: RaidLootInput, sig: string, via: ShotVia = 'screenshot-hotkey', gear: LoadoutField[] | null = null): Promise<RaidLootResult> {
       if (!get().ready) return { ok: false, reason: 'notReady' };
       if (lootBusy) return { ok: false, reason: 'busy' };
       const first = checkRaidLoot(st(), input, sig);
@@ -548,6 +551,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
           late = checkRaidLoot(s, input, sig);
           if (late) return false;
           done = applyRaidLoot(s, input, sig, now(), id);
+          const raidId = (done as RaidLootDone).raidId;
+          const rev = gearReview(s.raids.find(r => r.id === raidId) ?? null, gear);
+          if (rev) s.review = [...s.review.filter(x => !(x.kind === 'loadout' && x.raidId === raidId)), { ...rev, id: uid(), at: now(), raidId }].slice(-REVIEW_MAX);
         }, { src: shotVia(via), ver: true });
         await doSave();
         return done ? { ok: true, ...(done as RaidLootDone) } : { ok: false, reason: late ?? 'notReady' };

@@ -78,8 +78,9 @@ export const autoIndicator = (s: Pick<AppState, 'buddy' | 'autoCapture' | 'gameL
 /* ----- fronta „Ke kontrole“ ----- */
 export type ReviewKind = 'map' | 'outcome' | 'loadout' | 'loot' | 'screen';
 export const REVIEW_KINDS: readonly ReviewKind[] = ['map', 'outcome', 'loadout', 'loot', 'screen'];
-/* Nejistý řádek lootu: odhad názvu (prázdný = neznámý), počet (null = nepřečtený) a jistota shody 0–1. */
-export interface ReviewRow { guess: string; qty: number | null; score: number }
+/* Nejistý řádek lootu: odhad názvu (prázdný = neznámý), počet (null = nepřečtený) a jistota shody 0–1.
+   0.25.0: sure = jistě poznaná výbava ze snímku ze zkratky (v kontrole předem zaškrtnutá, hráč ji jen potvrdí). */
+export interface ReviewRow { guess: string; qty: number | null; score: number; sure?: true }
 export interface ReviewItem {
   id: string; at: number; kind: ReviewKind;
   /* záznam raidu, ke kterému údaj patří (u 'screen' null) */
@@ -108,6 +109,7 @@ export function normalizeReview(raw: unknown): ReviewItem[] {
     if (Array.isArray(x.rows)) {
       item.rows = x.rows.filter(isObj).slice(0, 40).map(r => ({
         guess: text(r.guess, 80), qty: r.qty === null || r.qty === undefined ? null : clampInt(r.qty, 1, 99999), score: Math.round(Math.min(1, Math.max(0, Number(r.score) || 0)) * 1000) / 1000,
+        ...(r.sure === true && x.kind === 'loadout' && text(r.guess, 80).trim() ? { sure: true as const } : {}),
       }));
     }
     if (Array.isArray(x.slots)) item.slots = [...new Set(x.slots.filter((v): v is LoadoutSlot => (LOADOUT_SLOTS as readonly unknown[]).includes(v)))];

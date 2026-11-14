@@ -21,5 +21,7 @@ import '../ui/modules.css';
 import '../ui/maps.css';
 import './overlay.css';
 import OverlayApp from './OverlayApp';
+import { langReady } from '../i18n';
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><OverlayApp /></React.StrictMode>);
+/* 0.25.0: první vykreslení až se slovníkem výchozího jazyka okna (načítá se jen aktivní jazyk) */
+void langReady().finally(() => createRoot(document.getElementById('root')!).render(<React.StrictMode><OverlayApp /></React.StrictMode>));

@@ -18,7 +18,7 @@ import { openTip } from '../ui/Advisor';
 import { STATIONS } from '../core/data/stations';
 import { hotkeyLabel } from './hotkey';
 import { useT, type TFn } from '../i18n/react';
-import type { Key } from '../i18n';
+import { langGate, type Key } from '../i18n';
 import { fmt, fmtDateTime, fmtTime } from '../ui/format';
 import { cx } from '../ui/components';
 import { formForLevel, resolveOutfit } from '../core/ops';
@@ -65,6 +65,8 @@ if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) (window
 /* 0.16.0: store tohoto okna je zrcadlo. Akce plných modulů se provedou na kopii a pošlou do hlavního okna,
    které je jediný zapisovatel (store/relay.ts). Kopie stavu z hlavního okna je vždy základ. */
 const mirror = createMirror(app, { send: call => bus.send('main', 'action', call) });
+/* 0.25.0: stav z hlavního okna se převezme až s načteným slovníkem jeho jazyka (okno načítá jen aktivní jazyk) */
+const gate = langGate();
 /* moduly hrají zvuk overlaye; „Otevřít v aplikaci“ otevře hlavní okno na dané cestě (hub cestu ověří) */
 setHost({
   kind: 'overlay', play: id => { sound.play(id); },
@@ -424,6 +426,8 @@ function LootReview({ shot, writing, fail, onWrite }: { shot: LootShot; writing:
   const slots = (x: { slots: number | null; max: number | null } | null) => (x && x.slots !== null ? `${x.slots}/${x.max ?? '?'}` : '—');
   const mapName = (id: string) => MAPS.find(m => m.id === id)?.name ?? id;
   const gearList = gear.items.map(x => `${x.name} ×${x.qty}`).join(', ');
+  const equipList = (shot.gear ?? []).filter(f => f.state === 'item')
+    .map(f => (f.name && f.conf === 'high' && f.tierConf !== 'unknown' ? f.name : t('ops.ov.l.equipUnknown', { slot: t(`review.slot.${f.slot}` as Key) }))).join(', ');
 
   return (
     <div className="ov-body-grid" data-testid="ov-loot">
@@ -461,6 +465,8 @@ function LootReview({ shot, writing, fail, onWrite }: { shot: LootShot; writing:
               <label className="ov-check"><input type="checkbox" checked={gearChecked} onChange={e => setGearChecked(e.target.checked)} data-testid="ov-loot-gearcheck" />{t('ops.ov.l.gearChecked')}</label>
             </div>
           ) : <p className="ov-muted" data-testid="ov-loot-gear">{t(gear.source === 'raid' ? 'ops.ov.l.gear' : 'ops.ov.l.gearLoadout', { list: gearList })}</p>}
+          {/* 0.25.0: výbava (zbraně, augment, štít) z téhož snímku; zapíše se až po potvrzení ve frontě Ke kontrole */}
+          {equipList && <p className="ov-muted" data-testid="ov-loot-equip">{t('ops.ov.l.equip', { list: equipList })}</p>}
           {groups.length > 0 && (
             <table className="ov-table">
               <thead><tr><th><span className="sr-only">{t('ops.ov.l.rowAria', { where: '' })}</span></th><th>{t('ops.ov.c.col.item')}</th><th className="num">{t('ops.ov.l.col.found')}</th><th className="num">{t('ops.ov.l.col.gear')}</th><th className="num">{t('ops.ov.l.col.loot')}</th><th>{t('ops.ov.c.col.status')}</th></tr></thead>
@@ -588,10 +594,12 @@ export default function OverlayApp() {
       bus.on('state', (p, from) => {
         if (from !== 'main' || !p || typeof p !== 'object') return;
         const v = p as OverlayView;
-        mirror.receive(v.state, v.relay);
-        batchRef.current = v.batch;
         gotState.current = true;
-        setView(v);
+        gate(v.state?.settings?.lang, () => {
+          mirror.receive(v.state, v.relay);
+          batchRef.current = v.batch;
+          setView(v);
+        });
       }),
       /* z Rustu při otevření (jen native:): případně rovnou na výsledek snímku */
       bus.onNative('open', p => {

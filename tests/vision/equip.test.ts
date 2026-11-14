@@ -1,18 +1,24 @@
 /* 0.24.0: rozpoznání zbraní (název, tier, munice) a augmentu v místech výbavy podle tvaru.
    Umělé obrazy (tvary zbraní z obdélníků, římské číslice) běží vždy; vlastní snímky hráče jen lokálně
    (tests/fixtures/vision/own, v .gitignore) a bez nich se přeskočí. Na vlastních snímcích se vypíše přesnost
-   po polích (zbraň, tier, augment) a ověří se, že žádný název není špatně (nic se nehádá). */
+   po polích (zbraň, tier, augment) a ověří se, že žádný název není špatně (nic se nehádá).
+   0.25.0: jistota přes zásobník u zbraní s doplňky, čtení řádku munice na umělém místě, odolnost proti chybějící
+   zbrani v katalogu a špatně přečtenému zásobníku. */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import { resize, rotate, type RgbaImage } from '../../src/core/vision/image';
 import type { Box } from '../../src/core/vision/layout';
 import {
-  AUGMENT_PAD, SHAPE_LEN, ASPECT_TOL, augmentImageArea, matchShape, readAmmo, readWeaponTier, shapeOf, shapeSimilarity, weaponImageArea, weaponTierArea, type EquipShape,
+  AUGMENT_PAD, SHAPE_LEN, ASPECT_TOL, SHAPE_SURE, MAG_SHAPE_MIN, ammoArea, augmentImageArea, magFits, matchShape, readAmmo, readWeaponTier, shapeOf, shapeSimilarity,
+  weaponImageArea, weaponTierArea, type EquipShape,
 } from '../../src/core/vision/equip';
+import { readRarity } from '../../src/core/vision/rarity';
+import { CREAM, text as drawText } from './progress-synth';
 import { equipBoxes, readLoadout } from '../../src/core/vision/loadout';
 import { detectLayout } from '../../src/core/vision/layout';
-import { equipShapes, matchContext } from '../../src/core/catalog';
+import { matchContext } from '../../src/core/catalog';
+import { equipShapes } from '../../src/core/equipCatalog';
 import { equipField, loadoutSnap, unknownSlots } from '../../src/core/raidLife';
 import { getMaterials } from '../../src/core/gamedata';
 import { defaultState } from '../../src/core/state';
@@ -178,6 +184,115 @@ describe('0.24.0: celé čtení loadoutu (umělá obrazovka z veřejného vzoru)
   });
 });
 
+describe('0.25.0: zásobník jako druhá cesta k jistotě (zbraň s doplňkem)', () => {
+  it('magFits: základ pro tier, nebo základ + jedno zvětšení doplňkem; bez údaje jen dolní mez', () => {
+    const torrente = { mag: 60, magTiers: [60, 70, 80, 90], magAdd: [4, 8, 12] };
+    expect(magFits(torrente, 82, 'II')).toBe(true);
+    expect(magFits(torrente, 70, 'II')).toBe(true);
+    expect(magFits(torrente, 82, 'I')).toBe(false);
+    /* bez tieru platí kterýkoli */
+    expect(magFits(torrente, 82, null)).toBe(true);
+    expect(magFits(torrente, 61, null)).toBe(false);
+    /* zbraň bez doplňku zásobníku (těžká munice): jen přesně základ */
+    expect(magFits({ mag: 6, magAdd: [] }, 6)).toBe(true);
+    expect(magFits({ mag: 6, magAdd: [] }, 8)).toBe(false);
+    /* nevíme, jak doplněk zvětšuje: pod základem ne, jinak nevíme */
+    expect(magFits({ mag: 20 }, 12)).toBe(false);
+    expect(magFits({ mag: 20 }, 30)).toBeNull();
+    expect(magFits({}, 30)).toBeNull();
+  });
+  /* puška s tlumičem: hlaveň o 30 % delší vlevo; tvar sám je pod prahem jistoty */
+  const SILENCED: Rect[] = [[-30, 14, 30, 5], ...RIFLE].map(([x, y, w, h]) => [x + 30, y, w, h] as Rect);
+  const silencedShape = () => { const { img, box } = weaponSlot(SILENCED, 1.6); return shapeOf(img, weaponImageArea(box))!; };
+  const list = (pistolAdd: number[] = []): EquipShape[] => [
+    catalogShape('Rifle', RIFLE, { mag: 20, magAdd: [5, 10, 15] }),
+    catalogShape('Pistol', PISTOL, { mag: 10, magAdd: pistolAdd }),
+    catalogShape('Scoped', SCOPED, { mag: 5, magAdd: [] }),
+  ];
+  it('tvar s doplňkem je pod prahem, první je ale správná zbraň; jediná se zásobníkem 30 → jistá přes zásobník', () => {
+    const sh = silencedShape();
+    const plain = matchShape(sh, 'weapon', 'common', list());
+    expect(plain.best).toBe('Rifle');
+    expect(plain.conf).not.toBe('high');
+    expect(plain.score).toBeLessThan(SHAPE_SURE);
+    expect(plain.score).toBeGreaterThanOrEqual(MAG_SHAPE_MIN);
+    expect(matchShape(sh, 'weapon', 'common', list(), 30, 'I')).toMatchObject({ name: 'Rifle', conf: 'high', via: 'magazine' });
+  });
+  it('zásobník nerozhodne: sedí víc zbraním, nesedí nikomu, nebo neznámá vzácnost → nic se nejmenuje', () => {
+    const sh = silencedShape();
+    /* 20 sedí Rifle (základ) i Pistol (10 + 10) */
+    expect(matchShape(sh, 'weapon', 'common', list([5, 10, 15]), 20, 'I').name).toBeNull();
+    /* 21 nesedí nikomu (Rifle 20/25/30/35) */
+    expect(matchShape(sh, 'weapon', 'common', list(), 21, 'I')).toMatchObject({ name: null, best: 'Rifle' });
+    /* nepřečtená munice */
+    expect(matchShape(sh, 'weapon', 'common', list(), null, 'I').name).toBeNull();
+    /* bez přečtené vzácnosti místa je kandidátů moc */
+    expect(matchShape(sh, 'weapon', 'unknown', list(), 30, 'I').name).toBeNull();
+    /* kandidát bez údaje o zásobníku je vždy možný, takže jedinečnost nedá */
+    const noData = [...list(), { ...catalogShape('Other', PISTOL), mag: undefined }];
+    expect(matchShape(sh, 'weapon', 'common', noData, 30, 'I').name).toBeNull();
+  });
+  it('jistá shoda tvaru se zásobníkem, který k ní nesedí, už jistá není', () => {
+    const { img, box } = weaponSlot(RIFLE, 2);
+    const sh = shapeOf(img, weaponImageArea(box));
+    expect(matchShape(sh, 'weapon', 'common', list(), 25, 'I')).toMatchObject({ name: 'Rifle', conf: 'high' });
+    expect(matchShape(sh, 'weapon', 'common', list(), 23, 'I')).toMatchObject({ name: null, conf: 'unknown', why: 'magazine' });
+  });
+  it('zásobník rozhodne jen pro první zbraň podle tvaru: zásobník pistole u tvaru pušky nic nepojmenuje', () => {
+    /* 10 sedí jen Pistol, ale tvar je puška: Pistol není první, takže nic */
+    expect(matchShape(silencedShape(), 'weapon', 'common', list(), 10, 'I').name).toBeNull();
+  });
+  it('katalog: vynechaná zbraň (nová ve hře) se při žádném svém zásobníku a tieru nepojmenuje jako jiná', () => {
+    const cat = equipShapes();
+    const TIERS = ['I', 'II', 'III', 'IV'] as const;
+    let wrong = 0, tries = 0;
+    for (const w of cat.filter(e => e.kind === 'weapon')) {
+      const rest = cat.filter(e => e !== w);
+      for (const tier of TIERS) {
+        const base = w.magTiers ? w.magTiers[TIERS.indexOf(tier)] : w.mag!;
+        for (const mag of [base, ...(w.magAdd ?? []).map(d => base + d)]) for (const sh of w.shapes) {
+          tries++;
+          if (matchShape(sh, 'weapon', w.rarity ?? 'unknown', rest, mag, tier).conf === 'high') wrong++;
+        }
+      }
+    }
+    expect(tries).toBeGreaterThan(500);
+    expect(wrong).toBe(0);
+  });
+});
+
+describe('0.25.0: řádek munice v místě zbraně (umělé místo)', () => {
+  /* pruh dole: ikona munice vlevo (vyšší než text, nečte se), munice „a/b“ a vpravo výdrž „a/b“ */
+  function ammoSlot(ammo: string | null, durability: string | null, icon = true): { img: RgbaImage; box: Box } {
+    const { img, box } = weaponSlot(RIFLE, 2);
+    const a = ammoArea(box);
+    const h = 14, y = Math.round(a.y + (a.h - h) / 2);
+    if (icon) for (let i = 0; i < 4; i++) fill(img, Math.round(a.x + 2 + i * 5), y - 3, 3, h + 6, [249, 238, 223, 255]);
+    if (ammo) drawText(img, Math.round(a.x + 30), y, h, ammo, CREAM);
+    if (durability) drawText(img, Math.round(box.x + box.w * 0.7), y, h, durability, CREAM);
+    return { img, box };
+  }
+  it('přečte munici vlevo, výdrž vpravo nevadí', () => {
+    for (const [txt, loaded, max] of [['0/20', 0, 20], ['20/20', 20, 20], ['0/82', 0, 82], ['0/1', 0, 1], ['7/60', 7, 60]] as const) {
+      const { img, box } = ammoSlot(txt, '100/100');
+      expect(readAmmo(img, box), txt).toEqual({ loaded, max });
+    }
+    /* bez ikony munice stejně */
+    const { img, box } = ammoSlot('0/6', '36/130', false);
+    expect(readAmmo(img, box)).toEqual({ loaded: 0, max: 6 });
+  });
+  it('bez munice nic; samotná výdrž vpravo se za zásobník nevezme', () => {
+    const none = ammoSlot(null, null);
+    expect(readAmmo(none.img, none.box)).toBeNull();
+    const dur = ammoSlot(null, '64/110');
+    expect(readAmmo(dur.img, dur.box)).toBeNull();
+  });
+  it('nesmyslná munice (nabito víc než dvojnásobek zásobníku) je nepřečtená', () => {
+    const { img, box } = ammoSlot('90/20', null);
+    expect(readAmmo(img, box)).toBeNull();
+  });
+});
+
 describe('0.24.0: katalog tvarů (src/core/data/equipShapes.ts)', () => {
   it('zbraně se zásobníkem, augmenty, každý tvar celý', () => {
     const list = equipShapes();
@@ -187,7 +302,11 @@ describe('0.24.0: katalog tvarů (src/core/data/equipShapes.ts)', () => {
     expect(weapons.every(e => e.shapes.length === 3 && (e.mag ?? 0) > 0)).toBe(true);
     expect(list.every(e => e.shapes.every(s => s.v.length === SHAPE_LEN && s.aspect > 0))).toBe(true);
     expect(list.find(e => e.name === 'Free Loadout Augment')).toMatchObject({ kind: 'augment', rarity: 'common' });
-    expect(list.find(e => e.name === 'Ferro')).toMatchObject({ kind: 'weapon', rarity: 'common', mag: 1 });
+    expect(list.find(e => e.name === 'Ferro')).toMatchObject({ kind: 'weapon', rarity: 'common', mag: 1, magAdd: [] });
+    /* 0.25.0: zásobník po tierech a zvětšení doplňkem podle druhu munice */
+    expect(list.find(e => e.name === 'Torrente')).toMatchObject({ rarity: 'rare', mag: 60, magTiers: [60, 70, 80, 90], magAdd: [4, 8, 12] });
+    expect(list.find(e => e.name === 'Kettle')).toMatchObject({ mag: 20, magAdd: [5, 10, 15] });
+    expect(weapons.every(e => Array.isArray(e.magAdd))).toBe(true);
     /* názvy bez tieru (tier se čte z místa) */
     expect(weapons.some(e => /\s(I|II|III|IV)$/.test(e.name))).toBe(false);
     expect(augmentImageArea({ x: 0, y: 0, w: 100, h: 100 }).w).toBeCloseTo(72, 5);
@@ -200,7 +319,8 @@ const OWN = new URL('../fixtures/vision/own/', import.meta.url);
 const has = (n: string) => existsSync(new URL(n, OWN));
 const load = (n: string): RgbaImage => { const p = PNG.sync.read(readFileSync(new URL(n, OWN))); return { width: p.width, height: p.height, data: new Uint8ClampedArray(p.data) }; };
 /* Skutečnost podle oka (2026-11-14): zbraň s tierem, augment; '' = prázdné nebo vylosované místo.
-   Anvil IV má tlumič, Ferro II jinou pažbu, Torrente II jiný vzhled tieru než ikona katalogu (tier I). */
+   Anvil IV má tlumič, Ferro II jinou pažbu, Torrente II tři doplňky včetně zásobníku (0/82 = 70 + 12).
+   0.24.0: jistě 2 zbraně ze 6; 0.25.0: 5 ze 6 (tyto tři přes zásobník), Stitcher dál jen návrh. */
 const TRUTH: Record<string, { weapon1: string; weapon2: string; augment: string }> = {
   'own-prerade-free-loadout.png': { weapon1: '', weapon2: '', augment: 'Free Loadout Augment' },
   'own-manage-loadout-free.png': { weapon1: '', weapon2: '', augment: 'Free Loadout Augment' },
@@ -245,7 +365,8 @@ describe('0.24.0: přesnost na vlastních snímcích (jen lokálně)', () => {
     expect(tally.weapon.wrong).toBe(0);
     expect(tally.tier.wrong).toBe(0);
     expect(tally.augment.wrong).toBe(0);
-    if (has('own-after-raid-survived-findings.png') && has('own-after-raid-survived-findings-2.png')) expect(tally.weapon.sure).toBeGreaterThanOrEqual(2);
+    if (has('own-after-raid-survived-findings.png') && has('own-after-raid-survived-findings-2.png')) expect(tally.weapon.sure).toBeGreaterThanOrEqual(3);
+    if (OWN_FILES.length === Object.keys(TRUTH).length) expect(tally.weapon.sure).toBeGreaterThanOrEqual(5);
     expect(tally.tier.ok).toBe(tally.tier.n);
     expect(tally.augment.sure).toBe(tally.augment.n);
   });
@@ -255,5 +376,32 @@ describe('0.24.0: přesnost na vlastních snímcích (jen lokálně)', () => {
     expect(w.ammo).toEqual({ loaded: 20, max: 20 });
     const s = loadoutSnap(r, [], matchContext(getMaterials(defaultState()).map(m => m.name), []), 1);
     expect(s.fields.find(f => f.slot === 'weapon1')).toMatchObject({ name: null, conf: 'unknown', guess: 'Stitcher I', tierConf: 'high' });
+  });
+  it.skipIf(!OWN_FILES.length)('0.25.0: špatně přečtený zásobník ani tier nepojmenuje jinou zbraň; bez správné zbraně v katalogu jen výjimečně', () => {
+    const cat = equipShapes();
+    let wrong = 0, absentWrong = 0, tries = 0;
+    for (const n of OWN_FILES) {
+      const img = load(n);
+      const r = readLoadout(img)!;
+      for (const slot of ['weapon1', 'weapon2'] as const) {
+        const want = TRUTH[n][slot].split(' ')[0];
+        const e = r.equip.find(x => x.slot === slot)!;
+        if (!want || !e.match) continue;
+        const side = Math.min(e.box.w, e.box.h);
+        const rgb = readRarity(img, { x: e.box.x, y: e.box.y + e.box.h - side, w: side, h: side }).rgb;
+        const sh = shapeOf(img, weaponImageArea(e.box), rgb);
+        const rest = cat.filter(c => c.name !== want);
+        for (let mag = 0; mag < 100; mag++) for (const tier of [null, 'I', 'II', 'III', 'IV'] as const) {
+          tries++;
+          const m = matchShape(sh, 'weapon', e.rarity, cat, mag, tier);
+          if (m.conf === 'high' && m.name !== want) wrong++;
+          if (matchShape(sh, 'weapon', e.rarity, rest, mag, tier).conf === 'high') absentWrong++;
+        }
+      }
+    }
+    console.log(`odolnost: ${tries} zkoušek, špatně se správnou zbraní v katalogu ${wrong}, bez ní ${absentWrong}`);
+    expect(wrong).toBe(0);
+    /* bez správné zbraně v katalogu (nová zbraň ve hře) a se zásobníkem, který náhodou sedí jiné: pod 1 % */
+    expect(absentWrong / tries).toBeLessThan(0.01);
   });
 });

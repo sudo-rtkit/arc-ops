@@ -21,12 +21,13 @@ import './ui/modules.css';
 import './ui/maps.css';
 import App from './App';
 import { app } from './store';
+import { LANGS, ensureLang, langReady } from './i18n';
 
 import { hub } from './ops/mainHub';
 import { startWindowCtl } from './shell/windowCtl';
 import './ui/compact.css';
 
-void app.init();
+const booted = app.init();
 /* milník 5: buddy, overlay a zkratka (bez zapnutí v Nastavení nic nedělá) */
 hub.start();
 /* 0.9.0: režim okna, křížek a oznamovací oblast. Zavření křížkem řeší windowCtl (uloží stav, pak skryje nebo
@@ -37,4 +38,14 @@ startWindowCtl();
 window.addEventListener('beforeunload', () => { void app.flush(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void app.flush(); });
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
+/* 0.25.0: první vykreslení až s načteným stavem a slovníkem jeho jazyka (okno načítá jen slovník aktivního jazyka),
+   takže se nic nevykreslí v jiném jazyce, než je uložený. Když načtení stavu trvá déle než BOOT_WAIT_MS, okno se
+   vykreslí v jazyce systému (s ukazatelem načítání) a jazyk se přepne celý najednou, jakmile je slovník načtený.
+   Druhý slovník se načte až v klidu po startu (hledání v obou jazycích). */
+const BOOT_WAIT_MS = 1500;
+void Promise.race([booted.catch(() => undefined), new Promise(r => setTimeout(r, BOOT_WAIT_MS))])
+  .then(() => langReady())
+  .finally(() => {
+    createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
+    setTimeout(() => { for (const l of LANGS) void ensureLang(l); }, 5000);
+  });

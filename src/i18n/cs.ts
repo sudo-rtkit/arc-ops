@@ -3042,4 +3042,9 @@ export const cs = {
   "prov.confirmAria": "Potvrdit hodnotu ({text:raw})",
   "prov.confirmArea": "Potvrdit vše v oblasti",
   "prov.confirmAreaAria": "Potvrdit vše v oblasti {area}",
+  /* 0.25.0 */
+  "review.gear.sure": "poznáno ze snímku",
+  "review.gear.fromShot": "Výbava přečtená ze snímku FINDINGS. Jistě poznané je zaškrtnuté; uložením se přidá k výbavě raidu.",
+  "ops.ov.l.equip": "Výbava ze snímku: {list:raw}. Po zápisu lootu ji potvrdíš ve frontě Ke kontrole.",
+  "ops.ov.l.equipUnknown": "{slot} nepoznáno",
 } as const satisfies Record<string, string | { one: string; few?: string; other: string }>;

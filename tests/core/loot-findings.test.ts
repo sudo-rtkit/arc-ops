@@ -200,11 +200,11 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
     const { hub, buddy } = await setup();
     const statuses: unknown[] = [];
     buddy.on('status', x => statuses.push(x));
-    expect(hub.handleCapture(FINDINGS)).toBe('loot');
+    expect(await hub.handleCapture(FINDINGS)).toBe('loot');
     expect(hub.batch()).toMatchObject({ shots: [], last: 'loot' });
     expect(hub.batch().loot!.read.panels.map(p => p.panel)).toEqual(['backpack', 'quickUse']);
     expect(statuses.at(-1)).toMatchObject({ anim: 'inspect', line: { line: 'loot.found' } });
-    expect(hub.handleCapture(loadFixture(TOOLTIP))).toBe('read');
+    expect(await hub.handleCapture(loadFixture(TOOLTIP))).toBe('read');
     expect(hub.batch().shots).toHaveLength(1);
     expect(hub.batch().loot).not.toBeNull();
     expect(hub.batch().shots[0].read.panels.map(p => p.panel)).toEqual(['stash']);
@@ -213,17 +213,17 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
 
   it('batchClear zahodí jen stash, lootClear jen loot; jiná obrazovka nic nezapíše', async () => {
     const { app, hub, overlay, st } = await setup();
-    hub.handleCapture(FINDINGS); hub.handleCapture(loadFixture(TOOLTIP));
+    await hub.handleCapture(FINDINGS); await hub.handleCapture(loadFixture(TOOLTIP));
     overlay.send('main', 'batchClear');
     expect(hub.batch().shots).toEqual([]);
     expect(hub.batch().loot).not.toBeNull();
-    hub.handleCapture(loadFixture(TOOLTIP));
+    await hub.handleCapture(loadFixture(TOOLTIP));
     overlay.send('main', 'lootClear');
     expect(hub.batch().loot).toBeNull();
     expect(hub.batch().shots).toHaveLength(1);
     await app.flush();
     const before = app.store.getState().state, saves = st.saves.length;
-    expect(hub.handleCapture(syntheticFindings({ button: false }))).toBe('empty');
+    expect(await hub.handleCapture(syntheticFindings({ button: false }))).toBe('empty');
     expect(hub.batch()).toMatchObject({ rejected: 'otherScreen' });
     await app.flush();
     expect(app.store.getState().state).toBe(before);
@@ -236,7 +236,7 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
     const results: RaidLootResult[] = [];
     overlay.on('lootImported', p => results.push((p as { result: RaidLootResult }).result));
     const s0 = app.store.getState().state;
-    hub.handleCapture(FINDINGS);
+    await hub.handleCapture(FINDINGS);
     const shot = hub.batch().loot!;
     const a = analyzeLoot(shot.read, s0.vision.learned, matchContext(getMaterials(s0).map(m => m.name)));
     expect(a.groups.length).toBeGreaterThan(0);
@@ -267,7 +267,7 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
     expect(hub.batch().loot).toBeNull();
 
     /* stejná obrazovka znovu (dvojí stisk zkratky): rozpozná se a nezapíše */
-    hub.handleCapture(syntheticFindings());
+    await hub.handleCapture(syntheticFindings());
     const again = hub.batch().loot!;
     expect(again.sig).toBe(shot.sig);
     await hub.importLoot(again.id, input({ raidId: s1.raids[0].id, items, replace: true }));
@@ -278,7 +278,7 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
 
   it('nepovedený snímek stavu: nic se nezapíše', async () => {
     const { app, hub, st } = await setup();
-    hub.handleCapture(FINDINGS);
+    await hub.handleCapture(FINDINGS);
     st.failSnapshots();
     const r = await hub.importLoot(hub.batch().loot!.id, input());
     expect(r).toEqual({ ok: false, reason: 'snapshot' });
@@ -288,7 +288,7 @@ describe('hub: snímek FINDINGS, oddělené dávky a zápis přes hlavní okno',
 
   it('vstup z overlaye se ověří: neplatná zpráva se ignoruje', async () => {
     const { app, hub, overlay } = await setup();
-    hub.handleCapture(FINDINGS);
+    await hub.handleCapture(FINDINGS);
     const id = hub.batch().loot!.id;
     for (const bad of [null, { shotId: 'x' }, { shotId: id, input: { raidId: 5, items: [] } }, { shotId: id, input: { raidId: null, items: 'x' } }]) overlay.send('main', 'lootImport', bad);
     await app.flush();
@@ -306,5 +306,83 @@ describe('bezpečnost: loot ze snímku nezná mince ani úložiště', () => {
     expect(li.match(/coins/g)).toEqual(['coins']); /* jediný výskyt: nový raid má výdělek 0 */
     expect(oc).toMatch(/coins: null, premium: null/);
     for (const s of [li, oc, hub]) for (const w of ['localStorage', 'storage.save', 'saveImportRaw', 'toDataURL', 'new Blob', 'fetch(']) expect(s.includes(w), w).toBe(false);
+  });
+});
+
+/* ----- 0.25.0: snímek FINDINGS ze zkratky čte i výbavu (zbraně, augment, štít) ----- */
+import { equipBoxes } from '../../src/core/vision/loadout';
+import { detectLayout } from '../../src/core/vision/layout';
+import { gearReview, type LoadoutField } from '../../src/core/raidLife';
+import { normalizeReview } from '../../src/core/autoCapture';
+
+/* umělá zbraň (světlé obdélníky) v místě zbraně 1: v katalogu tvarů není, takže zůstane nepoznaná */
+function findingsWithWeapon() {
+  const img = syntheticFindings();
+  const bp = detectLayout(img)!.panels.find(p => p.panel === 'backpack')!;
+  const b = equipBoxes(bp).weapon1;
+  const rect = (x0: number, y0: number, w: number, h: number) => {
+    for (let y = Math.round(b.y + y0); y < Math.round(b.y + y0 + h); y++) for (let x = Math.round(b.x + x0); x < Math.round(b.x + x0 + w); x++) img.data.set([170, 172, 178, 255], (y * img.width + x) * 4);
+  };
+  rect(40, 40, 220, 8); rect(100, 32, 80, 20); rect(150, 52, 14, 30);
+  return img;
+}
+
+describe('0.25.0: výbava ze snímku FINDINGS ze zkratky', () => {
+  const f = (p: Partial<LoadoutField> & Pick<LoadoutField, 'slot'>): LoadoutField => ({ state: 'item', name: null, qty: 1, conf: 'unknown', ...p });
+  it('gearReview: jistá výbava předem zaškrtnutá, nepoznaná s návrhem, co raid už má, se znovu nenabízí', () => {
+    const gear = [
+      f({ slot: 'weapon1', name: 'Kettle I', conf: 'high', score: 0.88, tierConf: 'high' }),
+      f({ slot: 'weapon2', guess: 'Stitcher I', score: 0.788, tierConf: 'high' }),
+      f({ slot: 'augment', name: 'Free Loadout Augment', conf: 'high', score: 0.956 }),
+      f({ slot: 'shield', state: 'empty', conf: 'high' }),
+      f({ slot: 'backpack', name: 'Light Ammo', conf: 'high' }),
+    ];
+    expect(gearReview({ gear: [] }, gear)).toEqual({
+      kind: 'loadout', slots: ['weapon2'],
+      rows: [{ guess: 'Kettle I', qty: 1, score: 0.88, sure: true }, { guess: 'Stitcher I', qty: 1, score: 0.788 }, { guess: 'Free Loadout Augment', qty: 1, score: 0.956, sure: true }],
+    });
+    /* raid už Kettle I ve výbavě má */
+    expect(gearReview({ gear: [{ name: 'kettle i', qty: 1 }] }, gear)!.rows.map(r => r.guess)).toEqual(['Stitcher I', 'Free Loadout Augment']);
+    /* zbraň bez přečteného tieru není jistá: jen návrh */
+    expect(gearReview(null, [f({ slot: 'weapon1', name: 'Kettle', conf: 'high', score: 0.9, tierConf: 'unknown' })])).toEqual({ kind: 'loadout', slots: ['weapon1'], rows: [{ guess: 'Kettle', qty: 1, score: 0.9 }] });
+    expect(gearReview({ gear: [{ name: 'Kettle I', qty: 1 }] }, [gear[0]])).toBeNull();
+    expect(gearReview(null, null)).toBeNull();
+    /* sure přežije normalizaci jen u výbavy s názvem */
+    const norm = normalizeReview([
+      { id: 'a', at: 1, kind: 'loadout', raidId: 'R', rows: [{ guess: 'Kettle I', qty: 1, score: 0.9, sure: true }, { guess: '', qty: 1, score: 0, sure: true }] },
+      { id: 'b', at: 1, kind: 'loot', raidId: 'R', rows: [{ guess: 'Fabric', qty: 1, score: 0.9, sure: true }] },
+    ]);
+    expect(norm[0].rows).toEqual([{ guess: 'Kettle I', qty: 1, score: 0.9, sure: true }, { guess: '', qty: 1, score: 0 }]);
+    expect(norm[1].rows).toEqual([{ guess: 'Fabric', qty: 1, score: 0.9 }]);
+  });
+
+  it('readCapture: FINDINGS má i výbavu (stejná čtečka jako automatický snímek), batoh a podpis beze změny', () => {
+    const plain = readCapture(FINDINGS), withWeapon = readCapture(findingsWithWeapon());
+    if (plain.kind !== 'read' || withWeapon.kind !== 'read') throw new Error('read');
+    expect(plain.equip!.map(e => [e.slot, e.state])).toEqual([['augment', 'empty'], ['shield', 'empty'], ['weapon1', 'empty'], ['weapon2', 'empty']]);
+    expect(withWeapon.equip!.find(e => e.slot === 'weapon1')).toMatchObject({ state: 'item', match: { name: null } });
+    expect(counts(withWeapon, 'backpack')).toEqual(BACKPACK_COUNTS);
+    expect(lootSignature(withWeapon.read)).toBe(lootSignature(plain.read));
+    expect(JSON.stringify(withWeapon)).not.toMatch(/"data"/);
+  });
+
+  it('hub: výbava jde se snímkem, po zápisu lootu do fronty Ke kontrole; do výbavy raidu se sama nezapíše', async () => {
+    const { app, hub } = await setup();
+    await hub.handleCapture(findingsWithWeapon());
+    const shot = hub.batch().loot!;
+    expect(shot.gear!.find(g => g.slot === 'weapon1')).toMatchObject({ state: 'item', name: null, conf: 'unknown' });
+    const r = await hub.importLoot(shot.id, input({ items: [{ name: 'Light Ammo', qty: 10 }], map: 'dam' }));
+    expect(r).toMatchObject({ ok: true, created: true });
+    const s = app.store.getState().state;
+    expect(s.raids[0].gear).toEqual([]);
+    const rev = s.review.filter(x => x.kind === 'loadout');
+    expect(rev).toHaveLength(1);
+    expect(rev[0]).toMatchObject({ raidId: s.raids[0].id, slots: ['weapon1'], rows: [{ guess: '', qty: 1 }] });
+    /* potvrzení v kontrole výbavu přidá */
+    app.actions.reviewApply([{ id: rev[0].id, kind: 'gear', rows: [{ name: 'Kettle I', qty: 1 }] }]);
+    expect(app.store.getState().state.raids[0].gear).toEqual([{ name: 'Kettle I', qty: 1 }]);
+    /* snímek bez výbavy frontu nemění */
+    await hub.handleCapture(syntheticFindings({ skip: [2] }));
+    expect(hub.batch().loot!.gear).toBeUndefined();
   });
 });

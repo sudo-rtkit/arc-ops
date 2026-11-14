@@ -5,8 +5,6 @@ import type { CatalogFp, FpKind } from './vision/match';
 import { FP_LEN } from './vision/fingerprint';
 import type { Rarity } from './vision/rarity';
 import type { ItemCategory } from './types';
-import { EQUIP_SHAPES } from './data/equipShapes';
-import { SHAPE_LEN, type EquipShape } from './vision/equip';
 
 /* areas (0.14.0) = typy míst z loot_area MetaForge; chybí = neznámé */
 export interface CatalogItem { id: string; name: string; category: CatalogCategory; type: string; rarity?: Rarity; fp?: number[]; areas?: string[] }
@@ -80,17 +78,4 @@ export function matchName(read: string, names: Iterable<string>): { name: string
 /* Kontext rozpoznávání pro UI: otisky katalogu, materiály aplikace a známé názvy pro tooltip. */
 export function matchContext(materials: string[], itemNames: string[] = []): { catalog: CatalogFp[]; materials: string[]; names: string[] } {
   return { catalog: catalogFps(new Set(materials)), materials, names: [...catalogItems().map(x => x.name), ...itemNames] };
-}
-
-/* 0.24.0: tvary zbraní a augmentů pro místa výbavy (src/core/data/equipShapes.ts, generuje scripts/gen-equip.mjs). */
-let shapes: EquipShape[] | null = null;
-export function equipShapes(): EquipShape[] {
-  if (!shapes) {
-    const dec = (b64: string): number[] => { const bin = atob(b64); return Array.from(bin, c => c.charCodeAt(0)); };
-    shapes = EQUIP_SHAPES.map(r => ({
-      name: r.n, kind: r.k, ...(r.r ? { rarity: r.r } : {}), ...(r.mag ? { mag: r.mag } : {}),
-      shapes: r.s.map(x => ({ v: dec(x.v), aspect: x.a })).filter(x => x.v.length === SHAPE_LEN),
-    }));
-  }
-  return shapes;
 }

@@ -70,7 +70,10 @@ function defaultText(re: RegExp, id: string, value: string, cs: string[], en: st
 }
 export const stepLabel = (id: string, value: string, lang: Lang): string => defaultText(/^n(\d+)$/, id, value, NEXT_STEPS, NEXT_STEPS_EN, lang);
 export const checkLabel = (id: string, value: string, lang: Lang): string => defaultText(/^r(\d+)$/, id, value, RAID_CHECK, RAID_CHECK_EN, lang);
-export const RAID_TEMPLATE_NAMES = [tl('cs', 'default.raidTemplate'), tl('en', 'default.raidTemplate')];
+/* 0.25.0: název výchozí šablony v obou jazycích přímo tady (slovníky se načítají po jazycích a výchozí stav vzniká
+   ještě před načtením); test hlídá shodu s 'default.raidTemplate' v cs.ts a en.ts. */
+export const RAID_TEMPLATE_NAME: Record<Lang, string> = { cs: 'Před raidem', en: 'Before the raid' };
+export const RAID_TEMPLATE_NAMES = [RAID_TEMPLATE_NAME.cs, RAID_TEMPLATE_NAME.en];
 export const templateLabel = (tpl: { id: string; name: string }, lang: Lang): string =>
   (tpl.id === 'raid' && RAID_TEMPLATE_NAMES.includes(tpl.name) ? tl(lang, 'default.raidTemplate') : tpl.name);
 

@@ -76,7 +76,8 @@ function iconFp(png) {
   return fingerprint(cell, iconArea({ x: 0, y: 0, w: CELL, h: CELL }), null);
 }
 
-/* Zbraně jsou v katalogu po tierech („Anvil I“ … „Anvil IV“) se stejnou ikonou; tier se čte z políčka. */
+/* Zbraně jsou v katalogu po tierech („Anvil I“ … „Anvil IV“); tier se čte z políčka. 0.25.0: ikony tierů jsou jiné
+   soubory, ale se stejným obrysem (liší se opotřebení a barva), takže otisk tieru I stačí pro všechny. */
 const baseName = (x) => (x.item_type === 'Weapon' ? x.name.replace(/\s+(I|II|III|IV)$/, '') : x.name);
 /* Typy míst z loot_area (text oddělený čárkami), bez opakování, v pořadí zdroje. */
 const lootAreas = (x) => [...new Set(String(x.loot_area ?? '').split(',').map(a => a.trim()).filter(Boolean))];

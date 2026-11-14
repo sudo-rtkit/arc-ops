@@ -2,7 +2,8 @@
    Pravidla:
    - Obsah BACKPACK a QUICK USE není automaticky nový loot: odečte se známá výbava raidu (výbava zadaná u raidu,
      jinak položky jeho loadoutu). Když výbava známá není, zápis vyžaduje výslovnou ruční kontrolu.
-   - EQUIPMENT se nečte vůbec a hodnota loadoutu se nikam nepřičítá (mince profilu ani výdělek raidu se nemění).
+   - EQUIPMENT (zbraně, augment, štít) se do lootu nepočítá; 0.25.0: přečtená výbava jde po zápisu do fronty
+     „Ke kontrole“ (store importRaidLoot). Hodnota loadoutu se nikam nepřičítá (mince profilu ani výdělek raidu se nemění).
    - Stejný snímek (podpis) se zapíše nejvýš jednou. Nový snímek téhož raidu předchozí loot ze snímku nahradí
      (jen s výslovným souhlasem), nepřičte se k němu.
    - Převod do Inventory jde přes stejný rozdíl lootu jako u ručního raidu (lootApplied), takže nic dvakrát. */

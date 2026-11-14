@@ -32,8 +32,8 @@ import { cleanPoints, isPlanKey } from './skills';
 import { STATIONS } from './data/stations';
 import { MAPS } from './data/maps';
 import { RAID_TYPE_IDS } from './runs';
-import { nextStepsText, raidCheckText } from './gametext';
-import { isLang, t, tl, type Lang } from '../i18n';
+import { nextStepsText, raidCheckText, RAID_TEMPLATE_NAME } from './gametext';
+import { isLang, t, type Lang } from '../i18n';
 
 export const SCHEMA = 19 as const;
 
@@ -50,7 +50,7 @@ export const raidCheckId = (i: number): string => 'r' + i;
 /* Výchozí obsah vzniká v jazyce stavu (bez jazyka česky, jako v deníku). Uložený text se pak už nepřekládá. */
 export const defaultSteps = (lang: Lang = 'cs'): StepItem[] => nextStepsText(lang).map((x, i) => ({ id: stepId(i), text: x, done: false }));
 export const defaultTemplates = (lang: Lang = 'cs'): ChecklistTemplate[] => [{
-  id: RAID_TEMPLATE_ID, name: tl(lang, 'default.raidTemplate'), items: raidCheckText(lang).map((x, i) => ({ id: raidCheckId(i), text: x })),
+  id: RAID_TEMPLATE_ID, name: RAID_TEMPLATE_NAME[lang] ?? RAID_TEMPLATE_NAME.cs, items: raidCheckText(lang).map((x, i) => ({ id: raidCheckId(i), text: x })),
 }];
 export const defaultStations = (): Record<string, number> => Object.fromEntries(STATIONS.map(s => [s.id, s.min]));
 export const emptyMapNotes = (): MapNotes => ({ notes: '', visited: {}, pois: [], todo: [], harmonise: true, img: null });

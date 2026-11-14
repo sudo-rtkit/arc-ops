@@ -8,7 +8,13 @@
    Rozhodnutí: shoda tvaru (korelace), odstup od druhého nejlepšího předmětu, poměr stran, vzácnost místa
    a u zbraní velikost zásobníku z řádku munice („0/20“: zásobník menší než základní u zbraně být nemůže).
    Pod prahem zůstane místo neznámé a jde ke kontrole; nic se nehádá. Tier zbraně se čte z římské číslice vpravo
-   dole. Čisté funkce, jen čtou pixely; výsledek jsou čísla, ne obrazová data. */
+   dole. Čisté funkce, jen čtou pixely; výsledek jsou čísla, ne obrazová data.
+   0.25.0: zbraň s doplňkem (tlumič, jiná pažba, zásobník) má jiný obrys než ikona katalogu, takže shoda tvaru
+   klesne pod práh (0,62–0,71), i když je správný kandidát první. Druhá cesta k jistotě je zásobník: přečtená
+   velikost („0/82“) musí být základ zásobníku pro přečtený tier, nebo základ plus jedno zvětšení doplňkem pro druh
+   munice zbraně (data MetaForge). Když tomu z kandidátů stejné vzácnosti odpovídá jediná zbraň a ta je zároveň
+   první podle tvaru, je to jisté (via 'magazine'). Volnější hledání tvaru (obrys katalogu kdekoli uvnitř obrysu
+   na snímku) se zkoušelo a nepoužívá se: zvedlo i cizí zbraně a u Anvilu s tlumičem dalo první Renegade. */
 import { hueSat, rgbAt, type RgbaImage } from './image';
 import type { Box } from './layout';
 import { frac } from './cells';
@@ -97,8 +103,10 @@ export function shapeSimilarity(a: number[], b: number[]): number {
 
 /* ----- katalog tvarů ----- */
 export type EquipKind = 'weapon' | 'augment';
-/* Položka katalogu tvarů (src/core/data/equipShapes.ts). shapes = tvar pro několik úhlů narovnání ikony. */
-export interface EquipShape { name: string; kind: EquipKind; rarity?: Rarity; mag?: number; shapes: Shape[] }
+/* Položka katalogu tvarů (src/core/data/equipShapes.ts). shapes = tvar pro několik úhlů narovnání ikony.
+   mag = základní zásobník (tier I), magTiers = zásobník pro tiery I–IV (když se liší), magAdd = možná zvětšení
+   zásobníku doplňkem (prázdné = zbraň doplněk zásobníku nemá; chybí = nevíme, kontroluje se jen dolní mez). */
+export interface EquipShape { name: string; kind: EquipKind; rarity?: Rarity; mag?: number; magTiers?: number[]; magAdd?: number[]; shapes: Shape[] }
 
 /* Prahy podle vlastních snímků hráče (tests/vision/loadout.test.ts): stejná zbraň bez doplňků 0,79–0,89, nejlepší
    jiná ≤ 0,74; augment 0,96. Poměr stran stejné zbraně ±3 %, se tlumičem nebo jinou pažbou o 15–60 % jiný.
@@ -109,6 +117,11 @@ export const SHAPE_MAYBE = 0.75;
 export const SHAPE_MAYBE_MARGIN = 0.04;
 /* největší dovolený rozdíl poměru stran (násobek) */
 export const ASPECT_TOL = 1.15;
+/* 0.25.0, jistota přes zásobník: nejnižší shoda tvaru, nejmenší odstup prvního od druhého (oba bez ohledu na zásobník)
+   a největší rozdíl poměru stran (doplňky ho mění: na snímcích hráče 1,22–1,34×). */
+export const MAG_SHAPE_MIN = 0.6;
+export const MAG_SHAPE_GAP = 0.03;
+export const ASPECT_MOD_TOL = 1.5;
 
 export type FieldConf = 'high' | 'medium' | 'unknown';
 export interface ShapeMatch {
@@ -118,35 +131,63 @@ export interface ShapeMatch {
   score: number; conf: FieldConf;
   /* nejlepší kandidát (návrh pro kontrolu; při medium a unknown se do dat nezapisuje) a skóre druhého */
   best: string | null; second: number;
-  /* proč není jisté: bez tvaru, nízká shoda, malý odstup, poměr stran */
-  why?: 'none' | 'score' | 'margin' | 'aspect';
+  /* proč není jisté: bez tvaru, nízká shoda, malý odstup, poměr stran, 0.25.0 zásobník nesedí */
+  why?: 'none' | 'score' | 'margin' | 'aspect' | 'magazine';
+  /* 0.25.0: jistá shoda potvrzená zásobníkem (tvar sám pod prahem kvůli doplňku) */
+  via?: 'magazine';
 }
 
 const rarityOk = (a: Rarity | undefined, b: Rarity | undefined) => !a || !b || a === 'unknown' || b === 'unknown' || a === b;
 const aspectOk = (a: number, b: number) => a > 0 && b > 0 && Math.max(a / b, b / a) <= ASPECT_TOL;
 
+const TIER_IDX: Record<Tier, number> = { I: 0, II: 1, III: 2, IV: 3 };
+/* Sedí přečtený zásobník ke zbrani? true = ano (základ pro tier, nebo základ + jedno zvětšení doplňkem), false = ne,
+   null = nedá se říct (zbraň bez údaje o zásobníku). Bez přečteného tieru platí kterýkoli tier. Když nevíme, jak
+   doplněk zásobník zvětšuje (magAdd chybí), kontroluje se jen dolní mez: false pod základem, jinak null. */
+export function magFits(e: Pick<EquipShape, 'mag' | 'magTiers' | 'magAdd'>, read: number, tier: Tier | null = null): boolean | null {
+  if (!e.mag) return null;
+  const bases = e.magTiers?.length === 4 ? (tier ? [e.magTiers[TIER_IDX[tier]]] : e.magTiers) : [e.mag];
+  if (!e.magAdd) return bases.some(b => read >= b) ? null : false;
+  return bases.some(b => read === b || e.magAdd!.some(d => read === b + d));
+}
+
 /* Nejlepší shoda tvaru v katalogu daného druhu. Kandidáti jen se stejnou vzácností jako místo; u zbraní jen ti,
-   jejichž základní zásobník není větší než přečtený (magMax; doplněk zásobník jen zvětší, null = nepřečteno). */
-export function matchShape(shape: Shape | null, kind: EquipKind, rarity: Rarity, list: EquipShape[], magMax: number | null = null): ShapeMatch {
+   jejichž základní zásobník není větší než přečtený (magMax; doplněk zásobník jen zvětší, null = nepřečteno).
+   0.25.0: jistá shoda podle tvaru navíc vyžaduje, aby k ní přečtený zásobník seděl (magFits není false); druhá cesta
+   k jistotě je zásobník (viz hlavička souboru). tier = přečtený tier zbraně (null = nepřečteno). */
+export function matchShape(shape: Shape | null, kind: EquipKind, rarity: Rarity, list: EquipShape[], magMax: number | null = null, tier: Tier | null = null): ShapeMatch {
   if (!shape) return { name: null, score: 0, conf: 'unknown', best: null, second: 0, why: 'none' };
-  const scored: { e: EquipShape; s: number; aspect: number }[] = [];
+  /* všichni kandidáti stejného druhu a vzácnosti, bez ohledu na zásobník */
+  const all: { e: EquipShape; s: number; aspect: number; fits: boolean | null }[] = [];
   for (const e of list) {
     if (e.kind !== kind || !rarityOk(rarity, e.rarity)) continue;
-    if (kind === 'weapon' && magMax !== null && e.mag && magMax < e.mag) continue;
     let s = 0, aspect = 0;
     for (const x of e.shapes) { const v = shapeSimilarity(shape.v, x.v); if (v > s) { s = v; aspect = x.aspect; } }
-    scored.push({ e, s, aspect });
+    all.push({ e, s, aspect, fits: kind === 'weapon' && magMax !== null ? magFits(e, magMax, tier) : null });
   }
-  scored.sort((a, b) => b.s - a.s);
+  all.sort((a, b) => b.s - a.s);
+  /* 0.24.0: zbraň se základním zásobníkem větším než přečtený nepřichází v úvahu */
+  const scored = all.filter(x => !(kind === 'weapon' && magMax !== null && x.e.mag && magMax < x.e.mag));
   const top = scored[0];
   if (!top) return { name: null, score: 0, conf: 'unknown', best: null, second: 0, why: 'none' };
   const second = scored.find(x => x.e.name !== top.e.name)?.s ?? 0;
   const r3 = (x: number) => Math.round(x * 1000) / 1000;
   const base = { score: r3(top.s), best: top.e.name, second: r3(second) };
   const gap = top.s - second, shapeOk = aspectOk(shape.aspect, top.aspect);
-  if (shapeOk && top.s >= SHAPE_SURE && gap >= SHAPE_MARGIN) return { name: top.e.name, conf: 'high', ...base };
-  const why: ShapeMatch['why'] = !shapeOk ? 'aspect' : top.s < SHAPE_SURE ? 'score' : 'margin';
-  const maybe = shapeOk && top.s >= SHAPE_MAYBE && gap >= SHAPE_MAYBE_MARGIN;
+  if (shapeOk && top.s >= SHAPE_SURE && gap >= SHAPE_MARGIN && top.fits !== false) return { name: top.e.name, conf: 'high', ...base };
+  /* 0.25.0: zásobník. První podle tvaru (ze všech kandidátů) je jediný, ke komu přečtený zásobník sedí; kandidát
+     bez údaje o zásobníku (fits null) se počítá jako možný, takže jedinečnost nedá. Jen u přečtené vzácnosti místa
+     (bez ní je kandidátů moc a jedinečnost náhodná). Zbývající riziko: nová zbraň, která v katalogu ještě není, a
+     zásobník, který náhodou sedí jediné podobné zbrani (na snímcích hráče 20 z 3 000 zkoušek, jen u chybějícího
+     Stitcheru se zásobníkem 8/13/18/23 → Hairpin); proto katalog přegenerovat po každé aktualizaci hry. */
+  const first = all[0];
+  if (rarity !== 'unknown' && first === top && first.fits === true && all.every(x => x === first || x.fits === false)) {
+    const rival = all.find(x => x.e.name !== first.e.name)?.s ?? 0;
+    const modOk = shape.aspect > 0 && first.aspect > 0 && Math.max(shape.aspect / first.aspect, first.aspect / shape.aspect) <= ASPECT_MOD_TOL;
+    if (modOk && first.s >= MAG_SHAPE_MIN && first.s - rival >= MAG_SHAPE_GAP) return { name: first.e.name, conf: 'high', ...base, second: r3(rival), via: 'magazine' };
+  }
+  const why: ShapeMatch['why'] = !shapeOk ? 'aspect' : top.fits === false ? 'magazine' : top.s < SHAPE_SURE ? 'score' : 'margin';
+  const maybe = shapeOk && top.s >= SHAPE_MAYBE && gap >= SHAPE_MAYBE_MARGIN && top.fits !== false;
   return { name: null, conf: maybe ? 'medium' : 'unknown', ...base, why };
 }
 
@@ -161,9 +202,11 @@ export const AUGMENT_PAD = 0.15;
 export const ammoArea = (b: Box): Box => frac(b, 0.1, 0.83, 0.9, 0.985);
 export const weaponTierArea = (b: Box): Box => frac(b, 0.9, 0.83, 0.985, 0.985);
 
-/* Munice a výdrž z pruhu dole. Ikona munice vlevo se nečte (není číslo). null = nepřečteno. */
+/* Munice a výdrž z pruhu dole. Ikona munice vlevo se nečte (není číslo). null = nepřečteno.
+   0.25.0: munice je vlevo, výdrž („64/110“) vpravo; bere se jen číslo v levé polovině místa, aby nepřečtená munice
+   nevzala výdrž jako zásobník (zásobník rozhoduje o jistotě zbraně). */
 export function readAmmo(img: RgbaImage, box: Box): { loaded: number; max: number } | null {
-  const toks = numberTokens(img, ammoArea(box), isCream).filter(t => /^\d{1,3}\/\d{1,3}$/.test(t.text));
+  const toks = numberTokens(img, ammoArea(box), isCream).filter(t => /^\d{1,3}\/\d{1,3}$/.test(t.text) && t.x0 < box.x + box.w * 0.5);
   if (!toks.length) return null;
   const [a, b] = toks[0].text.split('/').map(Number);
   if (b < 1 || a > b * 2) return null;

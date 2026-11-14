@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.24.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.25.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.25.0',
+    title: { cs: 'Zbraně s doplňky, výbava ze zkratky, rychlejší okna', en: 'Weapons with attachments, gear from the hotkey, lighter windows' },
+    items: [
+      { text: { cs: 'Zbraň s tlumičem, jinou pažbou nebo větším zásobníkem se teď pozná podle zásobníku z řádku munice. Když nesedí jediné zbrani, zůstane neznámá.', en: 'A weapon with a silencer, another stock or a bigger magazine is now recognised by the magazine on its ammo line. If that is not unique, it stays unknown.' }, link: 'loadouts' },
+      { text: { cs: 'Snímek FINDINGS ze zkratky čte i zbraně, augment a štít. Po zápisu lootu je potvrdíš ve frontě Ke kontrole, jisté jsou předem zaškrtnuté.', en: 'A FINDINGS hotkey capture now also reads weapons, augment and shield. After the loot is saved, confirm them in the review queue.' }, link: 'raid' },
+      { text: { cs: 'Okna načítají jen slovník zvoleného jazyka a čtení snímků až při prvním snímku, takže se spouštějí s menším objemem kódu.', en: 'Windows load only the dictionary of your language, and screenshot reading only with the first capture, so they start with less code.' } },
+    ],
+  },
   {
     version: '0.24.0',
     title: { cs: 'Zbraně a augment ze snímku, potvrzení hodnot', en: 'Weapons and augment from screenshots, confirming values' },

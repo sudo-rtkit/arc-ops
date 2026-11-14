@@ -365,6 +365,8 @@ describe('snímek z tlačítka okna a buddy z oznamovací oblasti', () => {
   });
 
   it('snímek z okna jde stejnou cestou; prázdný snímek se ohlásí v okně, nic se nezapíše', async () => {
+    /* 0.25.0: hub načítá čtení snímků dynamicky; modul načtený předem (falešné hodiny nečekají na načtení souboru) */
+    await import('../../src/core/opsCapture');
     const app = await makeApp({ schema: 7, buddy: { enabled: true, hotkey: 'Ctrl+Shift+KeyS' } });
     const native = fakeNative();
     const buses = memoryBuses();

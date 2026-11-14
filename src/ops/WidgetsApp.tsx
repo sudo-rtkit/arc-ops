@@ -17,7 +17,7 @@ import type { WidgetView } from './hub';
 import { readWidgetPrefs, writeWidgetPrefs } from './widgetPrefs';
 import { WidgetCard } from './WidgetCards';
 import { useT, type TFn } from '../i18n/react';
-import type { Key } from '../i18n';
+import { langGate, type Key } from '../i18n';
 import { cx } from '../ui/components';
 import { MODULES, moduleName } from '../shell/modules';
 import { autoActive } from '../core/autoCapture';
@@ -32,6 +32,8 @@ import {
 } from '../core/widgets';
 
 const bus = createBus('widgets');
+/* 0.25.0: stav z hlavního okna se převezme až s načteným slovníkem jeho jazyka (okno načítá jen aktivní jazyk) */
+const gate = langGate();
 const native = createNative();
 /* store tohoto okna je jen kopie stavu z hlavního okna (nic se nenačítá ani neukládá) */
 app.setMirror();
@@ -111,9 +113,11 @@ export default function WidgetsApp() {
       bus.on('state', (p, from) => {
         if (from !== 'main' || !p || typeof p !== 'object') return;
         const v = p as WidgetView;
-        app.store.setState({ state: v.state });
         gotState.current = true;
-        setView(v);
+        gate(v.state?.settings?.lang, () => {
+          app.store.setState({ state: v.state });
+          setView(v);
+        });
       }),
       bus.onNative('widgets-mode', p => dispatch({ type: p === 'edit' ? 'enter' : 'exit' })),
       bus.onNative('widgets-hide', () => dispatch({ type: 'toggleHidden' })),

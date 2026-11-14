@@ -16,7 +16,7 @@ import { BUILD_CATALOG } from './data/builds';
 import { MAPS } from './data/maps';
 import { skillDesc } from './gametext';
 import type { AdvisorTip } from './advisor';
-import { tl, type Key } from '../i18n';
+import { LANGS, tl, tlOpt, type Key } from '../i18n';
 
 export type SearchKind = 'item' | 'quest' | 'project' | 'station' | 'skill' | 'build' | 'map' | 'arc' | 'module' | 'setting' | 'tip';
 /* Pořadí skupin při shodném skóre. */
@@ -239,8 +239,9 @@ export function buildIndex(s: AppState, lang: Lang, input: IndexInput): SearchEn
   for (const tip of input.tips) {
     out.push({
       id: 'tip:' + tip.id, kind: 'tip', title: tl(lang, tip.title.key, tip.title.params), sub: tl(lang, tip.detail.key, tip.detail.params),
-      names: uniq([tl('cs', tip.title.key, tip.title.params), tl('en', tip.title.key, tip.title.params)]),
-      keywords: `${tl('cs', tip.detail.key, tip.detail.params)} ${tl('en', tip.detail.key, tip.detail.params)}`,
+      /* 0.25.0: druhý jazyk jen s načteným slovníkem (okno načítá slovník aktivního jazyka) */
+      names: uniq([tl(lang, tip.title.key, tip.title.params), ...LANGS.filter(l => l !== lang).map(l => tlOpt(l, tip.title.key, tip.title.params) ?? '')].filter(Boolean)),
+      keywords: [tl(lang, tip.detail.key, tip.detail.params), ...LANGS.filter(l => l !== lang).map(l => tlOpt(l, tip.detail.key, tip.detail.params) ?? '')].filter(Boolean).join(' '),
       target: { kind: 'tip', id: tip.id },
     });
   }

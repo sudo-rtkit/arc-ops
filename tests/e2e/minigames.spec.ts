@@ -7,6 +7,8 @@ import { greedy, makeRound } from '../../src/core/stashTetris';
 import { makeQuiz } from '../../src/core/recycleQuiz';
 import { isSolved, makeHack, rotateAt, rotateMask } from '../../src/core/opsHack';
 import { OPS_LINES } from '../../src/i18n/opsLines';
+/* 0.25.0: aplikace načítá slovníky po jazycích; test počítá očekávané texty v Node s oběma slovníky */
+import '../setup-i18n';
 import { tl } from '../../src/i18n';
 
 const SEED = 4242;

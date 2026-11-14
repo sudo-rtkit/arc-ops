@@ -15,7 +15,7 @@ import { MAPS } from '../core/data/maps';
 import { totalPoints } from '../core/skills';
 import { starSum } from '../core/week';
 import { useT, type TFn } from '../i18n/react';
-import { LANGS, LANG_NAMES, type Key } from '../i18n';
+import { LANGS, LANG_NAMES, ensureLang, type Key } from '../i18n';
 import { snapshotLabel } from '../i18n/system';
 import { catalogCount } from '../core/catalog';
 import { AT_DATE, AT_HIDEOUT, AT_PROJECTS, AT_QUESTS } from '../core/data/arctracker';
@@ -244,7 +244,7 @@ export default function Settings({ sub }: { sub: string }) {
       <Anchor id="lang" />
       <Panel title={t('settings.lang')}>
         <div className="seg" role="group" aria-label={t('settings.lang')}>
-          {LANGS.map(l => <button key={l} type="button" lang={l} aria-pressed={s.settings.lang === l} onClick={() => actions.setLang(l)}>{LANG_NAMES[l]}</button>)}
+          {LANGS.map(l => <button key={l} type="button" lang={l} aria-pressed={s.settings.lang === l} onClick={() => { void ensureLang(l).then(() => actions.setLang(l)); }}>{LANG_NAMES[l]}</button>)}
         </div>
         <p className="meta">{t('settings.langHint')}</p>
       </Panel>

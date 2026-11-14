@@ -1,5 +1,5 @@
 /* Jeden formulář raidu pro Dashboard, Money Runs i Raid Journal. Milník 2: loadout, výbava, loot, ztráty a splněné cíle. */
-import { useState, type FormEvent } from 'react';
+import { Suspense, lazy, useState, type FormEvent } from 'react';
 import { Check as CheckIcon, Skull } from 'lucide-react';
 import { actions, useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
@@ -7,7 +7,8 @@ import { Btn, Check, Dialog, FieldError, Select } from './components';
 import { InAppOnly } from './InAppOnly';
 import { inOverlay } from '../shell/host';
 import { ItemList } from './ItemList';
-import { LootScan } from './LootScan';
+/* 0.25.0: čtení snímku lootu (core/vision) se načte až při otevření formuláře mimo overlay, ne s oknem */
+const LootScan = lazy(() => import('./LootScan').then(m => ({ default: m.LootScan })));
 import { MAPS } from '../core/data/maps';
 import { raidTypes } from '../core/runs';
 import { loadoutGear } from '../core/loadouts';
@@ -149,7 +150,7 @@ function RaidForm() {
         </div>
         <div className="stack-sm raid-form-loot">
           <ItemList label={t('raid.loot')} items={loot} onChange={setLoot} suggestions={mats} empty={t('raid.noLoot')} />
-          {inOverlay() ? <InAppOnly compact route="journal" what="host.why.lootScan" /> : <LootScan gear={gear} loot={loot} onLoot={setLoot} />}
+          {inOverlay() ? <InAppOnly compact route="journal" what="host.why.lootScan" /> : <Suspense fallback={null}><LootScan gear={gear} loot={loot} onLoot={setLoot} /></Suspense>}
           {lstate !== 'none' && lstate !== 'applied' && (
             <Check checked={applyLoot} onChange={setApplyLoot}
               note={lstate === 'changed'

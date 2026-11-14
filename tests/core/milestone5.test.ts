@@ -291,7 +291,7 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     buddy.on('status', s => statuses.push(s));
     const w = 640, h = 360, blank = new Uint8Array(w * h * 4).fill(30);
     expect(readCapture({ width: w, height: h, data: blank })).toEqual({ kind: 'empty', reason: 'noInventory' });
-    expect(hub.handleCapture({ width: w, height: h, data: blank })).toBe('empty');
+    expect(await hub.handleCapture({ width: w, height: h, data: blank })).toBe('empty');
     await app.flush();
     expect(app.store.getState().state).toBe(before);
     expect(st.saves.length).toBe(saves);
@@ -307,7 +307,7 @@ describe('hub: přepínač, snímek a zápis přes hlavní okno', () => {
     overlay.on('state', v => views.push(v as { batch: { shots: unknown[] } }));
     overlay.send('main', 'hello', { from: 'overlay' });
     expect(views.length).toBeGreaterThan(0);
-    expect(hub.handleCapture(loadFixture(TOOLTIP))).toBe('read');
+    expect(await hub.handleCapture(loadFixture(TOOLTIP))).toBe('read');
     expect(hub.batch().shots).toHaveLength(1);
     expect(views.at(-1)!.batch.shots).toHaveLength(1);
     /* dávka drží jen čísla, žádná obrazová data */

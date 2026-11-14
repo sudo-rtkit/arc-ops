@@ -56,8 +56,9 @@ export function ReviewPanel() {
     if (x.kind === 'map') d.map = r?.map ?? MAPS[0].id;
     if (x.kind === 'outcome') d.survived = r?.ok ?? true;
     if (x.kind === 'loot') d.rows = (x.rows ?? []).map(row => ({ on: !!row.guess && row.qty !== null, name: row.guess, qty: row.qty ?? 1 }));
-    /* 0.24.0: nepoznaná výbava: návrh je jen nabídka, nic není zaškrtnuté, dokud to hráč neudělá */
-    if (x.kind === 'loadout') d.rows = (x.rows ?? []).map(row => ({ on: false, name: row.guess, qty: 1 }));
+    /* 0.24.0: nepoznaná výbava: návrh je jen nabídka, nic není zaškrtnuté, dokud to hráč neudělá.
+       0.25.0: jistě poznaná výbava ze snímku ze zkratky (sure) je zaškrtnutá, hráč ji jen potvrdí */
+    if (x.kind === 'loadout') d.rows = (x.rows ?? []).map(row => ({ on: !!row.sure, name: row.guess, qty: 1 }));
     return [x.id, d];
   })), [items, s.raids]); // eslint-disable-line react-hooks/exhaustive-deps
   /* po vyřízení všeho zůstane jen potvrzení */
@@ -105,7 +106,8 @@ export function ReviewPanel() {
                   <button type="button" aria-pressed={d.survived === false} onClick={() => set(x.id, { survived: false })}>{t('review.outcome.knocked')}</button>
                 </div>
               )}
-              {x.kind === 'loadout' && <p className="meta">{t('review.unknownSlots', { list: (x.slots ?? []).map(sl => t(`review.slot.${sl}` as Key)).join(', ') })}</p>}
+              {x.kind === 'loadout' && (x.slots ?? []).length > 0 && <p className="meta">{t('review.unknownSlots', { list: (x.slots ?? []).map(sl => t(`review.slot.${sl}` as Key)).join(', ') })}</p>}
+              {x.kind === 'loadout' && (x.rows ?? []).some(r => r.sure) && <p className="meta">{t('review.gear.fromShot')}</p>}
               {(x.kind === 'loot' || (x.kind === 'loadout' && (d.rows ?? []).length > 0)) && !d.drop && (
                 <table className="table compact-table">
                   <thead><tr><th>{t('review.loot.add')}</th><th>{t(x.kind === 'loadout' ? 'review.gear.name' : 'review.loot.name')}</th>{x.kind === 'loot' && <th className="num">{t('review.loot.qty')}</th>}</tr></thead>
@@ -117,7 +119,7 @@ export function ReviewPanel() {
                         <td><input type="checkbox" aria-label={t('review.loot.add')} checked={row.on} onChange={e => upd({ on: e.target.checked })} /></td>
                         <td>
                           <input className="input" value={row.name} placeholder={t('review.loot.unknown')} aria-label={t(x.kind === 'loadout' ? 'review.gear.name' : 'review.loot.name')} onChange={e => upd({ name: e.target.value, on: !!e.target.value.trim() })} />
-                          {src && src.guess && <span className="meta"> {t(x.kind === 'loadout' ? 'review.gear.guess' : 'review.loot.guess', { score: Math.round(src.score * 100) })}</span>}
+                          {src && src.guess && <span className="meta"> {src.sure ? t('review.gear.sure') : t(x.kind === 'loadout' ? 'review.gear.guess' : 'review.loot.guess', { score: Math.round(src.score * 100) })}</span>}
                         </td>
                         {x.kind === 'loot' && <td className="num"><input className="input num" type="number" min={1} max={99999} value={row.qty} aria-label={t('review.loot.qty')} onChange={e => upd({ qty: Math.max(1, Math.min(99999, Number(e.target.value) || 1)) })} /></td>}
                       </tr>

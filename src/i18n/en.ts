@@ -3042,4 +3042,9 @@ export const en: Dict = {
   "prov.confirmAria": "Confirm value ({text:raw})",
   "prov.confirmArea": "Confirm all in area",
   "prov.confirmAreaAria": "Confirm all in area {area}",
+  /* 0.25.0 */
+  "review.gear.sure": "recognised from the capture",
+  "review.gear.fromShot": "Gear read from the FINDINGS capture. Items recognised for sure are ticked; saving adds them to the raid gear.",
+  "ops.ov.l.equip": "Gear from the capture: {list:raw}. After the loot is recorded, confirm it in the review queue.",
+  "ops.ov.l.equipUnknown": "{slot} not recognised",
 };

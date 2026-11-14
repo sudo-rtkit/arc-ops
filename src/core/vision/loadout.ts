@@ -17,7 +17,7 @@ import { readScreenshot, type CellRead, type ScreenRead } from './read';
 import { readHeader, near } from './progress';
 import { AUGMENT_PAD, augmentImageArea, matchShape, readAmmo, readWeaponTier, shapeOf, weaponImageArea, type EquipShape, type ShapeMatch } from './equip';
 import type { Tier } from './digits';
-import { equipShapes } from '../catalog';
+import { equipShapes } from '../equipCatalog';
 
 export type EquipSlot = 'augment' | 'shield' | 'weapon1' | 'weapon2';
 export const EQUIP_SLOTS: readonly EquipSlot[] = ['augment', 'shield', 'weapon1', 'weapon2'];
@@ -76,7 +76,7 @@ function readEquip(img: RgbaImage, slot: EquipSlot, box: Box, free: boolean, sha
   if (weapon) {
     out.ammo = readAmmo(img, box);
     out.tier = readWeaponTier(img, box);
-    out.match = matchShape(shapeOf(img, weaponImageArea(box), rar.rgb), 'weapon', rar.rarity, shapes, out.ammo?.max ?? null);
+    out.match = matchShape(shapeOf(img, weaponImageArea(box), rar.rgb), 'weapon', rar.rarity, shapes, out.ammo?.max ?? null, out.tier);
   } else if (slot === 'augment') {
     out.match = matchShape(shapeOf(img, augmentImageArea(box), rar.rgb, 40, AUGMENT_PAD), 'augment', rar.rarity, shapes);
   }

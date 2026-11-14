@@ -13,5 +13,7 @@ import '../ui/tokens.css';
 import '../ui/maps.css';
 import './widgets.css';
 import WidgetsApp from './WidgetsApp';
+import { langReady } from '../i18n';
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><WidgetsApp /></React.StrictMode>);
+/* 0.25.0: první vykreslení až se slovníkem výchozího jazyka okna (načítá se jen aktivní jazyk) */
+void langReady().finally(() => createRoot(document.getElementById('root')!).render(<React.StrictMode><WidgetsApp /></React.StrictMode>));

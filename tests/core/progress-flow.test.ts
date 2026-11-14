@@ -44,7 +44,7 @@ describe('hub: obrazovka postupu', () => {
   it('snímek profilu se přečte do vlastního místa a nic nezapíše', async () => {
     const { app, hub, got } = await setup();
     const before = JSON.stringify(app.store.getState().state.profile);
-    expect(hub.handleCapture(PROFILE())).toBe('progress');
+    expect(await hub.handleCapture(PROFILE())).toBe('progress');
     const b = hub.batch();
     expect(b.last).toBe('progress');
     expect(b.progress?.read.screen).toBe('profile');
@@ -55,7 +55,7 @@ describe('hub: obrazovka postupu', () => {
 
   it('zápis jen pro zobrazený snímek, po snímku stavu; pak se místo uvolní', async () => {
     const { app, st, hub, overlay, got } = await setup();
-    hub.handleCapture(PROFILE());
+    await hub.handleCapture(PROFILE());
     const id = hub.batch().progress!.id;
     overlay.send('main', 'progressImport', { shotId: id + 1, input: { profile: { level: 20 } } });
     await tick(); await hub.idle(); await tick();
@@ -70,7 +70,7 @@ describe('hub: obrazovka postupu', () => {
 
   it('zahození snímku postupu nechá ostatní místa', async () => {
     const { hub, overlay } = await setup();
-    hub.handleCapture(skillScreen({ name: 'MARATHON RUNNER', current: 5 }));
+    await hub.handleCapture(skillScreen({ name: 'MARATHON RUNNER', current: 5 }));
     expect(hub.batch().progress?.read.screen).toBe('skills');
     overlay.send('main', 'progressClear', null);
     await tick();

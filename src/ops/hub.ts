@@ -10,12 +10,14 @@
    - 0.22.0: widgety nad hrou. Okno widgetů dostává kopii stavu (jen čtení) a smí poslat jen dvě úpravy z Úprav
      (store/relay.ts WIDGET_ACTIONS). Otevírá se se zapnutým přepínačem widgetů, když je vidět Ops (stejné pravidlo
      „otevřít s hrou“), a zavírá se s ním. Dvě volitelné zkratky (Úpravy, Skrýt / zobrazit) registruje Rust.
+   - 0.25.0: čtení snímků (core/opsCapture.ts a celé core/vision) se načte až s prvním snímkem (dynamický import),
+     ne při startu hlavního okna; handleCapture je proto asynchronní.
    Bez Reactu a bez DOM, takže jde testovat v Node se zástupným bus a native. */
 import type { App } from '../store/app';
 import type { AppState } from '../core/types';
 import type { ScreenRead } from '../core/vision/read';
 import type { RgbaImage } from '../core/vision/image';
-import { readCapture } from '../core/opsCapture';
+import type { CaptureResult } from '../core/opsCapture';
 import type { ProgressRead } from '../core/vision/progress';
 import { normalizeProgressApply, proposalChanges, proposeProgress, type ProgressApply, type ProgressSummary } from '../core/progressImport';
 import { analyzeLoot, analyzeShots, type VisionApply, type VisionSummary } from '../core/visionImport';
@@ -35,16 +37,19 @@ import { getLang, t, type Key, type Lang } from '../i18n';
 import type { Bus } from './bus';
 import type { Native } from './native';
 import { applyRelay, applyWidgetAction, type RelayAck } from '../store/relay';
-import { readAutoCapture } from '../core/opsCapture';
+/* 0.25.0: čtení snímků až s prvním snímkem (jeden sdílený import) */
+let visionMod: Promise<typeof import('../core/opsCapture')> | null = null;
+const loadVision = () => (visionMod ||= import('../core/opsCapture').catch(e => { visionMod = null; throw e; }));
 import { autoActive, autoIndicator, isRustScreen, screenBits, type AutoIndicator, type RustScreen } from '../core/autoCapture';
-import { IN_RAID_SIGNAL, loadoutSnap } from '../core/raidLife';
+import { equipFields, IN_RAID_SIGNAL, loadoutSnap, type LoadoutField } from '../core/raidLife';
 import { emoteFor, type AutoEmote, type AutoOutcome, type EmoteMsg } from '../core/opsEmote';
 import { calmNow, widgetPushMs } from '../core/lowImpact';
 
 /* auto (0.21.0): snímek z automatického snímání (původ hodnot po zápisu), jinak ze zkratky */
 export interface Shot { id: number; at: number; read: ScreenRead; auto?: true }
-/* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu. */
-export interface LootShot extends Shot { sig: string }
+/* Snímek FINDINGS po raidu: jen BACKPACK a QUICK USE, sig = podpis proti opakovanému zápisu.
+   0.25.0: gear = výbava (zbraně, augment, štít) z téhož snímku; po zápisu lootu jde do fronty „Ke kontrole“. */
+export interface LootShot extends Shot { sig: string; gear?: LoadoutField[] }
 /* Snímek obrazovky postupu (0.10.1). */
 export interface ProgressShot { id: number; at: number; read: ProgressRead; auto?: true }
 export interface BatchView {
@@ -432,10 +437,11 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
 
   /* Přečte snímek a zahodí obrazová data. Nic nezapisuje do stavu ani do úložiště. */
   /* silent (0.20.0, automatický snímek): bez animace, hlášky a zvuku Opse (hra je v popředí) */
-  function handleCapture(img: RgbaImage, silent = false): 'empty' | 'read' | 'loot' | 'progress' {
+  async function handleCapture(img: RgbaImage, silent = false): Promise<'empty' | 'read' | 'loot' | 'progress'> {
+    const { readCapture } = await loadVision();
     return ingest(readCapture(img), silent);
   }
-  function ingest(r: ReturnType<typeof readCapture>, silent: boolean): 'empty' | 'read' | 'loot' | 'progress' {
+  function ingest(r: CaptureResult, silent: boolean): 'empty' | 'read' | 'loot' | 'progress' {
     const status = silent ? () => undefined : say;
     const auto = silent ? { auto: true as const } : {};
     if (r.kind === 'progress') {
@@ -455,7 +461,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     const s = st();
     if (r.screen === 'loot') {
       const sig = lootSignature(r.read);
-      batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig, ...auto }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
+      const gear = r.equip ? equipFields(r.equip, s.vision.learned, matchCtx(s)) : [];
+      batch = { ...batch, loot: { id: nextShot++, at: now(), read: r.read, sig, ...(gear.some(g => g.state === 'item') ? { gear } : {}), ...auto }, last: 'loot', emptyAt: 0, rejected: '', failed: '' };
       const a = analyzeLoot(r.read, s.vision.learned, matchCtx(s));
       if (raidWithSig(s, sig)) status('annoyed', line('loot.dup'));
       else if (a.empty) status('shrug', line('loot.empty'));
@@ -489,6 +496,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   }
   /* Přečte automatický snímek a zapíše, co jde; review = kolik údajů šlo do fronty „Ke kontrole“. */
   async function autoRead(img: RgbaImage, screen: RustScreen): Promise<{ outcome: AutoOutcome; review: number }> {
+    const { readAutoCapture } = await loadVision();
     const s = st();
     const r = readAutoCapture(img, screen);
     const at = now();
@@ -531,7 +539,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     try { buf = await native.captureTake(p.id); } catch { status('error', line('scan.failed')); afterAppCapture('failed'); return; }
     let data: Uint8Array | null = new Uint8Array(buf);
     buf = null;
-    try { const r = handleCapture({ width: p.width, height: p.height, data }); afterAppCapture(r, batch.rejected); }
+    try { const r = await handleCapture({ width: p.width, height: p.height, data }); afterAppCapture(r, batch.rejected); }
+    catch { status('error', line('scan.failed')); afterAppCapture('failed'); }
     finally { data = null; }
   }
 
@@ -554,7 +563,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
     if (!shot || shot.id !== shotId) res = { ok: false, reason: 'empty' };
     else {
       status('carry');
-      res = await app.actions.importRaidLoot(input, shot.sig, shot.auto ? 'auto-capture' : 'screenshot-hotkey');
+      res = await app.actions.importRaidLoot(input, shot.sig, shot.auto ? 'auto-capture' : 'screenshot-hotkey', shot.gear ?? null);
       if (res.ok) {
         if (batch.loot?.id === shotId) clearLoot();
         /* 0.15.0: při aktivním plánu shrne Ops vyhodnocení plánu (jen čtení), jinak potvrdí zápis */

@@ -13,7 +13,7 @@ import { MODULES } from '../shell/modules';
 import { RECENT_KEY, buildIndex, flatHits, parseRecent, prepareIndex, pushRecent, searchIndex, type SearchEntry, type SearchGroup } from '../core/search';
 import { openTip } from './Advisor';
 import { useT } from '../i18n/react';
-import { tl, type Key } from '../i18n';
+import { tl, tlOpt, type Key } from '../i18n';
 
 /* Sekce Nastavení (id kotvy v modulu Settings → klíč nadpisu). */
 export const SETTINGS_SECTIONS: { id: string; key: Key | null; extra?: Key[] }[] = [
@@ -35,7 +35,8 @@ function useIndex() {
   const t = useT();
   return useMemo(() => {
     const lang = t.lang;
-    const both = (k: Key) => [tl(lang, k), tl(lang === 'cs' ? 'en' : 'cs', k)];
+    /* 0.25.0: druhý jazyk jen s načteným slovníkem */
+    const both = (k: Key) => [tl(lang, k), tlOpt(lang === 'cs' ? 'en' : 'cs', k)].filter((x): x is string => !!x);
     const modules = MODULES.map(m => ({ id: m.id, names: [...(m.nameKey ? both(m.nameKey) : []), m.name, ...both(`search.alias.${m.id}` as Key)] }));
     const settings = SETTINGS_SECTIONS.map(x => ({ id: x.id, names: [...(x.key ? both(x.key) : ['Data']), ...(x.extra ?? []).flatMap(both)] }));
     const entries = buildIndex(s, lang, { materials: d.materials.map(m => m.name), tips: d.tips, modules, settings });

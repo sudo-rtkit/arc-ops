@@ -1,7 +1,12 @@
 /* Jádro slovníku bez textů (0.19.0): typy, formáty, plurály a aktuální jazyk. Slovníky (cs.ts, en.ts) přidává
    index.ts (registerDicts), který používá hlavní okno, overlay, jádro i store. Okno buddyho slovníky nepotřebuje
    (mluví hláškami z opsLines.ts), a proto importuje jen tohle jádro: jeho balík je tím o oba slovníky menší.
-   Bez registrovaného slovníku tl vrátí klíč. */
+   Bez registrovaného slovníku tl vrátí klíč.
+   0.25.0: slovníky se načítají po jazycích (index.ts registruje zavaděč, každý jazyk je samostatný balík). Okno
+   načte jen slovník aktivního jazyka. Přepnutí je bezpečné: setLang jazyk přepne až po načtení jeho slovníku,
+   do té doby se celé okno dál kreslí v předchozím jazyce (nikdy ne klíče ani směs jazyků). Okna před prvním
+   vykreslením počkají na langReady(). Bez zavaděče (okno buddyho, testy se slovníky registrovanými předem)
+   se přepíná hned jako dřív. */
 import type { cs } from './cs';
 
 export type Lang = 'cs' | 'en';
@@ -22,6 +27,16 @@ export const msg = (key: Key, params?: Params): MsgRef => (params ? { key, param
 
 const DICTS: Partial<Record<Lang, Dict>> = {};
 export function registerDicts(d: Partial<Record<Lang, Dict>>): void { Object.assign(DICTS, d); }
+/* 0.25.0: zavaděč slovníku jazyka (dynamický import) a rozběhnutá načtení */
+let loader: ((lang: Lang) => Promise<Dict>) | null = null;
+const loading: Partial<Record<Lang, Promise<void>>> = {};
+export function registerLoader(f: (lang: Lang) => Promise<Dict>): void { loader = f; }
+export const hasDict = (lang: Lang): boolean => !!DICTS[lang];
+/* Načte slovník jazyka (jednou); nezdar se nehlásí, další volání to zkusí znovu. */
+export function ensureLang(lang: Lang): Promise<void> {
+  if (DICTS[lang] || !loader || !isLang(lang)) return Promise.resolve();
+  return (loading[lang] ||= loader(lang).then(d => { DICTS[lang] = d; }, () => { delete loading[lang]; }));
+}
 
 /* Značky jazyka pro Intl. Angličtina používá britský zápis kvůli jednoznačnému datu (10 Nov 2026) a 24h času. */
 export const LOCALE: Record<Lang, string> = { cs: 'cs-CZ', en: 'en-GB' };
@@ -75,6 +90,8 @@ export function tl(lang: Lang, key: Key, params?: Params): string {
   const s = typeof m === 'string' ? m : plural(lang, Number(params?.count ?? 0), m);
   return interpolate(lang, s, params);
 }
+/* 0.25.0: text v jiném než aktivním jazyce (vyhledávání v obou jazycích); null, když jeho slovník není načtený. */
+export const tlOpt = (lang: Lang, key: Key, params?: Params): string | null => (DICTS[lang] ? tl(lang, key, params) : null);
 
 /* ----- aktuální jazyk ----- */
 let current: Lang = 'cs';
@@ -83,12 +100,37 @@ const listeners = new Set<() => void>();
 export const getLang = (): Lang => current;
 export const isLang = (v: unknown): v is Lang => v === 'cs' || v === 'en';
 
-export function setLang(lang: Lang): void {
-  if (!isLang(lang)) return;
+/* jazyk, o který se naposledy žádalo (přepne se na něj, až bude jeho slovník načtený) */
+let wanted: Lang = 'cs';
+function apply(lang: Lang): void {
   if (typeof document !== 'undefined' && document.documentElement) document.documentElement.lang = lang;
   if (lang === current) return;
   current = lang;
   listeners.forEach(f => f());
+}
+export function setLang(lang: Lang): void {
+  if (!isLang(lang)) return;
+  wanted = lang;
+  if (DICTS[lang] || !loader) { apply(lang); return; }
+  void ensureLang(lang).then(() => { if (wanted === lang && DICTS[lang]) apply(lang); });
+}
+/* 0.25.0: brána pro stav z jiného okna (overlay, widgety): fn s novým stavem proběhne až po načtení slovníku jeho
+   jazyka, takže se stav s jiným jazykem nikdy nevykreslí se slovníkem, který ještě chybí. Platí jen poslední volání. */
+export function langGate(): (lang: Lang, fn: () => void) => void {
+  let seq = 0;
+  return (lang, fn) => {
+    const n = ++seq;
+    if (!isLang(lang) || DICTS[lang] || !loader) { fn(); return; }
+    void ensureLang(lang).then(() => { if (n === seq) fn(); });
+  };
+}
+/* Slovník jazyka, o který se naposledy žádalo, je načtený a jazyk přepnutý (okna na to čekají před vykreslením). */
+export async function langReady(): Promise<void> {
+  for (let i = 0; i < 3; i++) {
+    const l = wanted;
+    await ensureLang(l);
+    if (wanted === l) { if (DICTS[l] || !loader) apply(l); return; }
+  }
 }
 export function subscribeLang(cb: () => void): () => void {
   listeners.add(cb);

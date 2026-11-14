@@ -80,9 +80,10 @@ describe('výbava: vlastní snímky hráče (jen lokálně)', () => {
     expect(unknownSlots(s)).toEqual(['shield', 'weapon1', 'weapon2', 'backpack', 'quickUse']);
   });
   it.skipIf(!has('own-after-raid-survived-findings.png'))('výsledek FINDINGS: štít Light Shield, zbraně jako předměty, hodnota loadoutu', () => {
-    /* 0.24.0: Kettle I se pozná; Ferro II (jiná pažba), Anvil IV (tlumič) a Torrente II (jiný vzhled tieru) jsou
-       od ikony katalogu moc daleko: zůstanou neznámé, nic se nehádá */
-    const weapons: Record<string, (string | null)[]> = { 'own-after-raid-survived-findings.png': ['Kettle I', null], 'return-and-progression/return-findings.png': [null, null] };
+    /* 0.24.0: Kettle I se pozná; Ferro II (jiná pažba), Anvil IV (tlumič) a Torrente II (doplňky) jsou od ikony
+       katalogu moc daleko. 0.25.0: všechny tři jistě přes zásobník (jediná zbraň vzácnosti místa, ke které přečtený
+       zásobník sedí, a zároveň první podle tvaru) */
+    const weapons: Record<string, (string | null)[]> = { 'own-after-raid-survived-findings.png': ['Kettle I', 'Ferro II'], 'return-and-progression/return-findings.png': ['Anvil IV', 'Torrente II'] };
     for (const [n, value] of [['own-after-raid-survived-findings.png', 26531], ['return-and-progression/return-findings.png', 55551]] as const) {
       if (!has(n)) continue;
       const r = readLoadout(load(n))!;

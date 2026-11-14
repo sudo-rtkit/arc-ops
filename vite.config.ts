@@ -7,5 +7,6 @@ export default defineConfig({
   server: { port: 1420, strictPort: true, host: '127.0.0.1' },
   /* milník 5: okna buddyho a overlaye jsou samostatné stránky; 0.22.0 i okno widgetů */
   build: { target: 'es2022', outDir: 'dist', chunkSizeWarningLimit: 1500, rollupOptions: { input: { main: 'index.html', buddy: 'buddy.html', overlay: 'overlay.html', widgets: 'widgets.html' } } },
-  test: { include: ['tests/**/*.test.ts'], environment: 'node' },
+  /* 0.25.0: oba slovníky registrované předem (aplikace je načítá po jazycích) */
+  test: { include: ['tests/**/*.test.ts'], environment: 'node', setupFiles: ['tests/setup-i18n.ts'] },
 });
