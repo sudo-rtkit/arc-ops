@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.27.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.28.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -122,6 +122,8 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
 Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze souboru a zkratky potvrzuje hráč. Volitelné automatické snímání může jisté údaje zapsat po snímku stavu s možností Zpět; nejisté čekají na kontrolu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
+
+Místní deník chyb (Nastavení → Diagnostika) pomáhá s hlášením chyb. Z počítače neodchází, dokud ho sám nevyexportuješ; domovská složka a e-mailové adresy se z něj odstraní.
 
 Verze 0.16.1 zpřísnila oprávnění jednotlivých oken, ověřování zpráv mezi okny a limity velikosti obrázků. Podrobnosti jsou v [historii verzí](CHANGELOG.md#0161--security-hardening).
 

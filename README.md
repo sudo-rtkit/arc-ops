@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.27.0](https://img.shields.io/badge/version-0.27.0-F4AD82?style=flat-square)
+![Version 0.28.0](https://img.shields.io/badge/version-0.28.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -134,6 +134,7 @@ For an upgrade, use the newer installer over the existing installation; local da
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - File and hotkey recognition proposes changes for review. Opt-in automatic capture can write certain fields after a state snapshot with Undo; uncertain fields wait for review. Unreadable fields stay unknown. JSON export/restore helps you recover from mistakes.
 - Stash advice never sells, recycles or deletes anything in the game.
+- A local error log (Settings → Diagnostics) helps with bug reports. It never leaves this PC unless you export it yourself; your home folder and e-mail addresses are removed from it.
 
 Security hardening in 0.16.1 added per-window permissions, validated messages between windows and image-size limits. See the [release notes](CHANGELOG.md#0161--security-hardening) for details.
 

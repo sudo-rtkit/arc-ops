@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "buddy",
-  "description": "Okno buddyho (0.16.1): poslech událostí, seznam monitorů, zprávy hlavnímu oknu, ukázání bez aktivace, přepnutí overlaye a vlastní poloha a tažení. Poloha, velikost a tažení jdou přes win_place a win_drag, které mění jen volající okno. 0.22.0: klik na Opse otevře Úpravy widgetů (widgets_edit).",
+  "description": "Okno buddyho (0.16.1): poslech událostí, seznam monitorů, zprávy hlavnímu oknu, ukázání bez aktivace, přepnutí overlaye a vlastní poloha a tažení. Poloha, velikost a tažení jdou přes win_place a win_drag, které mění jen volající okno. 0.22.0: klik na Opse otevře Úpravy widgetů (widgets_edit). 0.28.0: jen zápis chyb okna do místního deníku (diag_log), žádné čtení ani export.",
   "windows": ["buddy"],
   "permissions": [
     "core:event:allow-listen",
@@ -14,6 +14,7 @@
     "allow-win-place",
     "allow-win-drag",
     "allow-widgets-edit",
-    "allow-widgets-hide"
+    "allow-widgets-hide",
+    "allow-diag-log"
   ]
 }

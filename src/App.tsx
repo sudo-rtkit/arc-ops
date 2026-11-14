@@ -1,4 +1,5 @@
-import { Component, Suspense, lazy, useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useEffect, useState, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
+import { reportError } from './shell/diagLog';
 import { Loader } from 'lucide-react';
 import { Sidebar } from './shell/Sidebar';
 import { TopBar } from './shell/TopBar';
@@ -85,6 +86,8 @@ export default function App() {
 class ModuleGuard extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  /* 0.28.0: chyba modulu do místního deníku */
+  componentDidCatch(error: unknown, info: ErrorInfo) { reportError(error, 'error', 'module', info.componentStack ?? undefined); }
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 

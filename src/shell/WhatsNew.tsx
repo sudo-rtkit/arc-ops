@@ -30,6 +30,7 @@ function follow(link: WhatsNewLink): void {
     case 'overlayApp': case 'opsSettings': navigate('settings', 'ops'); return;
     case 'loadouts': navigate('weapons', 'loadouts'); return;
     case 'appLoad': navigate('settings', 'load'); return;
+    case 'diagnostics': navigate('settings', 'diag'); return;
     default: navigate(link);
   }
 }

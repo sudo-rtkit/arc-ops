@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Hlavní okno (plný i kompaktní režim, 0.16.1): jen poslech událostí a vlastní příkazy, které hlavní okno volá. Úložiště, dialogy, odkazy, buddy, snímek a ovládání okna jdou přes příkazy v Rustu; žádná oprávnění Tauri navíc (tray, menu, obrázky, cesty, emit z JS).",
+  "description": "Hlavní okno (plný i kompaktní režim, 0.16.1): jen poslech událostí a vlastní příkazy, které hlavní okno volá. Úložiště, dialogy, odkazy, buddy, snímek a ovládání okna jdou přes příkazy v Rustu; žádná oprávnění Tauri navíc (tray, menu, obrázky, cesty, emit z JS). 0.28.0: místní deník chyb: zápis (diag_log) a jen tady čtení, export a vymazání (diag_read, diag_export, diag_clear).",
   "windows": ["main"],
   "permissions": [
     "core:event:allow-listen",
@@ -45,6 +45,10 @@
     "allow-widgets-open",
     "allow-widgets-close",
     "allow-widgets-edit",
-    "allow-app-load"
+    "allow-app-load",
+    "allow-diag-log",
+    "allow-diag-read",
+    "allow-diag-export",
+    "allow-diag-clear"
   ]
 }

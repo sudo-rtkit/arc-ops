@@ -4,10 +4,12 @@
 //! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
 mod bus;
+mod diag;
 mod mainwin;
 pub mod ops;
 mod storage;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use storage::{LoadResult, SnapshotInfo, Storage, MAX_FILE};
@@ -22,6 +24,8 @@ struct AppStorage(Mutex<Storage>);
 #[serde(rename_all = "camelCase")]
 struct LaunchInfo {
     game_running: bool,
+    /* 0.28.0: minulá relace skončila nečekaně (zůstala značka logs/session.lock); upozornění jen v hlavním okně */
+    unclean_exit: bool,
 }
 
 #[tauri::command]
@@ -44,19 +48,24 @@ fn main_window(w: &WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 fn storage_load(window: WebviewWindow, st: State<'_, AppStorage>) -> Result<LoadResult, String> {
     main_window(&window)?;
-    with(&st, |s| Ok(s.load()))
+    let r = with(&st, |s| Ok(s.load()))?;
+    /* 0.28.0: obnova ze zálohy nebo prázdný stav do deníku (jen zdroj, nikdy obsah) */
+    if r.warning.is_some() {
+        diag::rust(diag::Level::Warn, "storage load", &format!("recovered from {}", r.source));
+    }
+    Ok(r)
 }
 
 #[tauri::command]
 fn storage_save(window: WebviewWindow, st: State<'_, AppStorage>, content: String) -> Result<(), String> {
     main_window(&window)?;
-    with(&st, |s| s.save(&content))
+    diag::logged("storage save", with(&st, |s| s.save(&content)))
 }
 
 #[tauri::command]
 fn snapshot_create(window: WebviewWindow, st: State<'_, AppStorage>, kind: String, label: String, content: String) -> Result<(), String> {
     main_window(&window)?;
-    with(&st, |s| s.create_snapshot(&kind, &label, &content).map(|_| ()))
+    diag::logged("snapshot create", with(&st, |s| s.create_snapshot(&kind, &label, &content).map(|_| ())))
 }
 
 #[tauri::command]
@@ -80,7 +89,7 @@ fn snapshot_delete(window: WebviewWindow, st: State<'_, AppStorage>, name: Strin
 #[tauri::command]
 fn import_save_raw(window: WebviewWindow, st: State<'_, AppStorage>, content: String) -> Result<(), String> {
     main_window(&window)?;
-    with(&st, |s| s.save_import_raw(&content))
+    diag::logged("import raw", with(&st, |s| s.save_import_raw(&content)))
 }
 
 /// Text dialogu v jazyce UI (posílá ho frontend); bez něj nebo s nevhodným textem česká výchozí podoba.
@@ -111,9 +120,9 @@ async fn export_backup(
         .add_filter(dialog_text(filter, "Záloha JSON"), &["json"])
         .blocking_save_file();
     let Some(path) = picked else { return Ok(false) };
-    let path: PathBuf = path.into_path().map_err(|e| format!("Neplatná cesta: {e}"))?;
+    let path: PathBuf = diag::logged("export backup", path.into_path().map_err(|e| format!("Neplatná cesta: {e}")))?;
     /* 0.16.1: dočasný soubor s jedinečným názvem (cizí <název>.tmp ve vybrané složce se nepřepíše) */
-    storage::atomic_write_unique(&path, &content)?;
+    diag::logged("export backup", storage::atomic_write_unique(&path, &content))?;
     Ok(true)
 }
 
@@ -128,12 +137,13 @@ async fn import_backup(app: tauri::AppHandle, window: WebviewWindow, title: Opti
         .add_filter(dialog_text(filter, "Záloha"), &["json", "txt"])
         .blocking_pick_file();
     let Some(path) = picked else { return Ok(None) };
-    let path: PathBuf = path.into_path().map_err(|e| format!("Neplatná cesta: {e}"))?;
-    let meta = std::fs::metadata(&path).map_err(|e| format!("Soubor nejde přečíst: {e}"))?;
+    let path: PathBuf = diag::logged("import backup", path.into_path().map_err(|e| format!("Neplatná cesta: {e}")))?;
+    let meta = diag::logged("import backup", std::fs::metadata(&path).map_err(|e| format!("Soubor nejde přečíst: {e}")))?;
     if meta.len() > MAX_FILE {
+        diag::rust(diag::Level::Warn, "import backup", "file too big");
         return Ok(Some(String::new()));
     }
-    let bytes = std::fs::read(&path).map_err(|e| format!("Soubor nejde přečíst: {e}"))?;
+    let bytes = diag::logged("import backup", std::fs::read(&path).map_err(|e| format!("Soubor nejde přečíst: {e}")))?;
     Ok(Some(String::from_utf8_lossy(&bytes).into_owned()))
 }
 
@@ -151,6 +161,36 @@ fn open_data_dir(app: tauri::AppHandle, window: WebviewWindow, st: State<'_, App
     app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
 
+/// 0.28.0: export diagnostiky do souboru, který uživatel vybere v systémovém dialogu (jen hlavní okno).
+/// Název navrhne Rust, cesta je jen z dialogu; obsah je hlavička (verze, Windows, WebView2, opt-in funkce
+/// jako true/false z pevného seznamu) a očištěný deník. Vrací false, když dialog zavřel.
+#[tauri::command]
+async fn diag_export(
+    app: tauri::AppHandle,
+    window: WebviewWindow,
+    st: State<'_, diag::DiagState>,
+    title: Option<String>,
+    filter: Option<String>,
+    features: Option<HashMap<String, bool>>,
+) -> Result<bool, String> {
+    main_window(&window)?;
+    let d = st.0.clone();
+    d.flush();
+    let picked = app
+        .dialog()
+        .file()
+        .set_title(dialog_text(title, "Exportovat diagnostiku"))
+        .set_file_name(diag::export_name(diag::now_ms()))
+        .add_filter(dialog_text(filter, "Text"), &["txt"])
+        .blocking_save_file();
+    let Some(path) = picked else { return Ok(false) };
+    let path: PathBuf = diag::logged("diag export", path.into_path().map_err(|e| format!("Neplatná cesta: {e}")))?;
+    let webview = tauri::webview_version().unwrap_or_else(|_| "unknown".into());
+    let text = diag::export_text(&d, &ops::windows_version(), &webview, &features.unwrap_or_default());
+    diag::logged("diag export", storage::atomic_write_unique(&path, &text))?;
+    Ok(true)
+}
+
 /// Otevře odkaz ve výchozím prohlížeči. Povoleny jsou jen adresy https a jen z hlavního okna nebo overlaye
 /// (odkaz v modulu, na který hráč klikl).
 #[tauri::command]
@@ -164,6 +204,8 @@ fn open_external(app: tauri::AppHandle, window: WebviewWindow, url: String) -> R
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    /* 0.28.0: panika se zapíše do místního deníku (zapisuje, jakmile setup deník spustí) */
+    diag::install_panic_hook();
     tauri::Builder::default()
         // Druhé spuštění jen přepne na běžící okno (i skryté v oznamovací oblasti), aby si dvě okna nepřepisovala data.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -194,6 +236,10 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir().map_err(|e| format!("Složka dat není dostupná: {e}"))?;
             std::fs::create_dir_all(&dir)?;
+            /* 0.28.0: místní deník chyb a značka relace (logs/); minulá relace bez čistého ukončení = upozornění */
+            let log = diag::init(&dir);
+            let unclean_exit = log.unclean;
+            app.manage(diag::DiagState(log));
             /* režim a geometrie okna z minula (jen čtení state.json), aby okno nebliklo v jiné velikosti */
             let boot = mainwin::boot_prefs(&dir);
             app.manage(mainwin::MainWin::new(boot.mode));
@@ -202,7 +248,7 @@ pub fn run() {
                nesmí aktivovat ani překrýt hru (hra v exkluzivní celé obrazovce by se mohla minimalizovat nebo
                spadnout): vznikne skryté a ukáže se minimalizované bez aktivace. Jednorázová kontrola názvů procesů. */
             let game_running = ops::game_running_now();
-            app.manage(LaunchInfo { game_running });
+            app.manage(LaunchInfo { game_running, unclean_exit });
             let cfg = app
                 .config()
                 .app
@@ -216,13 +262,13 @@ pub fn run() {
                 builder = builder.focused(false).visible(false);
             }
             builder = mainwin::prepare(builder, &boot);
-            let main = builder.build()?;
+            let main = builder.build().inspect_err(|e| diag::error("main window", &e.to_string()))?;
             mainwin::finish(&main, &boot, game_running);
             if game_running {
                 ops::show_in_background(&main);
                 app.state::<mainwin::MainWin>().background_start();
             }
-            mainwin::create_tray(app.handle())?;
+            mainwin::create_tray(app.handle()).inspect_err(|e| diag::error("tray", &e.to_string()))?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -239,6 +285,10 @@ pub fn run() {
             open_data_dir,
             open_external,
             launch_info,
+            diag_export,
+            diag::diag_log,
+            diag::diag_read,
+            diag::diag_clear,
             bus::bus_send,
             ops::ops_enable,
             ops::ops_hotkey,
@@ -275,6 +325,12 @@ pub fn run() {
             mainwin::app_quit,
             mainwin::tray_sync
         ])
-        .run(tauri::generate_context!())
-        .expect("chyba při spuštění aplikace");
+        .build(tauri::generate_context!())
+        .expect("chyba při spuštění aplikace")
+        /* 0.28.0: čisté ukončení smaže značku relace (pád nebo zabití procesu ji nechá) */
+        .run(|_app, e| {
+            if let tauri::RunEvent::Exit = e {
+                diag::shutdown();
+            }
+        });
 }

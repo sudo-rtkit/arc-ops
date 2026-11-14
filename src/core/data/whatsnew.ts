@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.27.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.28.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,14 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.28.0',
+    title: { cs: 'Místní deník chyb', en: 'Local error log' },
+    items: [
+      { text: { cs: 'Nastavení → Diagnostika ukáže poslední chyby. Vše zůstává v tomto počítači; soubor můžeš sám vyexportovat k hlášení chyby.', en: 'Settings → Diagnostics shows the latest errors. Everything stays on this PC; you can export the file yourself for a bug report.' }, link: 'diagnostics' },
+      { text: { cs: 'Po nečekaném konci aplikace to hlavní okno klidně oznámí. Okno s chybou nabídne nové načtení místo prázdné plochy.', en: 'After an unexpected exit the main window calmly says so. A window that hits an error offers a reload instead of going blank.' } },
+    ],
+  },
   {
     version: '0.27.0',
     title: { cs: 'Druh munice pozná zbraň', en: 'Ammo type tells weapons apart' },

@@ -9,6 +9,7 @@ import type { LoadInfo } from '../store/app';
 import { launchInfo } from '../ops/native';
 import { AutoWrites } from '../ui/AutoReview';
 import { navigate } from '../store';
+import { exportDiagnostics, uncleanDismissed, dismissUnclean } from '../ui/diagUi';
 
 /* Hlášení úložiště se zobrazí v jazyce UI podle zdroje dat (text z úložiště je jen česká pojistka). */
 const loadWarning = (t: TFn, load: LoadInfo): string =>
@@ -22,7 +23,13 @@ export function Banners() {
   const [details, setDetails] = useState(false);
   /* 0.8.0: start při běžící hře – okno se otevřelo minimalizované bez fokusu; nenápadné upozornění do zavření */
   const [bgStart, setBgStart] = useState(false);
-  useEffect(() => { let live = true; void launchInfo().then(i => { if (live) setBgStart(i.gameRunning); }); return () => { live = false; }; }, []);
+  /* 0.28.0: minulá relace skončila nečekaně; klidné upozornění jen tady v hlavním okně (žádné okno ani fokus) */
+  const [unclean, setUnclean] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void launchInfo().then(i => { if (live) { setBgStart(i.gameRunning); setUnclean(i.uncleanExit === true && !uncleanDismissed()); } });
+    return () => { live = false; };
+  }, []);
   const t = useT();
   return (
     <>
@@ -33,6 +40,15 @@ export function Banners() {
           <Info size={18} aria-hidden="true" />
           <span className="banner-text">{t('banner.bgStart')}</span>
           <IconBtn label={t('banner.hide')} icon={X} ghost onClick={() => setBgStart(false)} />
+        </div>
+      )}
+      {unclean && (
+        <div className="banner info" role="status" data-testid="unclean-exit">
+          <Info size={18} aria-hidden="true" />
+          <span className="banner-text">{t('banner.unclean')}</span>
+          <Btn size="sm" onClick={() => void exportDiagnostics()}>{t('diag.export')}</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => navigate('settings', 'diag')}>{t('banner.diag')}</Btn>
+          <IconBtn label={t('banner.hide')} icon={X} ghost onClick={() => { dismissUnclean(); setUnclean(false); }} />
         </div>
       )}
       {save === 'error' && (

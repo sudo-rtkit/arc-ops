@@ -20,6 +20,8 @@ import './ui/components.css';
 import './ui/modules.css';
 import './ui/maps.css';
 import App from './App';
+import { installDiag } from './shell/diagLog';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 import { app } from './store';
 import { LANGS, ensureLang, langReady } from './i18n';
 
@@ -27,6 +29,8 @@ import { hub } from './ops/mainHub';
 import { startWindowCtl } from './shell/windowCtl';
 import './ui/compact.css';
 
+/* 0.28.0: nezachycené chyby okna do místního deníku (Nastavení → Diagnostika) */
+installDiag();
 const booted = app.init();
 /* milník 5: buddy, overlay a zkratka (bez zapnutí v Nastavení nic nedělá) */
 hub.start();
@@ -46,6 +50,6 @@ const BOOT_WAIT_MS = 1500;
 void Promise.race([booted.catch(() => undefined), new Promise(r => setTimeout(r, BOOT_WAIT_MS))])
   .then(() => langReady())
   .finally(() => {
-    createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
+    createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary variant="full"><App /></ErrorBoundary></React.StrictMode>);
     setTimeout(() => { for (const l of LANGS) void ensureLang(l); }, 5000);
   });

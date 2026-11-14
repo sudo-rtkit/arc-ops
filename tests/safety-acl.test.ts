@@ -26,21 +26,29 @@ const MAIN = [
   'allow-main-ready', 'allow-app-quit', 'allow-tray-sync', 'allow-widgets-open', 'allow-widgets-close', 'allow-widgets-edit',
   /* 0.23.0: zátěž vlastního procesu (jen čtení) */
   'allow-app-load',
+  /* 0.28.0: místní deník chyb: zápis a jen tady čtení, export a vymazání */
+  'allow-diag-log', 'allow-diag-read', 'allow-diag-export', 'allow-diag-clear',
 ];
 const BUDDY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-available-monitors', 'core:window:allow-primary-monitor',
   'allow-bus-send', 'allow-buddy-reveal', 'allow-overlay-toggle', 'allow-win-place', 'allow-win-drag', 'allow-widgets-edit',
   /* 0.23.0: Skrýt / zobrazit widgety vedle Úprav (jen událost oknu widgetů) */
   'allow-widgets-hide',
+  /* 0.28.0: jen zápis chyb okna do deníku */
+  'allow-diag-log',
 ];
 const OVERLAY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-outer-position', 'core:window:allow-inner-size',
   'core:window:allow-available-monitors', 'core:window:allow-current-monitor', 'core:window:allow-primary-monitor',
   'allow-bus-send', 'allow-overlay-close', 'allow-capture-now', 'allow-open-external', 'allow-win-place',
+  /* 0.28.0: jen zápis chyb okna do deníku */
+  'allow-diag-log',
 ];
 /* 0.22.0: okno widgetů nad hrou: jen události, zprávy hlavnímu oknu, Úpravy, vlastní umístění a panel Aplikace */
 const WIDGETS = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'allow-bus-send', 'allow-widgets-edit', 'allow-widgets-fit', 'allow-widgets-app',
+  /* 0.28.0: jen zápis chyb okna do deníku */
+  'allow-diag-log',
 ];
 const WINDOWS = ['main', 'buddy', 'overlay', 'widgets'];
 
@@ -95,14 +103,14 @@ describe('0.16.1: nejmenší oprávnění oken', () => {
     for (const g of granted) expect(manifest, g).toContain(g);
     /* buddy a overlay nesmí číst stav, snímky ani složku dat, ukládat, ovládat zkratku nebo hlavní okno */
     for (const n of ['buddy', 'overlay', 'widgets']) {
-      for (const p of cap(n).permissions) expect(/storage|snapshot|import|export|data-dir|launch-info|ops-|buddy-open|buddy-close|capture-take|main-|app-quit|tray-sync|overlay-open|widgets-open|widgets-close/.test(p), `${n}: ${p}`).toBe(false);
+      for (const p of cap(n).permissions) expect(/storage|snapshot|import|export|data-dir|launch-info|ops-|buddy-open|buddy-close|capture-take|main-|app-quit|tray-sync|overlay-open|widgets-open|widgets-close|diag-read|diag-export|diag-clear/.test(p), `${n}: ${p}`).toBe(false);
     }
     /* 0.22.0: okno widgetů navíc nesnímá, neotevírá odkazy a nemění polohu jiného okna */
     for (const p of cap('widgets').permissions) expect(/capture|open-external|win-|overlay-|buddy-/.test(p), p).toBe(false);
   });
 
   it('citlivé příkazy kontrolují štítek volajícího okna', () => {
-    for (const fn of ['storage_load', 'storage_save', 'snapshot_create', 'snapshot_list', 'snapshot_read', 'snapshot_delete', 'import_save_raw', 'export_backup', 'import_backup', 'data_dir', 'open_data_dir', 'launch_info']) {
+    for (const fn of ['storage_load', 'storage_save', 'snapshot_create', 'snapshot_list', 'snapshot_read', 'snapshot_delete', 'import_save_raw', 'export_backup', 'import_backup', 'data_dir', 'open_data_dir', 'launch_info', 'diag_export']) {
       expect(body('src-tauri/src/lib.rs', fn), fn).toContain('main_window(&window)?');
     }
     expect(body('src-tauri/src/lib.rs', 'open_external')).toContain('bus::only(&window, &[bus::MAIN, bus::OVERLAY])?');
@@ -361,5 +369,124 @@ describe('0.22.1: buddy nikdy nevezme hře fokus', () => {
     expect(b).toContain('native.overlayToggle().catch(() => undefined)');
     expect(b.includes('.show()')).toBe(false);
     expect(b.includes('setFocus')).toBe(false);
+  });
+});
+
+/* 0.28.0: místní deník chyb. Jediný nový příkaz pro všechna okna je diag_log (zápis); čtení, export a vymazání má jen
+   hlavní okno, v capabilities i v Rustu podle štítku okna. Okno záznamu je vždy štítek volajícího okna, úroveň pevný
+   výčet, zpráva a zásobník mají meze, okno má omezovač počtu a žádná cesta ani název souboru nepochází z dat. Žádná
+   nová událost, trasa busu ani akce relay; JS posílá jen popis chyby. */
+describe('0.28.0: místní deník chyb', () => {
+  const DIAG = 'src-tauri/src/diag.rs';
+  const code = (f: string) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const rsSrc = () => { const r = read(DIAG); return r.slice(0, r.search(/#\[cfg\(test\)\]\s*mod tests/)); };
+  const fnBody = (name: string) => {
+    const s = rsSrc(), i = s.search(new RegExp(`fn ${name}\\b`));
+    if (i < 0) throw new Error(name);
+    let depth = 0;
+    for (let k = s.indexOf('{', i); k < s.length; k++) {
+      if (s[k] === '{') depth++;
+      else if (s[k] === '}' && --depth === 0) return s.slice(i, k + 1);
+    }
+    throw new Error(name);
+  };
+
+  it('diag_log mají všechna okna; čtení, export a vymazání jen hlavní okno', () => {
+    for (const cmd of ['diag_log', 'diag_read', 'diag_export', 'diag_clear']) expect(manifest, cmd).toContain(cmd);
+    for (const n of WINDOWS) expect(cap(n).permissions, n).toContain('allow-diag-log');
+    for (const n of WINDOWS) {
+      const own = cap(n).permissions.filter(p => /^allow-diag-/.test(p)).sort();
+      expect(own, n).toEqual(n === 'main' ? ['allow-diag-clear', 'allow-diag-export', 'allow-diag-log', 'allow-diag-read'] : ['allow-diag-log']);
+    }
+  });
+
+  it('Rust: okno z volajícího okna, čtení / vymazání / export jen pro hlavní okno', () => {
+    expect(body(DIAG, 'diag_log')).toContain('log_from(window.label(), &st.0, level, &message, stack.as_deref())');
+    expect(body(DIAG, 'diag_read')).toContain('read_for(window.label(), &st.0)');
+    expect(body(DIAG, 'diag_clear')).toContain('clear_for(window.label(), &st.0)');
+    for (const fn of ['read_for', 'clear_for']) expect(fnBody(fn).indexOf('main_label_ok(label)?;'), fn).toBeGreaterThan(0);
+    expect(fnBody('main_label_ok')).toContain('if label == "main"');
+    /* záznam z okna se nevydává za Rust */
+    expect(fnBody('log_from')).toContain('if label == APP { "other" } else { label }');
+    const exp = body('src-tauri/src/lib.rs', 'diag_export');
+    expect(exp.indexOf('main_window(&window)?;')).toBeGreaterThan(0);
+    expect(exp.indexOf('main_window(&window)?;')).toBeLessThan(exp.indexOf('blocking_save_file'));
+    /* název souboru navrhne Rust, cesta je jen z dialogu; žádný argument s cestou */
+    expect(exp).toContain('.set_file_name(diag::export_name(diag::now_ms()))');
+    expect(exp.slice(0, exp.indexOf(') -> Result')).match(/(\w+): /g)!.sort()).toEqual(['app: ', 'features: ', 'filter: ', 'st: ', 'title: ', 'window: '].sort());
+    for (const fn of ['diag_log', 'diag_read', 'diag_clear']) {
+      const sig = body(DIAG, fn);
+      expect(sig.slice(0, sig.indexOf(') -> Result')), fn).not.toMatch(/path|file|dir|name|window_label|label:/i);
+    }
+    /* příkazy jsou async (neběží na hlavním vlákně UI) */
+    for (const fn of ['diag_log', 'diag_read', 'diag_clear']) expect(read(DIAG)).toMatch(new RegExp(`pub async fn ${fn}<`));
+    expect(read('src-tauri/src/lib.rs')).toMatch(/async fn diag_export\(/);
+  });
+
+  it('Rust: pevný výčet úrovní, meze délky, omezovač na okno, očištění a zápis mimo volající vlákno', () => {
+    const src = rsSrc();
+    expect(src).toMatch(/pub enum Level \{\s*Error,\s*Warn,\s*Info,\s*\}/);
+    expect(src).toContain('pub const MAX_MESSAGE: usize = 2 * 1024;');
+    expect(src).toContain('pub const MAX_STACK: usize = 4 * 1024;');
+    expect(src).toContain('pub const MAX_LOG_FILE: u64 = 256 * 1024;');
+    expect(src).toContain('pub const RATE_PER_MIN: f64 = 20.0;');
+    const entry = fnBody('make_entry');
+    for (const s of ['clip(&scrub(&one_line(', 'MAX_MESSAGE)', 'MAX_STACK)', 'LABELS.contains(&window)']) expect(entry, s).toContain(s);
+    const log = fnBody('log');
+    expect(log).toContain('l.admit(key, Instant::now())');
+    expect(log.indexOf('if !ok {')).toBeLessThan(log.indexOf('make_entry('));
+    /* soubory mají pevné názvy ve složce logs/ */
+    expect(src).toContain('pub const LOG: &str = "diag.log";');
+    expect(src).toContain('pub const LOG_OLD: &str = "diag.1.log";');
+    expect(fnBody('init')).toContain('data_dir.join("logs")');
+    /* zápis přes vlastní vlákno; chyby zápisu se zahodí */
+    expect(fnBody('new')).toContain('std::thread::Builder::new().name("diag".into())');
+    expect(fnBody('write_line')).toContain('let _ = append(dir, line, MAX_LOG_FILE);');
+    /* export uvádí jen povolené funkce jako true/false */
+    expect(fnBody('feature_line')).toContain('FEATURES.iter()');
+    /* žádná nová událost (počet emit v Rustu hlídá test výše) */
+    expect(src).not.toMatch(/\.emit(_to)?\(|emit_native/);
+  });
+
+  it('úložiště, okna a snímek zapisují chyby do deníku (jen text chyby, nikdy obsah)', () => {
+    const lib = read('src-tauri/src/lib.rs');
+    for (const s of ['diag::logged("storage save"', 'diag::logged("snapshot create"', 'diag::logged("import raw"', 'diag::logged("export backup"', 'diag::logged("import backup"', 'diag::install_panic_hook();', 'diag::shutdown();', 'diag::error("main window"', 'diag::error("tray"']) expect(lib, s).toContain(s);
+    /* načtení stavu: jen zdroj obnovy */
+    expect(body('src-tauri/src/lib.rs', 'storage_load')).toContain('&format!("recovered from {}", r.source)');
+    const ops = read('src-tauri/src/ops.rs');
+    for (const s of ['crate::diag::fail("buddy window", e)', 'crate::diag::fail("overlay window", e)', 'crate::diag::fail("widgets window", e)', 'crate::diag::error("capture", &e);']) expect(ops, s).toContain(s);
+    /* do deníku nejde obsah stavu ani snímku: zprávu skládají jen rust / error / fail (logged zapíše jen text chyby) */
+    const msgs = [...(lib + ops).matchAll(/diag::(?:rust|error|fail)\(([^;]*)/g)].map(m => m[1]);
+    expect(msgs.length).toBeGreaterThan(5);
+    for (const m of msgs) expect(/\b(content|rgba|payload|state|label)\b/.test(m), m).toBe(false);
+    expect(fnBody('logged')).toMatch(/if let Err\(e\) = &r \{\s*error\(ctx, e\);/);
+  });
+
+  it('JS: diag_log jen z diagLog.ts a jen popis chyby; čtení, export a vymazání jen z hlavního okna', () => {
+    const ts = walk(join(root, 'src'), /\.tsx?$/).map(f => [f.slice(root.length).split('\\').join('/'), code(f.slice(root.length))] as const);
+    const callers = (cmd: string) => ts.filter(([, s]) => s.includes(`'${cmd}'`)).map(([f]) => f);
+    for (const cmd of ['diag_log', 'diag_read', 'diag_export', 'diag_clear']) expect(callers(cmd), cmd).toEqual(['src/shell/diagLog.ts']);
+    const diag = code('src/shell/diagLog.ts');
+    expect(diag).toContain("call('diag_log', { level, message, stack })");
+    expect(diag).not.toMatch(/JSON\.stringify/);
+    /* funkce hlavního okna nepoužívá žádné okno nad hrou */
+    const users = ts.filter(([, s]) => /\b(diagRead|diagExport|diagClear)\(/.test(s)).map(([f]) => f).sort();
+    expect(users).toEqual(['src/modules/Diagnostics.tsx', 'src/ui/diagUi.ts']);
+    for (const [f, s] of ts) if (f.startsWith('src/ops/')) expect(/diagUi|Diagnostics|diagRead|diagExport|diagClear/.test(s), f).toBe(false);
+    /* každé okno zachytává chyby a má hranici chyb */
+    for (const [f, v] of [['src/main.tsx', 'full'], ['src/ops/buddy-main.tsx', 'icon'], ['src/ops/overlay-main.tsx', 'full'], ['src/ops/widgets-main.tsx', 'pill']] as const) {
+      const s = code(f);
+      expect(s, f).toContain('installDiag();');
+      expect(s, f).toContain(`<ErrorBoundary variant="${v}">`);
+    }
+    /* náhradní obsah nic neaktivuje */
+    const eb = code('src/ui/ErrorBoundary.tsx');
+    for (const w of ['focus(', 'autoFocus', '.show(', 'native.', 'invoke(']) expect(eb.includes(w), w).toBe(false);
+  });
+
+  it('žádná nová trasa busu, akce relay, událost native: ani schéma', () => {
+    expect(code('src/store/relay.ts')).not.toMatch(/diag/i);
+    expect(body('src-tauri/src/bus.rs', 'route_ok')).not.toMatch(/diag/i);
+    expect(read('src/core/state.ts')).toMatch(/export const SCHEMA = 19 as const;/);
   });
 });

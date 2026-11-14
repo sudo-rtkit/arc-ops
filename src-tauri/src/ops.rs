@@ -331,7 +331,7 @@ pub async fn buddy_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R>)
            je obsah průhledný (BuddyApp nic nekreslí) a okno propouští myš; pozdější show() by okno aktivovalo. */
         .visible(true)
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::diag::fail("buddy window", e))?;
     let st = app.state::<OpsState>();
     st.buddy_ready.store(false, Ordering::SeqCst);
     let _ = w.set_ignore_cursor_events(true);
@@ -402,7 +402,7 @@ fn overlay_window<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, St
     if let (Some(x), Some(y)) = (x, y) {
         b = b.position(x, y);
     }
-    let win = b.build().map_err(|e| e.to_string())?;
+    let win = b.build().map_err(|e| crate::diag::fail("overlay window", e))?;
     exclude_from_capture(&win);
     Ok(win)
 }
@@ -561,7 +561,7 @@ pub async fn widgets_open<R: Runtime>(app: AppHandle<R>, window: WebviewWindow<R
         /* 0.22.1: viditelné hned při vytvoření (SW_SHOWNOACTIVATE v tao); pozdější show() by okno aktivovalo */
         .visible(true)
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::diag::fail("widgets window", e))?;
     app.state::<OpsState>().edit.store(false, Ordering::SeqCst);
     w.set_ignore_cursor_events(true).map_err(|e| e.to_string())?;
     exclude_from_capture(&w);
@@ -756,6 +756,8 @@ fn start_capture_as<R: Runtime>(app: AppHandle<R>, auto: Option<&'static str>) {
             }
             Err(e) => {
                 st.busy.store(false, Ordering::SeqCst);
+                /* 0.28.0: jen kód chyby do deníku, nikdy obraz */
+                crate::diag::error("capture", &e);
                 emit_native(&app, MAIN, "capture-failed", e);
             }
         }
@@ -1488,7 +1490,7 @@ mod win {
         ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, MONITORINFO, MONITOR_DEFAULTTONULL, MONITOR_DEFAULTTOPRIMARY,
         SRCCOPY,
     };
-    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD, RRF_RT_REG_SZ};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
     };
@@ -1594,6 +1596,31 @@ mod win {
             RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_DWORD, null_mut(), &mut value as *mut u32 as *mut c_void, &mut size)
         };
         rc == 0 && value == 1
+    }
+
+    /// 0.28.0: verze Windows pro hlavičku exportu diagnostiky (jen čtení HKLM\…\CurrentVersion).
+    pub fn windows_version() -> String {
+        let key: Vec<u16> = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion".encode_utf16().chain([0]).collect();
+        let text = |name: &str| -> Option<String> {
+            let name: Vec<u16> = name.encode_utf16().chain([0]).collect();
+            let mut buf = [0u16; 128];
+            let mut size = (buf.len() * 2) as u32;
+            let rc = unsafe { RegGetValueW(HKEY_LOCAL_MACHINE, key.as_ptr(), name.as_ptr(), RRF_RT_REG_SZ, null_mut(), buf.as_mut_ptr() as *mut c_void, &mut size) };
+            if rc != 0 {
+                return None;
+            }
+            let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+            Some(String::from_utf16_lossy(&buf[..len]))
+        };
+        let mut ubr: u32 = 0;
+        let mut size = size_of::<u32>() as u32;
+        let name: Vec<u16> = "UBR\0".encode_utf16().collect();
+        let ubr_ok = unsafe { RegGetValueW(HKEY_LOCAL_MACHINE, key.as_ptr(), name.as_ptr(), RRF_RT_REG_DWORD, null_mut(), &mut ubr as *mut u32 as *mut c_void, &mut size) } == 0;
+        let build = text("CurrentBuild").unwrap_or_default();
+        let major = if build.parse::<u32>().map(|b| b >= 22000).unwrap_or(false) { "11" } else { "10" };
+        let display = text("DisplayVersion").unwrap_or_default();
+        let edition = text("EditionID").unwrap_or_default();
+        format!("Windows {major} {edition} ({display}, build {build}{})", if ubr_ok { format!(".{ubr}") } else { String::new() })
     }
 
     /// Okno v popředí (HWND jako číslo) a id procesu, kterému patří (jen čtení).
@@ -1781,6 +1808,18 @@ pub fn set_capture_excluded<R: Runtime>(w: &WebviewWindow<R>, exclude: bool) {
     #[cfg(not(windows))]
     {
         let _ = (w, exclude);
+    }
+}
+
+/// 0.28.0: verze Windows pro export diagnostiky (mimo Windows „unknown“).
+pub fn windows_version() -> String {
+    #[cfg(windows)]
+    {
+        win::windows_version()
+    }
+    #[cfg(not(windows))]
+    {
+        "unknown".into()
     }
 }
 

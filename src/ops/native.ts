@@ -93,9 +93,10 @@ export const browserNative: Native = {
 
 export const createNative = (): Native => (isTauri() ? tauriNative : browserNative);
 
-/* Jak se aplikace spustila (0.8.0): běžela při startu hra, takže je okno na pozadí? Mimo Tauri vždy ne. */
-export interface LaunchInfo { gameRunning: boolean }
+/* Jak se aplikace spustila (0.8.0): běžela při startu hra, takže je okno na pozadí? Mimo Tauri vždy ne.
+   0.28.0: uncleanExit = minulá relace skončila nečekaně (zůstala značka relace v logs/). */
+export interface LaunchInfo { gameRunning: boolean; uncleanExit?: boolean }
 export const launchInfo = async (): Promise<LaunchInfo> => {
-  if (!isTauri()) return { gameRunning: false };
-  try { return await call<LaunchInfo>('launch_info'); } catch { return { gameRunning: false }; }
+  if (!isTauri()) return { gameRunning: false, uncleanExit: false };
+  try { return await call<LaunchInfo>('launch_info'); } catch { return { gameRunning: false, uncleanExit: false }; }
 };

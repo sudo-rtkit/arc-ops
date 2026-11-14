@@ -22,6 +22,11 @@ import '../ui/maps.css';
 import './overlay.css';
 import OverlayApp from './OverlayApp';
 import { langReady } from '../i18n';
+import { installDiag } from '../shell/diagLog';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
+
+/* 0.28.0: chyby okna do místního deníku */
+installDiag();
 
 /* 0.25.0: první vykreslení až se slovníkem výchozího jazyka okna (načítá se jen aktivní jazyk) */
-void langReady().finally(() => createRoot(document.getElementById('root')!).render(<React.StrictMode><OverlayApp /></React.StrictMode>));
+void langReady().finally(() => createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary variant="full"><OverlayApp /></ErrorBoundary></React.StrictMode>));
