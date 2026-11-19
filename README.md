@@ -33,7 +33,7 @@ All views below use **demo data** from the browser build. The desktop app provid
 <td><img src="docs/assets/github/feature-4.png" alt="Build: skill plans and build comparisons"><br><b>Make your skill points count</b><br>Browse 12 builds, load a plan, save your own and compare with your current tree. Theory builds are labelled.<br><a href="docs/assets/github/builds@2x.png"><img src="docs/assets/github/builds.png" alt="Demo skill-build catalogue with branch summaries and miniature trees"></a></td>
 </tr>
 <tr>
-<td><img src="docs/assets/github/feature-3.png" alt="Review: screenshot changes need your approval"><br><b>You approve every import</b><br>Local recognition for supported inventory, loot and progression screens. Review confidence and changes; a state snapshot is saved before writing.<br><a href="docs/assets/github/import-review@2x.png"><img src="docs/assets/github/import-review.png" alt="Demo profile import review comparing four recognised values with the app state before confirmation"></a></td>
+<td><img src="docs/assets/github/feature-3.png" alt="Review: screenshot changes need your approval"><br><b>You approve every import</b><br>Local recognition for supported inventory, loot and progression screens. Review confidence and changes; a state snapshot is saved before writing.<br><a href="docs/assets/github/import-review@2x.png"><img src="docs/assets/github/import-review.png" alt="Demo trader quest review: CLAIM proposes completion; ACCEPT is informational"></a></td>
 <td><img src="docs/assets/github/feature-6.png" alt="Unwind: Tetris, recycling quiz and Ops’s Hack"><br><b>A break with Ops</b><br>Stash Tetris, a recycling quiz and Ops’s Hack. Resume saved rounds and unlock cosmetic paints; rewards do not change game progress.<br><a href="docs/assets/github/minigames@2x.png"><img src="docs/assets/github/minigames.png" alt="Demo Ops’s Hack minigame with a rotatable circuit grid"></a></td>
 </tr>
 </table>
@@ -68,7 +68,11 @@ Ctrl+K works while the app or overlay has focus. It is a local window shortcut. 
 
 Choose any of the five body forms in Settings → Ops wardrobe, or keep automatic growth by profile level. Your choice is saved and shared by every Ops view; actual level and part unlocks stay tied to the profile.
 
-The wardrobe also has **Clothing**: 16 original sets with 64 pieces for headwear, torso, neck and back. Mix pieces from any unlocked sets or put on a whole set; sets unlock gradually by profile level, completed minigame rounds and successful extractions in your raid journal. Clothing never covers the visor or the LEDs and is purely cosmetic.
+The wardrobe also has **Clothing**: 16 original sets with 64 pieces for headwear, torso, neck and back. Mix pieces from any unlocked sets or use **Whole set** to equip a set at once; sets unlock gradually by profile level, completed minigame rounds and successful extractions in your raid journal. Clothing works with all five body forms and paints, never covers the visor or the LEDs, and is purely cosmetic.
+
+[![Ops wardrobe: five body forms, mixed clothing pieces and six of the sixteen sets](docs/assets/github/wardrobe.png)](docs/assets/github/wardrobe@2x.png)
+
+[![Four original outfits on Ops: Trail Gatherer, Under the Eaves, Workshop Rover and Dust Wayfarer](docs/assets/github/ops-outfits.png)](docs/assets/github/ops-outfits@2x.png)
 
 An optional, draggable desktop buddy with level-based outfits, paints, animations and three personalities. Click Ops to open the field console: profile, quests, inventory, workshop, skills, shopping, capture review and the active raid plan. The **App** button opens any full module (skill tree, recipes, item database, maps, journal, statistics, minigames…) in a larger panel over the game; settings and backups stay in the main window. Buddy features start **off** and can be enabled in Settings.
 
@@ -76,7 +80,7 @@ An optional, draggable desktop buddy with level-based outfits, paints, animation
 
 ### Build and compare loadouts
 
-In **Weapons → Loadouts**, choose an augment, shield and two weapons with tiers, then fill the backpack, quick use, augmented slots and safe pocket. Slot counts and weight limits start from game defaults and stay editable. See catalogue sell value, weight against the limit, stash availability and the value at risk outside the safe pocket. Unknown prices stay marked. Compare two loadouts side by side, send missing items to the shopping list, or review a MANAGE LOADOUT / FINDINGS screenshot to prefill a loadout. Raid prep and post-raid evaluation use the saved loadout too.
+In **Weapons → Loadouts**, choose an augment, shield and two weapons with tiers, then fill the backpack, quick use, augmented slots and safe pocket. Slot counts and weight limits start from game defaults and stay editable. See catalogue sell value, weight against the limit, stash availability and the value at risk outside the safe pocket. Unknown prices stay marked. Compare two loadouts side by side, send missing items to the shopping list, or review a MANAGE LOADOUT / FINDINGS screenshot to prefill a loadout. Raid prep and post-raid evaluation use the saved loadout too. Ammo-type icons help distinguish weapons at a glance.
 
 [![Loadout editor with slots and live summary, fictional demo data](docs/assets/github/loadout-builder.png)](docs/assets/github/loadout-builder@2x.png)
 
@@ -85,6 +89,8 @@ In **Weapons → Loadouts**, choose an augment, shield and two weapons with tier
 ### Capture, review and keep a raid journal
 
 **Automatic capture is opt-in, off by default and pending Embark review.** After you enable it in Settings, it checks a small title strip about every 2 seconds, only while the game is in the foreground. A recognised, selected out-of-raid menu triggers a full capture; images stay in memory and are discarded after reading. Loadout → result → journal draft connects your equipment, outcome and loot. Certain fields are written automatically after a state snapshot, with **Undo**; uncertain fields wait in **To review**. Pause from Settings, the compact window or the tray. Optional scan emotes are quiet: no sound, speech bubble or focus change. Borderless mode is recommended; enable at your own discretion.
+
+**Trader quests:** reading a **QUESTS**-tab screenshot distinguishes **CLAIM** (complete, reward waiting), **COMPLETE** (complete) and **ACCEPT** (available to accept). Review the proposed change before writing; ACCEPT is informational and writes nothing. Ticked objectives alone never mark a quest complete. The import-review image above shows synthetic CLAIM and ACCEPT results, with no game screenshot.
 
 Supported loadout and FINDINGS captures can recognise weapons, tiers and the augment. Shape and, for some weapons with attachments, magazine-size checks determine whether a name is certain enough; uncertain gear stays unknown or appears as a suggestion. Hotkey FINDINGS gear waits in **To review** after the loot is saved: recognised rows are pre-ticked, suggestions require your choice, and **Save all** applies the reviewed rows. Recognition has limits; check every proposal.
 
@@ -103,6 +109,10 @@ Supported loadout and FINDINGS captures can recognise weapons, tiers and the aug
 ### Ask Ops (optional AI, your own free key)
 
 Ops can answer questions in his own words and in his personality: *Why keep Wires? What should I sell when I need space? Why this next step?* The answer appears in his speech bubble and, in full with its sources, in the **Ask Ops** panel and the field console. The app's deterministic code computes every number (item card, keep/sell/recycle advice, quest and workshop needs, the "What next?" advisor); the language model only explains them, lists the facts it used with their origin and confidence, and says when the data does not contain the answer. The three "What next?" ideas are free and need no AI; **Why?** asks the AI to explain one. The item card has an **Ask Ops** button.
+
+[![Ask Ops example answer about Wires, with his speech in the field console and the full answer with nine data sources](docs/assets/github/ask-ops.png)](docs/assets/github/ask-ops@2x.png)
+
+*Example answer with synthetic data and a mocked AI response; no provider request or real key was used. Real app UI crops.*
 
 The question kinds, each with its own small data bundle and its own buttons:
 
@@ -152,13 +162,17 @@ For an upgrade, use the newer installer over the existing installation; local da
 
 ## Your data stays with you
 
-- Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them. The one exception is the optional AI assistant (off by default, your own key): it sends a question only when you click, as described above.
+- Works offline with no account login, telemetry or cloud upload. External source links open only when you choose them. The optional AI assistant (off by default, your own key) sends a question only when you click, as described above.
 - The optional update check (**Settings → Updates**) is the only other network call. It is **off by default**; when on, at most once a day it contacts only `api.github.com` for this repository's latest release, sending nothing but the app name and version. It only tells you about a new version and opens the release page when you click; it never downloads or runs anything.
 - Inventory, loot and progression screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - File and hotkey recognition proposes changes for review. Opt-in automatic capture can write certain fields after a state snapshot with Undo; uncertain fields wait for review. Unreadable fields stay unknown. JSON export/restore helps you recover from mistakes.
 - Stash advice never sells, recycles or deletes anything in the game.
 - A local error log (Settings → Diagnostics) helps with bug reports. It never leaves this PC unless you export it yourself; your home folder and e-mail addresses are removed from it.
+
+[![Local diagnostics explanation and optional update check switched off, version 0.34.0](docs/assets/github/diagnostics-updates.png)](docs/assets/github/diagnostics-updates@2x.png)
+
+*Browser preview: the native error log is unavailable here. In the Windows app, Diagnostics shows the local error/crash log. Update checks only notify; they never install an update.*
 
 Security hardening in 0.16.1 added per-window permissions, validated messages between windows and image-size limits. See the [release notes](CHANGELOG.md#0161--security-hardening) for details.
 

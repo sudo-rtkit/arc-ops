@@ -26,7 +26,7 @@ Všechny obrázky ukazují demo data z prohlížečového sestavení, bez herní
 | **Úkoly:** ruční cíle a projekty; všechny cíle hotové neznamená automaticky splněný úkol. | **Buildy:** 12 plánů, vlastní buildy a porovnání se stromem; teorie je označená. |
 | ![Demo cílů úkolu](docs/assets/github/quests.png) | ![Demo katalogu buildů](docs/assets/github/builds.png) |
 | **Revize snímků:** jistota údajů, výslovné potvrzení, snímek stavu před zápisem. | **Minihry:** Stash Tetris, recyklační kvíz, Opsův hack, rozehraná kola a kosmetické nátěry. |
-| ![Demo revize importu](docs/assets/github/import-review.png) | ![Demo Opsova hacku](docs/assets/github/minigames.png) |
+| ![Demo revize úkolů: CLAIM nabídne splnění, ACCEPT je jen informace](docs/assets/github/import-review.png) | ![Demo Opsova hacku](docs/assets/github/minigames.png) |
 
 **Příprava na raid a vlastní mapa.** Vybereš cíle (úkoly, další úroveň stanice, projekt, peníze) a dostaneš jeden seznam toho, co chybí, s typem místa z katalogu předmětů, doporučenou mapu s důvody a plán v záložce Raid v konzoli včetně rady nechat / prodat / recyklovat. Interaktivní mapa stojí na snímku herní mapy, který si vložíš sám; aplikace žádné herní mapy nepřibaluje. Nad ním jsou tvoje body a zvýraznění podle plánu. Po raidu se plán porovná s nálezem (z potvrzeného snímku FINDINGS nebo ze změny zásoby): co ještě chybí, která vylepšení jsou připravená, doporučení dalšího raidu a uložení do deníku raidů; statistika pak ukáže, které mapy ti s cíli pomáhají.
 
@@ -60,7 +60,11 @@ Ctrl+K funguje při fokusu aplikace nebo konzole; je to zkratka daného okna. Ka
 
 V Nastavení → Šatník Opse si vyber jednu z pěti základních podob, nebo ponech automatický vývoj podle levelu. Volba se uloží a platí ve všech náhledech Opse; skutečný level a odemykání dílů dál řídí profil.
 
-V šatníku je také **Oblečení**: 16 původních sad s 64 díly pro pokrývku hlavy, trup, krk a záda. Díly odemčených sad jde libovolně míchat, nebo obléct celou sadu; sady se odemykají postupně levelem profilu, dohranými koly miniher a úspěšnými extrakcemi v deníku raidů. Oblečení nikdy nezakryje hledí ani LED a je čistě kosmetické.
+V šatníku je také **Oblečení**: 16 původních sad s 64 díly pro pokrývku hlavy, trup, krk a záda. Díly odemčených sad jde libovolně míchat, nebo tlačítkem **Celá sada** obléct sadu najednou; sady se odemykají postupně levelem profilu, dohranými koly miniher a úspěšnými extrakcemi v deníku raidů. Oblečení funguje se všemi pěti podobami i nátěry, nikdy nezakryje hledí ani LED a je čistě kosmetické.
+
+[![Šatník Opse: pět podob, kombinace dílů oblečení a šest ze šestnácti sad](docs/assets/github/wardrobe.png)](docs/assets/github/wardrobe@2x.png)
+
+[![Čtyři původní outfity na Opsovi: Trail Gatherer, Under the Eaves, Workshop Rover a Dust Wayfarer](docs/assets/github/ops-outfits.png)](docs/assets/github/ops-outfits@2x.png)
 
 Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi povahami. Kliknutím otevřeš konzoli s profilem, úkoly, zásobou, dílnou, skilly, nákupy a revizí snímku a aktivním plánem raidu. Tlačítko **Aplikace** otevře nad hrou ve větším panelu kterýkoli plný modul (skill tree, recepty, databázi předmětů, mapy, deník, statistiky, minihry…); nastavení a zálohy zůstávají v hlavním okně. Výchozí stav buddyho je **vypnuto**.
 
@@ -68,7 +72,7 @@ Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi
 
 ### Sestav a porovnej loadouty
 
-Ve **Weapons → Loadouty** vyber augment, štít a dvě zbraně s tierem a naplň batoh, quick use, augmented slots a bezpečnou kapsu. Počty míst a mez váhy vycházejí z herních obrazovek a můžeš je upravit. Uvidíš prodejní hodnotu z katalogu, váhu proti mezi, dostupnost ve skrýši i hodnotu v riziku mimo bezpečnou kapsu. Neznámé ceny zůstávají označené. Porovnej dvě sestavy vedle sebe, pošli chybějící věci do nákupního seznamu nebo loadout předvyplň po kontrole snímku MANAGE LOADOUT / FINDINGS. Uloženou sestavu používá i Příprava na raid a vyhodnocení.
+Ve **Weapons → Loadouty** vyber augment, štít a dvě zbraně s tierem a naplň batoh, quick use, augmented slots a bezpečnou kapsu. Počty míst a mez váhy vycházejí z herních obrazovek a můžeš je upravit. Uvidíš prodejní hodnotu z katalogu, váhu proti mezi, dostupnost ve skrýši i hodnotu v riziku mimo bezpečnou kapsu. Neznámé ceny zůstávají označené. Porovnej dvě sestavy vedle sebe, pošli chybějící věci do nákupního seznamu nebo loadout předvyplň po kontrole snímku MANAGE LOADOUT / FINDINGS. Uloženou sestavu používá i Příprava na raid a vyhodnocení. Ikony typu munice pomáhají rychle rozlišit zbraně.
 
 [![Editor loadoutu s místy a živým souhrnem, smyšlená demo data](docs/assets/github/loadout-builder.png)](docs/assets/github/loadout-builder@2x.png)
 
@@ -77,6 +81,8 @@ Ve **Weapons → Loadouty** vyber augment, štít a dvě zbraně s tierem a napl
 ### Snímání, kontrola a deník raidů
 
 **Automatické snímání je volitelné, výchozí vypnuté a čeká na ověření u Embarku.** Po zapnutí v Nastavení kontroluje přibližně každé 2 sekundy malý pruh s nadpisem, jen když je hra v popředí. Rozpoznaná a vybraná obrazovka menu mimo raid spustí plný snímek; obrázky zůstávají v paměti a po přečtení se zahodí. Loadout → výsledek → návrh zápisu propojí výbavu, výsledek a loot. Jisté údaje se zapíší automaticky po snímku stavu, s tlačítkem **Zpět**; nejisté čekají ve frontě **Ke kontrole**. Pozastavit jde v Nastavení, kompaktu i oznamovací oblasti. Volitelná gesta při snímání jsou tichá, bez zvuku, bubliny i změny fokusu. Doporučené je okno bez okraje; zapínáš na vlastní uvážení.
+
+**Úkoly obchodníků:** čtení snímku ze záložky **QUESTS** rozliší **CLAIM** (splněno, odměna čeká), **COMPLETE** (splněno) a **ACCEPT** (úkol k přijetí). Navrženou změnu před zápisem zkontroluješ; ACCEPT je jen informace a nic nezapíše. Samotné zaškrtnutí všech cílů úkol nikdy neoznačí jako splněný. Obrázek revize importu výše ukazuje syntetické výsledky CLAIM a ACCEPT, bez snímku hry.
 
 Podporované snímky loadoutu a FINDINGS umí rozpoznat zbraně, tier a augment. O jistotě názvu rozhoduje tvar a u některých zbraní s doplňky i velikost zásobníku; nejistá výbava zůstává neznámá nebo se nabídne jako návrh. Výbava z FINDINGS pořízeného zkratkou čeká po zápisu lootu **Ke kontrole**: jisté řádky jsou zaškrtnuté, návrhy vybereš sám a **Uložit vše** zapíše zkontrolované řádky. Rozpoznávání má omezení; každý návrh ověř.
 
@@ -95,6 +101,10 @@ Podporované snímky loadoutu a FINDINGS umí rozpoznat zbraně, tier a augment.
 ### Zeptej se Opse (volitelná AI, vlastní bezplatný klíč)
 
 Ops umí odpovědět vlastními slovy a ve své povaze: *Proč si nechat Wires? Co prodat, když potřebuju místo? Proč zrovna tenhle krok?* Odpověď řekne v bublině a celou se zdroji ukáže v panelu **Zeptej se Opse** a v polní konzoli. Všechna čísla počítá deterministický kód aplikace (karta předmětu, rada nech / prodej / recykluj, potřeby úkolů a dílny, rádce „Co dál?“); jazykový model je jen vysvětlí, vypíše údaje, ze kterých vycházel, s jejich původem a jistotou, a řekne, když data odpověď neobsahují. Tři návrhy „Co dál?“ jsou zdarma a bez AI; **Proč?** požádá AI o vysvětlení. Na kartě předmětu je tlačítko **Zeptat se Opse**.
+
+[![Ukázková odpověď Opse k Wires: promluva v polní konzoli a celá odpověď s devíti zdroji údajů](docs/assets/github/ask-ops.png)](docs/assets/github/ask-ops@2x.png)
+
+*Ukázková odpověď se syntetickými daty a simulovanou odpovědí AI; bez dotazu na službu a bez skutečného klíče. Výřezy skutečného rozhraní aplikace.*
 
 Druhy otázek, každý s vlastním malým balíkem údajů a vlastními tlačítky:
 
@@ -142,11 +152,15 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 
 ## Soukromí a bezpečnost
 
-Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Jedinou výjimkou je volitelný AI asistent (výchozí stav vypnuto, vlastní klíč): otázku pošle jen na tvé kliknutí, viz výše. Jediným dalším spojením se sítí je volitelná kontrola nové verze (**Nastavení → Aktualizace**, výchozí stav vypnuto): nejvýš jednou denně se zeptá jen `api.github.com` na nejnovější vydání tohoto repozitáře a pošle jen název a verzi aplikace. O nové verzi dá vědět a stránku vydání otevře na kliknutí; nic nestahuje ani nespouští. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
+Aplikace funguje offline, bez přihlášení a telemetrie. Externí odkazy se otevírají na přání. Volitelný AI asistent (výchozí stav vypnuto, vlastní klíč): otázku pošle jen na tvé kliknutí, viz výše. Jediným dalším spojením se sítí je volitelná kontrola nové verze (**Nastavení → Aktualizace**, výchozí stav vypnuto): nejvýš jednou denně se zeptá jen `api.github.com` na nejnovější vydání tohoto repozitáře a pošle jen název a verzi aplikace. O nové verzi dá vědět a stránku vydání otevře na kliknutí; nic nestahuje ani nespouští. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
 Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze souboru a zkratky potvrzuje hráč. Volitelné automatické snímání může jisté údaje zapsat po snímku stavu s možností Zpět; nejisté čekají na kontrolu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
 
 Místní deník chyb (Nastavení → Diagnostika) pomáhá s hlášením chyb. Z počítače neodchází, dokud ho sám nevyexportuješ; domovská složka a e-mailové adresy se z něj odstraní.
+
+[![Vysvětlení místní diagnostiky a vypnutá volitelná kontrola aktualizací, verze 0.34.0](docs/assets/github/diagnostics-updates.png)](docs/assets/github/diagnostics-updates@2x.png)
+
+*Ukázka v prohlížeči: nativní deník chyb zde není dostupný. Ve Windows ukazuje Diagnostika místní deník chyb a pádů. Kontrola aktualizací jen upozorní; aktualizaci nikdy nenainstaluje.*
 
 Verze 0.16.1 zpřísnila oprávnění jednotlivých oken, ověřování zpráv mezi okny a limity velikosti obrázků. Podrobnosti jsou v [historii verzí](CHANGELOG.md#0161--security-hardening).
 
