@@ -43,6 +43,7 @@ import { placeTier, moveWithin, shiftTier, emptyTierList } from '../core/tierlis
 import type { TierId } from '../core/types';
 import { normalizeItemStock } from '../core/visionState';
 import { OPACITY_MAX, OPACITY_MIN, OPS_SLOTS, collection, partById, syncBuddy, validHotkey, isForm } from '../core/ops';
+import { CLOTHING_SLOTS, isClothingSet, isClothingSlot, parsePiece, pieceId, syncClothing, unlockedSets } from '../core/clothing';
 import type { BuddyState } from '../core/types';
 import { getLang, t, isLang, type Key, type Lang } from '../i18n';
 import { sysError } from '../i18n/system';
@@ -260,6 +261,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     stampChanges(before, s, ctx, now());
     syncGoals(s, now());
     syncBuddy(s.buddy, s.profile.level);
+    syncClothing(s);
     s.meta.updatedAt = now();
     logProfile(s);
     set({ state: s });
@@ -292,6 +294,8 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     }
     const roll = rollTrials(state);
     if (roll) state = roll.state;
+    /* 0.34.0: sady oblečení, na které postup už stačí (uloží se s další změnou) */
+    syncClothing(state);
     set({ state, ready: true, load: info, save: lastSaved ? 'saved' : 'idle' });
     if (roll?.archived) notify(t('notice.weekArchived'), 'info');
     if (info.source !== 'state' && info.source !== 'none') scheduleSave();
@@ -341,6 +345,7 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     const s = roll ? roll.state : n;
     syncGoals(s, now());
     syncBuddy(s.buddy, s.profile.level);
+    syncClothing(s);
     s.meta.updatedAt = now();
     logProfile(s);
     set({ state: s });
@@ -1459,7 +1464,34 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         s.games.paint = id;
       });
     },
-    resetBuddyOutfit() { change(s => { if (!s.buddy.form && !Object.keys(s.buddy.outfit).length) return false; s.buddy.outfit = {}; delete s.buddy.form; }); },
+    /* „Vše automaticky“: díly podle levelu, podoba podle levelu a 0.34.0 i bez oblečení */
+    resetBuddyOutfit() { change(s => { if (!s.buddy.form && !Object.keys(s.buddy.outfit).length && !s.buddy.clothing) return false; s.buddy.outfit = {}; delete s.buddy.form; delete s.buddy.clothing; }); },
+    /* 0.34.0: díl oblečení do slotu (jen známý díl tohoto slotu z odemčené sady), null = nic */
+    setClothing(slot: string, value: string | null) {
+      change(s => {
+        if (!isClothingSlot(slot)) return false;
+        const cur = s.buddy.clothing ?? {};
+        if (value === null) {
+          if (!cur[slot]) return false;
+          const next = { ...cur };
+          delete next[slot];
+          if (Object.keys(next).length) s.buddy.clothing = next; else delete s.buddy.clothing;
+          return;
+        }
+        const p = parsePiece(value);
+        if (!p || p.slot !== slot || !unlockedSets(s.buddy).includes(p.set) || cur[slot] === value) return false;
+        s.buddy.clothing = { ...cur, [slot]: value };
+      });
+    },
+    /* 0.34.0: celá sada (všechny čtyři díly jedné odemčené sady) */
+    setClothingSet(set: string) {
+      change(s => {
+        if (!isClothingSet(set) || !unlockedSets(s.buddy).includes(set)) return false;
+        const next = Object.fromEntries(CLOTHING_SLOTS.map(slot => [slot, pieceId(set, slot)]));
+        if (JSON.stringify(next) === JSON.stringify(s.buddy.clothing ?? {})) return false;
+        s.buddy.clothing = next;
+      });
+    },
     setBuddyPosition(monitor: string, x: number, y: number) {
       change(s => {
         const key = text(monitor, 120), p = { x: clampInt(x, -20000, 20000), y: clampInt(y, -20000, 20000) };

@@ -496,6 +496,17 @@ const cs = {
     friendly: ['Hele, vyšla verze {version:raw}! Odkaz máš nahoře v aplikaci.', 'Mám novinku: verze {version:raw} je venku. Mrkni na pruh nahoře.'],
     cheeky: ['Verze {version:raw} je venku. Já se aktualizovat nemusím, ale ty jo.', 'Vyšla {version:raw}. Prý jsem v ní ještě chytřejší. Odkaz je nahoře.'],
   },
+  /* ----- 0.34.0: nově odemčená sada oblečení (nevyžádaně podle pravidel dialogů) ----- */
+  'clothing.unlocked': {
+    plain: ['Odemčena sada oblečení {name:raw}. Je v Šatníku Opse.', 'Nová sada oblečení: {name:raw}. Najdeš ji v Nastavení, v Šatníku Opse.'],
+    friendly: ['Jé, nová sada oblečení: {name:raw}! Zkusíme ji v Šatníku?', 'Mám nové hadry! Sada {name:raw} čeká v Šatníku.'],
+    cheeky: ['Sada {name:raw} odemčena. Konečně nebudu vypadat jen jako bedna.', 'Nová sada {name:raw}. Módní policie si oddechne.'],
+  },
+  'clothing.unlockedMany': {
+    plain: [{ one: 'Odemčena {count} sada oblečení. Je v Šatníku Opse.', few: 'Odemčeny {count} sady oblečení. Jsou v Šatníku Opse.', other: 'Odemčeno {count} sad oblečení. Jsou v Šatníku Opse.' }, { one: 'Nová sada oblečení ({count}) je v Šatníku Opse.', few: 'Nové sady oblečení ({count}) jsou v Šatníku Opse.', other: 'Nových sad oblečení ({count}) je v Šatníku Opse.' }],
+    friendly: [{ one: 'Jé, {count} nová sada oblečení! Mrkneme do Šatníku?', few: 'Jé, {count} nové sady oblečení! Mrkneme do Šatníku?', other: 'Jé, {count} nových sad oblečení! Mrkneme do Šatníku?' }, { one: 'Mám {count} novou sadu oblečení. Šatník čeká!', few: 'Mám {count} nové sady oblečení. Šatník čeká!', other: 'Mám {count} nových sad oblečení. Šatník čeká!' }],
+    cheeky: [{ one: '{count} nová sada oblečení. Budu nejlíp oblečená bedna v okolí.', few: '{count} nové sady oblečení. Budu nejlíp oblečená bedna v okolí.', other: '{count} nových sad oblečení. Budu nejlíp oblečená bedna v okolí.' }, { one: '{count} nová sada. Skříň mi začíná praskat ve švech.', few: '{count} nové sady. Skříň mi začíná praskat ve švech.', other: '{count} nových sad. Skříň mi začíná praskat ve švech.' }],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -975,6 +986,17 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['Version {version:raw} is available. The link is at the top of the app.', 'Version {version:raw} is out. The release page is in the bar at the top.'],
     friendly: ['Hey, version {version:raw} is out! The link is at the top of the app.', 'Got news: version {version:raw} is out. Check the bar at the top.'],
     cheeky: ['Version {version:raw} is out. I do not need updating, but you do.', 'Version {version:raw} is out. Word is I am even smarter in it. Link is at the top.'],
+  },
+  /* ----- 0.34.0: newly unlocked clothing set ----- */
+  'clothing.unlocked': {
+    plain: ['Clothing set {name:raw} unlocked. It is in the Ops wardrobe.', 'New clothing set: {name:raw}. You will find it in Settings, Ops wardrobe.'],
+    friendly: ['Ooh, a new clothing set: {name:raw}! Shall we try it on in the wardrobe?', 'New clothes for me! The {name:raw} set is waiting in the wardrobe.'],
+    cheeky: ['{name:raw} set unlocked. Finally I will not look like just a crate.', 'New set: {name:raw}. The fashion police can relax.'],
+  },
+  'clothing.unlockedMany': {
+    plain: [{ one: '{count} clothing set unlocked. It is in the Ops wardrobe.', other: '{count} clothing sets unlocked. They are in the Ops wardrobe.' }, { one: '{count} new clothing set is in the Ops wardrobe.', other: '{count} new clothing sets are in the Ops wardrobe.' }],
+    friendly: [{ one: 'Ooh, {count} new clothing set! Shall we look in the wardrobe?', other: 'Ooh, {count} new clothing sets! Shall we look in the wardrobe?' }, { one: 'I have {count} new clothing set. The wardrobe awaits!', other: 'I have {count} new clothing sets. The wardrobe awaits!' }],
+    cheeky: [{ one: '{count} new clothing set. Best-dressed crate around.', other: '{count} new clothing sets. Best-dressed crate around.' }, { one: '{count} new set. My closet is bursting at the seams.', other: '{count} new sets. My closet is bursting at the seams.' }],
   },
 };
 

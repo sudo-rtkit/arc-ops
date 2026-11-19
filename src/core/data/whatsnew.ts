@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.33.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.34.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,16 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.34.0',
+    title: { cs: 'Oblečení pro Opse', en: 'Clothing for Ops' },
+    items: [
+      { text: { cs: 'V Nastavení → Šatník Opse přibylo Oblečení: 16 sad a 64 dílů do čtyř slotů (pokrývka hlavy, trup, krk, záda). Díly různých sad jde míchat a celou sadu obléct jedním klikem.', en: 'Settings → Ops wardrobe has Clothing: 16 sets, 64 pieces for headwear, torso, neck and back. Mix pieces from any sets or wear a whole set in one click.' }, link: 'opsSettings' },
+      { text: { cs: 'Sady se odemykají postupně: šest levelem profilu, pět dohranými koly miniher a pět úspěšnými extrakcemi v deníku raidů. Zamčená sada ukazuje, co k ní chybí.', en: 'Sets unlock gradually: six by profile level, five by minigame rounds, five by successful extractions in the raid journal. Locked sets show what they need.' }, link: 'opsSettings' },
+      { text: { cs: 'Ops oblečení nosí všude: v rohu, v overlayi, v kompaktním okně i v minihrách. Hledí a LED nikdy nezakryje a nátěr přebarví i oblečení.', en: 'Ops wears it everywhere: in the corner, the overlay, the compact window and the minigames. It never covers the visor or LEDs; your paint recolours it too.' }, link: 'opsSettings' },
+      { text: { cs: 'Když se odemkne nová sada, Ops ti to krátce řekne, ale jen se zapnutými dialogy a mimo raid.', en: 'When a new set unlocks, Ops tells you in one short line, but only with dialogs on and outside a raid.' }, link: 'opsSettings' },
+    ],
+  },
   {
     version: '0.33.0',
     title: { cs: 'Upozornění na novou verzi', en: 'New version notice' },

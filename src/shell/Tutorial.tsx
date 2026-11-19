@@ -13,6 +13,7 @@ import { useOpsSpeech } from '../ops/speech';
 import { mainSound } from '../ops/mainHub';
 import { hotkeyLabel } from '../ops/hotkey';
 import { resolveOutfit } from '../core/ops';
+import { wornClothing } from '../core/clothing';
 import { line, type LineRef } from '../core/opsVoice';
 import { COUNTED_STEPS, STEPS, isResume, reply, skip, stepNumber, tutorialShown, type ReplyId } from '../core/tutorial';
 import { TUTORIAL_STEPS } from '../core/opsPrefs';
@@ -89,7 +90,7 @@ export function Tutorial({ compact }: { compact: boolean }) {
 
   return (
     <aside ref={card} className={cx('tour', compact && 'tour--compact')} aria-label={t('tut.label')} data-testid="tour" data-step={resume ? 'resume' : tut.step}>
-      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games.paint} label={t('ops.previewAria')}
+      <OpsCanvas ref={ops} variant="detail" fit scale={1} level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} clothing={wornClothing(s.buddy)} paint={s.games.paint} label={t('ops.previewAria')}
         restAnim={sp.talking ? 'talk' : 'idle'} />
       <div className="tour-bubble">
         <div className="tour-head">

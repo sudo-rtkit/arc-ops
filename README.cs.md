@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.33.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.34.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -59,6 +59,8 @@ Ctrl+K funguje při fokusu aplikace nebo konzole; je to zkratka daného okna. Ka
 ### Bedňák / Ops
 
 V Nastavení → Šatník Opse si vyber jednu z pěti základních podob, nebo ponech automatický vývoj podle levelu. Volba se uloží a platí ve všech náhledech Opse; skutečný level a odemykání dílů dál řídí profil.
+
+V šatníku je také **Oblečení**: 16 původních sad s 64 díly pro pokrývku hlavy, trup, krk a záda. Díly odemčených sad jde libovolně míchat, nebo obléct celou sadu; sady se odemykají postupně levelem profilu, dohranými koly miniher a úspěšnými extrakcemi v deníku raidů. Oblečení nikdy nezakryje hledí ani LED a je čistě kosmetické.
 
 Volitelný pixelový buddy s podobami podle levelu, animacemi, nátěry a třemi povahami. Kliknutím otevřeš konzoli s profilem, úkoly, zásobou, dílnou, skilly, nákupy a revizí snímku a aktivním plánem raidu. Tlačítko **Aplikace** otevře nad hrou ve větším panelu kterýkoli plný modul (skill tree, recepty, databázi předmětů, mapy, deník, statistiky, minihry…); nastavení a zálohy zůstávají v hlavním okně. Výchozí stav buddyho je **vypnuto**.
 

@@ -280,6 +280,11 @@ export interface BuddyState {
   positions: Record<string, { x: number; y: number }>;
   /* monitor, na kterém byl buddy naposledy */
   monitor: string;
+  /* 0.34.0: oblečení (src/core/clothing.ts): slot oblečení → díl (ID ze zabaleného manifestu), chybějící slot = nic.
+     Volitelné (schéma 19 beze změny): starší stav ho nemá a Ops nic nenosí. */
+  clothing?: Partial<Record<'headwear' | 'torso' | 'neck' | 'back', string>>;
+  /* 0.34.0: odemčené sady oblečení (pokles levelu ani import nic neodeberou, jako sbírka dílů) */
+  clothingSets?: string[];
 }
 
 /* ----- 0.9.0: hlavní okno (plný a kompaktní režim), patří jen tomuto počítači ----- */

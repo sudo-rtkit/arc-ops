@@ -30,6 +30,7 @@ import { SKILL } from '../core/data/skills';
 import { matchContext } from '../core/catalog';
 import { getMaterials } from '../core/gamedata';
 import { animMs, levelEvent, resolveOutfit, type LevelEvent, type OpsAnim } from '../core/ops';
+import { wornClothing, type Worn } from '../core/clothing';
 import { line, sayLine, type LineRef } from '../core/opsVoice';
 import type { SoundId } from '../core/opsSound';
 import type { OpsPersonality } from '../core/types';
@@ -72,6 +73,8 @@ export interface BuddyView {
   lang: Lang; level: number; form?: string; outfit: Record<string, string | null>; scale: 1 | 2;
   /* 0.11.0: nátěr Opse */
   paint: string;
+  /* 0.34.0: oblečení (jen díly odemčených sad, ID ze zabaleného manifestu) */
+  clothing: Worn;
   positions: Record<string, { x: number; y: number }>; monitor: string; hotkey: string;
   /* 0.10.0: povaha, zvuky a dialogy; hra běží (null = nevíme, hlídání je vypnuté) */
   personality: OpsPersonality; sound: boolean; volume: number; dialogs: boolean; game: boolean | null;
@@ -169,6 +172,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   /* ----- kopie stavu pro okna ----- */
   const buddyView = (s: AppState): BuddyView => ({
     lang: s.settings.lang, level: s.profile.level, form: s.buddy.form, outfit: resolveOutfit(s.profile.level, s.buddy), scale: s.buddy.scale, paint: s.games.paint,
+    clothing: wornClothing(s.buddy),
     positions: s.buddy.positions, monitor: s.buddy.monitor, hotkey: s.buddy.hotkey,
     personality: s.opsPrefs.personality, sound: s.opsPrefs.sound, volume: s.opsPrefs.volume, dialogs: s.opsPrefs.dialogs,
     game: gameKnown ? gameRunning : null,

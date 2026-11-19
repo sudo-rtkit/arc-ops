@@ -344,10 +344,23 @@
 .ops-body-option { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); cursor: pointer; text-align: center; }
 .ops-body-option:has(input:checked) { border-color: var(--accent); background: var(--bg-selected); }
 .ops-body-option:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-.ops-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); background: var(--bg-app); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); text-align: center; }
-.ops-preview canvas { image-rendering: pixelated; }
+.ops-preview, .ops-clothing-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); background: var(--bg-app); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); text-align: center; }
+.ops-preview canvas, .ops-clothing-preview canvas { image-rendering: pixelated; }
 .ops-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
 @media (max-width: 1100px) { .ops-wardrobe { grid-template-columns: 1fr; } }
+/* 0.34.0: oblečení v šatníku */
+.ops-clothing { margin-top: var(--space-6); padding-top: var(--space-5); border-top: var(--line-thin) solid var(--border-subtle); }
+.ops-clothing-title { margin: 0 0 var(--space-2); font-size: 16px; font-weight: 600; }
+.ops-clothing-sets-title { margin: var(--space-5) 0 var(--space-3); font-size: 14px; font-weight: 600; }
+.ops-clothing .ops-wardrobe { margin-top: var(--space-4); }
+.ops-clothing-preview { position: sticky; top: var(--space-4); }
+.ops-clothing-sets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+.ops-clothing-set { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border: var(--line-thin) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--bg-raised); }
+.ops-clothing-set-text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.ops-clothing-set[data-locked="true"] { opacity: .6; background: transparent; border-style: dashed; }
+.ops-clothing-set[data-locked="true"] strong { color: var(--text-secondary); }
+.ops-clothing-lock { display: inline-block; padding: 0 var(--space-1); border: var(--line-thin) solid var(--border-control); border-radius: var(--radius-control); color: var(--text-muted); }
+.ops-clothing-set .btn { flex: none; }
 
 /* ----- Skill Tree: katalog buildů (0.8.0) ----- */
 .catalog-tools { display: flex; gap: var(--space-3); align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }

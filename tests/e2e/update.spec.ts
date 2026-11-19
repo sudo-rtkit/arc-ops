@@ -28,9 +28,9 @@ async function seed(page: Page, lang: 'cs' | 'en', mode: 'newer' | 'same' | 'rat
       check: async () => {
         w.__updateChecks = (w.__updateChecks as number) + 1;
         if (m === 'rate') throw 'update:rate';
-        const latest = m === 'same' ? '0.33.0' : next;
+        const latest = m === 'same' ? '0.34.0' : next;
         return {
-          latest, current: '0.33.0', newer: m === 'newer', url: m === 'same' ? `https://github.com/sudo-rtkit/arc-ops/releases/tag/v${latest}` : url,
+          latest, current: '0.34.0', newer: m === 'newer', url: m === 'same' ? `https://github.com/sudo-rtkit/arc-ops/releases/tag/v${latest}` : url,
           name: 'Ops ' + latest, publishedAt: '2026-12-01T10:00:00Z', cached: false,
           notes: '## Novinky\n- **Ops** <b>umí</b> víc: [odkaz](https://evil.example) https://evil.example/x',
         };

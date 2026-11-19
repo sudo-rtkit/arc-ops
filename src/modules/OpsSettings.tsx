@@ -18,6 +18,12 @@ import { mainSound } from '../ops/mainHub';
 import { useUi } from '../store/ui';
 import { DEFAULT_PAINT, PAINTS } from '../core/paints';
 import { PaintSwatch, paintName, ruleText } from '../ui/paints';
+import {
+  CLOTHING_SETS, CLOTHING_SLOTS, clothingProgress, pieceId, unlockedSets, wornClothing,
+  type ClothingProgress, type ClothingRule, type Worn,
+} from '../core/clothing';
+import { pieceName, setName } from '../core/clothingNames';
+import type { TFn } from '../i18n/react';
 
 function HotkeyField() {
   const t = useT();
@@ -199,8 +205,10 @@ export function WardrobePanel() {
   const form = resolveForm(level, s.buddy.form);
   const next = OPS.unlocks.find(u => u.level > level && u.unlockedParts.some(p => !have.includes(p)));
   const nextPart = next?.unlockedParts.find(p => !have.includes(p));
+  /* 0.34.0: oblečení (jen díly odemčených sad) */
+  const worn = useMemo(() => wornClothing(s.buddy), [s.buddy]);
   return (
-    <Panel id="wardrobe" title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" onClick={() => actions.resetBuddyOutfit()} disabled={!s.buddy.form && !Object.keys(s.buddy.outfit).length}>{t('ops.autoAll')}</Btn>}>
+    <Panel id="wardrobe" title={t('ops.wardrobe')} actions={<Btn size="sm" variant="ghost" data-testid="ops-auto-all" onClick={() => actions.resetBuddyOutfit()} disabled={!s.buddy.form && !Object.keys(s.buddy.outfit).length && !s.buddy.clothing}>{t('ops.autoAll')}</Btn>}>
       <p className="secondary-text">{t('ops.wardrobeHint')}</p>
       <fieldset className="ops-body-picker" data-testid="ops-body-picker">
         <legend>{t('ops.bodyChoice')}</legend>
@@ -212,14 +220,14 @@ export function WardrobePanel() {
           </label>
           {OPS.forms.map(f => <label key={f.id} className="ops-body-option">
             <input type="radio" name="ops-body" value={f.id} checked={s.buddy.form === f.id} onChange={() => actions.setBuddy({ form: f.id })} />
-            <OpsCanvas variant="corner" fit still level={level} form={f.id} outfit={outfit} paint={s.games.paint} scale={1} label={f.name[t.lang]} />
+            <OpsCanvas variant="corner" fit still level={level} form={f.id} outfit={outfit} clothing={worn} paint={s.games.paint} scale={1} label={f.name[t.lang]} />
             <span>{f.name[t.lang]}</span>
           </label>)}
         </div>
       </fieldset>
       <div className="ops-wardrobe">
         <div className="ops-preview">
-          <OpsCanvas variant="detail" fit level={level} form={s.buddy.form} outfit={outfit} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
+          <OpsCanvas variant="detail" fit level={level} form={s.buddy.form} outfit={outfit} clothing={worn} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
           <p data-testid="ops-form">{t('ops.form', { name: form.name[t.lang], level })}</p>
           <p className="meta" data-testid="ops-collection">{t('ops.collection', { have: have.length, total: OPS.parts.length })}</p>
           <p className="meta">{next && nextPart ? t('ops.next', { level: next.level, name: partName(nextPart, t.lang) }) : t('ops.nextMax')}</p>
@@ -257,7 +265,68 @@ export function WardrobePanel() {
           })}
         </div>
       </div>
+      <ClothingSection worn={worn} outfit={outfit} />
     </Panel>
+  );
+}
+
+/* 0.34.0: podmínka odemčení sady oblečení (cs/en) s aktuálním postupem */
+function clothingRuleText(t: TFn, rule: ClothingRule, p: ClothingProgress): string {
+  switch (rule.kind) {
+    case 'level': return t('ops.clothingRule.level', { need: rule.level, have: p.level });
+    case 'rounds': return t('ops.clothingRule.rounds', { count: rule.count, have: Math.min(p.rounds, rule.count) });
+    case 'extractions': return t('ops.clothingRule.extractions', { count: rule.count, have: Math.min(p.extractions, rule.count) });
+  }
+}
+
+/* 0.34.0: „Oblečení“: čtyři sloty (díl z kterékoli odemčené sady, nebo nic), celá sada jedním klikem, zamčené sady
+   zašedlé s podmínkou. Vlastní živý náhled s vybranou podobou a nátěrem. */
+function ClothingSection({ worn, outfit }: { worn: Worn; outfit: Record<string, string | null> }) {
+  const t = useT();
+  const s = useAppState();
+  const open = useMemo(() => unlockedSets(s.buddy), [s.buddy]);
+  const progress = useMemo(() => clothingProgress(s), [s.profile.level, s.games, s.raids]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <section className="ops-clothing" data-testid="ops-clothing" aria-labelledby="ops-clothing-title">
+      <h3 id="ops-clothing-title" className="ops-clothing-title">{t('ops.clothing')}</h3>
+      <p className="meta">{t('ops.clothingHint')}</p>
+      <p className="meta" data-testid="clothing-progress">{t('ops.clothingProgress', { have: open.length, total: CLOTHING_SETS.length })}</p>
+      <div className="ops-wardrobe">
+      <div className="ops-clothing-preview">
+        <OpsCanvas variant="detail" fit level={s.profile.level} form={s.buddy.form} outfit={outfit} clothing={worn} paint={s.games.paint} scale={1} label={t('ops.previewAria')} />
+      </div>
+      <div className="ops-clothing-pick">
+      <div className="ops-slots">
+        {CLOTHING_SLOTS.map(slot => (
+          <Select key={slot} id={'clothing-' + slot} label={t(`ops.clothingSlot.${slot}` as Key)} value={worn[slot] ?? ''}
+            onChange={v => actions.setClothing(slot, v === '' ? null : v)}
+            options={[
+              { value: '', label: t('ops.clothingNone') },
+              ...open.map(set => ({ value: pieceId(set, slot), label: t('ops.clothingPiece', { piece: pieceName(pieceId(set, slot), t.lang), set: setName(set, t.lang) }) })),
+            ]} />
+        ))}
+      </div>
+      <h4 className="ops-clothing-sets-title">{t('ops.clothingSets')}</h4>
+      <ul className="ops-clothing-sets" data-testid="clothing-sets">
+        {CLOTHING_SETS.map(set => {
+          const unlocked = open.includes(set.id);
+          const full = CLOTHING_SLOTS.every(slot => worn[slot] === pieceId(set.id, slot));
+          return (
+            <li key={set.id} className="ops-clothing-set" data-set={set.id} data-locked={unlocked ? 'false' : 'true'} aria-disabled={unlocked ? undefined : true}>
+              <div className="ops-clothing-set-text">
+                <strong>{setName(set.id, t.lang)}</strong>
+                <span className="meta">{CLOTHING_SLOTS.map(slot => pieceName(pieceId(set.id, slot), t.lang)).join(' · ')}</span>
+                {!unlocked && <span className="meta ops-clothing-rule"><small className="ops-clothing-lock">{t('ops.clothingLocked')}</small> {clothingRuleText(t, set.unlock, progress)}</span>}
+              </div>
+              <Btn size="sm" variant={full ? 'primary' : 'secondary'} disabled={!unlocked || full} aria-label={(full ? t('ops.clothingWearing') : t('ops.clothingWholeSet')) + ': ' + setName(set.id, t.lang)}
+                onClick={() => actions.setClothingSet(set.id)}>{full ? t('ops.clothingWearing') : t('ops.clothingWholeSet')}</Btn>
+            </li>
+          );
+        })}
+      </ul>
+      </div>
+      </div>
+    </section>
   );
 }
 

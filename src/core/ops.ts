@@ -8,6 +8,7 @@ import CORNER from './data/ops2-corner.json';
 import DETAIL from './data/ops2-detail.json';
 import type { BuddyState, Lang } from './types';
 import { clampInt, isObj, safeEntries, text } from './util';
+import { normalizeClothingSets, normalizeWorn } from './clothing';
 
 export const OPS_ANIMS = [
   'idle', 'talk', 'greet', 'point-left', 'point-right', 'point-up', 'point-down', 'scanning', 'thinking', 'success', 'level-up',
@@ -157,5 +158,10 @@ export function normalizeBuddy(raw: unknown): BuddyState {
     b.positions[text(k, 120)] = { x: n(v.x), y: n(v.y) };
   }
   b.monitor = text(r.monitor, 120);
+  /* 0.34.0: oblečení a odemčené sady jen se známými ID (prázdné = pole chybí, jako ve starším stavu) */
+  const sets = normalizeClothingSets(r.clothingSets);
+  if (sets.length) b.clothingSets = sets;
+  const worn = normalizeWorn(r.clothing);
+  if (Object.keys(worn).length) b.clothing = worn;
   return b;
 }

@@ -2,12 +2,15 @@
    fyzických pixelů, takže pixely zůstanou ostré. 256 px detail = 128 px kompozice zvětšená přesně 2×.
    - fit=false (okno buddyho): k = měřítko × zaokrouhlené DPI (okno má přesně tuto fyzickou velikost),
    - fit=true (vložené do stránky): k = dolní celá část z měřítko × DPI, aby Ops nebyl větší než návrh.
-   Animace podle manifestu; při omezení pohybu je Ops statický. */
+   Animace podle manifestu; při omezení pohybu je Ops statický.
+   0.34.0: clothing = co Ops nosí (wornClothing ze stavu). Dokud se geometrie oblečení načítá, plátno si nechá
+   předchozí snímek, takže Ops neproblikne bez oblečení. */
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Animator, type RestAnim } from './animator';
 import { drawOps, frameOf, preload } from './sprite';
 import type { OpsAnim, OpsVariantId } from '../core/ops';
 import type { AutoEmote } from '../core/opsEmote';
+import { wornKey, type Worn } from '../core/clothing';
 
 export interface OpsHandle {
   play(anim: OpsAnim, opts?: { once?: boolean }): void;
@@ -44,13 +47,16 @@ interface Props {
   paused?: boolean;
   /* 0.11.0: nátěr (paleta) Opse; bez něj původní vzhled */
   paint?: string;
+  /* 0.34.0: oblečení (slot → díl); bez něj nic */
+  clothing?: Worn;
 }
 
-export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint, paused, form }, ref) {
+export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ variant = 'corner', level, outfit, scale, fit = false, label, className, initial = 'idle', restAnim = 'idle', still, paint, paused, form, clothing }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const anim = useRef(new Animator());
-  const view = useRef({ level, outfit, variant, paint, form });
-  view.current = { level, outfit, variant, paint, form };
+  const view = useRef({ level, outfit, variant, paint, form, clothing });
+  view.current = { level, outfit, variant, paint, form, clothing };
+  const cKey = wornKey(clothing);
   const dirty = useRef(true);
   const pausedRef = useRef(!!paused);
   pausedRef.current = !!paused;
@@ -69,7 +75,7 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
   useEffect(() => { anim.current.play(initial); dirty.current = true; }, [initial]);
   useEffect(() => { anim.current.setRest(restAnim); dirty.current = true; }, [restAnim]);
   useEffect(() => { if (anim.current.transform) anim.current.startTransform(null); dirty.current = true; }, [form]);
-  useEffect(() => { dirty.current = true; void preload(variant, level, outfit, form).then(() => { dirty.current = true; }); }, [variant, level, outfit, paint, form]);
+  useEffect(() => { dirty.current = true; void preload(variant, level, outfit, form, view.current.clothing).then(() => { dirty.current = true; }); }, [variant, level, outfit, paint, form, cKey]);
 
   useEffect(() => {
     const c = canvas.current;
@@ -95,9 +101,8 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
         c.style.width = c.style.height = css + 'px';
         dirty.current = true;
       }
-      if (dirty.current) {
+      if (dirty.current && drawOps(octx, view.current.variant, view.current.level, view.current.outfit, a.pose(), view.current.paint, view.current.form, view.current.clothing)) {
         dirty.current = false;
-        drawOps(octx, view.current.variant, view.current.level, view.current.outfit, a.pose(), view.current.paint, view.current.form);
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, c.width, c.height);
         ctx.drawImage(off, 0, 0, c.width, c.height);
@@ -109,5 +114,5 @@ export const OpsCanvas = forwardRef<OpsHandle, Props>(function OpsCanvas({ varia
     return () => cancelAnimationFrame(raf);
   }, [scale, still, variant, fit]);
 
-  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" data-form={form || 'auto'} data-variant={variant} data-paint={paint || 'original'} />;
+  return <canvas ref={canvas} className={className} role="img" aria-label={label} data-testid="ops-canvas" data-form={form || 'auto'} data-variant={variant} data-paint={paint || 'original'} data-clothing={cKey === '|||' ? '' : cKey} />;
 });

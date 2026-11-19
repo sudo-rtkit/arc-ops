@@ -12,6 +12,7 @@ import { createAiNative } from '../shell/aiNative';
 import { setAiHook } from '../store/aiHook';
 import { createUpdateController } from './updateHub';
 import { createUpdateNative } from '../shell/updateNative';
+import { createClothingNotices } from '../core/clothingNotice';
 
 export const native = createNative();
 export const hub = createOpsHub({
@@ -66,3 +67,8 @@ export const updates = createUpdateController({
   app, native: createUpdateNative(),
   port: { say: (anim, l) => hub.noteSay(anim, l), game: () => hub.gameInfo() },
 });
+
+/* 0.34.0: nově odemčená sada oblečení: Ops o ní jednou krátce řekne (nevyžádaná hláška: dialogy zapnuté, mimo raid,
+   hra ne v popředí; jinak počká). Když hra odejde z popředí, zkusí se to znovu. */
+export const clothingNotices = createClothingNotices(app, { say: l => hub.noteSay('talk', l), game: () => hub.gameInfo() });
+hub.onFront(() => clothingNotices.poke());

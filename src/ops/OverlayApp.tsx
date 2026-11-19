@@ -22,6 +22,7 @@ import { langGate, type Key } from '../i18n';
 import { fmt, fmtDateTime, fmtTime } from '../ui/format';
 import { cx } from '../ui/components';
 import { resolveForm, resolveOutfit } from '../core/ops';
+import { wornClothing } from '../core/clothing';
 import { QUESTS, locText, objectiveProgress, questName, questStatus } from '../core/quests';
 import { catalogByName, catalogItems, matchContext } from '../core/catalog';
 import { analyzeLoot, analyzeShots, defaultTarget, type ImportGroup, type Target, type VisionApply, type VisionSummary } from '../core/visionImport';
@@ -164,7 +165,7 @@ function Overview({ batch, go }: { batch: BatchView; go: (tab: Tab) => void }) {
       </div>
       <aside className="ov-rail">
         <section className="ov-card ov-opscard">
-          <OpsCanvas variant="detail" fit level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games?.paint} scale={1} label="Ops" />
+          <OpsCanvas variant="detail" fit level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} clothing={wornClothing(s.buddy)} paint={s.games?.paint} scale={1} label="Ops" />
           <span className="ov-stencil">{t('ops.ov.opsLevel', { level: s.profile.level })}</span>
           <b>{form.name[t.lang]}</b>
         </section>
@@ -701,7 +702,7 @@ export default function OverlayApp() {
     <div className={cx('ov', tab === 'apps' && route.module && 'ov-wide')} style={glass} data-testid="overlay">
       <i className="ov-tape" aria-hidden="true" /><i className="ov-bracket tl" aria-hidden="true" /><i className="ov-bracket br" aria-hidden="true" />
       <header className="ov-header">
-        <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} paint={s.games?.paint} scale={1} label="Ops"
+        <OpsCanvas ref={ops} variant="detail" fit level={s.profile.level} form={s.buddy.form} outfit={resolveOutfit(s.profile.level, s.buddy)} clothing={wornClothing(s.buddy)} paint={s.games?.paint} scale={1} label="Ops"
           restAnim={speech.talking ? 'talk' : 'idle'} />
         <div className="grow"><span className="ov-kicker">{t(`ops.ov.kicker.${tab}` as Key)}</span><h1>{t('ops.ov.title')}</h1>
           {speech.text && <p className="ov-speech" role="status" aria-label={t('ops.speechAria')} data-testid="ops-line">{speech.text}</p>}</div>

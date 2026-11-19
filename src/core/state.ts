@@ -497,6 +497,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.ai = normalizeAi(r.ai);
   /* 0.33.0: kontrola nové verze (volitelné pole, schéma zůstává 19); ve starším stavu chybí a začne vypnutá */
   out.update = normalizeUpdate(r.update, now);
+  /* 0.34.0: oblečení a odemčené sady normalizuje normalizeBuddy (jen uložené, známá ID); sady odemčené postupem
+     doplní store při načtení a při každé změně (syncClothing), normalizace nic neodvozuje */
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */
