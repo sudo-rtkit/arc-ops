@@ -10,6 +10,8 @@ import { autoActive, isRustScreen } from '../core/autoCapture';
 import { createAiController } from './aiHub';
 import { createAiNative } from '../shell/aiNative';
 import { setAiHook } from '../store/aiHook';
+import { createUpdateController } from './updateHub';
+import { createUpdateNative } from '../shell/updateNative';
 
 export const native = createNative();
 export const hub = createOpsHub({
@@ -57,3 +59,10 @@ export const ai = createAiController({
 });
 hub.setAiViewSource(() => ai.view());
 setAiHook((a, origin) => { void ai.ask(a, origin); });
+
+/* 0.33.0: kontrola nové verze (výchozí stav vypnuto; síť jen v Rustu, pevná adresa api.github.com). Jediná obsluha
+   v hlavním okně; automatická kontrola počká, když je hra v popředí. Spouští ji main.tsx spolu s hubem. */
+export const updates = createUpdateController({
+  app, native: createUpdateNative(),
+  port: { say: (anim, l) => hub.noteSay(anim, l), game: () => hub.gameInfo() },
+});

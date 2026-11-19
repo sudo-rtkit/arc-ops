@@ -653,6 +653,8 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   }
   const gameInfo = (): GameInfo => ({ known: gameKnown, running: gameRunning, visible: gameVisible, screen: lastScreen });
   const aiSay = (anim: OpsAnim, l: LineRef) => say(anim, l, true);
+  /* 0.33.0: nevyžádaná hláška (nová verze aplikace): buddy ji ukáže jen se zapnutými dialogy a když hráč s Opsem pracuje */
+  const noteSay = (anim: OpsAnim, l: LineRef) => say(anim, l, false);
   const setAiViewSource = (fn: (() => AiView) | null) => { aiViewOf = fn; };
   const pushAi = () => pushOverlay(true);
 
@@ -790,7 +792,7 @@ export function createOpsHub({ app, bus, native, now = Date.now, pushMs = 120, n
   return {
     start, stop, setHotkey, setWidgetKey, setConsoleKey, perfInfo, onFront, widgetsEditing: () => widgetsEditing, handleCapture, handleAutoCapture, importShots, importLoot, importProgress, batch: () => batch, idle: () => queue,
     captureFromApp, setBuddyVisible, buddyVisible: () => !buddyHidden, onVisibility, onStatus, onLevel, onEmote, ui,
-    gameInfo, aiSay, setAiViewSource, pushAi,
+    gameInfo, aiSay, noteSay, setAiViewSource, pushAi,
   };
 }
 export type OpsHub = ReturnType<typeof createOpsHub>;

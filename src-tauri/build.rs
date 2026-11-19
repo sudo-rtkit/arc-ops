@@ -24,6 +24,7 @@ const COMMANDS: &[&str] = &[
     "ai_key_set",
     "ai_key_clear",
     "ai_key_status",
+    "update_check",
     "bus_send",
     "ops_enable",
     "ops_hotkey",

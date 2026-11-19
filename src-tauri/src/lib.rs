@@ -1,6 +1,8 @@
 //! Rust backend: jen soubory ve složce dat, snímky, souborové dialogy a otevření odkazu nebo složky.
 //! Žádné čtení paměti ani souborů hry, žádné spouštění vlastních procesů. Síť jen v modulu `ai` (0.30.0: volitelný
-//! AI asistent, výchozí stav vypnuto, vlastní klíč, pevný seznam hostitelů HTTPS, jen z hlavního okna).
+//! AI asistent, výchozí stav vypnuto, vlastní klíč, pevný seznam hostitelů HTTPS, jen z hlavního okna) a v modulu
+//! `update` (0.33.0: volitelná kontrola nové verze, výchozí stav vypnuto, jen pevná adresa api.github.com pro
+//! nejnovější vydání tohoto repozitáře, jen z hlavního okna; nic nestahuje ani nespouští).
 //! Buddy, overlay, widgety nad hrou (0.22.0), zkratka a snímek obrazovky (milník 5, výchozí stav vypnuto) žijí jen v modulu `ops`.
 //! Kompaktní režim, zavření křížkem a ikona v oznamovací oblasti (0.9.0) žijí v modulu `mainwin`.
 
@@ -10,6 +12,7 @@ mod diag;
 mod mainwin;
 pub mod ops;
 mod storage;
+mod update;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -219,6 +222,8 @@ pub fn run() {
         .manage(ops::OpsState::default())
         /* 0.30.0: AI asistent (síť jen na vyžádání hráče, klíč ve Windows Credential Manageru) */
         .manage(ai::AiState(std::sync::Arc::new(ai::Ai::production())))
+        /* 0.33.0: kontrola nové verze (síť jen se zapnutou kontrolou nebo na tlačítko, nejvýš jednou za 10 min) */
+        .manage(update::UpdateState(std::sync::Arc::new(update::Updater::production())))
         /* Zničení hlavního okna ukončí celou aplikaci včetně buddyho a overlaye (jinak by zůstaly bez stavu). */
         .on_window_event(|w, e| {
             ops::on_window_event(w, e);
@@ -297,6 +302,7 @@ pub fn run() {
             ai::ai_key_set,
             ai::ai_key_clear,
             ai::ai_key_status,
+            update::update_check,
             bus::bus_send,
             ops::ops_enable,
             ops::ops_hotkey,

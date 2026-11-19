@@ -30,6 +30,8 @@ const MAIN = [
   'allow-diag-log', 'allow-diag-read', 'allow-diag-export', 'allow-diag-clear',
   /* 0.30.0: AI asistent jen v hlavním okně: dotaz a klíč (stav klíče jen ano/ne) */
   'allow-ai-ask', 'allow-ai-key-set', 'allow-ai-key-clear', 'allow-ai-key-status',
+  /* 0.33.0: kontrola nové verze jen v hlavním okně (bez argumentů, pevná adresa api.github.com) */
+  'allow-update-check',
 ];
 const BUDDY = [
   'core:event:allow-listen', 'core:event:allow-unlisten', 'core:window:allow-available-monitors', 'core:window:allow-primary-monitor',

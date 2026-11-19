@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.32.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.33.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -140,7 +140,7 @@ Novou verzi instaluj přes stávající instalaci; data zůstanou. Před aktuali
 
 ## Soukromí a bezpečnost
 
-Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Jedinou výjimkou je volitelný AI asistent (výchozí stav vypnuto, vlastní klíč): otázku pošle jen na tvé kliknutí, viz výše. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
+Vše funguje offline, bez přihlášení, telemetrie a odesílání na server. Externí odkazy se otevírají na přání. Jedinou výjimkou je volitelný AI asistent (výchozí stav vypnuto, vlastní klíč): otázku pošle jen na tvé kliknutí, viz výše. Jediným dalším spojením se sítí je volitelná kontrola nové verze (**Nastavení → Aktualizace**, výchozí stav vypnuto): nejvýš jednou denně se zeptá jen `api.github.com` na nejnovější vydání tohoto repozitáře a pošle jen název a verzi aplikace. O nové verzi dá vědět a stránku vydání otevře na kliknutí; nic nestahuje ani nespouští. Snímky zásoby, lootu a postupu se zpracují lokálně a neukládají se jako obrázky; nativní snímek zkratkou zůstává jen v paměti. Výjimkou jsou snímky map, které si vložíš sám: zůstávají jen v tomto zařízení a do zálohy jdou jen na tvou volbu. Uložit se mohou potvrzené údaje a číselné otisky ikon.
 
 Aplikace nečte paměť hry, nevkládá do ní kód, neupravuje herní soubory a neposílá vstup. Volitelné otevření s hrou sleduje název procesu a stav okna včetně popředí. Změny ze souboru a zkratky potvrzuje hráč. Volitelné automatické snímání může jisté údaje zapsat po snímku stavu s možností Zpět; nejisté čekají na kontrolu. Rady nikdy samy nic neprodávají ani nemažou ve hře.
 

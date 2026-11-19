@@ -490,6 +490,12 @@ const cs = {
     friendly: ['Jejda. {text:raw}', 'Hm, nepovedlo se. {text:raw}'],
     cheeky: ['Tak tohle nevyšlo. {text:raw}', 'Ehm. {text:raw}'],
   },
+  /* ----- 0.33.0: nová verze aplikace (jednou za verzi, jen nevyžádaně podle pravidel dialogů) ----- */
+  'update.available': {
+    plain: ['Je k dispozici verze {version:raw}. Odkaz je nahoře v aplikaci.', 'Vyšla verze {version:raw}. Stránka vydání je v pruhu nahoře.'],
+    friendly: ['Hele, vyšla verze {version:raw}! Odkaz máš nahoře v aplikaci.', 'Mám novinku: verze {version:raw} je venku. Mrkni na pruh nahoře.'],
+    cheeky: ['Verze {version:raw} je venku. Já se aktualizovat nemusím, ale ty jo.', 'Vyšla {version:raw}. Prý jsem v ní ještě chytřejší. Odkaz je nahoře.'],
+  },
 } satisfies Record<string, LineVariants>;
 
 export type LineKey = keyof typeof cs;
@@ -963,6 +969,12 @@ const en: Record<LineKey, LineVariants> = {
     plain: ['{text:raw}', 'Not possible. {text:raw}'],
     friendly: ['Oops. {text:raw}', 'Hm, that did not work. {text:raw}'],
     cheeky: ['Well, that flopped. {text:raw}', 'Ahem. {text:raw}'],
+  },
+  /* ----- 0.33.0: new app version ----- */
+  'update.available': {
+    plain: ['Version {version:raw} is available. The link is at the top of the app.', 'Version {version:raw} is out. The release page is in the bar at the top.'],
+    friendly: ['Hey, version {version:raw} is out! The link is at the top of the app.', 'Got news: version {version:raw} is out. Check the bar at the top.'],
+    cheeky: ['Version {version:raw} is out. I do not need updating, but you do.', 'Version {version:raw} is out. Word is I am even smarter in it. Link is at the top.'],
   },
 };
 

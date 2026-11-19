@@ -195,8 +195,9 @@ export function aiErrorHint(e: AiError | null, p: Pick<AiPrefs, 'provider' | 'mo
 export const ANSWER_MAX = 1200;
 export const BUBBLE_MAX = 180;
 /* Prostý text pro zobrazení: bez řídicích znaků, značek HTML, Markdownu a odkazů (z [text](url) zůstane text,
-   holá adresa se vynechá), nejvýš ANSWER_MAX znaků. Vykresluje se jen jako text (React), nikdy jako HTML. */
-export function plainAnswer(raw: unknown): string {
+   holá adresa se vynechá), nejvýš ANSWER_MAX znaků (0.33.0: nebo max, poznámky k vydání). Vykresluje se jen jako
+   text (React), nikdy jako HTML. */
+export function plainAnswer(raw: unknown, max: number = ANSWER_MAX): string {
   let s = typeof raw === 'string' ? raw : '';
   s = s.replace(/\r\n?/g, '\n').replace(CONTROL, ' ');
   s = s.replace(/<think>[\s\S]*?(<\/think>|$)/g, '');
@@ -207,7 +208,7 @@ export function plainAnswer(raw: unknown): string {
   s = s.replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+[.)])\s+/gm, '');
   s = s.replace(/(\*\*|__|\*|_|`|~~)(?=\S)([^\n]*?\S)\1/g, '$2').replace(/[`*]{2,}/g, '');
   s = s.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-  if (s.length > ANSWER_MAX) s = s.slice(0, ANSWER_MAX - 1).trimEnd() + '…';
+  if (s.length > max) s = s.slice(0, max - 1).trimEnd() + '…';
   return s;
 }
 /* Krátká verze do bubliny Opse: první věty do BUBBLE_MAX znaků. */

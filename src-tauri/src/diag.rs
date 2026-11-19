@@ -43,7 +43,7 @@ pub const APP: &str = "app";
 /* známé štítky; cokoli jiného se zapíše jako "other" (mapa omezovače tak nemůže růst) */
 const LABELS: [&str; 5] = ["main", "buddy", "overlay", "widgets", APP];
 /* opt-in funkce, které smí export uvést (jen true/false) */
-pub const FEATURES: [&str; 11] = ["buddy", "autoOpen", "hotkey", "widgets", "autoCapture", "gameLinkOff", "passClicks", "lowImpact", "sound", "autoSnapshot", "ai"];
+pub const FEATURES: [&str; 12] = ["buddy", "autoOpen", "hotkey", "widgets", "autoCapture", "gameLinkOff", "passClicks", "lowImpact", "sound", "autoSnapshot", "ai", "updateCheck"];
 
 #[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

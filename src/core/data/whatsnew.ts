@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.32.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.33.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.33.0',
+    title: { cs: 'Upozornění na novou verzi', en: 'New version notice' },
+    items: [
+      { text: { cs: 'V Nastavení → Aktualizace si můžeš zapnout kontrolu nových verzí. Nejvýš jednou denně se aplikace zeptá GitHubu na nejnovější vydání; o tobě se nic neposílá.', en: 'In Settings → Updates you can turn on a check for new versions. At most once a day the app asks GitHub for the latest release; nothing about you is sent.' }, link: 'updateSettings' },
+      { text: { cs: 'Nová verze se ukáže v klidném pruhu nahoře s odkazem na stránku vydání. Nic se nestahuje ani nespouští a nad hrou nic nevyskočí.', en: 'A new version shows in a calm bar at the top with a link to the release page. Nothing is downloaded or run, and nothing pops up over the game.' }, link: 'updateSettings' },
+      { text: { cs: 'Ve výchozím stavu vypnuto. Zkontrolovat teď funguje i bez zapnutí.', en: 'Off by default. Check now works without turning it on.' }, link: 'updateSettings' },
+    ],
+  },
   {
     version: '0.32.0',
     title: { cs: 'Zeptej se Opse na své statistiky', en: 'Ask Ops about your statistics' },

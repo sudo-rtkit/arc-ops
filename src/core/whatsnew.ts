@@ -10,7 +10,7 @@ import { RELEASES, type WhatsNewRelease } from './data/whatsnew';
 import { isObj } from './util';
 
 /* Kam bod vede: modul aplikace, hledání (Ctrl+K), Nastavení Opse. */
-export type WhatsNewLink = 'raid' | 'maps' | 'advisor' | 'search' | 'itemCard' | 'overlayApp' | 'games' | 'quests' | 'profile' | 'opsSettings' | 'loadouts' | 'appLoad' | 'diagnostics' | 'ask' | 'aiSettings';
+export type WhatsNewLink = 'raid' | 'maps' | 'advisor' | 'search' | 'itemCard' | 'overlayApp' | 'games' | 'quests' | 'profile' | 'opsSettings' | 'loadouts' | 'appLoad' | 'diagnostics' | 'ask' | 'aiSettings' | 'updateSettings';
 export interface WhatsNewState { seen: string | null }
 
 export const APP_VERSION: string = RELEASES[0].version;

@@ -87,7 +87,7 @@ export function installDiag(): void {
 export function resetDiagForTests(): void { recent.clear(); busy = false; }
 
 /* ----- jen hlavní okno (Rust odmítne jiné okno) ----- */
-export const DIAG_FEATURES = ['buddy', 'autoOpen', 'hotkey', 'widgets', 'autoCapture', 'gameLinkOff', 'passClicks', 'lowImpact', 'sound', 'autoSnapshot', 'ai'] as const;
+export const DIAG_FEATURES = ['buddy', 'autoOpen', 'hotkey', 'widgets', 'autoCapture', 'gameLinkOff', 'passClicks', 'lowImpact', 'sound', 'autoSnapshot', 'ai', 'updateCheck'] as const;
 export type DiagFeatures = Record<(typeof DIAG_FEATURES)[number], boolean>;
 
 /* Které volitelné funkce jsou zapnuté (jen true/false, žádná hodnota ani nastavení navíc). */
@@ -104,6 +104,7 @@ export function diagFeatures(s: AppState): DiagFeatures {
     sound: s.opsPrefs.sound === true,
     autoSnapshot: s.settings.autoSnapshot === true,
     ai: s.ai?.on === true,
+    updateCheck: s.update?.enabled === true,
   };
 }
 

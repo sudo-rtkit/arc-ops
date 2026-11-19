@@ -324,6 +324,8 @@ export const orNA = (v: string | null | undefined): ReactNode => (v && v.trim() 
 /* Externí odkaz: otevře se v prohlížeči jen na kliknutí a je označený „vyžaduje internet“. Otevírání dodá store. */
 let openExternal: (url: string) => void = () => undefined;
 export const setExternalOpener = (fn: (url: string) => void) => { openExternal = fn; };
+/* 0.33.0: stejné otevření odkazu pro tlačítko (stránka vydání); povolí ho store (jen https) a Rust (open_external) */
+export const openExternalUrl = (url: string): void => openExternal(url);
 export function ExtLink({ url, children }: { url: string; children: ReactNode }) {
   const t = useT();
   return (

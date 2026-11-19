@@ -32,6 +32,7 @@ function follow(link: WhatsNewLink): void {
     case 'appLoad': navigate('settings', 'load'); return;
     case 'diagnostics': navigate('settings', 'diag'); return;
     case 'aiSettings': navigate('settings', 'ai'); return;
+    case 'updateSettings': navigate('settings', 'update'); return;
     default: navigate(link);
   }
 }

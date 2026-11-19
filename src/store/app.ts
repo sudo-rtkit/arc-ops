@@ -31,6 +31,7 @@ import { normalizeOpsPrefs, normalizeWidgetsSwitch } from '../core/opsPrefs';
 import { AI_CONSENT_VERSION, AI_COUNT_MAX, consentCurrent, isAiProvider, modelOk, normalizeAsk, type AiKind, type AiProvider } from '../core/ai';
 import { callAiHook } from './aiHook';
 import { markSeen } from '../core/whatsnew';
+import { isVersion, newerRelease, normalizeUpdateResult, NO_NET_ERRORS, type UpdateResult } from '../core/update';
 import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
 import { buildDraft, gearReview, lifeStep, type LifeEvent, type LifeStep, type LoadoutField, type ResultCapture } from '../core/raidLife';
 import { raidWithSig } from '../core/lootImport';
@@ -330,6 +331,9 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
     /* 0.30.0: AI asistent (zapnutí, souhlas, poskytovatel, model, dnešní počet) patří tomuto počítači; import ho nikdy
        nezapne */
     n.ai = structuredClone(st().ai);
+    /* 0.33.0: kontrola nové verze (zapnutí, poslední výsledek, skrytá verze) patří tomuto počítači; import ji nikdy
+       nezapne a adresu vydání z importu nikdy nepřevezme */
+    n.update = structuredClone(st().update);
     const raidIds = new Set(n.raids.map(r => r.id));
     n.review = st().review.filter(x => x.raidId === null || raidIds.has(x.raidId));
     n.autoLog = st().autoLog.filter(w => w.undone || raidIds.has(w.raidId));
@@ -1339,6 +1343,38 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         }
         if (!s.ai.consentAt && !s.ai.on) return false;
         s.ai = { ...s.ai, consentAt: 0, consentVersion: 0, on: false };
+      });
+    },
+    /* 0.33.0: kontrola nové verze (jen Nastavení hlavního okna; v overlayi zablokované). Výchozí stav vypnuto. */
+    setUpdateCheck(on: boolean) {
+      change(s => {
+        if (s.update.enabled === (on === true)) return false;
+        s.update = { ...s.update, enabled: on === true };
+      });
+    },
+    /* Výsledek kontroly (volá jen obsluha kontroly v hlavním okně). Výsledek se znovu ověří (adresa z verze);
+       čas kontroly se uloží, jen když se šlo na síť (hra v popředí, jiné okno, bez Tauri = ne). */
+    updateResult(result: UpdateResult, at: number) {
+      const r = normalizeUpdateResult(result);
+      if (!r || !Number.isFinite(at) || at <= 0) return;
+      change(s => {
+        const net = r.ok || !NO_NET_ERRORS.includes(r.error);
+        s.update = { ...s.update, lastResult: r, lastCheck: net ? Math.floor(at) : s.update.lastCheck };
+      });
+    },
+    /* „Skrýt tuto verzi“: jen novější verze z posledního výsledku */
+    updateSkip(version: string) {
+      change(s => {
+        const r = newerRelease(s.update);
+        if (!isVersion(version) || !r || r.latest !== version || s.update.skippedVersion === version) return false;
+        s.update = { ...s.update, skippedVersion: version };
+      });
+    },
+    /* Ops už o verzi jednou řekl hlášku */
+    updateNotified(version: string) {
+      change(s => {
+        if (!isVersion(version) || s.update.notifiedVersion === version) return false;
+        s.update = { ...s.update, notifiedVersion: version };
       });
     },
     /* dnešní počet dotazů (místní den); volá jen obsluha AI v hlavním okně po dotazu, který došel k poskytovateli */

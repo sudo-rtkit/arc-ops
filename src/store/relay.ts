@@ -68,6 +68,8 @@ export const BLOCKED_ACTIONS = {
   mapEdit: none, setMapImage: none,
   setAutoSnapshot: none, setLang: none, whatsNewSeen: none, setWidgets: none, setPassClicks: none, setLowImpact: none, setConsoleKey: none,
   setAi: none, aiConsent: none, aiCount: none,
+  /* 0.33.0: kontrola nové verze (nastavení tohoto počítače a výsledek z Rustu jen v hlavním okně) */
+  setUpdateCheck: none, updateResult: none, updateSkip: none, updateNotified: none,
   setAutoCapture: () => false, setGameLinkOff: () => false, lifeEvent: () => null, autoRaid: later(null), reviewAddScreen: () => false, setBuddy: none, setMainWindow: none, setCloseAction: none, setBuddyPosition: none,
   createManualSnapshot: later(false), listSnapshots: later([]), deleteSnapshot: later(undefined), restoreSnapshot: later(false),
   importState: later(false), resetModule: later(false), resetAll: later(false), exportBackup: later(false), retrySave: later(undefined),

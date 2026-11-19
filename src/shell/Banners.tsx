@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from 'lucide-react';
+import { CircleAlert, CircleCheck, ExternalLink, Info, TriangleAlert, X } from 'lucide-react';
 import { actions, app, useApp } from '../store';
 import { Btn, Dialog, IconBtn } from '../ui/components';
 import { fmtDateTime } from '../ui/format';
@@ -10,6 +10,8 @@ import { launchInfo } from '../ops/native';
 import { AutoWrites } from '../ui/AutoReview';
 import { navigate } from '../store';
 import { exportDiagnostics, uncleanDismissed, dismissUnclean } from '../ui/diagUi';
+import { bannerRelease } from '../core/update';
+import { openRelease } from '../ui/updateUi';
 
 /* Hlášení úložiště se zobrazí v jazyce UI podle zdroje dat (text z úložiště je jen česká pojistka). */
 const loadWarning = (t: TFn, load: LoadInfo): string =>
@@ -19,6 +21,8 @@ export function Banners() {
   const save = useApp(s => s.save);
   const load = useApp(s => s.load);
   const updatedAt = useApp(s => s.state.meta.updatedAt);
+  /* 0.33.0: nová verze (jen se zapnutou kontrolou, ne skrytá); klidný pruh jen tady v hlavním okně */
+  const release = useApp(s => bannerRelease(s.state.update));
   const [hideLoad, setHideLoad] = useState(false);
   const [details, setDetails] = useState(false);
   /* 0.8.0: start při běžící hře – okno se otevřelo minimalizované bez fokusu; nenápadné upozornění do zavření */
@@ -35,6 +39,14 @@ export function Banners() {
     <>
       {/* 0.20.0: automatické zápisy raidů (jen v okně aplikace, žádné vyskakovací okno nad hrou) */}
       <AutoWrites onOpenReview={() => navigate('journal')} />
+      {release && (
+        <div className="banner info" role="status" data-testid="update-banner" data-version={release.latest}>
+          <Info size={18} aria-hidden="true" />
+          <span className="banner-text">{t('update.banner', { v: release.latest })}</span>
+          <Btn size="sm" icon={ExternalLink} onClick={() => openRelease(release)} data-testid="update-banner-open">{t('update.open')}</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => actions.updateSkip(release.latest)} data-testid="update-banner-skip">{t('update.skip')}</Btn>
+        </div>
+      )}
       {bgStart && (
         <div className="banner info" role="status" data-testid="bg-start">
           <Info size={18} aria-hidden="true" />

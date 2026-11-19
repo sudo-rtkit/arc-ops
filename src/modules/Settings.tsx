@@ -26,6 +26,7 @@ import { AutoCapturePanel, GameLinkPanel } from './AutoSettings';
 import { AppLoadPanel } from './AppLoad';
 import { DiagnosticsPanel } from './Diagnostics';
 import { AiSettingsPanel } from './AiSettings';
+import { UpdatePanel } from './UpdateSettings';
 import { WindowPanel } from './WindowSettings';
 import { APP_VERSION } from '../core/whatsnew';
 import { openWhatsNew } from '../shell/WhatsNew';
@@ -319,6 +320,8 @@ export default function Settings({ sub }: { sub: string }) {
         <p className="meta">{t('settings.sourcesArcData', { quests: AT_QUESTS.length, modules: AT_HIDEOUT.length, projects: AT_PROJECTS.length, date: AT_DATE })}</p>
         <p className="meta" data-testid="data-sources-items">{t('settings.sourcesItems', { items: ITEM_DATA.length, offers: TRADER_OFFERS.length, date: ITEMS_DATE, weapons: WEAPON_STATS.length })}</p>
       </Panel>
+      <Anchor id="update" />
+      <UpdatePanel />
       <Anchor id="diag" />
       <DiagnosticsPanel />
       <Anchor id="about" />

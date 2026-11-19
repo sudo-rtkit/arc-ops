@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Hlavní okno (plný i kompaktní režim, 0.16.1): jen poslech událostí a vlastní příkazy, které hlavní okno volá. Úložiště, dialogy, odkazy, buddy, snímek a ovládání okna jdou přes příkazy v Rustu; žádná oprávnění Tauri navíc (tray, menu, obrázky, cesty, emit z JS). 0.28.0: místní deník chyb: zápis (diag_log) a jen tady čtení, export a vymazání (diag_read, diag_export, diag_clear). 0.30.0: AI asistent jen tady: dotaz (ai_ask; síť jen v Rustu, pevní hostitelé HTTPS) a klíč ve Windows Credential Manageru (ai_key_set, ai_key_clear, ai_key_status vrací jen ano/ne).",
+  "description": "Hlavní okno (plný i kompaktní režim, 0.16.1): jen poslech událostí a vlastní příkazy, které hlavní okno volá. Úložiště, dialogy, odkazy, buddy, snímek a ovládání okna jdou přes příkazy v Rustu; žádná oprávnění Tauri navíc (tray, menu, obrázky, cesty, emit z JS). 0.28.0: místní deník chyb: zápis (diag_log) a jen tady čtení, export a vymazání (diag_read, diag_export, diag_clear). 0.30.0: AI asistent jen tady: dotaz (ai_ask; síť jen v Rustu, pevní hostitelé HTTPS) a klíč ve Windows Credential Manageru (ai_key_set, ai_key_clear, ai_key_status vrací jen ano/ne). 0.33.0: kontrola nové verze jen tady (update_check; síť jen v Rustu, jen pevná adresa api.github.com, bez argumentů z okna).",
   "windows": ["main"],
   "permissions": [
     "core:event:allow-listen",
@@ -53,6 +53,7 @@
     "allow-ai-ask",
     "allow-ai-key-set",
     "allow-ai-key-clear",
-    "allow-ai-key-status"
+    "allow-ai-key-status",
+    "allow-update-check"
   ]
 }

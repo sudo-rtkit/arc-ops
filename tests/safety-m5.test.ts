@@ -34,12 +34,18 @@ describe('bezpečnost milníku 5', () => {
   });
 
   it('žádný síťový klient v src/ ani src-tauri/src', () => {
-    /* 0.30.0: jediná výjimka je volitelný AI asistent v src-tauri/src/ai.rs (ureq; std::net jen v jeho testech) */
+    /* 0.30.0: jediná výjimka je volitelný AI asistent v src-tauri/src/ai.rs (ureq; std::net jen v jeho testech);
+       0.33.0: a volitelná kontrola nové verze v src-tauri/src/update.rs (společný klient z ai.rs, std::net jen v testech) */
+    const NET = ['src-tauri/src/ai.rs', 'src-tauri/src/update.rs'];
     for (const word of ['reqwest', 'ureq', 'hyper::', 'TcpStream', 'UdpSocket', 'std::net', 'fetch(', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon']) {
-      expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual(['ureq', 'std::net'].includes(word) ? ['src-tauri/src/ai.rs'] : []);
+      expect(ALL.filter(f => load(f).includes(word)).map(rel), word).toEqual(['ureq', 'std::net'].includes(word) ? NET : []);
     }
-    const ai = read('src-tauri/src/ai.rs');
-    expect(ai.slice(0, ai.indexOf('#[cfg(test)]\nmod tests')).includes('std::net'), 'std::net mimo testy').toBe(false);
+    for (const f of NET) {
+      const src = read(f).replace(/\r\n/g, '\n');
+      const at = src.indexOf('#[cfg(test)]\nmod tests');
+      expect(at, f).toBeGreaterThan(0);
+      expect(src.slice(0, at).includes('std::net'), `std::net mimo testy: ${f}`).toBe(false);
+    }
   });
 
   it('snímání obrazovky, globální zkratka, seznam procesů a Win32 jsou jen ve vyhrazeném modulu ops.rs', () => {

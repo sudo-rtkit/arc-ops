@@ -1,6 +1,8 @@
 /* Kontrola zakázaných API: aplikace nesmí spouštět procesy, sahat do cizí paměti ani komunikovat po síti.
    0.30.0: jediná výjimka pro síť je volitelný AI asistent v src-tauri/src/ai.rs (klient ureq s rustls, pevní hostitelé
-   HTTPS, jen z hlavního okna; podrobně hlídá tests/safety-ai.test.ts). Jinde síť dál nesmí být. */
+   HTTPS, jen z hlavního okna; podrobně hlídá tests/safety-ai.test.ts) a 0.33.0 volitelná kontrola nové verze
+   v src-tauri/src/update.rs (jen pevná adresa api.github.com, společný klient z ai.rs; hlídá tests/safety-update.test.ts).
+   Jinde síť dál nesmí být. */
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 /* 0.30.0: jediný soubor se síťovým klientem (a v jeho testech místní zkušební server 127.0.0.1) */
-const NET_RS = 'src-tauri/src/ai.rs';
+const NET_RS = ['src-tauri/src/ai.rs', 'src-tauri/src/update.rs'];
 const NET_WORDS = ['ureq'];
 const FORBIDDEN = [
   'std::process::Command', 'process::Command', 'OpenProcess', 'ReadProcessMemory', 'WriteProcessMemory', 'CreateRemoteThread',
@@ -31,7 +33,7 @@ describe('bezpečnost zdrojového kódu', () => {
   for (const word of FORBIDDEN) {
     it(`neobsahuje ${word}`, () => {
       const hits = files.filter(f => readFileSync(f, 'utf8').includes(word)).map(f => f.slice(root.length).split('\\').join('/'));
-      expect(hits).toEqual(NET_WORDS.includes(word) ? [NET_RS] : []);
+      expect(hits).toEqual(NET_WORDS.includes(word) ? NET_RS : []);
     });
   }
   it('Cargo.toml nemá síťového klienta', () => {

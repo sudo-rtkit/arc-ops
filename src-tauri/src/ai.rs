@@ -1,5 +1,5 @@
-//! 0.30.0: AI asistent Ops (fáze 1, docs/superpowers/specs/2026-11-14-ai-asistent-design.md). Jediné místo aplikace,
-//! které smí na síť, a jen sem:
+//! 0.30.0: AI asistent Ops (fáze 1, docs/superpowers/specs/2026-11-14-ai-asistent-design.md). Jedno ze dvou míst
+//! aplikace, která smí na síť (druhé je volitelná kontrola aktualizací v src/update.rs, 0.33.0), a jen sem:
 //! - Pevný seznam poskytovatelů (Groq, Google Gemini, OpenRouter), všichni s rozhraním chat completions kompatibilním
 //!   s OpenAI. Adresa je konstanta v kódu, nikdy z dat okna; jen HTTPS a jen hostitelé z `ALLOWED_HOSTS`, bez
 //!   přesměrování.
@@ -351,15 +351,7 @@ impl Transport for UreqTransport {
     fn post_within(&self, url: &str, key: &str, body: &[u8], limit: Duration) -> Result<(u16, Vec<u8>), NetErr> {
         /* nikdy déle než self.timeout */
         let timeout = limit.min(self.timeout);
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .timeout_global(Some(timeout))
-            .http_status_as_error(false)
-            .max_redirects(0)
-            .https_only(self.https_only)
-            .user_agent("arc-raiders-companion")
-            .build()
-            .into();
-        let res = agent
+        let res = agent(timeout, self.https_only, "arc-raiders-companion")
             .post(url)
             .header("Authorization", &format!("Bearer {key}"))
             .header("Content-Type", "application/json")
@@ -370,12 +362,31 @@ impl Transport for UreqTransport {
             Err(_) => return Err(NetErr::Offline),
         };
         let status = res.status().as_u16();
-        match res.body_mut().with_config().limit(self.max_read as u64).read_to_vec() {
-            Ok(b) => Ok((status, b)),
-            Err(ureq::Error::BodyExceedsLimit(_)) => Err(NetErr::TooBig),
-            Err(ureq::Error::Timeout(_)) => Err(NetErr::Timeout),
-            Err(_) => Err(NetErr::Offline),
-        }
+        read_body(&mut res, self.max_read).map(|b| (status, b))
+    }
+}
+
+/// 0.33.0: společný klient HTTP aplikace (AI asistent a kontrola aktualizací, src/update.rs): ureq s rustls (bez
+/// OpenSSL a native-tls), bez přesměrování, bez cookies (ureq bez funkce `cookies`), stav HTTP jako hodnota, časový
+/// limit celého dotazu a pevný User-Agent.
+pub fn agent(timeout: Duration, https_only: bool, user_agent: &str) -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .https_only(https_only)
+        .user_agent(user_agent)
+        .build()
+        .into()
+}
+
+/// 0.33.0: čtení těla odpovědi s mezí (společné pro AI i kontrolu aktualizací).
+pub fn read_body(res: &mut ureq::http::Response<ureq::Body>, max_read: usize) -> Result<Vec<u8>, NetErr> {
+    match res.body_mut().with_config().limit(max_read as u64).read_to_vec() {
+        Ok(b) => Ok(b),
+        Err(ureq::Error::BodyExceedsLimit(_)) => Err(NetErr::TooBig),
+        Err(ureq::Error::Timeout(_)) => Err(NetErr::Timeout),
+        Err(_) => Err(NetErr::Offline),
     }
 }
 

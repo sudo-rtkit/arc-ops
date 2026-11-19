@@ -25,7 +25,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 import { app } from './store';
 import { LANGS, ensureLang, langReady } from './i18n';
 
-import { hub, ai } from './ops/mainHub';
+import { hub, ai, updates } from './ops/mainHub';
 import { startWindowCtl } from './shell/windowCtl';
 import './ui/compact.css';
 
@@ -36,6 +36,8 @@ const booted = app.init();
 hub.start();
 /* 0.30.0: AI asistent (výchozí stav vypnuto; dotaz jen na výslovnou akci hráče) */
 ai.start();
+/* 0.33.0: kontrola nové verze (výchozí stav vypnuto; automaticky nejvýš jednou za den, nikdy při hře v popředí) */
+updates.start();
 /* 0.9.0: režim okna, křížek a oznamovací oblast. Zavření křížkem řeší windowCtl (uloží stav, pak skryje nebo
    ukončí); bez připraveného frontendu Rust okno zavře jako dřív. */
 startWindowCtl();

@@ -4,6 +4,7 @@ import type { WhatsNewState } from './whatsnew';
 import type { AutoCaptureState, AutoWrite, GameLinkState, ReviewItem } from './autoCapture';
 import type { RaidAuto, RaidLife } from './raidLife';
 import type { AiPrefs } from './ai';
+import type { UpdatePrefs } from './update';
 import type { ProvenanceState } from './provenance';
 export type { Lang };
 
@@ -441,6 +442,10 @@ export interface AppState {
      Ve starším stavu chybí a začne vypnutý. Patří tomuto počítači: import zálohy ani obnova ho nemění. Klíč tu nikdy
      není (Windows Credential Manager). */
   ai: AiPrefs;
+  /* 0.33.0 (schéma 19 beze změny): volitelná kontrola nové verze (zapnuto, poslední kontrola a výsledek, skrytá
+     verze, verze ohlášená Opsem). Ve starším stavu chybí a začne vypnutá. Patří tomuto počítači: import zálohy ani
+     obnova ji nemění a nikdy nezapnou; adresa vydání se vždy počítá z ověřené verze. */
+  update: UpdatePrefs;
   /* lang: jazyk UI (od verze 0.3.0; ve starším stavu chybí a doplní ho normalize). */
   settings: { autoSnapshot: boolean; lang: Lang };
 }

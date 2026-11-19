@@ -72,7 +72,9 @@ describe('0.30.0: AI asistent: příkazy a oprávnění', () => {
     expect(ask).toContain('let url = p.endpoint();');
     expect(ask).toContain('if !endpoint_ok(url)');
     expect(ureqImpl()).toContain('.max_redirects(0)');
-    expect(ureqImpl()).toContain('.https_only(self.https_only)');
+    /* 0.33.0: společný klient (fn agent) pro AI i kontrolu aktualizací; https_only z UreqTransport */
+    expect(ureqImpl()).toContain('.https_only(https_only)');
+    expect(ureqImpl()).toContain('agent(timeout, self.https_only, "arc-raiders-companion")');
     expect(fnBody('production')).toContain('https_only: true');
     /* argumenty příkazu: žádná adresa ani hostitel z okna */
     const sig = fnBody('ai_ask');
@@ -89,7 +91,8 @@ describe('0.30.0: AI asistent: příkazy a oprávnění', () => {
     const order = ['main_label(label)?', 'messages_ok(msgs)?', 'if game_front', 'ai.keys.get(p)?', 'BusyGuard::take', '.admit(now, day)?', 'ai.transport.post('];
     for (let i = 1; i < order.length; i++) expect(ask.indexOf(order[i - 1]), order[i]).toBeLessThan(ask.indexOf(order[i]));
     expect(fnBody('ai_ask')).toContain('crate::ops::game_in_front()');
-    expect(ureqImpl()).toContain('.limit(self.max_read as u64)');
+    expect(ureqImpl()).toContain('.limit(max_read as u64)');
+    expect(ureqImpl()).toContain('read_body(&mut res, self.max_read)');
     /* 0.32.0: post_within jen zkracuje (opakování po prázdné odpovědi ve zbytku TIMEOUT), nikdy neprodlouží */
     expect(ureqImpl()).toContain('let timeout = limit.min(self.timeout);');
     expect(ureqImpl()).toContain('.timeout_global(Some(timeout))');
@@ -123,13 +126,13 @@ describe('0.30.0: AI asistent: příkazy a oprávnění', () => {
     expect(read('src-tauri/src/diag.rs')).toContain('const KEY_PREFIXES: [&str; 3] = ["gsk_", "AIza", "sk-"];');
   });
 
-  it('klient HTTP: ureq s rustls, bez native-tls/OpenSSL; jen v ai.rs', () => {
+  it('klient HTTP: ureq s rustls, bez native-tls/OpenSSL; jen v ai.rs (a 0.33.0 v update.rs přes společný klient)', () => {
     const cargo = read('src-tauri/Cargo.toml');
     expect(cargo).toContain('ureq = { version = "3.5", default-features = false, features = ["rustls"] }');
     const lock = read('src-tauri/Cargo.lock');
     for (const bad of ['name = "openssl"', 'name = "openssl-sys"', 'name = "native-tls"', 'name = "aws-lc-sys"']) expect(lock.includes(bad), bad).toBe(false);
     const rs = walk(join(root, 'src-tauri', 'src'), /\.rs$/).map(rel).filter(f => read(f).includes('ureq'));
-    expect(rs).toEqual([AI_RS]);
+    expect(rs).toEqual([AI_RS, 'src-tauri/src/update.rs']);
   });
 });
 

@@ -27,6 +27,7 @@ import { emptyWhatsNew, normalizeWhatsNew } from './whatsnew';
 import { emptyAutoCapture, emptyGameLink, normalizeAutoCapture, normalizeAutoLog, normalizeGameLink, normalizeReview } from './autoCapture';
 import { emptyRaidLife, normalizeRaidAuto, normalizeRaidLife } from './raidLife';
 import { emptyAi, normalizeAi } from './ai';
+import { emptyUpdate, normalizeUpdate } from './update';
 import { emptyProvenance, normalizeProvenance, seedMigration } from './provenance';
 import { clampInt, clampNum, isObj, safeEntries, text, uid } from './util';
 import { cleanPoints, isPlanKey } from './skills';
@@ -106,6 +107,7 @@ export function defaultState(now: number = Date.now(), lang: Lang = 'cs'): AppSt
     autoLog: [],
     provenance: emptyProvenance(),
     ai: emptyAi(),
+    update: emptyUpdate(),
     settings: { autoSnapshot: true, lang },
   };
 }
@@ -493,6 +495,8 @@ export function normalize(raw: unknown, now: number = Date.now(), lang: Lang = '
   out.autoLog = normalizeAutoLog(r.autoLog).filter(w => w.undone || raidIds.has(w.raidId));
   /* 0.30.0: AI asistent (volitelné pole, schéma zůstává 19); ve starším stavu chybí a začne vypnutý */
   out.ai = normalizeAi(r.ai);
+  /* 0.33.0: kontrola nové verze (volitelné pole, schéma zůstává 19); ve starším stavu chybí a začne vypnutá */
+  out.update = normalizeUpdate(r.update, now);
   out.settings.autoSnapshot = objOf(r.settings).autoSnapshot !== false;
   out.settings.lang = stateLang;
   /* 0.13.1: opravené názvy materiálů (Cable Strippers → Cable Stripper); počty a odkazy zůstanou */

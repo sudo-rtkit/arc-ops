@@ -9,7 +9,7 @@
 [Česky](README.cs.md) · [Install on Windows](#install-on-windows) · [Changelog](CHANGELOG.md) · [Development](DEVELOPMENT.md)
 
 ![Windows](https://img.shields.io/badge/platform-Windows-272D31?style=flat-square)
-![Version 0.32.0](https://img.shields.io/badge/version-0.32.0-F4AD82?style=flat-square)
+![Version 0.33.0](https://img.shields.io/badge/version-0.33.0-F4AD82?style=flat-square)
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 ![Offline](https://img.shields.io/badge/data-local%20%26%20offline-91CFAB?style=flat-square)
 ![MIT licence](https://img.shields.io/badge/licence-MIT-91BDE6?style=flat-square)
@@ -151,6 +151,7 @@ For an upgrade, use the newer installer over the existing installation; local da
 ## Your data stays with you
 
 - Works offline with no account login, telemetry or cloud upload. Nothing is sent to a server by the app; external source links open only when you choose them. The one exception is the optional AI assistant (off by default, your own key): it sends a question only when you click, as described above.
+- The optional update check (**Settings → Updates**) is the only other network call. It is **off by default**; when on, at most once a day it contacts only `api.github.com` for this repository's latest release, sending nothing but the app name and version. It only tells you about a new version and opens the release page when you click; it never downloads or runs anything.
 - Inventory, loot and progression screenshots are processed locally. Native hotkey capture stays in memory and is discarded after reading; imported screenshot images are not saved. Map screenshots you add yourself are stored only on this device and go into a backup only if you choose. Learned numeric icon fingerprints and confirmed values may be stored locally.
 - No game-memory access, code injection, game-file modification or automated game input. Optional “open with game” checks process names and window visibility/foreground status; it does not open the game process for memory access.
 - File and hotkey recognition proposes changes for review. Opt-in automatic capture can write certain fields after a state snapshot with Undo; uncertain fields wait for review. Unreadable fields stay unknown. JSON export/restore helps you recover from mistakes.
