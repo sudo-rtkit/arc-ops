@@ -131,8 +131,7 @@ for (const lang of ['cs', 'en'] as const) {
     /* načíst jako plán */
     await detail.getByRole('button', { name: x.load }).click();
     await expect(detail.getByText(x.loaded)).toBeVisible();
-    await page.waitForTimeout(700);
-    expect((await stateOf(page)).skills.activePlan).toBe('catalog:buldozer:91');
+    await expect.poll(async () => (await stateOf(page))?.skills?.activePlan).toBe('catalog:buldozer:91');
 
     /* uložit jako můj build */
     await detail.getByRole('button', { name: x.save }).click();
@@ -140,9 +139,8 @@ for (const lang of ['cs', 'en'] as const) {
     await expect(dlg.getByLabel(lang === 'cs' ? 'Název' : 'Name', { exact: true })).toHaveValue(lang === 'cs' ? 'Buldozer (91)' : 'Bulldozer (91)');
     await dlg.getByRole('button', { name: x.saveBtn }).click();
     await expect(dlg).toHaveCount(0);
-    await page.waitForTimeout(700);
+    await expect.poll(async () => (await stateOf(page))?.skills?.builds?.length).toBe(2);
     const st = await stateOf(page);
-    expect(st.skills.builds).toHaveLength(2);
     expect(st.skills.builds[0]).toEqual({ id: 'mine', name: 'Old build', note: '', points: { c_used: 1 } });
     expect(Object.values(st.skills.builds[1].points as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(91);
     expect(st.skills.current).toEqual({ s_craft: 1, s_instincts: 5, s_silent: 4 });

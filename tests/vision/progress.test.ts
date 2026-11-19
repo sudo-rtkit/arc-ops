@@ -2,7 +2,7 @@
    římské číslice, pravidla návrhu (jistota, ověření proti datům, nic se nehádá) a zápis jen potvrzených hodnot. */
 import { describe, expect, it } from 'vitest';
 import { components, maskOf } from '../../src/core/vision/digits';
-import { resize } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import { readProgress, type ProgressRead } from '../../src/core/vision/progress';
 import { creamPanel, parseNumber, romanOf } from '../../src/core/vision/text';
 import { readCapture } from '../../src/core/opsCapture';

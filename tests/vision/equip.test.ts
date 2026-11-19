@@ -9,7 +9,8 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { PNG } from 'pngjs';
-import { resize, rotate, type RgbaImage } from '../../src/core/vision/image';
+import { rotate, type RgbaImage } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import type { Box } from '../../src/core/vision/layout';
 import {
   AUGMENT_PAD, SHAPE_LEN, ASPECT_TOL, SHAPE_SURE, MAG_SHAPE_MIN, AMMO_RIVAL_MAX, AMMO_GAP, ammoArea, augmentImageArea, magFits, matchShape, readAmmo, readWeaponTier, shapeOf, shapeSimilarity,
@@ -17,7 +18,7 @@ import {
 } from '../../src/core/vision/equip';
 import { readRarity } from '../../src/core/vision/rarity';
 import { AMMO_TYPES, type AmmoType } from '../../src/core/vision/ammoIcon';
-import { CREAM, text as drawText } from './progress-synth';
+import { CREAM, filled, text as drawText } from './progress-synth';
 import { equipBoxes, readLoadout } from '../../src/core/vision/loadout';
 import { detectLayout } from '../../src/core/vision/layout';
 import { matchContext } from '../../src/core/catalog';
@@ -34,11 +35,7 @@ const RIFLE: Rect[] = [[0, 14, 100, 4], [30, 10, 42, 10], [84, 10, 16, 15], [56,
 const PISTOL: Rect[] = [[0, 2, 64, 14], [40, 16, 14, 22], [10, 0, 20, 3]];
 const SCOPED: Rect[] = [[0, 16, 100, 3], [38, 3, 28, 7], [48, 18, 9, 18], [78, 13, 22, 13], [20, 12, 50, 6]];
 const BG: [number, number, number, number] = [12, 15, 26, 255];
-const blank = (w: number, h: number, bg = BG): RgbaImage => {
-  const d = new Uint8ClampedArray(w * h * 4);
-  for (let i = 0; i < w * h; i++) d.set(bg, i * 4);
-  return { width: w, height: h, data: d };
-};
+const blank = (w: number, h: number, bg = BG): RgbaImage => ({ width: w, height: h, data: filled(w, h, bg) });
 /* nakreslí tvar s měřítkem k (px na jednotku) od bodu (x0, y0); jas s jemným vzorem jako kov */
 function draw(img: RgbaImage, rects: Rect[], x0: number, y0: number, k: number) {
   for (const [rx, ry, rw, rh] of rects) {
@@ -51,16 +48,24 @@ function draw(img: RgbaImage, rects: Rect[], x0: number, y0: number, k: number) 
 }
 /* „ikona katalogu“: tvar ve velkém měřítku natočený o −32° (jako šikmé ikony MetaForge), pak narovnaný a zmenšený
    stejně jako ve scripts/gen-equip.mjs */
+/* Tvary podle obrysu se počítají jednou na obrys (dvě otočení velkého obrazu jsou drahá a testy si katalog skládají
+   znovu v každém kroku); záznam katalogu je pokaždé nový objekt. */
+const shapeCache = new Map<string, EquipShape['shapes']>();
 function catalogShape(name: string, rects: Rect[], extra: Partial<EquipShape> = {}): EquipShape {
+  const key = JSON.stringify(rects);
+  let shapes = shapeCache.get(key);
+  if (!shapes) { shapes = catalogShapes(rects); shapeCache.set(key, shapes); }
+  return { name, kind: 'weapon', rarity: 'common', mag: 20, shapes: shapes.map(s => ({ ...s, v: [...s.v] })), ...extra };
+}
+function catalogShapes(rects: Rect[]): EquipShape['shapes'] {
   const big = blank(560, 260);
   draw(big, rects, 30, 40, 5);
   const tilted = rotate(big, -32, BG);
-  const shapes = [30, 32, 34].map(a => {
+  return [30, 32, 34].map(a => {
     const r = rotate(tilted, a, BG);
     const s = resize(r, Math.round(r.width * 0.35), Math.round(r.height * 0.35));
     return shapeOf(s, { x: 0, y: 0, w: s.width, h: s.height }, null, 40)!;
   });
-  return { name, kind: 'weapon', rarity: 'common', mag: 20, shapes, ...extra };
 }
 /* místo zbraně 304 × 200 (1080p) se zbraní vodorovně v horní polovině */
 function weaponSlot(rects: Rect[], k: number): { img: RgbaImage; box: Box } {

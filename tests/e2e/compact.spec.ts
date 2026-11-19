@@ -13,8 +13,12 @@ function watchErrors(page: Page): string[] {
 }
 const stateOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('arcops:state') || 'null'));
 const winLog = (page: Page) => page.evaluate(() => (window as unknown as { __winTest: { log: string[] } }).__winTest.log.slice());
-/* uložení stavu (debounce 500 ms) */
-const settle = (page: Page) => page.waitForTimeout(800);
+/* uložení stavu (debounce 500 ms). S podmínkou ready čeká přesně na uložený stav, který ji splní (musí platit až po
+   změně); bez ní, kde se ověřuje, že se hodnota nezměnila, pevně 0,8 s. */
+const settle = async (page: Page, ready?: (st: any) => boolean) => {
+  if (ready) await expect.poll(async () => { const st = await stateOf(page); try { return !!st && ready(st); } catch { return false; } }).toBe(true);
+  else await page.waitForTimeout(800);
+};
 
 /* Hráč jako v návrhu: level 20, Gear Bench 1 → 2 zvolený v Planneru, tři připnuté úkoly. */
 const PLAYER = (lang: 'cs' | 'en', extra: Record<string, unknown> = {}) => ({
@@ -124,8 +128,7 @@ for (const lang of ['cs', 'en'] as const) {
     await c.getByRole('button', { name: lang === 'cs' ? 'Nastavit profil' : 'Set up profile' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Player Profile' })).toBeVisible();
     await expect(page).toHaveURL(/#profile$/);
-    await settle(page);
-    expect((await stateOf(page)).mainWindow.mode).toBe('full');
+    await settle(page, st => st.mainWindow.mode === 'full');
     expect(errors).toEqual([]);
   });
 }
@@ -164,7 +167,7 @@ test('rozbalení a návrat, zkratky v okně, připnutí jen v kompaktu, sbalení
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
   await expect(page.getByTestId('compact-pin')).toHaveCount(0);
   await expect(page.getByTestId('to-compact')).toBeFocused();
-  await settle(page);
+  await settle(page, st => st.mainWindow.mode === 'full');
   let st = await stateOf(page);
   expect(st.mainWindow).toMatchObject({ mode: 'full', pin: true, collapsed: { shop: true } });
   /* zpět pojmenovaným tlačítkem: připnutí i sbalení zůstalo */
@@ -184,7 +187,7 @@ test('rozbalení a návrat, zkratky v okně, připnutí jen v kompaktu, sbalení
   await page.locator('[data-section="shop"] summary').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('compact-shop')).toBeVisible();
-  await settle(page);
+  await settle(page, st => st.mainWindow.mode === 'compact' && st.mainWindow.pin === false);
   st = await stateOf(page);
   expect(st.mainWindow).toMatchObject({ mode: 'compact', pin: false, collapsed: {} });
   expect(await winLog(page)).toEqual(expect.arrayContaining(['pin:true', 'mode:full', 'mode:compact', 'pin:false']));
@@ -230,8 +233,7 @@ test('křížek: poprvé dialog, zapamatovaná volba pak potichu, změna v Nasta
   await dlg.getByRole('button', { name: 'Skrýt do oznamovací oblasti' }).click();
   await expect(dlg).toBeHidden();
   expect((await winLog(page)).filter(x => x === 'hide')).toHaveLength(1);
-  await settle(page);
-  expect((await stateOf(page)).mainWindow.close).toBe('tray');
+  await settle(page, st => st.mainWindow.close === 'tray');
   await page.getByTestId('compact-close').click();
   await expect(dlg).toBeHidden();
   expect((await winLog(page)).filter(x => x === 'hide')).toHaveLength(2);
@@ -243,7 +245,7 @@ test('křížek: poprvé dialog, zapamatovaná volba pak potichu, změna v Nasta
   await panel.getByRole('button', { name: 'Pokaždé se zeptat' }).click();
   await expect(panel.getByRole('button', { name: 'Pokaždé se zeptat' })).toHaveAttribute('aria-pressed', 'true');
   await panel.getByLabel('Počet úkolů v kompaktu').selectOption('5');
-  await settle(page);
+  await settle(page, st => st.mainWindow.quests === 5);
   expect((await stateOf(page)).mainWindow).toMatchObject({ close: 'ask', quests: 5 });
   await panel.getByTestId('win-to-compact').click();
   await expect(page.getByTestId('compact')).toBeVisible();
@@ -273,7 +275,6 @@ test('close button settings in English and pinning a quest', async ({ page }) =>
   await page.getByTestId('compact-close').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await winLog(page)).toContain('quit');
-  await settle(page);
-  expect((await stateOf(page)).mainWindow.close).toBe('quit');
+  await settle(page, st => st.mainWindow.close === 'quit');
   expect(errors).toEqual([]);
 });

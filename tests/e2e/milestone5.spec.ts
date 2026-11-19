@@ -85,15 +85,13 @@ for (const lang of ['cs', 'en'] as const) {
       await page.keyboard.press('Control+Shift+KeyS');
       await expect(page.getByTestId('ops-hotkey')).toHaveText('Ctrl+Shift+S');
       await page.getByRole('button', { name: L.scale2 }).click();
-      await page.waitForTimeout(700);
+      await expect.poll(async () => (await stateOf(page))?.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2 });
       let st = await stateOf(page);
       expect(st.schema).toBe(19);
       expect(st.buddy).toMatchObject({ enabled: true, hotkey: 'Ctrl+Shift+KeyS', scale: 2, opacity: 90, autoOpen: false });
       await sw.uncheck();
       await expect(page.getByTestId('ops-off')).toBeVisible();
-      await page.waitForTimeout(700);
-      st = await stateOf(page);
-      expect(st.buddy.enabled).toBe(false);
+      await expect.poll(async () => (await stateOf(page))?.buddy?.enabled).toBe(false);
       expect(errors).toEqual([]);
     });
 
@@ -105,12 +103,10 @@ for (const lang of ['cs', 'en'] as const) {
       await expect(page.getByTestId('ops-form')).toHaveText(L.form);
       await expect.poll(() => opaquePixels(page, '.ops-preview canvas')).toBeGreaterThan(800);
       await page.getByLabel(L.antenna, { exact: true }).selectOption({ label: L.none });
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).buddy.outfit).toEqual({ antenna: null });
+      await expect.poll(async () => (await stateOf(page))?.buddy?.outfit).toEqual({ antenna: null });
       await page.getByRole('button', { name: L.auto }).click();
-      await page.waitForTimeout(700);
+      await expect.poll(async () => (await stateOf(page))?.buddy?.outfit).toEqual({});
       const st = await stateOf(page);
-      expect(st.buddy.outfit).toEqual({});
       expect(st.buddy.unlocked.length).toBe(24); /* level 15 přidá i štítek */
       expect(errors).toEqual([]);
     });
@@ -156,7 +152,7 @@ for (const lang of ['cs', 'en'] as const) {
       await expect(write).toBeEnabled();
       await write.click();
       await expect(ov.getByTestId('ov-done')).toContainText(L.written);
-      await page.waitForTimeout(700);
+      await expect.poll(async () => (await stateOf(page))?.inventory?.['Magnetic Accelerator']).toBe(8);
       const st = await stateOf(page);
       expect(st.inventory['Magnetic Accelerator']).toBe(8);
       expect(st.profile.coins).toBe(51060);

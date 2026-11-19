@@ -4,7 +4,7 @@
    Tvrdé pravidlo: žádné falešné „splněno“. */
 import { describe, expect, it } from 'vitest';
 import { questState, readProgress, type QuestEvidence, type QuestRead } from '../../src/core/vision/progress';
-import { resize } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import { applyProgress, defaultApply, normalizeProgressApply, proposalChanges, proposeProgress, questDoneMatch, questTickChanges, type QuestProposal } from '../../src/core/progressImport';
 import { QUESTS, prerequisites } from '../../src/core/quests';
 import { nameDistance } from '../../src/core/catalog';

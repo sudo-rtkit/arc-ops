@@ -4,11 +4,14 @@
    v src-tauri/src/update.rs (jen pevná adresa api.github.com, společný klient z ai.rs; hlídá tests/safety-update.test.ts).
    Jinde síť dál nesmí být. */
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync as readFs, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+/* každé zakázané slovo prochází všechny zdrojové soubory; soubor se přečte jednou (jako v tests/safety-vision.test.ts) */
+const fileCache = new Map<string, string>();
+const readFileSync = (f: string, enc: 'utf8'): string => { let v = fileCache.get(f); if (v === undefined) { v = readFs(f, enc); fileCache.set(f, v); } return v; };
 /* 0.30.0: jediný soubor se síťovým klientem (a v jeho testech místní zkušební server 127.0.0.1) */
 const NET_RS = ['src-tauri/src/ai.rs', 'src-tauri/src/update.rs'];
 const NET_WORDS = ['ureq'];

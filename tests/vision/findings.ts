@@ -18,12 +18,23 @@ export const QUICK_COUNTS = [3, 6];
 
 export interface FindingsOptions { button?: boolean; /* jiný obsah: vynechá políčka batohu podle indexu */ skip?: number[] }
 
+/* Hotové obrazovky podle voleb: testy je skládají znovu a znovu (rozpoznání mřížky vzoru je drahé), každý volající
+   dostane vlastní kopii pixelů, takže úprava jednoho snímku neovlivní jiný test. */
+const made = new Map<string, RgbaImage>();
 export function syntheticFindings(opts: FindingsOptions = {}): RgbaImage {
-  const src = loadFixture(AMMO);
-  const g = detectLayout(src)!.panels.find(p => p.panel === 'stash')!;
+  const key = JSON.stringify([opts.button ?? true, opts.skip ?? []]);
+  let img = made.get(key);
+  if (!img) { img = build(opts); made.set(key, img); }
+  return { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data) };
+}
+let stash: { src: RgbaImage; g: NonNullable<ReturnType<typeof detectLayout>>['panels'][number] } | undefined;
+function build(opts: FindingsOptions): RgbaImage {
+  stash ??= { src: loadFixture(AMMO), g: detectLayout(loadFixture(AMMO))!.panels.find(p => p.panel === 'stash')! };
+  const { src, g } = stash;
   const W = src.width, H = src.height;
   const out: RgbaImage = { width: W, height: H, data: new Uint8ClampedArray(W * H * 4) };
-  for (let i = 0; i < W * H; i++) out.data.set(BG, i * 4);
+  out.data.set(BG);
+  for (let n = 4; n < out.data.length; n *= 2) out.data.copyWithin(n, 0, Math.min(n, out.data.length - n));
   const m = Math.round((g.pitchX - g.cell) / 2);
   const copy = (r: number, c: number, x: number, y: number) => {
     const b = cellBox(g, r, c);

@@ -8,9 +8,12 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 const stateOf = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('arcops:state') || 'null'));
-/* počká, až se změna zapíše (automatické ukládání po 0,5 s) */
-async function settle(page: Page) {
-  await page.waitForTimeout(800);
+/* počká, až se změna zapíše (automatické ukládání po 0,5 s). S podmínkou ready čeká přesně na uložený stav, který ji
+   splní (ready musí platit až po změně, na kterou se čeká); bez ní, kde test ověřuje, že se nic dalšího nezměnilo,
+   pevně 0,8 s. */
+async function settle(page: Page, ready?: (st: any) => boolean) {
+  if (ready) await expect.poll(async () => { const st = await stateOf(page); try { return !!st && ready(st); } catch { return false; } }).toBe(true);
+  else await page.waitForTimeout(800);
   await expect(page.getByRole('status').filter({ hasText: 'Uloženo' }).first()).toBeVisible({ timeout: 5000 });
 }
 
@@ -50,7 +53,7 @@ test('cíl materiálu se splní sám, když je materiál na skladě', async ({ p
   const inp = page.getByLabel('Mám Metal Parts', { exact: true });
   await inp.fill('5');
   await inp.press('Enter');
-  await settle(page);
+  await settle(page, st => st.goals[0]?.doneAt > 0);
   const st = await stateOf(page);
   expect(st.goals[0]).toMatchObject({ title: 'Kov na Gunsmith', priority: 1 });
   expect(st.goals[0].doneAt).toBeGreaterThan(0);
@@ -69,7 +72,7 @@ test('raid s lootem: zápis zásobu nemění, převod je ruční a idempotentní
   await dlg.getByRole('button', { name: 'Ztracená výbava: Přidat' }).click();
   await dlg.getByRole('button', { name: 'Uložit raid' }).click();
   await expect(dlg).toBeHidden();
-  await settle(page);
+  await settle(page, st => st.raids.length > 0);
   let st = await stateOf(page);
   expect(st.raids[0].loot).toEqual([{ name: 'Metal Parts', qty: 3 }]);
   expect(st.raids[0].lost).toEqual([{ name: 'Light Shield', qty: 1 }]);
@@ -82,7 +85,7 @@ test('raid s lootem: zápis zásobu nemění, převod je ruční a idempotentní
   await page.getByRole('button', { name: 'Převést loot do Inventory' }).click();
   await expect(page.getByText('Loot v Inventory').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Převést loot do Inventory' })).toHaveCount(0);
-  await settle(page);
+  await settle(page, st => st.inventory['Metal Parts'] !== undefined);
   st = await stateOf(page);
   expect(st.inventory['Metal Parts']).toBe(3);
 
@@ -91,16 +94,14 @@ test('raid s lootem: zápis zásobu nemění, převod je ruční a idempotentní
   const edit = page.getByRole('dialog', { name: 'Upravit raid' });
   await edit.getByLabel('Výdělek (mince)').fill('25000');
   await edit.getByRole('button', { name: 'Uložit raid' }).click();
-  await settle(page);
+  await settle(page, st => st.raids[0].coins === 25000);
   st = await stateOf(page);
-  expect(st.raids[0].coins).toBe(25000);
   expect(st.inventory['Metal Parts']).toBe(3);
   expect(st.profile.rounds).toBe(1);
 
   /* vrácení převodu */
   await page.getByRole('button', { name: 'Vrátit převod' }).click();
-  await settle(page);
-  expect((await stateOf(page)).inventory['Metal Parts']).toBeUndefined();
+  await settle(page, st => st.inventory['Metal Parts'] === undefined);
 });
 
 test('vlastní šablona checklistu se uloží i s odškrtnutím', async ({ page }) => {
@@ -126,7 +127,7 @@ test('vlastní šablona checklistu se uloží i s odškrtnutím', async ({ page 
 test('Material Planner: další úroveň všech stanic dává stejný součet jako nákupní seznam', async ({ page }) => {
   await page.goto('/#inventory/planner');
   await page.getByRole('button', { name: 'Vše na další úroveň' }).click();
-  await settle(page);
+  await settle(page, st => st.planner.stations.gunsmith !== undefined);
   const st = await stateOf(page);
   expect(st.planner.stations.gunsmith).toBe(1);
   expect(st.inventory).toEqual({});
@@ -149,7 +150,7 @@ test('loadout se předvyplní do zápisu raidu a ukáže se ve statistikách', a
   await expect(raid.getByLabel('Loadout')).toHaveValue(/.+/);
   await expect(raid.locator('.item-list').first()).toContainText('Looting Mk. 2');
   await raid.getByRole('button', { name: 'Uložit raid' }).click();
-  await settle(page);
+  await settle(page, st => st.raids.length > 0);
   const st = await stateOf(page);
   expect(st.raids[0].loadout).toBe(st.loadouts[0].id);
   expect(st.raids[0].gear).toEqual([{ name: 'Looting Mk. 2', qty: 1 }]);
@@ -170,14 +171,12 @@ test('úprava trasy a prodejního ceníku se uloží a jde vrátit', async ({ pa
   await sell.getByLabel('Cena (mince)').fill('12000');
   await sell.getByRole('button', { name: 'Uložit' }).click();
   await expect(page.locator('table')).toContainText('12 000');
-  await settle(page);
+  await settle(page, st => st.gameData.sell.s0 !== undefined);
   let st = await stateOf(page);
   expect(st.gameData.routes.galleria).toEqual({ risk: 'Žádné' });
   expect(st.gameData.sell.s0).toEqual({ price: 12000 });
   await page.getByRole('button', { name: /^Vrátit výchozí Lance/ }).click();
-  await settle(page);
-  st = await stateOf(page);
-  expect(st.gameData.sell.s0).toBeUndefined();
+  await settle(page, st => st.gameData.sell.s0 === undefined);
 });
 
 test('reset nového modulu se potvrzuje a vytvoří snímek', async ({ page }) => {
@@ -185,15 +184,14 @@ test('reset nového modulu se potvrzuje a vytvoří snímek', async ({ page }) =
   await page.getByRole('button', { name: 'Nový cíl' }).first().click();
   await page.getByRole('dialog', { name: 'Nový cíl' }).getByLabel('Název').fill('Smazat mě');
   await page.getByRole('button', { name: 'Uložit cíl' }).click();
-  await settle(page);
+  await settle(page, st => st.goals.some((g: { title: string }) => g.title === 'Smazat mě'));
   await page.goto('/#settings');
   await page.getByLabel('Reset modulu').selectOption('goals');
   await page.getByRole('button', { name: 'Vynulovat Goal Tracker' }).click();
   const c = page.getByRole('dialog', { name: 'Vynulovat: Goal Tracker' });
   await expect(c).toBeVisible();
   await c.getByRole('button', { name: 'Vynulovat Goal Tracker' }).click();
-  await settle(page);
-  expect((await stateOf(page)).goals).toEqual([]);
+  await settle(page, st => st.goals.length === 0);
   const snaps = await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('arcops:snap:')));
   expect(snaps.some(k => k.includes('-reset-'))).toBe(true);
 });

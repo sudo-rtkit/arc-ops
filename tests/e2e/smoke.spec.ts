@@ -52,7 +52,7 @@ test('změna levelu přežije znovunačtení', async ({ page }) => {
   await level.fill('42');
   await level.press('Enter');
   await saved(page);
-  await page.waitForTimeout(700);
+  await expect.poll(async () => (await stateOf(page))?.profile?.level).toBe(42);
   await page.reload();
   await expect(page.getByLabel('Level', { exact: true })).toHaveValue('42');
   expect((await stateOf(page)).profile.level).toBe(42);
@@ -91,7 +91,7 @@ test('export a import vrátí stejný stav', async ({ page }) => {
   await page.getByLabel('Mince', { exact: true }).fill('777777');
   await page.getByLabel('Mince', { exact: true }).press('Enter');
   await saved(page);
-  await page.waitForTimeout(700);
+  await expect.poll(async () => (await stateOf(page))?.profile?.coins).toBe(777777);
   const before = await stateOf(page);
   await page.goto('/#settings');
   const dl = page.waitForEvent('download');
@@ -106,7 +106,8 @@ test('export a import vrátí stejný stav', async ({ page }) => {
   await saved(page);
   await importText(page, text);
   await saved(page);
-  await page.waitForTimeout(700);
+  /* import vrátí level ze zálohy (před ním byl ručně 5) */
+  await expect.poll(async () => (await stateOf(page))?.profile?.level).toBe(before.profile.level);
   const after = await stateOf(page);
   /* 0.17.0: export zálohy zapíše svůj čas (rádce „Co dál?“); ostatní stav se importem vrátí beze změny */
   expect(after.advisor.backupAt).toBeGreaterThan(0);
@@ -130,9 +131,8 @@ test('zápis raidu přidá kolo a projeví se v Journalu i Dashboardu', async ({
   await expect(dialog).toBeHidden();
   await expect(page.locator('.kpi-strip')).toContainText('31 000');
   await expect(page.locator('.topbar')).toContainText('1');
-  await page.waitForTimeout(700);
+  await expect.poll(async () => (await stateOf(page))?.profile?.rounds).toBe(1);
   await saved(page);
-  expect((await stateOf(page)).profile.rounds).toBe(1);
   await page.goto('/#journal');
   await expect(page.getByText(/^1 záznam/)).toBeVisible();
 });

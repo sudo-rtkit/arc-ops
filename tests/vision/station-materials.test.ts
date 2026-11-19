@@ -3,7 +3,7 @@
    názvům (nikdy vymyšlený název), jistota každého pole a volitelný (nikdy předvybraný) zápis do Zásoby přes revizi
    se snímkem stavu. */
 import { describe, expect, it } from 'vitest';
-import { resize } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import { readProgress, type StationRead } from '../../src/core/vision/progress';
 import { readMixed } from '../../src/core/vision/mixed';
 import { darkInk } from '../../src/core/vision/text';

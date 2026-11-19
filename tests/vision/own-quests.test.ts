@@ -9,12 +9,13 @@
    Negativní snímek own-inraid-map-quests.png: mapa V RAIDU se seznamem úkolů. Fair play: z raidu se nic nečte (živá
    poloha a minimapa jsou červená zóna), takže to nesmí být úkol ani žádná obrazovka postupu a nic se z něj nesnímá.
    Obsahuje jména hráčů: v testech se uvádí jen název souboru, žádný text ze snímku. */
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import { FIXTURES } from './load';
 import type { RgbaImage } from '../../src/core/vision/image';
-import { resize } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
+import { decodeResized, type SizedQueue } from './pool';
 import { readAutoCapture, readCapture } from '../../src/core/opsCapture';
 import { RUST_SCREENS } from '../../src/core/autoCapture';
 import { readProgress, type QuestRead } from '../../src/core/vision/progress';
@@ -79,6 +80,17 @@ describe.skipIf(!existsSync(OWN + RAID_MAP))('vlastní snímek: mapa v raidu se 
 });
 
 describe.skipIf(!HAS)('vlastní snímky: tři stavy obrazovky úkolu obchodníka (0.29.0)', () => {
+  /* snímky pro poslední test (všechny vlastní snímky v pěti velikostech) se dekódují a zvětšují ve vláknech
+     (tests/vision/pool.ts) už během ostatních testů; čtou se pak v hlavním vlákně stejně jako dřív */
+  const SWEEP_WIDTHS = [0, 1366, 1600, 2560, 3840];
+  let sweepFiles: string[] = [];
+  let sweep: SizedQueue | undefined;
+  beforeAll(() => {
+    sweepFiles = [...readdirSync(OWN).filter(x => x.endsWith('.png')), ...(existsSync(OWN + 'return-and-progression/') ? readdirSync(OWN + 'return-and-progression/').filter(x => x.endsWith('.png')).map(x => 'return-and-progression/' + x) : [])];
+    sweep = decodeResized(sweepFiles.map(f => ({ path: OWN + f, widths: SWEEP_WIDTHS })));
+  });
+  afterAll(async () => { await sweep?.close(); });
+
   it.each(SIZES)('CLAIM: The Right Tool, tři zaškrtnuté cíle, splněno a odměna čeká (šířka %i)', w => {
     const r = quest(CLAIM, w);
     expect([r.state, r.objectives, r.bullets, r.button.value]).toEqual(['claim', [true, true, true], 0, 'CLAIM']);
@@ -140,22 +152,26 @@ describe.skipIf(!HAS)('vlastní snímky: tři stavy obrazovky úkolu obchodníka
     expect(state().quests.done.ss7).toBeUndefined();
   });
 
-  it('žádné falešné „splněno“ a žádný jiný snímek není úkol (5 velikostí, všechny vlastní snímky)', () => {
-    const files = [...readdirSync(OWN).filter(x => x.endsWith('.png')), ...(existsSync(OWN + 'return-and-progression/') ? readdirSync(OWN + 'return-and-progression/').filter(x => x.endsWith('.png')).map(x => 'return-and-progression/' + x) : [])];
+  it('žádné falešné „splněno“ a žádný jiný snímek není úkol (5 velikostí, všechny vlastní snímky)', async () => {
+    const files = sweepFiles, WIDTHS = SWEEP_WIDTHS;
+    expect(files.length).toBeGreaterThan(0);
     const quests = new Set([CLAIM, COMPLETE, ACCEPT, 'return-and-progression/quest-shoring.png', 'return-and-progression/quest-battening.png']);
     const done: string[] = [];
-    for (const f of files) for (const w of [0, 1366, 1600, 2560, 3840]) {
-      const r = readProgress(load(f, w));
-      if (!quests.has(f)) { expect(r?.screen ?? null, `${f} ${w}`).not.toBe('quest'); continue; }
-      expect(r?.screen, `${f} ${w}`).toBe('quest');
-      if (r?.screen !== 'quest') continue;
-      const p = proposeProgress(r, defaultState()) as QuestProposal;
-      const a = defaultApply(p);
-      if (a.questDone) done.push(`${f}@${w}:${a.questDone.join(',')}`);
-      /* „splněno“ jen ze CLAIM a COMPLETE a jen pro The Right Tool; nikdy z ACCEPT nebo z obrazovky s cíli */
-      if (p.doneOffer) expect([f === CLAIM || f === COMPLETE, p.questId], `${f} ${w}`).toEqual([true, 'ss7']);
-      if (f !== CLAIM && f !== COMPLETE) expect([p.doneOffer, a.questDone], `${f} ${w}`).toEqual([false, undefined]);
-      if (f === ACCEPT) expect([r.objectives, a], `${f} ${w}`).toEqual([[], {}]);
+    for (const f of files) {
+      const imgs = await sweep!.next();
+      for (const [k, w] of WIDTHS.entries()) {
+        const r = readProgress(imgs[k]);
+        if (!quests.has(f)) { expect(r?.screen ?? null, `${f} ${w}`).not.toBe('quest'); continue; }
+        expect(r?.screen, `${f} ${w}`).toBe('quest');
+        if (r?.screen !== 'quest') continue;
+        const p = proposeProgress(r, defaultState()) as QuestProposal;
+        const a = defaultApply(p);
+        if (a.questDone) done.push(`${f}@${w}:${a.questDone.join(',')}`);
+        /* „splněno“ jen ze CLAIM a COMPLETE a jen pro The Right Tool; nikdy z ACCEPT nebo z obrazovky s cíli */
+        if (p.doneOffer) expect([f === CLAIM || f === COMPLETE, p.questId], `${f} ${w}`).toEqual([true, 'ss7']);
+        if (f !== CLAIM && f !== COMPLETE) expect([p.doneOffer, a.questDone], `${f} ${w}`).toEqual([false, undefined]);
+        if (f === ACCEPT) expect([r.objectives, a], `${f} ${w}`).toEqual([[], {}]);
+      }
     }
     console.log('„splněno“ předvybrané z vlastních snímků:\n  ' + done.join('\n  '));
     expect(done.every(x => x.endsWith(':ss7'))).toBe(true);

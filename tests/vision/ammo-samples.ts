@@ -1,6 +1,7 @@
 /* 0.27.0: vlastní snímky hráče s ikonou druhu munice (jen lokálně, tests/fixtures/vision/own) a pomůcka pro jiné
    rozlišení. Sdílí je generátor vzorů (ammo.gen.test.ts) a testy čtení (ammo.test.ts). */
-import { resize, type RgbaImage } from '../../src/core/vision/image';
+import type { RgbaImage } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import type { Box } from '../../src/core/vision/layout';
 import type { AmmoType } from '../../src/core/vision/ammoIcon';
 
@@ -13,9 +14,12 @@ export const AMMO_SAMPLES: [string, 'weapon1' | 'weapon2', AmmoType, string][] =
   ['return-and-progression/return-findings.png', 'weapon1', 'heavy', 'Anvil IV'],
   ['return-and-progression/return-findings.png', 'weapon2', 'medium', 'Torrente II'],
 ];
-/* obraz zmenšený nebo zvětšený na šířku width a místo zbraně přepočtené na něj */
-export function scaled(img: RgbaImage, box: Box, width: number): { img: RgbaImage; box: Box } {
+/* obraz zmenšený nebo zvětšený na šířku width a místo zbraně přepočtené na něj; volitelná mezipaměť zvětšenin téhož
+   obrazu podle šířky (dvě místa jednoho snímku se pak nezvětšují dvakrát) */
+export function scaled(img: RgbaImage, box: Box, width: number, cache?: Map<number, RgbaImage>): { img: RgbaImage; box: Box } {
   if (width === img.width) return { img, box };
   const k = width / img.width;
-  return { img: resize(img, width, Math.round(img.height * k)), box: { x: box.x * k, y: box.y * k, w: box.w * k, h: box.h * k } };
+  let out = cache?.get(width);
+  if (!out) { out = resize(img, width, Math.round(img.height * k)); cache?.set(width, out); }
+  return { img: out, box: { x: box.x * k, y: box.y * k, w: box.w * k, h: box.h * k } };
 }

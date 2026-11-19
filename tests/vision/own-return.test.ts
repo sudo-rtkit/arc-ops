@@ -11,7 +11,7 @@ import type { PanelRead } from '../../src/core/vision/read';
 import { readCapture, screenKind } from '../../src/core/opsCapture';
 import { readProgress, type ProgressRead } from '../../src/core/vision/progress';
 import { applyProgress, defaultApply, proposeProgress, questTickChanges, stockChanges, type ProfileProposal, type QuestProposal, type SkillsProposal, type StationsProposal } from '../../src/core/progressImport';
-import { resize } from '../../src/core/vision/image';
+import { resizeExact as resize } from './resize';
 import { analyzeLoot } from '../../src/core/visionImport';
 import { applyRaidLoot, checkRaidLoot, lootItems, lootRows, lootSignature } from '../../src/core/lootImport';
 import { matchContext } from '../../src/core/catalog';
@@ -138,9 +138,16 @@ describe.skipIf(!HAS)('vlastní snímky: ostatní obrazovky', () => {
 
 /* 0.10.1: obrazovky postupu. Ručně odečtené hodnoty: own/return-and-progression/expected-manual.json. Každá obrazovka
    se čte v původním rozlišení i zmenšená a zvětšená (1366, 2560), návrh se páruje s daty aplikace. */
+/* zmenšený nebo zvětšený snímek se spočítá jednou (dílna se čte ve dvou testech ve stejných šířkách) */
+const resized = new Map<string, RgbaImage>();
+const sized = (f: string, width: number): RgbaImage => {
+  const key = f + '@' + width;
+  let img = resized.get(key);
+  if (!img) { const src = load(DIR + f); img = resize(src, width, Math.round((src.height * width) / src.width)); resized.set(key, img); }
+  return img;
+};
 const prog = (f: string, width = 0): ProgressRead => {
-  let img = load(DIR + f);
-  if (width) img = resize(img, width, Math.round((img.height * width) / img.width));
+  const img = width ? sized(f, width) : load(DIR + f);
   const r = readCapture(img);
   if (r.kind !== 'progress') throw new Error(f + ': ' + r.kind);
   return r.progress;

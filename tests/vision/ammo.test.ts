@@ -139,12 +139,15 @@ const shot = (n: string) => { let c = cache.get(n); if (!c) { const img = load(n
 describe('0.27.0: ikona munice na vlastních snímcích (jen lokálně)', () => {
   it.skipIf(!SAMPLES.length)('druh munice se pozná v rozlišení 1366–3840 px; pod tím je čtení nejisté, nikdy špatné', () => {
     const lines: string[] = [];
+    /* dvě místa téhož snímku jdou po sobě: snímek, jeho čtení a zvětšeniny se spočítají jednou na snímek */
+    let cur = '', src: RgbaImage | undefined, equip: NonNullable<ReturnType<typeof readLoadout>>['equip'] = [];
+    const sized = new Map<number, RgbaImage>();
     for (const [file, slotId, want, weapon] of SAMPLES) {
-      const src = load(file);
-      const e = readLoadout(src)!.equip.find(x => x.slot === slotId)!;
+      if (file !== cur) { cur = file; src = load(file); equip = readLoadout(src)!.equip; sized.clear(); }
+      const e = equip.find(x => x.slot === slotId)!;
       expect(e.ammoType, `${file} ${slotId}`).toBe(want);
       for (const width of [1280, 1366, 1600, 1920, 2560, 3200, 3840]) {
-        const s = scaled(src, e.box, width);
+        const s = scaled(src!, e.box, width, sized);
         const r = readAmmoType(s.img, s.box);
         lines.push(`${weapon} ${width}: ${want} → ${r.type ?? '(' + r.best + ')'} ${r.score} / ${r.second}`);
         if (width >= 1366) expect(r.type, `${weapon} ${width}`).toBe(want);

@@ -87,7 +87,7 @@ for (const lang of ['cs', 'en'] as const) {
 
     await write.click();
     await expect(ov.getByTestId('ov-loot-done')).toContainText(L.done);
-    await page.waitForTimeout(700);
+    await expect.poll(async () => (await stateOf(page))?.raids?.find((r: { id: string }) => r.id === 'R1')?.loot?.length ?? 0).toBeGreaterThan(0);
     const st = await stateOf(page);
     const r1 = st.raids.find((r: { id: string }) => r.id === 'R1');
     const lootMap = Object.fromEntries(r1.loot.map((x: { name: string; qty: number }) => [x.name, x.qty]));

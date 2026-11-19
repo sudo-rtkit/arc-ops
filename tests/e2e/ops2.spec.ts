@@ -96,8 +96,7 @@ for (const lang of ['cs', 'en'] as const) {
       await tour.getByRole('button', { name: L.next, exact: true }).click();
       await expect(tour.getByTestId('tour-line')).toHaveText(L.inventory);
       await expect(page.locator('.sidebar a.nav-item[href="#inventory"]')).toHaveClass(/tour-target/);
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs.tutorial).toEqual({ status: 'active', step: 'tour-inventory' });
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs?.tutorial).toEqual({ status: 'active', step: 'tour-inventory' });
 
       /* přerušení: po znovunačtení se zeptá a pokračuje od uloženého kroku */
       await page.reload();
@@ -113,8 +112,7 @@ for (const lang of ['cs', 'en'] as const) {
       await tour.getByRole('button', { name: L.resume }).click();
       await tour.getByRole('button', { name: L.skip }).click();
       await expect(tour).toHaveCount(0);
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs.tutorial.status).toBe('skipped');
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs?.tutorial?.status).toBe('skipped');
       await page.reload();
       await expect(page.locator('.shell')).toBeVisible();
       await expect(tour).toHaveCount(0);
@@ -140,12 +138,10 @@ for (const lang of ['cs', 'en'] as const) {
       await page.getByRole('button', { name: L.plain, exact: true }).click();
       await expect(sample).toContainText(L.samplePlain);
       await expect(page.getByRole('button', { name: L.plain, exact: true })).toHaveAttribute('aria-pressed', 'true');
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs.personality).toBe('plain');
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs?.personality).toBe('plain');
       /* dialogy vypnuté: průvodce se po přeskočení sám nevrátí */
       await page.getByTestId('ops-dialogs').uncheck();
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs.dialogs).toBe(false);
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs?.dialogs).toBe(false);
       expect(errors).toEqual([]);
     });
 
@@ -158,15 +154,13 @@ for (const lang of ['cs', 'en'] as const) {
       await expect(page.getByLabel(L.volume)).toHaveValue('25');
       await page.getByLabel(L.volume).fill('60');
       await page.getByLabel(L.volume).blur();
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs.volume).toBe(60);
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs?.volume).toBe(60);
       await page.getByRole('button', { name: L.test }).click();
       expect(await page.evaluate(() => (window as unknown as { __opsSound: { log: string[] } }).__opsSound.log.slice())).toContain('done');
       await on.uncheck();
       await expect(page.getByRole('button', { name: L.test })).toBeDisabled();
       await expect(page.getByLabel(L.volume)).toBeDisabled();
-      await page.waitForTimeout(700);
-      expect((await stateOf(page)).opsPrefs).toMatchObject({ sound: false, volume: 60 });
+      await expect.poll(async () => (await stateOf(page))?.opsPrefs).toMatchObject({ sound: false, volume: 60 });
       expect(errors).toEqual([]);
     });
 

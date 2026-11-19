@@ -68,8 +68,7 @@ test.describe('přepnutí jazyka (výchozí čeština)', () => {
     await expect(page.locator('.sidebar')).toContainText('Overview');
     await expect(page.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('status').filter({ hasText: 'Saved' }).first()).toBeVisible({ timeout: 5000 });
-    await page.waitForTimeout(700);
-    expect((await stateOf(page)).settings.lang).toBe('en');
+    await expect.poll(async () => (await stateOf(page))?.settings?.lang).toBe('en');
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Language' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -77,7 +76,7 @@ test.describe('přepnutí jazyka (výchozí čeština)', () => {
     await page.getByRole('button', { name: 'Čeština' }).click();
     await expect(page.getByRole('heading', { name: 'Jazyk' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'cs');
-    await page.waitForTimeout(700);
+    await expect.poll(async () => (await stateOf(page))?.settings?.lang).toBe('cs');
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Jazyk' })).toBeVisible();
     expect(errors).toEqual([]);
@@ -94,7 +93,8 @@ test.describe('přepnutí jazyka (výchozí čeština)', () => {
     await page.goto('/#maps');
     await page.getByRole('button', { name: 'Details and notes' }).first().click();
     await expect(page.getByLabel('Map notes')).toHaveValue('Moje poznámka: žluťoučký kůň');
-    await page.waitForTimeout(700);
+    /* přepnutí jazyka se uložilo; poznámka a kroky hráče se nepřeložily */
+    await expect.poll(async () => (await stateOf(page))?.settings?.lang).toBe('en');
     const st = await stateOf(page);
     expect(st.maps.dam.notes).toBe('Moje poznámka: žluťoučký kůň');
     expect(st.steps[0].text).toMatch(/^Otevři záložku Outpost/);
@@ -120,9 +120,8 @@ test.describe('angličtina podle navigator.language', () => {
     await dlg.getByRole('button', { name: 'Save raid' }).click();
     await expect(dlg.getByRole('alert')).toHaveText('The length must be 0–120 minutes.');
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(700);
+    await expect.poll(async () => (await stateOf(page))?.settings?.lang).toBe('en');
     const st = await stateOf(page);
-    expect(st.settings.lang).toBe('en');
     expect(st.steps[0].text).toMatch(/^Open the Outpost tab/);
     expect(st.checklists.templates[0].name).toBe('Before the raid');
   });

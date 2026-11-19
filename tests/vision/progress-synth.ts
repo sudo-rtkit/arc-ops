@@ -14,12 +14,23 @@ export const WHITE: RGB = [236, 236, 236];
 const BG: RGB = [10, 10, 14];
 
 export function canvas(w = 1920, h = 1080, bg: RGB = BG): RgbaImage {
+  return { width: w, height: h, data: filled(w, h, [bg[0], bg[1], bg[2], 255]) };
+}
+/* Plocha jedné barvy: první pixel, pak zdvojování přes copyWithin (stejné bajty jako zápis pixel po pixelu, ale bez
+   pole na každý pixel; testy si plátno 1920 × 1080 tvoří stokrát). */
+export function filled(w: number, h: number, px: ArrayLike<number>): Uint8ClampedArray {
   const data = new Uint8ClampedArray(w * h * 4);
-  for (let i = 0; i < w * h; i++) data.set([bg[0], bg[1], bg[2], 255], i * 4);
-  return { width: w, height: h, data };
+  if (!data.length) return data;
+  data.set(px);
+  for (let n = 4; n < data.length; n *= 2) data.copyWithin(n, 0, Math.min(n, data.length - n));
+  return data;
 }
 export function rect(img: RgbaImage, x: number, y: number, w: number, h: number, c: RGB) {
-  for (let yy = Math.max(0, y); yy < Math.min(img.height, y + h); yy++) for (let xx = Math.max(0, x); xx < Math.min(img.width, x + w); xx++) img.data.set(c, (yy * img.width + xx) * 4);
+  const d = img.data, W = img.width, [r, g, b] = c;
+  for (let yy = Math.max(0, y); yy < Math.min(img.height, y + h); yy++) for (let xx = Math.max(0, x); xx < Math.min(W, x + w); xx++) {
+    const k = (yy * W + xx) * 4;
+    d[k] = r; d[k + 1] = g; d[k + 2] = b;
+  }
 }
 export function frame(img: RgbaImage, x: number, y: number, s: number, t: number, c: RGB) {
   rect(img, x, y, s, t, c); rect(img, x, y + s - t, s, t, c); rect(img, x, y, t, s, c); rect(img, x + s - t, y, t, s, c);

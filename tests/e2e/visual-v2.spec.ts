@@ -45,6 +45,10 @@ test('kompaktní navigace: tooltip je portál mimo .nav a funguje myší i kláv
   await expect(tip).toHaveCount(0);
   /* klávesnice: focus na položce ukáže stejný popisek */
   await page.locator('.sidebar a.nav-item[href="#dashboard"]').focus();
+  /* focus posune .nav zpět nahoru a posun tooltip schová (onScroll); událost scroll přijde až v dalším snímku.
+     Pod zátěží (souběžné běhy) dorazila až po Tab a schovala už popisek Player Profile. Dva snímky počkat: scroll
+     se v daném snímku rozešle před voláními requestAnimationFrame. */
+  await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   await page.keyboard.press('Tab');
   await expect(page.locator('.sidebar a.nav-item[href="#profile"]')).toBeFocused();
   await expect(tip).toHaveText('Player Profile');

@@ -7,11 +7,16 @@ import { defineConfig } from '@playwright/test';
 const CI = !!process.env.CI;
 const channel = process.env.PW_CHANNEL ?? (CI ? undefined : 'msedge');
 
+/* Testy jsou na sobě nezávislé: každý má vlastní kontext prohlížeče (vlastní localStorage, beforeEach ho stejně maže)
+   a server je jen statický vite preview. Proto běží souběžně i uvnitř souboru: lokálně 4 pracovníci, v CI 2 (runner
+   má 4 vCPU). PW_WORKERS počet přepíše (např. PW_WORKERS=1 pro ladění v pořadí). */
+const WORKERS = Number(process.env.PW_WORKERS) || (CI ? 2 : 4);
+
 export default defineConfig({
   testDir: 'tests/e2e',
   timeout: 60_000,
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: WORKERS,
   /* v CI jeden opakovaný pokus u nestabilního testu (report ho označí jako flaky) */
   retries: CI ? 1 : 0,
   forbidOnly: CI,
