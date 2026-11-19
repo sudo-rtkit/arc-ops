@@ -33,6 +33,10 @@ test('kompaktní navigace: tooltip je portál mimo .nav a funguje myší i kláv
   await page.setViewportSize({ width: 1024, height: 768 });
   const item = page.locator('.sidebar a.nav-item[href="#journal"]');
   await expect(item).toHaveAttribute('aria-label', 'Raid Journal');
+  /* 0.30.0 prodloužila navigaci: při 768 px je položka pod okrajem .nav. Nejdřív posunout a pak teprve najet myší,
+     jinak posun pod stojícím kurzorem v Chromiu nevyvolá mouseover (test pak závisel na pořadí souborů). */
+  await item.scrollIntoViewIfNeeded();
+  await page.mouse.move(600, 400);
   await item.hover();
   const tip = page.locator('body > .tooltip');
   await expect(tip).toHaveText('Raid Journal');
@@ -42,6 +46,7 @@ test('kompaktní navigace: tooltip je portál mimo .nav a funguje myší i kláv
   /* klávesnice: focus na položce ukáže stejný popisek */
   await page.locator('.sidebar a.nav-item[href="#dashboard"]').focus();
   await page.keyboard.press('Tab');
+  await expect(page.locator('.sidebar a.nav-item[href="#profile"]')).toBeFocused();
   await expect(tip).toHaveText('Player Profile');
   /* rozbalený panel tooltip nepotřebuje */
   await page.setViewportSize({ width: 1280, height: 800 });
