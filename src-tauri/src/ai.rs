@@ -12,6 +12,8 @@
 //! - Odpověď poskytovatele se do okna nikdy nepředá celá: jen text odpovědi (bez řídicích znaků, zkrácený). Text
 //!   chyby od poskytovatele se zahodí, okno dostane jen kód (`ai:<kód>`).
 //! - Síť i úložiště klíčů jsou za rozhraními (`Transport`, `KeyStore`), takže testy nikdy nejdou na síť.
+//! - 0.32.0: prázdná odpověď modelu s `reasoning_effort` se jednou zopakuje bez něj, jen ve zbytku `TIMEOUT` a jen
+//!   v mezích limitů (`AiReply.retried`); chybová odpověď „model nenalezen“ (podle stavu i těla chyby) = `ai:model`.
 
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -118,6 +120,8 @@ pub struct Msg {
 pub struct AiReply {
     pub text: String,
     pub today: u32,
+    /// 0.32.0: první odpověď byla prázdná a dotaz se jednou zopakoval bez reasoning_effort
+    pub retried: bool,
 }
 
 /// Chyby jako pevné kódy (okno je přeloží); text od poskytovatele se nikdy nepředává.
@@ -195,9 +199,23 @@ pub fn messages_ok(msgs: &[Msg]) -> Result<(), AiErr> {
     Ok(())
 }
 
+/// Posílá se modelu `reasoning_effort`? Pevně podle poskytovatele a modelu (nikdy z okna).
+pub fn reasoning_for(p: Provider, model: &str) -> bool {
+    match p {
+        Provider::Groq => model.starts_with("openai/gpt-oss"),
+        Provider::Gemini => model.starts_with("gemini-3") || model.starts_with("gemini-4"),
+        Provider::OpenRouter => false,
+    }
+}
+
 /// Tělo dotazu. Parametry navíc jsou pevné podle poskytovatele a modelu (nikdy z okna): u modelů s uvažováním
 /// nízká úroveň, aby se do MAX_TOKENS vešla odpověď.
 pub fn request_body(p: Provider, model: &str, msgs: &[Msg]) -> Vec<u8> {
+    request_body_opts(model, msgs, reasoning_for(p, model))
+}
+
+/// 0.32.0: tělo dotazu s `reasoning_effort` nebo bez něj (opakování po prázdné odpovědi). Meze jsou stejné.
+pub fn request_body_opts(model: &str, msgs: &[Msg], reasoning: bool) -> Vec<u8> {
     let mut body = serde_json::json!({
         "model": model,
         "messages": msgs,
@@ -205,15 +223,38 @@ pub fn request_body(p: Provider, model: &str, msgs: &[Msg]) -> Vec<u8> {
         "temperature": 0.3,
         "stream": false,
     });
-    let reasoning = match p {
-        Provider::Groq => model.starts_with("openai/gpt-oss"),
-        Provider::Gemini => model.starts_with("gemini-3") || model.starts_with("gemini-4"),
-        Provider::OpenRouter => false,
-    };
     if reasoning {
         body["reasoning_effort"] = serde_json::json!("low");
     }
     serde_json::to_vec(&body).unwrap_or_default()
+}
+
+/// 0.32.0: opakování po prázdné odpovědi musí skončit v rámci celkového TIMEOUT (okno čeká 35 s). Vrací čas, který
+/// na opakování zbývá, nebo None, když je ho méně než RETRY_MIN_LEFT.
+pub const RETRY_MIN_LEFT: Duration = Duration::from_secs(8);
+pub fn retry_budget(elapsed: Duration) -> Option<Duration> {
+    TIMEOUT.checked_sub(elapsed).filter(|left| *left >= RETRY_MIN_LEFT)
+}
+
+/// 0.32.0: je chybová odpověď „model nenalezen“? (Groq: 404 model_not_found, OpenRouter: 400 „is not a valid model
+/// ID“, jiní 404/422 s textem o neexistujícím modelu.) Text chyby se jen přečte, nikdy nepředá do okna.
+pub fn model_missing(status: u16, body: &[u8]) -> bool {
+    if !matches!(status, 400 | 404 | 422) {
+        return false;
+    }
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) else { return false };
+    /* Gemini někdy vrací pole s jedním objektem chyby */
+    let v = v.as_array().and_then(|a| a.first()).cloned().unwrap_or(v);
+    let e = v.get("error").unwrap_or(&v);
+    let code = e.get("code").and_then(|c| c.as_str()).unwrap_or("").to_ascii_lowercase();
+    if matches!(code.as_str(), "model_not_found" | "model_not_available" | "invalid_model") {
+        return true;
+    }
+    let msg: String = e.get("message").and_then(|m| m.as_str()).unwrap_or("").chars().take(500).collect::<String>().to_ascii_lowercase();
+    msg.contains("model")
+        && ["not found", "does not exist", "not a valid model", "decommissioned", "no endpoints found", "is not supported", "unknown model"]
+            .iter()
+            .any(|p| msg.contains(p))
 }
 
 /// Stav HTTP → kód chyby (2xx řeší parse_reply).
@@ -258,7 +299,7 @@ pub fn clean_answer(s: &str) -> String {
 /// Odpověď poskytovatele → text. Čte se jen choices[0].message.content; všechno ostatní se zahodí.
 pub fn parse_reply(status: u16, body: &[u8]) -> Result<String, AiErr> {
     if !(200..300).contains(&status) {
-        return Err(map_status(status));
+        return Err(if model_missing(status, body) { AiErr::Model } else { map_status(status) });
     }
     let v: serde_json::Value = serde_json::from_slice(body).map_err(|_| AiErr::Reply)?;
     let content = v.pointer("/choices/0/message/content").ok_or(AiErr::Reply)?;
@@ -283,6 +324,10 @@ pub enum NetErr {
 /// Odeslání dotazu. Vrací stav HTTP a nejvýš MAX_RESPONSE bajtů těla.
 pub trait Transport: Send + Sync {
     fn post(&self, url: &str, key: &str, body: &[u8]) -> Result<(u16, Vec<u8>), NetErr>;
+    /// 0.32.0: totéž s kratším časovým limitem (opakování po prázdné odpovědi ve zbytku TIMEOUT).
+    fn post_within(&self, url: &str, key: &str, body: &[u8], _limit: Duration) -> Result<(u16, Vec<u8>), NetErr> {
+        self.post(url, key, body)
+    }
 }
 
 /// Skutečná síť: ureq s rustls (bez OpenSSL a native-tls), bez přesměrování, s časovým limitem a mezí čtení.
@@ -300,8 +345,14 @@ impl UreqTransport {
 
 impl Transport for UreqTransport {
     fn post(&self, url: &str, key: &str, body: &[u8]) -> Result<(u16, Vec<u8>), NetErr> {
+        self.post_within(url, key, body, self.timeout)
+    }
+
+    fn post_within(&self, url: &str, key: &str, body: &[u8], limit: Duration) -> Result<(u16, Vec<u8>), NetErr> {
+        /* nikdy déle než self.timeout */
+        let timeout = limit.min(self.timeout);
         let agent: ureq::Agent = ureq::Agent::config_builder()
-            .timeout_global(Some(self.timeout))
+            .timeout_global(Some(timeout))
             .http_status_as_error(false)
             .max_redirects(0)
             .https_only(self.https_only)
@@ -537,10 +588,29 @@ pub fn ask_for(label: &str, ai: &Ai, provider: &str, model: &str, msgs: &[Msg], 
     let _busy = BusyGuard::take(&ai.busy).ok_or(AiErr::Busy)?;
     let today = ai.limiter.lock().map_err(|_| AiErr::Busy)?.admit(now, day)?;
     let body = request_body(p, model, msgs);
-    let res = ai.transport.post(url, &key, &body);
+    let started = Instant::now();
+    let first = reply_of(ai.transport.post(url, &key, &body));
+    /* 0.32.0: prázdná odpověď modelu s uvažováním (vyčerpal limit tokenů přemýšlením): jednou znovu bez
+       reasoning_effort, jen ve zbytku celkového TIMEOUT a jen když to dovolí limity (počítá se jako další dotaz). */
+    let out = match first {
+        Err(AiErr::Empty) if reasoning_for(p, model) => match retry_budget(started.elapsed()) {
+            Some(limit) => match ai.limiter.lock().map_err(|_| AiErr::Busy).and_then(|mut l| l.admit(now, day)) {
+                Ok(today2) => reply_of(ai.transport.post_within(url, &key, &request_body_opts(model, msgs, false), limit))
+                    .map(|text| AiReply { text, today: today2, retried: true }),
+                Err(_) => Err(AiErr::Empty),
+            },
+            None => Err(AiErr::Empty),
+        },
+        r => r.map(|text| AiReply { text, today, retried: false }),
+    };
     wipe(&mut key);
+    out
+}
+
+/// Výsledek sítě → text odpovědi nebo kód chyby.
+fn reply_of(res: Result<(u16, Vec<u8>), NetErr>) -> Result<String, AiErr> {
     match res {
-        Ok((status, bytes)) => parse_reply(status, &bytes).map(|text| AiReply { text, today }),
+        Ok((status, bytes)) => parse_reply(status, &bytes),
         Err(NetErr::Timeout) => Err(AiErr::Timeout),
         Err(NetErr::Offline) => Err(AiErr::Offline),
         Err(NetErr::TooBig) => Err(AiErr::Reply),
@@ -637,29 +707,52 @@ mod tests {
         calls: AtomicUsize,
         seen: Mutex<Vec<(String, String, Vec<u8>)>>,
         delay: Duration,
+        /// 0.32.0: odpovědi postupně (první dotaz první prvek); po vyčerpání `reply`
+        queue: Mutex<VecDeque<Result<(u16, Vec<u8>), NetErr>>>,
+        limits: Mutex<Vec<Option<Duration>>>,
+    }
+    fn content(text: Option<&str>) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({"choices":[{"message":{"role":"assistant","content":text}}]})).unwrap()
     }
     impl Fake {
         fn ok(text: &str) -> Self {
-            let body = serde_json::to_vec(&serde_json::json!({"choices":[{"message":{"role":"assistant","content":text}}]})).unwrap();
-            Fake::raw(Ok((200, body)))
+            Fake::raw(Ok((200, content(Some(text)))))
         }
         fn raw(reply: Result<(u16, Vec<u8>), NetErr>) -> Self {
-            Fake { reply, calls: AtomicUsize::new(0), seen: Mutex::new(vec![]), delay: Duration::ZERO }
+            Fake { reply, calls: AtomicUsize::new(0), seen: Mutex::new(vec![]), delay: Duration::ZERO, queue: Mutex::new(VecDeque::new()), limits: Mutex::new(vec![]) }
+        }
+        fn seq(replies: Vec<Result<(u16, Vec<u8>), NetErr>>, then: Result<(u16, Vec<u8>), NetErr>) -> Self {
+            let f = Fake::raw(then);
+            *f.queue.lock().unwrap() = replies.into();
+            f
+        }
+        fn bodies(&self) -> Vec<serde_json::Value> {
+            self.seen.lock().unwrap().iter().map(|(_, _, b)| serde_json::from_slice(b).unwrap()).collect()
+        }
+        fn answer(&self, url: &str, key: &str, body: &[u8], limit: Option<Duration>) -> Result<(u16, Vec<u8>), NetErr> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.seen.lock().unwrap().push((url.to_string(), key.to_string(), body.to_vec()));
+            self.limits.lock().unwrap().push(limit);
+            if !self.delay.is_zero() {
+                std::thread::sleep(self.delay);
+            }
+            self.queue.lock().unwrap().pop_front().unwrap_or_else(|| self.reply.clone())
         }
     }
     impl Transport for Fake {
         fn post(&self, url: &str, key: &str, body: &[u8]) -> Result<(u16, Vec<u8>), NetErr> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            self.seen.lock().unwrap().push((url.to_string(), key.to_string(), body.to_vec()));
-            if !self.delay.is_zero() {
-                std::thread::sleep(self.delay);
-            }
-            self.reply.clone()
+            self.answer(url, key, body, None)
+        }
+        fn post_within(&self, url: &str, key: &str, body: &[u8], limit: Duration) -> Result<(u16, Vec<u8>), NetErr> {
+            self.answer(url, key, body, Some(limit))
         }
     }
     impl Transport for Arc<Fake> {
         fn post(&self, url: &str, key: &str, body: &[u8]) -> Result<(u16, Vec<u8>), NetErr> {
             (**self).post(url, key, body)
+        }
+        fn post_within(&self, url: &str, key: &str, body: &[u8], limit: Duration) -> Result<(u16, Vec<u8>), NetErr> {
+            (**self).post_within(url, key, body, limit)
         }
     }
 
@@ -766,13 +859,13 @@ mod tests {
         /* stav klíče se serializuje jen jako true / false */
         assert_eq!(serde_json::to_string(&st.unwrap()).unwrap(), "true");
         assert_eq!(key_status_for("main", &ai, "gemini"), Ok(false));
-        /* odpověď dotazu nese jen text a počet */
+        /* odpověď dotazu nese jen text, počet a (0.32.0) příznak opakování */
         let fake = Arc::new(Fake::ok("Ahoj."));
         let ai2 = ai_with(fake, true);
         let r = ask(&ai2).unwrap();
         let json = serde_json::to_string(&r).unwrap();
         assert!(!json.contains(KEY));
-        assert_eq!(json, r#"{"text":"Ahoj.","today":1}"#);
+        assert_eq!(json, r#"{"text":"Ahoj.","today":1,"retried":false}"#);
         /* chybové kódy nikdy nenesou klíč */
         for e in [AiErr::BadKey, AiErr::NoKey, AiErr::KeyStore, AiErr::Input] {
             assert!(e.code().starts_with("ai:") && !e.code().contains("gsk"));
@@ -908,6 +1001,95 @@ mod tests {
         /* po skončení (i chybou) jde další */
         assert!(ask(&ai).is_ok());
         assert_eq!(fake.calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn prazdna_odpoved_jednou_znovu_bez_reasoning_effort() {
+        /* model s uvažováním: prázdná, pak odpověď → jeden opakovaný dotaz bez reasoning_effort, stejné meze */
+        let fake = Arc::new(Fake::seq(vec![Ok((200, content(None)))], Ok((200, content(Some("Nech si je."))))));
+        let ai = ai_with(fake.clone(), true);
+        let r = ask(&ai).unwrap();
+        assert_eq!(r, AiReply { text: "Nech si je.".into(), today: 2, retried: true });
+        let bodies = fake.bodies();
+        assert_eq!(bodies.len(), 2);
+        assert_eq!(bodies[0]["reasoning_effort"], "low");
+        assert!(bodies[1].get("reasoning_effort").is_none());
+        assert_eq!(bodies[1]["max_tokens"], MAX_TOKENS);
+        assert_eq!(bodies[1]["messages"], bodies[0]["messages"]);
+        /* opakování dostane jen zbytek celkového časového limitu */
+        let limits = fake.limits.lock().unwrap().clone();
+        assert_eq!(limits[0], None);
+        assert!(limits[1].is_some_and(|l| l <= TIMEOUT && l >= RETRY_MIN_LEFT));
+        /* ani druhá odpověď: chyba Empty, víc dotazů ne */
+        let fake = Arc::new(Fake::raw(Ok((200, content(Some("  <think>dlouhé přemýšlení</think> "))))));
+        let ai = ai_with(fake.clone(), true);
+        assert_eq!(ask(&ai), Err(AiErr::Empty));
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 2);
+        /* model bez reasoning_effort (OpenRouter): nic se neopakuje */
+        let fake = Arc::new(Fake::raw(Ok((200, content(None)))));
+        let keys = MemKeys::default();
+        keys.set(Provider::OpenRouter, KEY).unwrap();
+        let ai = Ai::new(Box::new(fake.clone()), Box::new(keys));
+        assert_eq!(ask_for("main", &ai, "openrouter", "openrouter/free", &msgs(), false, Instant::now(), 1), Err(AiErr::Empty));
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
+        /* jiná chyba než prázdná odpověď se neopakuje */
+        let fake = Arc::new(Fake::seq(vec![Ok((500, b"{}".to_vec()))], Ok((200, content(Some("x"))))));
+        let ai = ai_with(fake.clone(), true);
+        assert_eq!(ask(&ai), Err(AiErr::Server));
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
+        /* opakování počítá limit za minutu: poslední volné místo = bez opakování */
+        let fake = Arc::new(Fake::raw(Ok((200, content(None)))));
+        let ai = ai_with(fake.clone(), true);
+        let now = Instant::now();
+        for _ in 0..RATE_PER_MIN - 1 {
+            ai.limiter.lock().unwrap().admit(now, 1).unwrap();
+        }
+        assert_eq!(ask_for("main", &ai, "groq", "openai/gpt-oss-120b", &msgs(), false, now, 1), Err(AiErr::Empty));
+        assert_eq!(fake.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn opakovani_jen_ve_zbytku_casoveho_limitu() {
+        assert_eq!(retry_budget(Duration::ZERO), Some(TIMEOUT));
+        assert_eq!(retry_budget(Duration::from_secs(10)), Some(Duration::from_secs(20)));
+        assert_eq!(retry_budget(TIMEOUT - RETRY_MIN_LEFT), Some(RETRY_MIN_LEFT));
+        assert_eq!(retry_budget(TIMEOUT - RETRY_MIN_LEFT + Duration::from_millis(1)), None);
+        assert_eq!(retry_budget(TIMEOUT + Duration::from_secs(5)), None);
+        /* celkem nejvýš TIMEOUT: okno čeká 35 s */
+        assert!(TIMEOUT < Duration::from_secs(35));
+        /* skutečný klient zkrátí limit, nikdy neprodlouží */
+        let slow = UreqTransport { timeout: Duration::from_secs(5), max_read: 1024, https_only: false };
+        let ok = br#"{"choices":[{"message":{"content":"Ahoj."}}]}"#;
+        let t0 = Instant::now();
+        assert_eq!(slow.post_within(&serve(http("200 OK", ok), Duration::from_secs(3)), KEY, b"{}", Duration::from_millis(300)), Err(NetErr::Timeout));
+        assert!(t0.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn model_nenalezen_podle_tela_chyby() {
+        for (status, body) in [
+            (404, r#"{"error":{"message":"The model `x` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}"#),
+            (400, r#"{"error":{"message":"foo/bar is not a valid model ID","code":400}}"#),
+            (404, r#"{"error":{"message":"No endpoints found for foo/bar:free."}}"#),
+            (400, r#"{"error":{"message":"The model `llama3-8b` has been decommissioned"}}"#),
+            (400, r#"[{"error":{"code":400,"message":"models/x is not found for API version v1main"}}]"#),
+        ] {
+            assert_eq!(parse_reply(status, body.as_bytes()), Err(AiErr::Model), "{body}");
+        }
+        /* bez těla zůstane mapování podle stavu; jiné chyby nejsou „model“ */
+        assert_eq!(parse_reply(404, b""), Err(AiErr::Model));
+        assert_eq!(parse_reply(400, br#"{"error":{"message":"messages: too long"}}"#), Err(AiErr::Request));
+        assert_eq!(parse_reply(400, b"not json"), Err(AiErr::Request));
+        assert_eq!(parse_reply(401, br#"{"error":{"message":"model not found, invalid key"}}"#), Err(AiErr::BadKey));
+        assert_eq!(parse_reply(429, br#"{"error":{"code":"model_not_found"}}"#), Err(AiErr::Quota));
+        assert_eq!(parse_reply(500, br#"{"error":{"code":"model_not_found"}}"#), Err(AiErr::Server));
+        /* přes ask_for: okno dostane jen kód */
+        let ai = ai_with(Arc::new(Fake::raw(Ok((400, br#"{"error":{"message":"foo is not a valid model ID gsk_abc"}}"#.to_vec())))), true);
+        assert_eq!(ask(&ai), Err(AiErr::Model));
+        assert_eq!(AiErr::Model.code(), "ai:model");
+        /* odpověď do okna: text, dnešní počet a příznak opakování (camelCase) */
+        let v = serde_json::to_value(AiReply { text: "a".into(), today: 1, retried: false }).unwrap();
+        assert_eq!(v, serde_json::json!({"text":"a","today":1,"retried":false}));
     }
 
     /// Místní zkušební server HTTP (jen 127.0.0.1, jen v testu): skutečný klient ureq bez sítě.

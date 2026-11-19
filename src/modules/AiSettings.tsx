@@ -2,13 +2,15 @@
    souhlasit s textem o tom, co se posílá a komu, a vložit vlastní klíč (BYOK). Klíč jde jen jednou přímo do Rustu
    (Windows Credential Manager); pole se hned vyprázdní a klíč se nikdy nezobrazí, neuloží do stavu ani do zálohy.
    Stav klíče je jen ano / ne. Ukazuje i dnešní počet dotazů a u každého poskytovatele odkaz na stránku s klíči
-   a jednu větu o tom, co dělá s daty. */
+   a jednu větu o tom, co dělá s daty.
+   0.32.0: seznam posílaných údajů po bodech (AI_CONSENT_ITEMS). Když hráč souhlasil se starší verzí seznamu,
+   panel ukáže, co přibylo, a dotazy stojí (aiBlock → reconsent), dokud znovu nesouhlasí. */
 import { useEffect, useState } from 'react';
 import { Bot, KeyRound, Trash2 } from 'lucide-react';
 import { actions, useAppState } from '../store';
 import { ai } from '../ops/mainHub';
 import { useAiView } from '../store/aiView';
-import { AI_PROVIDERS, MODEL_RE, modelOf, providerDef, todayCount, type AiProvider } from '../core/ai';
+import { AI_CONSENT_ITEMS, AI_PROVIDERS, consentCurrent, consentNews, MODEL_RE, modelOf, providerDef, todayCount, type AiProvider } from '../core/ai';
 import { Badge, Btn, ConfirmButton, ExtLink, Panel, Select } from '../ui/components';
 import { aiErrText } from '../ui/AskOps';
 import { fmtDateTime } from '../ui/format';
@@ -22,6 +24,8 @@ export function AiSettingsPanel() {
   const p = s.ai;
   const v = useAiView(x => x.view);
   const def = providerDef(p.provider);
+  const outdated = p.consentAt > 0 && !consentCurrent(p);
+  const news = consentNews(p);
   const [key, setKey] = useState('');
   const [model, setModel] = useState(p.model);
   const [busy, setBusy] = useState(false);
@@ -54,12 +58,26 @@ export function AiSettingsPanel() {
         <section className="ai-consent" aria-labelledby="ai-consent-h" data-testid="ai-consent">
           <h3 id="ai-consent-h">{t('ai.consent.title')}</h3>
           <p>{t('ai.consent.what')}</p>
+          <ul className="ai-consent-list" data-testid="ai-consent-items">{AI_CONSENT_ITEMS.map(x => (
+            <li key={x.id} data-item={x.id} data-new={news.includes(x.id) ? '1' : undefined}>
+              {t(`ai.consent.item.${x.id}` as Key)}{news.includes(x.id) && <> <Badge tone="amber">{t('ai.consent.new')}</Badge></>}
+            </li>
+          ))}</ul>
+          <p>{t('ai.consent.when')}</p>
           <p>{t('ai.consent.never')}</p>
           <p>{t('ai.consent.whom', { provider: def.name })}</p>
           <p className="amber">{t('ai.consent.free')}</p>
           <p className="meta">{t('ai.consent.key')}</p>
+          {/* 0.32.0: souhlas se starší verzí seznamu: dotazy stojí, dokud hráč nesouhlasí s tím, co přibylo */}
+          {outdated && (
+            <div className="ask-note" role="status" data-testid="ai-reconsent">
+              <p><b>{t('ai.consent.changed')}</b></p>
+              <ul>{news.map(id => <li key={id} data-item={id}>{t(`ai.consent.item.${id}` as Key)}</li>)}</ul>
+              <Btn variant="primary" onClick={() => actions.aiConsent(true)} data-testid="ai-reconsent-accept">{t('ai.consent.reaccept')}</Btn>
+            </div>
+          )}
           {p.consentAt > 0
-            ? <p className="row"><Badge tone="success">{t('ai.consent.given', { when: fmtDateTime(p.consentAt) })}</Badge>
+            ? <p className="row"><Badge tone={outdated ? 'amber' : 'success'}>{t(outdated ? 'ai.consent.givenOld' : 'ai.consent.given', { when: fmtDateTime(p.consentAt) })}</Badge>
                 <Btn size="sm" variant="ghost" onClick={() => actions.aiConsent(false)} data-testid="ai-consent-revoke">{t('ai.consent.revoke')}</Btn></p>
             : <Btn variant="primary" onClick={() => actions.aiConsent(true)} data-testid="ai-consent-accept">{t('ai.consent.accept')}</Btn>}
         </section>

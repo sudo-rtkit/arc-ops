@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChartNoAxesCombined } from 'lucide-react';
+import { Bot, ChartNoAxesCombined } from 'lucide-react';
 import { useAppState, useDerived } from '../store';
 import { useUi } from '../store/ui';
 import { Badge, Btn, Empty, PageHead, Panel, Progress, Select } from '../ui/components';
@@ -10,6 +10,8 @@ import type { RaidType } from '../core/types';
 import { mapName } from './shared';
 import { isDone, goalKindName } from '../core/goals';
 import { loadoutStats, tallyItems } from '../core/loadouts';
+import { raidStats, STATS_MIN_SAMPLE, TREND_N, trendDirection } from '../core/raidStats';
+import { askStats, askStatsMap } from '../ui/AskOps';
 import { useT } from '../i18n/react';
 import type { Key } from '../i18n';
 
@@ -42,11 +44,14 @@ export default function Statistics() {
   const bestMap = byMap.filter(g => g.min > 0)[0];
   const series = dailySeries(raids);
   const byPlan = planMapStats(raids);
+  /* 0.32.0: celý deník bez filtrů (to, co uvidí Ops) */
+  const whole = raidStats(s.raids);
   const periodLabel = t(PERIODS.find(p => p.value === period)!.label);
   const coinsUnit = t('profile.unit.coins');
   return (
     <div className="page">
-      <PageHead title="Statistics" sub={t('stats.sub')} />
+      <PageHead title="Statistics" sub={t('stats.sub')}
+        actions={s.raids.length > 0 && <Btn icon={Bot} onClick={() => askStats(t, s.ai.on)} aria-label={t('ai.askStatsAria')} data-testid="stats-ask">{t('ai.askItem')}</Btn>} />
       <div className="panel"><div className="panel-body"><div className="stats-filters">
         <div className="field-wrap"><Select label={t('stats.period')} value={period} onChange={setPeriod} options={PERIODS.map(p => ({ value: p.value, label: t(p.label) }))} /></div>
         <div className="field-wrap"><Select label={t('raid.type')} value={type} onChange={setType} options={[{ value: '', label: t('journal.allTypes') }, ...raidTypes().map(([v, l]) => ({ value: v, label: l }))]} /></div>
@@ -111,6 +116,30 @@ export default function Statistics() {
             <Panel title={t('stats.mapsPh')}><HBars unit="/ h" rows={byMap.map(g => ({ key: g.key, label: mapName(g.key), value: g.perHour, note: t('money.barNoteRaids', { count: g.n, rate: pct(g.rate), coins: g.coins }) }))} /></Panel>
             <Panel title={t('stats.routesPh')}>{byRoute.length ? <HBars unit="/ h" rows={byRoute.map(g => ({ key: g.key, label: routeName(g.key), value: g.perHour, note: t('stats.raidNote', { count: g.n, rate: pct(g.rate) }) }))} /> : <p className="muted">{t('stats.noRoute')}</p>}</Panel>
           </div>
+          {/* 0.32.0: přežití, loot a trend po mapách z celého deníku (stejná čísla dostane Ops, core/raidStats.ts) */}
+          <Panel title={t('stats.ai.title')} flush>
+            <div data-testid="stats-ai-maps">
+              <div className="table-wrap"><table className="table">
+                <thead><tr><th>{t('common.map')}</th><th className="num">{t('nav.group.raids')}</th><th className="num">{t('stats.ai.survived')}</th><th className="num">{t('stats.ai.rate')}</th><th className="num">{t('stats.ai.loot')}</th><th>{t('stats.ai.trend')}</th><th><span className="sr-only">{t('stats.ai.ask')}</span></th></tr></thead>
+                <tbody>{whole.byMap.map(g => {
+                  const dir = trendDirection(g.trend);
+                  const name = mapName(g.key);
+                  return (
+                    <tr key={g.key} data-map={g.key}>
+                      <td>{name}{g.smallSample && <> <Badge tone="amber">{t('stats.ai.little', { count: g.raids })}</Badge></>}</td>
+                      <td className="num">{g.raids}</td>
+                      <td className="num">{t('stats.ai.survivedOf', { ok: g.survived, ko: g.knockedOut })}</td>
+                      <td className="num">{g.survivalRate === null ? DASH : pct(g.survivalRate)}</td>
+                      <td className="num">{g.avgLootValue === null ? DASH : <>{fmt(g.avgLootValue)} <span className="meta">{t('stats.ai.lootN', { count: g.lootN })}</span></>}</td>
+                      <td>{dir ? t(`stats.ai.dir.${dir}` as Key) : <span className="meta">{t('stats.ai.dir.none', { n: STATS_MIN_SAMPLE })}</span>}</td>
+                      <td><Btn size="sm" variant="ghost" icon={Bot} onClick={() => askStatsMap(t, s.ai.on, g.key, name)} aria-label={t('ai.askStatsMapAria', { name })} data-testid="stats-ask-map">{t('ai.why')}</Btn></td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table></div>
+              <p className="meta panel-pad">{t('stats.ai.hint', { n: STATS_MIN_SAMPLE, last: TREND_N })}</p>
+            </div>
+          </Panel>
           <Panel title={t('stats.planMaps')} flush>
             <div data-testid="stats-plan-maps">
               {byPlan.length ? (

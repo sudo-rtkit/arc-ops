@@ -123,8 +123,8 @@ export function decodeArgs(v: unknown, depth = 0): unknown {
 
 /* 0.30.0: argumenty otázky pro Opse z overlaye: [otázka ≤ AI_Q_MAX znaků, druh z AI_KINDS, odkaz nebo nic].
    0.31.0: mez odkazu podle druhu (AI_REF_LIMIT): předmět 80, tip rádce 121, úkol / stanice 88 (quest:<id>,
-   station:<id>); volná otázka, příprava na raid a shrnutí po raidu odkaz nemají. Akce aiAsk je pak ověří znovu
-   (normalizeAsk). */
+   station:<id>); volná otázka, příprava na raid a shrnutí po raidu odkaz nemají. 0.32.0: analytika z deníku (stats)
+   volitelně map:<id> do 44 znaků. Akce aiAsk je pak ověří znovu (normalizeAsk). */
 export function aiAskArgsOk(args: unknown[]): boolean {
   if (args.length < 2 || args.length > 3) return false;
   const [q, kind, ref] = args;

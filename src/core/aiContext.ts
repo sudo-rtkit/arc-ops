@@ -13,6 +13,11 @@
      z Přípravy na raid; model nic nepočítá.
    - Shrnutí po raidu (postRaid; jen na kliknutí Shrnout raid): vyhodnocení po raidu a záznam posledního raidu
      z deníku (výsledek, hodnota lootu, co posunul). Poznámky raidu, cíle hráče z deníku ani id se neposílají.
+   0.32.0 (fáze 3, Personal AI Analyst):
+   - Analytika (stats; tlačítko ve Statistics a u řádku mapy, odkaz map:<id>): souhrny deníku raidů z core/raidStats.ts
+     (přežití, vyřazení, průměrná hodnota lootu a mincí, trend posledních raidů proti dřívějším, série) celkově, po
+     mapách, loadoutech, zbraních a typech raidu. Ke každému číslu velikost vzorku a smallSample (n < minSample).
+   - Volná otázka, která zmiňuje mapy nebo raidy, dostane stručný souhrn (celkově, série, nejvýš 4 mapy).
    Nikdy se neposílá: snímek obrazovky, jména jiných hráčů (deník raidů, poznámky a body map vůbec), celá záloha,
    cesty k souborům, e-maily, kód relace ani jiné dlouhé tokeny. Každý text projde safeText (bez řídicích znaků,
    bez < a >, které by mohly ukončit blok dat, bez adres, cest, e-mailů a tokenů, omezená délka).
@@ -28,7 +33,8 @@ import { locText, objectiveProgress, projectNeeds, questById, questName, questNe
 import { activeQuests, nextUpgrade, stockOf } from './compact';
 import { nextNeeds, readiness, reqBlock, workshopProgress } from './workshop';
 import { stationTargets } from './planner';
-import { getRoutes, getStations, recipeKey } from './gamedata';
+import { getRoutes, getStations, getWeapons, recipeKey } from './gamedata';
+import { raidStats, STATS_MIN_SAMPLE, trendDirection, type MapRow, type StatsAgg, type StatsTrend } from './raidStats';
 import { defaultGoals, goalLabels, listSig, raidList, recommendedMap, scoreMaps, validGoals, type MapReason } from './raidPrep';
 import { evaluateRaid, knownRisk, loadoutOutcome, nextRaid, planLoadout, planRaid, raidGear } from './raidEval';
 import { itemFacts, type LoadoutSummary } from './loadouts';
@@ -42,7 +48,9 @@ export interface AiMessage { role: 'system' | 'user'; content: string }
 export interface AiSource {
   id: string;
   kind: 'item' | 'stock' | 'need' | 'advice' | 'stash' | 'tip' | 'profile' | 'quest' | 'quests' | 'questMats' | 'station' | 'workshop'
-    | 'plan' | 'raidList' | 'map' | 'loadout' | 'eval' | 'raid';
+    | 'plan' | 'raidList' | 'map' | 'loadout' | 'eval' | 'raid'
+    /* 0.32.0: analytika z deníku raidů */
+    | 'journal' | 'statsMap' | 'statsMaps' | 'statsLoadouts' | 'statsWeapons';
   label: string; rec?: ProvRec | null;
 }
 export interface AiContext { messages: AiMessage[]; sources: AiSource[]; dataChars: number }
@@ -333,13 +341,86 @@ function postRaidBundle(s: AppState, lang: Lang, today: string, src: AiSource[],
   };
 }
 
-const KIND_ATTR: Record<AiKind, string> = { item: 'item', advisor: 'next-steps', free: 'question', quests: 'quests-workshop', raid: 'raid-prep', postRaid: 'post-raid' };
+/* ----- 0.32.0: osobní analytika z deníku raidů (Personal AI Analyst) -----
+   Jen souhrny z core/raidStats.ts, každý s velikostí vzorku (raids / lootN / coinsN) a příznakem smallSample.
+   Mapy, zbraně a typy raidu jménem z katalogu; loadouty jménem (safeText), id loadoutů ani záznamů se neposílají.
+   Poznámky raidů, poznámky map, loot po položkách ani jména hráčů vůbec. */
+const weaponIndex = (s: AppState, lang: Lang): Map<string, string> => {
+  const m = new Map<string, string>();
+  for (const w of getWeapons(s.gameData, lang)) if (w.name.trim()) m.set(w.name.trim().toLowerCase(), w.name.trim());
+  return m;
+};
+const aggData = (a: StatsAgg) => ({
+  raids: a.raids, survived: a.survived, knockedOut: a.knockedOut, survivalRate: a.survivalRate,
+  avgLootValue: a.avgLootValue, lootN: a.lootN, lootItemsWithoutPrice: a.itemsWithoutPrice,
+  avgCoinsSurvived: a.avgCoins, coinsN: a.coinsN, smallSample: a.smallSample,
+});
+const trendData = (t: StatsTrend) => ({
+  lastN: t.lastN, recent: t.recent, earlier: t.earlier,
+  survivalRateChange: t.survivalRateChange, avgLootValueChange: t.avgLootValueChange, enoughData: t.enoughData, direction: trendDirection(t),
+});
+const typeLabel = (k: string): string => (['money', 'quest', 'trials', 'arc', 'pvp', 'other'].includes(k) ? k : 'other');
+const loadoutLabel = (s: AppState, id: string): string => {
+  if (!id) return 'no loadout';
+  const l = s.loadouts.find(x => x.id === id);
+  return l ? safeText(l.name, 60) || 'unnamed loadout' : 'deleted loadout';
+};
+
+/* Zmiňuje volná otázka mapy, raidy nebo statistiky? (pak dostane i stručný souhrn deníku) Vrací i id zmíněné mapy. */
+const STATS_WORDS = /(^| )(raid\w*|map[aěuyo]?|mapách|mapám|statistik\w*|statistics?|stats|deník\w*|journal|přežív\w*|přežil\w*|přežití|survive\w*|survival|extract\w*|vyřaz\w*|knocked|daří|nedaří|úspěšnost\w*|win rate|série|sérii|streak\w*|loot\w*|trend\w*)( |$)/u;
+export function statsInQuestion(q: string): { asks: boolean; map: string | null } {
+  const text = ' ' + q.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim() + ' ';
+  let map: string | null = null;
+  for (const m of MAPS) {
+    const names = [m.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim(), m.id, m.name.toLowerCase().replace(/^the /, '').split(' ')[0]];
+    if (names.some(n => n.length >= 3 && text.includes(' ' + n + ' '))) { map = m.id; break; }
+  }
+  return { asks: map !== null || STATS_WORDS.test(text.trim()), map };
+}
+
+function statsBundle(s: AppState, ref: string, lang: Lang, src: AiSource[], lim: Lim, compact: boolean) {
+  const rep = raidStats(s.raids, weaponIndex(s, lang));
+  const o = rep.overall;
+  const from = rep.from !== null ? day(rep.from) : null, to = rep.to !== null ? day(rep.to) : null;
+  src.push({ id: 'journal', kind: 'journal', label: o.raids
+    ? tl(lang, 'ai.src.journal', { count: o.raids, from: from ?? '', to: to ?? '', auto: rep.auto })
+    : tl(lang, 'ai.src.journalEmpty') });
+  const focusId = ref.startsWith('map:') ? ref.slice(4) : '';
+  const focus = focusId ? rep.byMap.find(m => m.key === focusId) ?? null : null;
+  if (focusId) src.push({ id: 'statsMap:' + focusId, kind: 'statsMap', label: tl(lang, 'ai.src.statsMap', { name: mapLabel(focusId), count: focus?.raids ?? 0 }) });
+  const mapRow = (m: MapRow, full: boolean) => ({
+    map: mapLabel(m.key), ...aggData(m),
+    ...(full ? { trend: trendData(m.trend), currentStreak: m.currentStreak } : { trendDirection: trendDirection(m.trend) }),
+  });
+  const base = {
+    minSample: STATS_MIN_SAMPLE,
+    period: { from, to, raids: o.raids, autoRecorded: rep.auto },
+    overall: aggData(o),
+    streaks: rep.streaks,
+    focusMap: focusId ? (focus ? mapRow(focus, true) : { map: mapLabel(focusId), raids: 0, smallSample: true }) : null,
+  };
+  if (rep.byMap.length) src.push({ id: 'statsMaps', kind: 'statsMaps', label: tl(lang, 'ai.src.statsMaps', { count: rep.byMap.length }) });
+  if (compact) return { ...base, maps: rep.byMap.slice(0, lim(4)).map(m => mapRow(m, false)) };
+  if (rep.byLoadout.length) src.push({ id: 'statsLoadouts', kind: 'statsLoadouts', label: tl(lang, 'ai.src.statsLoadouts', { count: rep.byLoadout.length }) });
+  if (rep.byWeapon.length) src.push({ id: 'statsWeapons', kind: 'statsWeapons', label: tl(lang, 'ai.src.statsWeapons', { count: rep.weaponRaids }) });
+  return {
+    ...base,
+    trend: trendData(rep.trend),
+    maps: rep.byMap.slice(0, lim(8)).map(m => mapRow(m, true)),
+    loadouts: rep.byLoadout.slice(0, lim(6)).map(g => ({ loadout: loadoutLabel(s, g.key), ...aggData(g) })),
+    weapons: { raidsWithWeapon: rep.weaponRaids, list: rep.byWeapon.slice(0, lim(6)).map(g => ({ weapon: safeText(g.key, 60), ...aggData(g) })) },
+    raidTypes: rep.byType.slice(0, lim(6)).map(g => ({ type: typeLabel(g.key), ...aggData(g) })),
+  };
+}
+
+const KIND_ATTR: Record<AiKind, string> = { item: 'item', advisor: 'next-steps', free: 'question', quests: 'quests-workshop', raid: 'raid-prep', postRaid: 'post-raid', stats: 'raid-stats' };
 
 /* Celý dotaz: pokyny (povaha a jazyk), otázka a data v ohraničených blocích. Data se zmenšují, dokud nejsou pod
    CONTEXT_MAX znaků. */
 export function buildAiContext(s: AppState, ask: AiAsk, o: { lang: Lang; personality: OpsPersonality; now: number; today: string; tips: AdvisorTip[] }): AiContext {
   let data = '';
   let sources: AiSource[] = [];
+  let withStats = false;
   for (const level of [0, 1, 2, 3]) {
     const src: AiSource[] = [];
     const full = level === 0;
@@ -353,7 +434,13 @@ export function buildAiContext(s: AppState, ask: AiAsk, o: { lang: Lang; persona
     if (ask.kind === 'quests') bundle.questsWorkshop = questsBundle(s, ask.ref, o.lang, o.today, src, lim);
     else if (ask.kind === 'raid') bundle.raidPrep = raidBundle(s, o.lang, o.today, src, lim);
     else if (ask.kind === 'postRaid') bundle.postRaid = postRaidBundle(s, o.lang, o.today, src, lim);
+    else if (ask.kind === 'stats') bundle.raidStats = statsBundle(s, ask.ref, o.lang, src, lim, level === 3);
     else {
+      /* 0.32.0: volná otázka o mapách nebo raidech dostane i stručný souhrn deníku (zmíněná mapa jako focusMap) */
+      if (ask.kind === 'free' && level < 3) {
+        const st = statsInQuestion(ask.question);
+        if (st.asks) bundle.raidStats = statsBundle(s, st.map ? 'map:' + st.map : '', o.lang, src, lim, true);
+      }
       if (ask.kind !== 'item' || level === 0) {
         bundle.advisor = advisorBundle(s, o.tips, ask.kind === 'advisor' ? ask.ref : '', o.lang, src, level === 0 ? 5 : level === 1 ? 3 : 1);
       }
@@ -361,12 +448,13 @@ export function buildAiContext(s: AppState, ask: AiAsk, o: { lang: Lang; persona
     }
     data = JSON.stringify(bundle);
     sources = src;
+    withStats = ask.kind === 'free' && 'raidStats' in bundle;
     if (data.length <= CONTEXT_MAX) break;
   }
-  if (data.length > CONTEXT_MAX) data = JSON.stringify({ app: 'ARC Raiders Companion', note: 'data too large' });
+  if (data.length > CONTEXT_MAX) { data = JSON.stringify({ app: 'ARC Raiders Companion', note: 'data too large' }); withStats = false; }
   const question = safeText(ask.question, 600);
   const user = `<question>\n${question}\n</question>\n<app_data kind="${KIND_ATTR[ask.kind]}">\n${data}\n</app_data>`;
-  return { messages: [{ role: 'system', content: aiSystemPrompt(o.lang, o.personality, ask.kind) }, { role: 'user', content: user }], sources: dedupe(sources), dataChars: data.length };
+  return { messages: [{ role: 'system', content: aiSystemPrompt(o.lang, o.personality, ask.kind, withStats) }, { role: 'user', content: user }], sources: dedupe(sources), dataChars: data.length };
 }
 
 const dedupe = (src: AiSource[]): AiSource[] => { const seen = new Set<string>(); return src.filter(x => !seen.has(x.id) && !!seen.add(x.id)).slice(0, 16); };

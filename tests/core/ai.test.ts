@@ -36,7 +36,7 @@ async function makeApp(stored?: unknown): Promise<App> {
   await app.init();
   return app;
 }
-const ready = (over: Partial<AppState> = {}): AppState => ({ ...defaultState(NOW), ai: { ...emptyAi(), on: true, consentAt: NOW - 1000 }, ...over });
+const ready = (over: Partial<AppState> = {}): AppState => ({ ...defaultState(NOW), ai: { ...emptyAi(), on: true, consentAt: NOW - 1000, consentVersion: 1 }, ...over });
 
 function fakeAi(opts: { key?: boolean; reply?: (m: AiMessage[]) => Promise<{ text: string; today: number }> } = {}) {
   const asks: { provider: string; model: string; messages: AiMessage[] }[] = [];
@@ -59,7 +59,7 @@ function port(game: GameInfo = OUT) {
 describe('nastavení AI asistenta', () => {
   it('výchozí stav: vypnuto, bez souhlasu, Groq s výchozím modelem; starší stav pole nemá a schéma zůstává 19', () => {
     const s = defaultState(NOW);
-    expect(s.ai).toEqual({ on: false, provider: 'groq', model: '', consentAt: 0, day: '', count: 0 });
+    expect(s.ai).toEqual({ on: false, provider: 'groq', model: '', consentAt: 0, consentVersion: 0, day: '', count: 0 });
     expect(s.schema).toBe(19);
     const old = normalize({ schema: 19, profile: { level: 3 } }, NOW);
     expect(old.ai).toEqual(emptyAi());
@@ -78,7 +78,7 @@ describe('nastavení AI asistenta', () => {
     expect(normalizeAi({ day: TODAY, count: 1e12 }).count).toBe(100_000);
     const st = normalize({ schema: 19, ai: { on: true, consentAt: NOW, key: 'gsk_secret' } }, NOW);
     expect(JSON.stringify(st)).not.toContain('gsk_secret');
-    expect(Object.keys(st.ai).sort()).toEqual(['consentAt', 'count', 'day', 'model', 'on', 'provider']);
+    expect(Object.keys(st.ai).sort()).toEqual(['consentAt', 'consentVersion', 'count', 'day', 'model', 'on', 'provider']);
   });
 
   it('store: zapnout jde jen se souhlasem, odvolání vypne, změna služby vrátí výchozí model; počítadlo podle dne', async () => {
@@ -132,7 +132,9 @@ describe('otázka a kdy se smí ptát', () => {
   it('bez souhlasu, vypnuto, bez klíče: nejde; pořadí důvodů', () => {
     const s = defaultState(NOW);
     expect(aiBlock(s, { origin: 'main', game: OUT, hasKey: true })).toBe('consent');
-    expect(aiBlock({ ...s, ai: { ...s.ai, consentAt: 1 } }, { origin: 'main', game: OUT, hasKey: true })).toBe('off');
+    expect(aiBlock({ ...s, ai: { ...s.ai, consentAt: 1, consentVersion: 1 } }, { origin: 'main', game: OUT, hasKey: true })).toBe('off');
+    /* 0.32.0: souhlas se starší verzí seznamu = znovu souhlasit (před vypnuto i klíčem) */
+    expect(aiBlock({ ...s, ai: { ...s.ai, consentAt: 1, consentVersion: 0 } }, { origin: 'main', game: OUT, hasKey: false })).toBe('reconsent');
     expect(aiBlock(ready(), { origin: 'main', game: OUT, hasKey: false })).toBe('noKey');
     expect(aiBlock(ready(), { origin: 'main', game: OUT, hasKey: true })).toBeNull();
   });
@@ -268,7 +270,7 @@ describe('data pro model', () => {
 
 describe('obsluha AI v hlavním okně', () => {
   it('bez souhlasu, zapnutí nebo klíče se nic nevolá; chyba nezůstane „přemýšlí“', async () => {
-    for (const [stored, key, want] of [[{ schema: 19 }, true, 'consent'], [{ schema: 19, ai: { consentAt: NOW } }, true, 'off'], [{ schema: 19, ai: { consentAt: NOW, on: true } }, false, 'noKey']] as const) {
+    for (const [stored, key, want] of [[{ schema: 19 }, true, 'consent'], [{ schema: 19, ai: { consentAt: NOW, consentVersion: 1 } }, true, 'off'], [{ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } }, false, 'noKey']] as const) {
       const app = await makeApp(stored);
       const native = fakeAi({ key });
       const ctl = createAiController({ app, native, port: port(), now: () => NOW });
@@ -280,7 +282,7 @@ describe('obsluha AI v hlavním okně', () => {
   });
 
   it('úspěch: thinking → talk, odpověď prostý text se zdroji, počítadlo +1; model a služba z nastavení', async () => {
-    const app = await makeApp({ schema: 19, inventory: { Wires: 7 }, ai: { consentAt: NOW, on: true, provider: 'groq' } });
+    const app = await makeApp({ schema: 19, inventory: { Wires: 7 }, ai: { consentAt: NOW, consentVersion: 1, on: true, provider: 'groq' } });
     const native = fakeAi({ key: true, reply: async () => ({ text: '**Nech** si je. [klik](https://x.example)', today: 1 }) });
     const p = port();
     const ctl = createAiController({ app, native, port: p, now: () => NOW });
@@ -302,7 +304,7 @@ describe('obsluha AI v hlavním okně', () => {
 
   it('chyby služby: kód, bublina, počítadlo jen u dotazu, který došel k poskytovateli; časový limit v okně', async () => {
     for (const [err, counted] of [['ai:badKey', 1], ['ai:quota', 1], ['ai:offline', 0], ['ai:rate', 0], ['ai:timeout', 1]] as const) {
-      const app = await makeApp({ schema: 19, ai: { consentAt: NOW, on: true } });
+      const app = await makeApp({ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } });
       const native = fakeAi({ key: true, reply: () => Promise.reject(err) });
       const p = port();
       const ctl = createAiController({ app, native, port: p, now: () => NOW });
@@ -311,12 +313,12 @@ describe('obsluha AI v hlavním okně', () => {
       expect(app.store.getState().state.ai.count, err).toBe(counted);
       expect(p.said.at(-1)!.line).toBe('ai.error');
     }
-    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, on: true } });
+    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } });
     const ctl = createAiController({ app, native: fakeAi({ key: true, reply: () => new Promise(() => undefined) }), port: port(), now: () => NOW, timeoutMs: 20 });
     await ctl.ask({ question: 'Proč?', kind: 'free', ref: '' }, 'main');
     expect(ctl.view()).toMatchObject({ status: 'error', error: 'timeout' });
     /* hra v popředí (Rust): bez bubliny */
-    const app2 = await makeApp({ schema: 19, ai: { consentAt: NOW, on: true } });
+    const app2 = await makeApp({ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } });
     const p2 = port();
     const ctl2 = createAiController({ app: app2, native: fakeAi({ key: true, reply: () => Promise.reject('ai:game') }), port: p2, now: () => NOW });
     await ctl2.ask({ question: 'Proč?', kind: 'free', ref: '' }, 'main');
@@ -325,7 +327,7 @@ describe('obsluha AI v hlavním okně', () => {
   });
 
   it('v raidu (overlay nad běžící hrou bez jistoty) se nic nepošle a nic nevyskočí', async () => {
-    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, on: true } });
+    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } });
     const native = fakeAi({ key: true });
     const p = port(IN_GAME);
     const ctl = createAiController({ app, native, port: p, now: () => NOW });
@@ -339,7 +341,7 @@ describe('obsluha AI v hlavním okně', () => {
   });
 
   it('mimo aplikaci pro Windows (bez náhrady) nic nedostupné', async () => {
-    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, on: true } });
+    const app = await makeApp({ schema: 19, ai: { consentAt: NOW, consentVersion: 1, on: true } });
     const ctl = createAiController({ app, native: { ...fakeAi({ key: true }), available: false }, port: port(), now: () => NOW });
     await ctl.ask({ question: 'Proč?', kind: 'free', ref: '' }, 'main');
     expect(ctl.view()).toMatchObject({ error: 'unavailable', overlayBlock: 'unavailable', mainBlock: 'unavailable' });

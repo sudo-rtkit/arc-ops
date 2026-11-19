@@ -93,6 +93,8 @@ export function createAiController({ app, native, port, now = Date.now, timeoutM
     try {
       const r = await withTimeout(native.ask(s.ai.provider, modelOf(s.ai), ctx.messages));
       if (id !== seq) return;
+      /* 0.32.0: Rust zkusil prázdnou odpověď ještě jednou bez reasoning_effort = dva dotazy u poskytovatele */
+      if (r?.retried === true) app.actions.aiCount();
       const answer = plainAnswer(r?.text);
       if (!answer) throw new Error('ai:empty');
       app.actions.aiCount();
@@ -113,7 +115,7 @@ export function createAiController({ app, native, port, now = Date.now, timeoutM
   let off: (() => void) | null = null;
   function start() {
     let prev = '';
-    const sig = () => { const a = st().ai; return `${a.on}|${a.provider}|${a.consentAt > 0}`; };
+    const sig = () => { const a = st().ai; return `${a.on}|${a.provider}|${a.consentAt > 0}|${a.consentVersion}`; };
     off = app.store.subscribe(x => {
       if (!x.ready) return;
       const next = sig();

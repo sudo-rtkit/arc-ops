@@ -35,7 +35,7 @@ async function seed(page: Page, lang: 'cs' | 'en', on: boolean) {
   }, [JSON.stringify({
     schema: 19, inventory: { Wires: 3, Battery: 1, 'Power Cable': 1 }, quests: { done: { ss10s: 1 }, pinned: ['ss10y'] },
     buddy: { enabled: true }, opsPrefs: { tutorial: { status: 'done', step: 'end' } }, settings: { autoSnapshot: false, lang },
-    ...(on ? { ai: { on: true, consentAt: Date.UTC(2026, 10, 14) } } : {}),
+    ...(on ? { ai: { on: true, consentAt: Date.UTC(2026, 10, 14), consentVersion: 1 } } : {}),
   }), KEY, on] as const);
 }
 

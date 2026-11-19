@@ -90,7 +90,17 @@ describe('0.30.0: AI asistent: příkazy a oprávnění', () => {
     for (let i = 1; i < order.length; i++) expect(ask.indexOf(order[i - 1]), order[i]).toBeLessThan(ask.indexOf(order[i]));
     expect(fnBody('ai_ask')).toContain('crate::ops::game_in_front()');
     expect(ureqImpl()).toContain('.limit(self.max_read as u64)');
-    expect(ureqImpl()).toContain('.timeout_global(Some(self.timeout))');
+    /* 0.32.0: post_within jen zkracuje (opakování po prázdné odpovědi ve zbytku TIMEOUT), nikdy neprodlouží */
+    expect(ureqImpl()).toContain('let timeout = limit.min(self.timeout);');
+    expect(ureqImpl()).toContain('.timeout_global(Some(timeout))');
+    expect(ureqImpl()).toContain('self.post_within(url, key, body, self.timeout)');
+    /* opakování: jen po prázdné odpovědi u modelu s reasoning_effort, ve zbytku času, přes limit za minutu a den */
+    expect(ask).toContain('Err(AiErr::Empty) if reasoning_for(p, model) => match retry_budget(started.elapsed())');
+    expect(ask).toContain('l.admit(now, day)');
+    expect(ask).toContain('request_body_opts(model, msgs, false)');
+    expect([...ask.matchAll(/ai\.transport\.post(_within)?\(/g)].length).toBe(2);
+    expect(src).toContain('pub const RETRY_MIN_LEFT: Duration = Duration::from_secs(8);');
+    expect(src).toMatch(/pub fn retry_budget\(elapsed: Duration\) -> Option<Duration> \{\s*TIMEOUT\.checked_sub\(elapsed\)/);
   });
 
   it('klíč: jen Credential Manager; stav jen bool; do okna ani do deníku se nedostane', () => {
@@ -101,7 +111,8 @@ describe('0.30.0: AI asistent: příkazy a oprávnění', () => {
     const gets = [...src.matchAll(/\.keys\.get\(/g)].length;
     expect(gets).toBe(1);
     for (const c of CMDS) expect(fnBody(c).includes('.get('), c).toBe(false);
-    expect(src).toMatch(/pub struct AiReply \{\s*pub text: String,\s*pub today: u32,\s*\}/);
+    /* 0.32.0: navíc jen příznak opakování (bool) */
+    expect(src).toMatch(/pub struct AiReply \{\s*pub text: String,\s*pub today: u32,\s*\/\/\/[^\n]*\n\s*pub retried: bool,\s*\}/);
     /* do deníku jen kód chyby */
     expect(fnBody('logged')).toContain('crate::diag::rust(crate::diag::Level::Warn, ctx, e.code());');
     expect(src).not.toMatch(/diag::(rust|error|fail)\([^;]*(key|content|messages|body)/);
@@ -174,8 +185,10 @@ describe('0.30.0: AI asistent: WebView', () => {
     expect(relay).toContain('ref.length <= Math.min(AI_REF_LIMIT[kind], 121)');
     expect(relay).toContain('setAi: none, aiConsent: none, aiCount: none,');
     expect(code('src/core/ai.ts')).toContain('export const AI_Q_MAX = 500;');
-    expect(code('src/core/ai.ts')).toContain("export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor', 'quests', 'raid', 'postRaid'];");
-    expect(code('src/core/ai.ts')).toContain('export const AI_REF_LIMIT: Readonly<Record<AiKind, number>> = { free: 0, item: AI_REF_MAX, advisor: 121, quests: 88, raid: 0, postRaid: 0 };');
+    /* 0.32.0: druh stats (analytika z deníku), odkaz map:<id> do 44 znaků */
+    expect(code('src/core/ai.ts')).toContain("export const AI_KINDS: readonly AiKind[] = ['free', 'item', 'advisor', 'quests', 'raid', 'postRaid', 'stats'];");
+    expect(code('src/core/ai.ts')).toContain('export const AI_REF_LIMIT: Readonly<Record<AiKind, number>> = { free: 0, item: AI_REF_MAX, advisor: 121, quests: 88, raid: 0, postRaid: 0, stats: 44 };');
+    expect(code('src/core/ai.ts')).toContain('export const STATS_REF_RE = /^map:[a-z0-9_-]{1,40}$/;');
     const bus = read('src-tauri/src/bus.rs');
     expect(bus.slice(bus.indexOf('pub fn route_ok'), bus.indexOf('pub fn kind_ok'))).not.toMatch(/\bAI\b|"ai/);
     expect(read(AI_RS)).not.toMatch(/emit_native|\.emit(_to)?\(/);
@@ -204,7 +217,8 @@ describe('0.30.0: AI asistent: WebView', () => {
     /* askOps volají jen tlačítka (onClick / onSubmit) */
     const ts = walk(join(root, 'src'), /\.tsx$/).map(f => [rel(f), code(rel(f))] as const);
     /* 0.31.0: i nová tlačítka (Úkoly, Workshop, Příprava na raid, Shrnout raid) */
-    for (const [f, s] of ts) for (const m of s.matchAll(/\b(askOps|askWhy|askItem|askAndOpen|askQuest|askStation|askRaid|askPostRaid)\(/g)) {
+    /* 0.32.0: i tlačítka ve Statistics (askStats, askStatsMap) */
+    for (const [f, s] of ts) for (const m of s.matchAll(/\b(askOps|askWhy|askItem|askAndOpen|askQuest|askStation|askRaid|askPostRaid|askStats|askStatsMap)\(/g)) {
       const before = s.slice(Math.max(0, m.index! - 160), m.index);
       const lineStart = s.lastIndexOf('\n', m.index!) + 1;
       if (f === 'src/ui/AskOps.tsx' && s.slice(lineStart, m.index).startsWith('export const ask')) continue;

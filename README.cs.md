@@ -7,7 +7,7 @@
 
 [English](README.md) · [Instalace](#instalace) · [Historie verzí](CHANGELOG.md) · [Vývoj](DEVELOPMENT.md)
 
-**0.31.0 · Windows · Offline · MIT · Česky a anglicky**
+**0.32.0 · Windows · Offline · MIT · Česky a anglicky**
 
 [![CI](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sudo-rtkit/arc-ops/actions/workflows/ci.yml)
 
@@ -101,9 +101,11 @@ Druhy otázek, každý s vlastním malým balíkem údajů a vlastními tlačít
 - **Úkoly a dílna** (**Zeptat se Opse** u úkolu v Úkolech a u stanice ve Workshopu): splněné, dostupné a další úkoly v řetězu s cíli, materiály, které úkoly ještě potřebují, další úrovně stanic s recepty a zásobou a doporučené další vylepšení. *Co mi chybí na další úkol? Co vylepšit dřív?*
 - **AI Raid Planner** (**Zeptat se Opse** u aktivního plánu v Přípravě na raid): cíle plánu, mapa a trasa jménem, co ještě najít a souhrn loadoutu z builderu (hodnota, váha, hodnota v riziku). Ops vysvětlí rizika a náklady a navrhne varianty z dalších obodovaných map; všechna čísla jsou z Přípravy na raid.
 - **Shrnutí po raidu** (**Shrnout raid** ve vyhodnocení po raidu, jen na kliknutí): vyhodnocení a poslední raid z deníku (výsledek, hodnota lootu, co posunul). Poznámky raidu se nikdy neposílají.
+- **Osobní analytik** (**Zeptat se Opse** ve Statistics a **Proč?** u každé mapy v panelu *Mapy: přežití, loot a trend*): souhrny tvého deníku raidů po mapách, loadoutech, zbraních a typech raidu: kolikrát jsi přežil a kolikrát tě vyřadili, podíl přežití, průměrná hodnota lootu, trend posledních 5 raidů proti dřívějším a série. *Proč se mi na Dam nedaří?* Ke každému číslu Ops řekne, z kolika raidů je, a když je jich na závěr málo (pod 5), řekne to rovnou. Poznámky ani loot po předmětech se neposílají. Volná otázka o mapách nebo raidech dostane stručný souhrn taky.
 - **Volná otázka** v panelu Zeptej se Opse.
 
 - **Ve výchozím stavu vypnuto.** Zapneš ho v **Nastavení → AI asistent** po přečtení a odsouhlasení toho, co se posílá, a s **vlastním bezplatným klíčem** od [Groq](https://console.groq.com/keys) (výchozí), [Google Gemini](https://aistudio.google.com/apikey) nebo [OpenRouter](https://openrouter.ai/settings/keys). Aplikace ani repozitář žádný klíč neobsahují.
+- **Nový souhlas, když se seznam rozšíří.** Nastavení vypisuje, co se posílá, po bodech. Když nová verze posílá víc druhů údajů, než s čím jsi souhlasil, Ops se AI neptá, dokud znovu nesouhlasíš; Nastavení označí, co přibylo.
 - **Klíč zůstává ve Správci pověření Windows.** Oknem aplikace projde jen jednou při zadání; nikdy se znovu nezobrazí, neuloží do dat ani zálohy a nezapíše do deníku chyb.
 - **Co se posílá:** tvoje otázka a malý, velikostí omezený výběr údajů z aplikace k ní, a jen když klikneš. **Nikdy se neposílá:** snímek obrazovky, jména jiných hráčů, záloha, cesty k souborům, e-mail ani kód relace. Bezplatné úrovně služeb mohou dotazy používat ke zlepšování svých modelů (Google to u bezplatného Gemini API uvádí).
 - **Nikdy během raidu.** V polní konzoli nad hrou se zeptáš jen tehdy, když aplikace ví, že nejsi v raidu; když si není jistá, bere to jako raid. Nic samo nevyskočí a hra nikdy nepřijde o fokus.

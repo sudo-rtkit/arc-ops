@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Bot, ChevronRight, HelpCircle, Settings as SettingsIcon } from 'lucide-react';
 import { actions, navigate, useAppState } from '../store';
 import { useAiView } from '../store/aiView';
-import { AI_Q_MAX, type AiError, type AiKind } from '../core/ai';
+import { AI_Q_MAX, aiErrorHint, type AiError, type AiKind, type AiPrefs } from '../core/ai';
 import type { AdvisorTip } from '../core/advisor';
 import { inOverlay, openInApp } from '../shell/host';
 import { Badge, Btn, cx } from './components';
@@ -20,8 +20,13 @@ import { useT, type TFn } from '../i18n/react';
 import type { Key } from '../i18n';
 
 /* Nastavení chybí (vypnuto, bez souhlasu, bez klíče, mimo aplikaci pro Windows): odkaz do Nastavení → AI asistent. */
-const SETUP: readonly AiError[] = ['off', 'consent', 'noKey', 'unavailable'];
+const SETUP: readonly AiError[] = ['off', 'consent', 'reconsent', 'noKey', 'unavailable'];
 export const aiErrText = (t: TFn, e: AiError): string => t(`ai.err.${e}` as Key);
+/* 0.32.0: nápověda pod chybou (model nenalezen, prázdná odpověď), jen z kódu chyby a nastavení */
+export const aiHintText = (t: TFn, e: AiError | null, p: Pick<AiPrefs, 'provider' | 'model'>): string | null => {
+  const h = aiErrorHint(e, p);
+  return h ? t(h.key, h.params) : null;
+};
 
 /* Otázka pro Opse (v overlayi ji zrcadlo pošle hlavnímu oknu). */
 export const askOps = (question: string, kind: AiKind, ref = ''): void => actions.aiAsk(question, kind, ref);
@@ -35,6 +40,9 @@ export const askQuest = (t: TFn, aiOn: boolean, id: string, name: string): void 
 export const askStation = (t: TFn, aiOn: boolean, id: string, name: string, n: number): void => askAndOpen(aiOn, t('ai.q.station', { name, n }), 'quests', 'station:' + id);
 export const askRaid = (t: TFn, aiOn: boolean): void => askAndOpen(aiOn, t('ai.q.raid'), 'raid');
 export const askPostRaid = (t: TFn, aiOn: boolean): void => askAndOpen(aiOn, t('ai.q.postRaid'), 'postRaid');
+/* 0.32.0: analytika z deníku: tlačítko ve Statistics a u řádku mapy (odkaz map:<id>) */
+export const askStats = (t: TFn, aiOn: boolean): void => askAndOpen(aiOn, t('ai.q.stats'), 'stats');
+export const askStatsMap = (t: TFn, aiOn: boolean, id: string, name: string): void => askAndOpen(aiOn, t('ai.q.statsMap', { name }), 'stats', 'map:' + id);
 /* Tři nejlepší tipy „Co dál?“ (každý má tlačítko Proč?); stejný výběr v panelu i v polní konzoli. */
 export const topTips = <T,>(visible: readonly T[]): T[] => visible.slice(0, 3);
 
@@ -64,7 +72,9 @@ export function AskOps({ compact }: { compact?: boolean }) {
   /* 0.31.0: tlačítka pod odpovědí podle druhu a odkazu otázky (nikdy podle textu modelu) */
   const qRef = v.kind === 'quests' ? v.ref : '';
   const raidKind = v.kind === 'raid' || v.kind === 'postRaid';
-  const hasActions = v.kind === 'item' || !!tip || !!qRef || raidKind;
+  const statsKind = v.kind === 'stats';
+  const hasActions = v.kind === 'item' || !!tip || !!qRef || raidKind || statsKind;
+  const hint = v.status === 'error' ? aiHintText(t, v.error, s.ai) : null;
   return (
     <div className={cx('ask-ops', compact && 'ask-compact')} data-testid="ask-ops" data-block={block ?? ''}>
       {setup && (
@@ -119,6 +129,7 @@ export function AskOps({ compact }: { compact?: boolean }) {
             </>
           )}
           {v.status === 'error' && v.error && <p className="ask-error" role="alert" data-testid="ask-error" data-error={v.error}>{aiErrText(t, v.error)}</p>}
+          {hint && <p className="meta" data-testid="ask-error-hint">{hint}</p>}
           {v.status === 'answer' && hasActions && (
             <div className="row" data-testid="ask-actions">
               {v.kind === 'item' && v.ref && <Btn size="sm" onClick={() => openItemCard(v.ref)}>{t('ai.action.itemCard')}</Btn>}
@@ -126,6 +137,7 @@ export function AskOps({ compact }: { compact?: boolean }) {
               {qRef.startsWith('quest:') && <Btn size="sm" onClick={() => navigate('quests', 'q=' + qRef.slice(6))} data-testid="ask-open-quest">{t('ai.action.openQuest')}</Btn>}
               {qRef.startsWith('station:') && <Btn size="sm" onClick={() => navigate('workshop', qRef.slice(8))} data-testid="ask-open-station">{t('ai.action.openStation')}</Btn>}
               {raidKind && <Btn size="sm" onClick={() => navigate('raid')} data-testid="ask-open-raid">{t('ai.action.openRaid')}</Btn>}
+              {statsKind && <Btn size="sm" onClick={() => navigate('stats')} data-testid="ask-open-stats">{t('ai.action.openStats')}</Btn>}
             </div>
           )}
           {v.sources.length > 0 && v.status !== 'thinking' && (

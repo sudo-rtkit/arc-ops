@@ -7,7 +7,8 @@ import { isTauri } from '../storage/tauri';
 import type { AiProvider } from '../core/ai';
 import type { AiMessage } from '../core/aiContext';
 
-export interface AiReply { text: string; today: number }
+/* 0.32.0: retried = Rust dostal prázdnou odpověď a zkusil to jednou znovu bez reasoning_effort */
+export interface AiReply { text: string; today: number; retried?: boolean }
 export interface AiNative {
   available: boolean;
   ask(provider: AiProvider, model: string, messages: AiMessage[]): Promise<AiReply>;

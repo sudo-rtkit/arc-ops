@@ -28,7 +28,7 @@ import { applyProgress, type ProgressApply, type ProgressSummary } from '../core
 import { PIN_MAX, projectById, questById, setObjective, setQuestDone } from '../core/quests';
 import { CLOSE_ACTIONS, COMPACT_SECTIONS, QUESTS_MAX, QUESTS_MIN, normalizeMainWindow } from '../core/mainWindow';
 import { normalizeOpsPrefs, normalizeWidgetsSwitch } from '../core/opsPrefs';
-import { AI_COUNT_MAX, isAiProvider, modelOk, normalizeAsk, type AiKind, type AiProvider } from '../core/ai';
+import { AI_CONSENT_VERSION, AI_COUNT_MAX, consentCurrent, isAiProvider, modelOk, normalizeAsk, type AiKind, type AiProvider } from '../core/ai';
 import { callAiHook } from './aiHook';
 import { markSeen } from '../core/whatsnew';
 import { AUTO_LOG_MAX, AUTO_SCREENS, REVIEW_MAX, normalizeReviewEdit, type AutoCaptureState, type AutoScreenPref, type AutoWrite, type RustScreen } from '../core/autoCapture';
@@ -1328,12 +1328,17 @@ export function createApp(storage: StorageAdapter, opts: AppOptions = {}) {
         s.ai = n;
       });
     },
-    /* souhlas s tím, co se posílá a komu (čas souhlasu); odvolání souhlasu asistenta vypne */
+    /* souhlas s tím, co se posílá a komu (čas souhlasu a 0.32.0: verze seznamu údajů); souhlas se starší verzí se
+       obnoví na aktuální (znovu souhlasit), odvolání souhlasu asistenta vypne */
     aiConsent(accept: boolean) {
       change(s => {
-        if (accept === true) { if (s.ai.consentAt > 0) return false; s.ai = { ...s.ai, consentAt: now() }; return; }
+        if (accept === true) {
+          if (consentCurrent(s.ai)) return false;
+          s.ai = { ...s.ai, consentAt: now(), consentVersion: AI_CONSENT_VERSION };
+          return;
+        }
         if (!s.ai.consentAt && !s.ai.on) return false;
-        s.ai = { ...s.ai, consentAt: 0, on: false };
+        s.ai = { ...s.ai, consentAt: 0, consentVersion: 0, on: false };
       });
     },
     /* dnešní počet dotazů (místní den); volá jen obsluha AI v hlavním okně po dotazu, který došel k poskytovateli */

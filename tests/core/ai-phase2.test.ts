@@ -46,7 +46,7 @@ async function makeApp(stored: Record<string, unknown> = {}) {
 
 /* Hráč s rozpracovanými úkoly, stanicemi, aktivním plánem raidu s loadoutem a raidem v deníku s citlivou poznámkou. */
 async function player() {
-  const x = await makeApp({ inventory: { Wires: 3, Battery: 1, 'Power Cable': 1, 'Electrical Components': 5, Bandage: 2 }, ai: { consentAt: NOW, on: true } });
+  const x = await makeApp({ inventory: { Wires: 3, Battery: 1, 'Power Cable': 1, 'Electrical Components': 5, Bandage: 2 }, ai: { consentAt: NOW, consentVersion: 1, on: true } });
   const a = x.app.actions;
   a.questSet('ss10s', true);
   a.questPin('ss10y', true);
@@ -70,7 +70,7 @@ const dataOf = (m: AiMessage[]) => {
 
 describe('0.31.0: otázka nových druhů', () => {
   it('druhy z pevného výčtu; odkaz jen u úkolů a dílny (quest:<id>, station:<id>), raid a shrnutí bez odkazu', () => {
-    expect(AI_KINDS).toEqual(['free', 'item', 'advisor', 'quests', 'raid', 'postRaid']);
+    expect(AI_KINDS).toEqual(['free', 'item', 'advisor', 'quests', 'raid', 'postRaid', 'stats']);
     expect(normalizeAsk('Co mi chybí?', 'quests', '')).toEqual({ question: 'Co mi chybí?', kind: 'quests', ref: '' });
     expect(normalizeAsk('q', 'quests', 'quest:ss10y')).toEqual({ question: 'q', kind: 'quests', ref: 'quest:ss10y' });
     expect(normalizeAsk('q', 'quests', 'station:gear')).toMatchObject({ ref: 'station:gear' });
@@ -327,7 +327,7 @@ describe('0.31.0: obsluha nových druhů', () => {
       expect(ctl2.view().error).toBe('inRaid');
       expect(p.said).toEqual([]);
     }
-    for (const [stored, key, want] of [[{}, true, 'consent'], [{ ai: { consentAt: NOW } }, true, 'off'], [{ ai: { consentAt: NOW, on: true } }, false, 'noKey']] as const) {
+    for (const [stored, key, want] of [[{}, true, 'consent'], [{ ai: { consentAt: NOW, consentVersion: 1 } }, true, 'off'], [{ ai: { consentAt: NOW, consentVersion: 1, on: true } }, false, 'noKey']] as const) {
       const { app } = await makeApp(stored);
       const f = fake(key);
       const ctl = createAiController({ app, native: f.native, port: port(), now: () => NOW });

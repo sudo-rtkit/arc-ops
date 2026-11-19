@@ -1,4 +1,4 @@
-/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.31.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
+/* „Co je nového“ (0.19.0): krátké body vydání 0.10.0–0.32.0 v obou jazycích. Není to výpis CHANGELOG.md (ten se
    za běhu nečte), jen pár vět na verzi pro hráče. Nejnovější verze je první; její číslo je verze aplikace
    (test hlídá shodu s package.json, tauri.conf.json a Cargo.toml).
    link = kam bod vede (jen moduly aplikace, nic mimo ni): přehled cílů je WhatsNewLink v core/whatsnew.ts. */
@@ -9,6 +9,15 @@ export interface WhatsNewItem { text: WhatsNewText; link?: WhatsNewLink }
 export interface WhatsNewRelease { version: string; title: WhatsNewText; items: WhatsNewItem[] }
 
 export const RELEASES: readonly WhatsNewRelease[] = [
+  {
+    version: '0.32.0',
+    title: { cs: 'Zeptej se Opse na své statistiky', en: 'Ask Ops about your statistics' },
+    items: [
+      { text: { cs: 'Ve Statistics je Zeptat se Opse a u každé mapy Proč?: Ops rozebere přežití, loot, trend a série z tvého deníku raidů.', en: 'Statistics now has Ask Ops, and each map has Why?: Ops goes through survival, loot, trend and streaks from your raid journal.' }, link: 'ask' },
+      { text: { cs: 'Ke každému číslu řekne, z kolika raidů je, a když je jich málo, řekne to rovnou. Čísla dál počítá aplikace.', en: 'With every number he says how many raids it is from, and says so plainly when there are too few. The app still computes the numbers.' }, link: 'ask' },
+      { text: { cs: 'Seznam toho, co se posílá, se rozšířil, takže tě Ops jednou požádá o nový souhlas v Nastavení → AI asistent.', en: 'The list of what is sent has grown, so Ops asks you once to agree again in Settings → AI assistant.' }, link: 'aiSettings' },
+    ],
+  },
   {
     version: '0.31.0',
     title: { cs: 'Zeptej se Opse na úkoly, dílnu a raid', en: 'Ask Ops about quests, the workshop and your raid' },
